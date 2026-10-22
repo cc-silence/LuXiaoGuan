@@ -14,7 +14,8 @@ def seed_assets(target):
     for name in ("images","themes","bin"):
         shutil.copytree(ROOT/name,target/name,ignore=shutil.ignore_patterns("__pycache__","*.pyc","*.log","*.tmp","update_launcher"))
     config=target/"config";config.mkdir()
-    settings=configparser.ConfigParser();settings.read(ROOT/"config/settings.ini",encoding="utf-8")
+    from modules.config_manager import ConfigManager
+    settings=configparser.ConfigParser();settings.read_dict(ConfigManager.DEFAULTS)
     settings.remove_section("winbox_meta")
     settings.set("ui", "scale", "100")
     with (config/"settings.ini").open("w",encoding="utf-8") as out:settings.write(out)

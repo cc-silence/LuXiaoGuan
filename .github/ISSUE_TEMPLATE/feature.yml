@@ -1,0 +1,24 @@
+name: 功能与开发任务
+description: 提出需求或认领开发任务
+title: "[Task] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 要解决什么问题
+      description: 描述用户会遇到的场景。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 怎样算完成
+      description: 写明预期行为、兼容要求和验收方式。
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 涉及范围与分工
+      description: 可以说明计划改哪些模块、希望谁参与，以及需要讨论的地方。

@@ -46,7 +46,7 @@ class FolderTests(unittest.TestCase):
             self.assertFalse(controls.open_button.isHidden())
             with patch("modules.main_pages.packet_capture.openwrt.common_bundle_controls.QDesktopServices.openUrl",return_value=True) as opened:
                 controls._open_location()
-                self.assertEqual(Path(opened.call_args.args[0].toLocalFile()),Path(folder))
+                self.assertTrue(Path(opened.call_args.args[0].toLocalFile()).samefile(folder))
             controls.set_light_theme(True);controls.set_light_theme(False)
             service.local_status={"installed":False};service.changed.emit()
             self.assertTrue(controls.open_button.isHidden())

@@ -14,7 +14,7 @@
     首次点击后调 set_guided_mode(False) 停用，适合"全部检测"引导点击。
 """
 
-from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRectF
+from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRectF, Slot
 from PySide6.QtGui import QPainter, QColor, QLinearGradient, QPen, QBrush
 from PySide6.QtWidgets import QPushButton, QStyleOptionButton, QStyle, QGraphicsOpacityEffect
 
@@ -154,6 +154,7 @@ class SweepButton(QPushButton):
     def _should_loop(self):
         return self._always_sweep or self.width() > self._LOOP_MIN_WIDTH
 
+    @Slot()
     def _tick(self):
         duration = self._duration()
         self._sweep_pos += 16.0 / duration

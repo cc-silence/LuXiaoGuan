@@ -24,3 +24,6 @@ python main.py
 ## 源码范围
 
 仓库包含程序源码、界面资源、测试、原生组件及构建和发布脚本。本机配置、路由器数据、发布凭证、下载的依赖和构建缓存由 `.gitignore` 排除。
+
+
+[参与开发](CONTRIBUTING.md) · [自动检查](https://github.com/cc-silence/LuXiaoGuan/actions/workflows/ci.yml)

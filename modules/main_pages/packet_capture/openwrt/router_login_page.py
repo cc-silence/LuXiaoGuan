@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt, QTimer, Signal, QSignalBlocker
 from PySide6.QtWidgets import QHBoxLayout, QLayout, QSizePolicy, QVBoxLayout, QWidget
 
 from modules.main_pages.packet_capture.ui_helpers import create_capture_card
+from modules.common_widgets.natural_height_layout import NaturalHeightVBoxLayout
 from .connection_section import ConnectionSection
 from .dependency_section import DependencySection
 from .device_status_panel import DeviceStatusPanel
@@ -37,7 +38,7 @@ class RouterLoginPage(QWidget):
         content.setObjectName("openwrtLoginContent")
         # 内容高度不参与压缩，避免折叠动画期间先挤压上方卡片再回位。
         content.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
-        root = QVBoxLayout(content)
+        root = NaturalHeightVBoxLayout(content)
         # 内容最小尺寸随布局同步更新，防止滚动区在展开帧中临时压缩上方卡片。
         root.setSizeConstraint(QLayout.SetMinimumSize)
         root.setContentsMargins(0, 0, 0, 0)

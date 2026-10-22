@@ -39,14 +39,19 @@ class LoginCollapseLayoutTests(unittest.TestCase):
                     section.header_button.mapTo(self.page.scroll_area.viewport(), QPoint()).y())
         before = state()
         frames = []
+        geometry = []
         section.header_button.click()
         deadline = time.monotonic() + .3
         while time.monotonic() < deadline:
             APP.processEvents()
             frames.append(state())
+            content = self.page.scroll_area.widget()
+            geometry.append((content.height(), content.minimumHeight(), content.minimumSizeHint().height(),
+                             self.page.dependencies.card.height(), self.page.dependencies.card.minimumSizeHint().height(),
+                             section.height(), section.minimumSizeHint().height(), section.content_frame.maximumHeight()))
             self.settle(8)
         self.assertGreater(len(frames), 1)
-        self.assertEqual(set(frames), {before}, f"Animated layout compressed or scrolled: {before} -> {frames}")
+        self.assertEqual(set(frames), {before}, f"Animated layout compressed or scrolled: {before} -> {frames}; geometry={geometry}")
         self.assertTrue(section._expanded)
         self.assertTrue(section.content_frame.isVisible())
         self.assertGreater(section.content_frame.height(), 0)

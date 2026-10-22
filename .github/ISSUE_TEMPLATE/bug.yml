@@ -1,0 +1,36 @@
+name: 问题反馈
+description: 报告可复现的软件问题
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: 软件版本
+      placeholder: 例如 1.0.11_alpha
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: 出问题的功能
+      options: [路由器登录与依赖, 信号管理与无线桥接, 抓包, 文件管理, 终端, 设置与更新, 其他]
+    validations:
+      required: true
+  - type: input
+    id: router
+    attributes:
+      label: 路由器型号与官方 OpenWrt 完整版本
+      description: 涉及路由器时填写；当前兼容范围为官方 19.07、21.02、22.03、23.05、24.10、25.12。
+  - type: textarea
+    id: steps
+    attributes:
+      label: 怎样能重现
+      description: 写明操作步骤、预期结果和实际结果。
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 截图和反馈日志
+      description: 可拖入软件导出的反馈日志；提交前移除密码、密钥和个人网络信息。

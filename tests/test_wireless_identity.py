@@ -31,7 +31,7 @@ class IdentityDevice(LuaDevice):
 
 class IdentityModelTests(unittest.TestCase):
     def test_reference_profiles_and_generation(self):
-        source = Path(__file__).resolve().parents[2] / "\u53c2\u8003" / "mac.txt"
+        source = Path(__file__).resolve().parent / "fixtures" / "identity_profiles.txt"
         profiles, rejected = parse_profiles(source.read_text(encoding="utf-8-sig"))
         self.assertFalse(rejected)
         self.assertEqual(tuple((p.label, p.hostname, p.prefix) for p in profiles), PROFILES)

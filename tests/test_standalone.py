@@ -51,7 +51,7 @@ class StandaloneTests(unittest.TestCase):
         cls.mirror.stop();cls.env.stop();cls.temp.cleanup()
 
     def test_01_identity_and_config_isolation(self):
-        self.assertEqual(BASE_DIR.name,'RouterManager_python')
+        self.assertEqual(BASE_DIR, Path(__file__).resolve().parents[1])
         self.assertTrue(SingleInstanceController._build_server_name().startswith('RouterManager.'))
         self.assertEqual(local_gpo_firewall.STARTUP_OWNER,'routermanager-startup')
         self.assertIn('RouterManager',local_gpo_firewall.OWNER_DESCRIPTION_PREFIX)

@@ -18,6 +18,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / "build/compatibility-audit")
     parser.add_argument("--timeout", type=int, default=120)
+    parser.add_argument("--workers", type=int, choices=range(1, 5), default=2)
     parser.add_argument("modules", nargs="*")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
@@ -31,7 +32,10 @@ def main():
             env.update(QT_QPA_PLATFORM="offscreen", PYTHONIOENCODING="utf-8",
                        ROUTERMANAGER_USER_CONFIG_DIR=str(Path(temporary) / "user"))
             try:
-                result = subprocess.run([sys.executable, "-m", "unittest", module, "-q"], cwd=ROOT,
+                diagnostic = ("import faulthandler,unittest; "
+                              f"faulthandler.dump_traceback_later({max(1, args.timeout-10)}); "
+                              f"unittest.main(module={module!r}, argv=[{module!r}, '-q'])")
+                result = subprocess.run([sys.executable, "-c", diagnostic], cwd=ROOT,
                     env=env, capture_output=True, timeout=args.timeout,
                     creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
                 output = (result.stdout + result.stderr).decode("utf-8", errors="replace")
@@ -49,7 +53,7 @@ def main():
         print(module + " " + status + " (" + str(row["tests"]) + " tests)", flush=True)
         return row
     rows = []
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    with ThreadPoolExecutor(max_workers=args.workers) as pool:
         for future in as_completed([pool.submit(execute, module) for module in modules]):
             rows.append(future.result())
             report = dict(created_at=datetime.now(timezone.utc).isoformat(),
