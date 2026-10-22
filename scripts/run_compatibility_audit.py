@@ -31,7 +31,10 @@ def main():
             env.update(QT_QPA_PLATFORM="offscreen", PYTHONIOENCODING="utf-8",
                        ROUTERMANAGER_USER_CONFIG_DIR=str(Path(temporary) / "user"))
             try:
-                result = subprocess.run([sys.executable, "-m", "unittest", module, "-q"], cwd=ROOT,
+                diagnostic = ("import faulthandler,unittest; "
+                              f"faulthandler.dump_traceback_later({max(1, args.timeout-10)}); "
+                              f"unittest.main(module={module!r}, argv=[{module!r}, '-q'])")
+                result = subprocess.run([sys.executable, "-c", diagnostic], cwd=ROOT,
                     env=env, capture_output=True, timeout=args.timeout,
                     creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
                 output = (result.stdout + result.stderr).decode("utf-8", errors="replace")

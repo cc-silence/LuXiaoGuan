@@ -10,6 +10,7 @@ from uuid import uuid4
 from modules.config_manager import BASE_DIR
 from modules.release_identity import APPLICATION_EXECUTABLES, DISPLAY_NAME
 from .windows_user_paths import current_user_desktop
+from .desktop_shortcut_native import SHELL_LINK_SOURCE
 
 SHORTCUT_NAME = DISPLAY_NAME + ".lnk"
 DESCRIPTION = "LuXiaoGuan Desktop"
@@ -71,7 +72,9 @@ if (!(Test-Path -LiteralPath ([IO.Path]::GetDirectoryName($p.path)) -PathType Co
 foreach ($required in $p.required_paths) {
     if (!(Test-Path -LiteralPath $required -PathType Leaf)) { throw ('Required application file is unavailable: '+$required) }
 }
-$ws = New-Object -ComObject WScript.Shell
+Add-Type -TypeDefinition @'
+__NATIVE_SOURCE__
+'@
 function Fingerprint($path) {
     $stream = [IO.File]::OpenRead($path)
     $hash = [Security.Cryptography.SHA256]::Create()
@@ -81,10 +84,10 @@ function Fingerprint($path) {
 function Read-Link($path) {
     if (Test-Path -LiteralPath $path) {
         if (!(Test-Path -LiteralPath $path -PathType Leaf)) { throw 'Shortcut path is not a file' }
-        $s = $ws.CreateShortcut($path)
-        return [ordered]@{exists=$true;target=$s.TargetPath;arguments=$s.Arguments;
-            working_directory=$s.WorkingDirectory;icon=$s.IconLocation;description=$s.Description;
-            fingerprint=(Fingerprint $path)}
+        $data = [RouterShellLinkUnicode]::Read($path)
+        $data['exists'] = $true
+        $data['fingerprint'] = Fingerprint $path
+        return $data
     }
     return [ordered]@{exists=$false;fingerprint=''}
 }
@@ -96,13 +99,8 @@ if ($p.operation -eq 'inspect') {
     $temp = $p.temporary
     if (Test-Path -LiteralPath $temp) { throw 'Shortcut temporary file already exists' }
     try {
-        $s = $ws.CreateShortcut($temp)
-        $s.TargetPath = $p.target
-        $s.Arguments = $p.arguments
-        $s.WorkingDirectory = $p.working_directory
-        $s.IconLocation = $p.icon
-        $s.Description = $p.description
-        $s.Save()
+        [RouterShellLinkUnicode]::Save($temp, $p.target, $p.arguments,
+            $p.working_directory, $p.icon, $p.description)
         $verified = Read-Link $temp
         foreach ($key in @('target','arguments','working_directory','icon','description')) {
             if ($verified[$key] -ne $p.$key) { throw ('Shortcut verification failed: '+$key) }
@@ -138,6 +136,6 @@ def shell_arguments(spec, operation, observed=None, replace_foreign=False, tempo
                    icon=spec.icon, description=DESCRIPTION,
                    fingerprint=(observed or {}).get("fingerprint", ""))
     encoded = base64.b64encode(json.dumps(payload).encode("utf-8")).decode("ascii")
-    script = _SCRIPT.replace("__PAYLOAD__", encoded)
+    script = _SCRIPT.replace("__PAYLOAD__", encoded).replace("__NATIVE_SOURCE__", SHELL_LINK_SOURCE)
     command = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
     return ["-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-EncodedCommand", command]
