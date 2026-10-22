@@ -76,3 +76,11 @@
 - After a verified offline ZIP is delivered into dist, delete its reproducible staging objects, downloaded index cache and byte-identical staged ZIP copies. Keep the delivered ZIP and support records.
 - Never weaken source-bytecode verification or disable clean builds to save disk. Never remove outside build, follow directory links, delete running build data, or treat source, credentials and user data as disposable cache.
 - This local one-build policy does not change the independent online channel retention rules.
+
+
+## GitHub 协作流程
+
+- 在独立分支修改，通过 PR 合入 main；提交前阅读 CONTRIBUTING.md。协作者的改动由 @cc-silence 审核，最终由负责人合并。
+- PR 必须通过 collaboration-gate，包括源码检查和 Windows 完整离线回归。CI 不持有路由器或发布凭证，不执行正式发布；真实屏幕绘制和路由器真机验证按交付范围另外记录。
+- main 禁止强制覆盖和删除。负责人自己的 PR 可免去自己审核自己的要求，但仍须通过全部自动检查。
+- GitHub 规则的版本化配置位于 .github/rulesets/；修改后由负责人核对并同步后台设置，不能只改文档宣称规则已生效。
