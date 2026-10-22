@@ -18,6 +18,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / "build/compatibility-audit")
     parser.add_argument("--timeout", type=int, default=120)
+    parser.add_argument("--workers", type=int, choices=range(1, 5), default=2)
     parser.add_argument("modules", nargs="*")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
@@ -52,7 +53,7 @@ def main():
         print(module + " " + status + " (" + str(row["tests"]) + " tests)", flush=True)
         return row
     rows = []
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    with ThreadPoolExecutor(max_workers=args.workers) as pool:
         for future in as_completed([pool.submit(execute, module) for module in modules]):
             rows.append(future.result())
             report = dict(created_at=datetime.now(timezone.utc).isoformat(),

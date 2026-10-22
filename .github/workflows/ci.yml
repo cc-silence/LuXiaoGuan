@@ -49,7 +49,7 @@ jobs:
       - name: Verify Lua 5.1 is installed
         run: python -c "from lupa.lua51 import LuaRuntime; assert LuaRuntime().eval('_VERSION') == 'Lua 5.1'"
       - name: Run all offline test modules
-        run: python scripts/run_compatibility_audit.py --output build/ci --timeout 120
+        run: python scripts/run_compatibility_audit.py --output build/ci --timeout 120 --workers 1
       - name: Validate complete audit and expected skips
         run: python scripts/ci_repository_check.py --audit-summary build/ci/summary.json
       - name: Save bounded test evidence
