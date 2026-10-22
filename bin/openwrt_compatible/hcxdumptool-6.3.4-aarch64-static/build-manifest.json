@@ -1,0 +1,29 @@
+{
+  "version": "6.3.4",
+  "source_url": "https://github.com/ZerBea/hcxdumptool/tree/6.3.4",
+  "source_sha256": "a45140960bd5de28085d549e1a9ccf2c08af143984a138c28ac4092c6a52a5d2",
+  "compiler": "Zig 0.13.0",
+  "compiler_sha256": "d859994725ef9402381e557c60bb57497215682e355204d754ee3df75ee3c158",
+  "target": "aarch64-linux-musl",
+  "cpu": "cortex_a53",
+  "binary_sha256": "6a49782c3cf4a122d3efc03bcdadbb70a2dc698d47b0c92b7f28b750f96969e7",
+  "binary_size": 164040,
+  "flags": [
+    "-static",
+    "-O2",
+    "-s",
+    "-std=gnu99",
+    "VERSION_TAG=6.3.4",
+    "VERSION_YEAR=2024",
+    "HCXSTATUSOUT",
+    "HCXNMEAOUT"
+  ],
+  "disabled_optional_feature": "HCXWANTLIBPCAP; WinBox supplies precompiled numeric BPF",
+  "match": {
+    "release": "23.05.5",
+    "target": "mediatek/filogic",
+    "package_architecture": "aarch64_cortex-a53",
+    "kernel_min": "5.15"
+  },
+  "runtime_wireless_validation": "required on the actual router before use"
+}

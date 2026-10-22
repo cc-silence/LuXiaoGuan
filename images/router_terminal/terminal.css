@@ -1,0 +1,13 @@
+html,body {height:100%;margin:0;overflow:hidden;background:transparent}
+#terminal {height:100%;box-sizing:border-box;padding:8px;border-radius:6px;overflow:hidden;background:var(--terminal-background)}
+.xterm {height:100%}
+
+.xterm-viewport::-webkit-scrollbar {width:8px}
+.xterm-viewport::-webkit-scrollbar-track {background:transparent}
+.xterm-viewport::-webkit-scrollbar-thumb {background:rgba(127,139,153,.4);border-radius:4px}
+.xterm-viewport::-webkit-scrollbar-thumb:hover {background:rgba(127,139,153,.65)}
+
+body {--terminal-background:#1d2126;--terminal-foreground:#f4f6f8;--terminal-selection:#26364c}
+
+
+.xterm .xterm-viewport {cursor:default}

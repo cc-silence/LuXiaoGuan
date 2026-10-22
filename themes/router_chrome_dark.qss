@@ -1,0 +1,69 @@
+/* Main-window frame only; settings rules stay on the settings frame. */
+#settingsWindowFrame {
+	background-color: #181b1f;
+	border: 1px solid #2a2f36;
+	border-radius: 8px;
+}
+
+#settingsTitleBar {
+	background-color: #111315;
+	border-bottom: 1px solid #2a2f36;
+	border-top-left-radius: 8px;
+	border-top-right-radius: 8px;
+}
+
+#settingsWindowTitle {
+	background-color: transparent;
+	border: none;
+	color: rgb(221, 221, 221);
+	font: 12pt "Microsoft YaHei", "Segoe UI Semibold";
+}
+
+#settingsTitleButtons {
+	background-color: transparent;
+	border: none;
+}
+
+#settingsTitleButtons QPushButton#settingsCloseBtn {
+	background-color: transparent;
+	background-image: none;
+	background-position: center;
+	background-repeat: no-repeat;
+	border: none;
+	border-radius: 5px;
+	padding: 0px;
+	margin: 0px;
+	min-width: 28px;
+	max-width: 28px;
+	min-height: 28px;
+	max-height: 28px;
+}
+
+#settingsTitleButtons QPushButton#settingsCloseBtn:hover {
+	background-color: #24282e;
+	background-image: none;
+	background-position: center;
+	background-repeat: no-repeat;
+	border: none;
+	border-radius: 4px;
+}
+
+#settingsTitleButtons QPushButton#settingsCloseBtn:pressed {
+	background-color: rgb(23, 26, 30);
+	background-image: none;
+	background-position: center;
+	background-repeat: no-repeat;
+	border: none;
+	border-radius: 4px;
+}
+
+
+#settingsTitleButtons QPushButton { background: transparent; background-image: none; border: none; border-radius: 5px; padding: 0; margin: 0; min-width: 28px; max-width: 28px; min-height: 28px; max-height: 28px; }
+#settingsTitleButtons QPushButton:hover { background-color: #24282e; }
+#settingsTitleButtons QPushButton:pressed { background-color: #171a1e; }
+
+#routerMainLogo { background: transparent; border: none; }
+#leftMenuBg { border-top-left-radius: 0px; }
+
+#routerEmbeddedSettings { background: #181b1f; border: none; border-radius: 0px; }
+#routerMainLogo { border-right: 1px solid #303741; }

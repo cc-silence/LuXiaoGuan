@@ -1,0 +1,1285 @@
+{
+  "source": "WinBox_python",
+  "files": [
+    {
+      "path": "modules/__init__.py",
+      "sha256": "83b4c17559a183808a36ca6f401cb97b0b14d1706c2f10887f17d611064c6c0e"
+    },
+    {
+      "path": "modules/app_settings.py",
+      "sha256": "18e924ce86a37fdf9ff1dbdf5eaee10be81468f9e605c968528efcdd25e5b532"
+    },
+    {
+      "path": "modules/app_update_services/__init__.py",
+      "sha256": "c5a8517c5c5e95e3d8a59af119166016f8066af5d74fc3f34239b55fb776edd9"
+    },
+    {
+      "path": "modules/app_update_services/cache.py",
+      "sha256": "1b66d096da3555dfe9cf36bd38cdba286c923d5d77066f7137366346b7f628dc"
+    },
+    {
+      "path": "modules/app_update_services/catalog.py",
+      "sha256": "f6ed04113fb4ef667fb5f005c14d5a81dc01f8989446d5577c66dd6c07b3fd2c"
+    },
+    {
+      "path": "modules/app_update_services/checker.py",
+      "sha256": "e9a0490875d9d3c21ede6c1878c9210bf674f452dc5ee705741404d1ae579cba"
+    },
+    {
+      "path": "modules/app_update_services/installer.py",
+      "sha256": "83d20b54301294846263f1852dcc9543b03fd6d509d4818bd581d9082f1a961f"
+    },
+    {
+      "path": "modules/app_update_services/manifest.py",
+      "sha256": "b0a1e4e0b72b20afb352d530ab6340e77bcf20a55d203c85e1c6e567a3002cdb"
+    },
+    {
+      "path": "modules/app_update_services/planner.py",
+      "sha256": "6e24a5940155cf1d189e8c6192d21e5ec2820f566436f86b6bf228b196705aa3"
+    },
+    {
+      "path": "modules/app_update_services/transaction.py",
+      "sha256": "a67bab8ba633d24b37f9951d76184bbe98a08b3796b4cc9bb47b357049dae65f"
+    },
+    {
+      "path": "modules/app_update_services/transfer.py",
+      "sha256": "8200381fe8935a89cf6d1fc5955b8f8af3c29c556dc8f91460dc6f4c875e403c"
+    },
+    {
+      "path": "modules/app_update_services/trust.py",
+      "sha256": "23e99b20f5fbef8bd919aa1320e1374238982892c4033f8bcfe15edfd808bdc9"
+    },
+    {
+      "path": "modules/cache_maintenance.py",
+      "sha256": "00b0a7c73ad016d53ea3881830429eb7f59febee34fcd3c5a193a0d3c57cae94"
+    },
+    {
+      "path": "modules/capture_services/__init__.py",
+      "sha256": "84265aa6daa5a7269eaf6e65c0656830085a55d697cda8aec3900047438c3981"
+    },
+    {
+      "path": "modules/capture_services/auto_handshake.py",
+      "sha256": "73b192d3d33475478e4651f897ea794e096e7bad9869b34f64c4f13533b930ba"
+    },
+    {
+      "path": "modules/capture_services/auto_handshake_service.py",
+      "sha256": "3d5572fab9baf5beffd9f393c9fb0729d5616af9e5048c85e0b549eb8e6337a2"
+    },
+    {
+      "path": "modules/capture_services/backends/__init__.py",
+      "sha256": "cc180f0101df0c0d728cd1ad33855ff4369da7aa4124639e9fba1ec1947e4a0a"
+    },
+    {
+      "path": "modules/capture_services/backends/base.py",
+      "sha256": "ffa8cfe747186ff2841bc908df576b3f302f997638f2c8ecc62f92d1f6ca6a23"
+    },
+    {
+      "path": "modules/capture_services/backends/openwrt_backend.py",
+      "sha256": "bb0bcd5706faec4d766a30678117eea7b4e69292e721bd524364106511dd655e"
+    },
+    {
+      "path": "modules/capture_services/backends/windows_wifi_backend.py",
+      "sha256": "3415e25285f27e34c1fcb815e6a4e7b7bece3c6f4f84b62497a59f2719cb4450"
+    },
+    {
+      "path": "modules/capture_services/capture_logging.py",
+      "sha256": "2bab480c56f9cd1adef697546ba74a482055f280690e1fe87c9aea4ef7ef661d"
+    },
+    {
+      "path": "modules/capture_services/capture_service.py",
+      "sha256": "3fad7587346ae06c4aa329f6e13592cb3f5ee4959b9005488daeceb88e523c1e"
+    },
+    {
+      "path": "modules/capture_services/common_bundle_service.py",
+      "sha256": "25bbae1e0df793cc6875387b33f8a5f6dbbf2d30d5d996f0954406242b046af8"
+    },
+    {
+      "path": "modules/capture_services/dependency_service.py",
+      "sha256": "be401b76ff835f018ec7f73e71383c7af06a9a3e45afef5dc6352f602ad4e1f1"
+    },
+    {
+      "path": "modules/capture_services/dictionary_preview.py",
+      "sha256": "5c0db7906f37de3fe48149e3587aa064889d6e2857293758e8835c5e643cec63"
+    },
+    {
+      "path": "modules/capture_services/handshake_processing.py",
+      "sha256": "5e796ab2acc1c8878422bba57a684cd0bc6d2a262a89d6029716fb48264c2fa8"
+    },
+    {
+      "path": "modules/capture_services/local_cache_cleanup.py",
+      "sha256": "e101d231d8b1373ed4160dcee5c54bc17158ed7ec16736a12f36ce297935d5a0"
+    },
+    {
+      "path": "modules/capture_services/models.py",
+      "sha256": "02e9bcba7ff19f177e667b3e465eecb9bb2c6023d74e5396b49d32519fe394b0"
+    },
+    {
+      "path": "modules/capture_services/openwrt/__init__.py",
+      "sha256": "61f7017c79f855399915043c31bf0a72eb7fadef9c8d0da2f9bbcc6268e099e8"
+    },
+    {
+      "path": "modules/capture_services/openwrt/apk_offline.py",
+      "sha256": "58a4f6000797e068bd4ed62f41604a08fbb443277aa27f94fb81d686e2e94d1e"
+    },
+    {
+      "path": "modules/capture_services/openwrt/apk_package_feed.py",
+      "sha256": "44ff7b02ec2b2edb6e03f713402caf48851194cdf838cd189cfb1aff628e879f"
+    },
+    {
+      "path": "modules/capture_services/openwrt/bundle_specs.py",
+      "sha256": "624729176cf19c770fd6103f5aef3718a683da560a3a904ab964e342b2ca1095"
+    },
+    {
+      "path": "modules/capture_services/openwrt/bundled_compatible_tool.py",
+      "sha256": "25fa6daea979e5789e23b7b3eb997a9e37b3cb32d35245953ba494c4e568df2c"
+    },
+    {
+      "path": "modules/capture_services/openwrt/bundled_signal_packages.py",
+      "sha256": "debc042e4dc02e554a558e3b3e1b707896cce114078703aa2172839672d3d5c9"
+    },
+    {
+      "path": "modules/capture_services/openwrt/capture_capacity.py",
+      "sha256": "6ccddb8c3b35dc452578f8dc240f3ca7d7e24eb03141bc9f3425806bf1c429c6"
+    },
+    {
+      "path": "modules/capture_services/openwrt/channel_capture.py",
+      "sha256": "6de74d9594aafbc4ed623cd9a49ae9954271561288670af66e98fc4c1a15c6f7"
+    },
+    {
+      "path": "modules/capture_services/openwrt/command_builder.py",
+      "sha256": "7bc12729364f6b23ce481228464eca65b0f5e9a8b64b86c133cb3362a4856dd7"
+    },
+    {
+      "path": "modules/capture_services/openwrt/command_runner.py",
+      "sha256": "4cb41ed3685e6253172434ff11d758a04d50afff2ef49de4ec0eed4106111479"
+    },
+    {
+      "path": "modules/capture_services/openwrt/common_bundle_download.py",
+      "sha256": "de31c872676576eafc9ff1ab7bcf74e53a55f2f278ef0f7f343c9702144b7912"
+    },
+    {
+      "path": "modules/capture_services/openwrt/common_bundle_installer.py",
+      "sha256": "552c0262fcd485cf70b3e9f387c9a37232a48f50e1b9f43ce366ef969bfd7b25"
+    },
+    {
+      "path": "modules/capture_services/openwrt/common_bundle_manifest.py",
+      "sha256": "ce9aa400e0a7f0c8a8d12ea4417849725f1c5d2f3980f4dd1882561c859582c2"
+    },
+    {
+      "path": "modules/capture_services/openwrt/common_bundle_repository.py",
+      "sha256": "cc0e921bd8b303399f4b194160f680344772ecd1085b74735b507ad85724baa5"
+    },
+    {
+      "path": "modules/capture_services/openwrt/common_tool_dependencies.py",
+      "sha256": "6e245f6b20dad01cfd68caa0b4d4df77b2f19d2e5b2b4a53447371ba4ba60769"
+    },
+    {
+      "path": "modules/capture_services/openwrt/compatible_store.py",
+      "sha256": "497b85b73562f902900755d5c6e6e63bdb29008645bcafd768e46a9fb0620198"
+    },
+    {
+      "path": "modules/capture_services/openwrt/compatible_tool.py",
+      "sha256": "eb99ef2c5c33b14e205508d58ff141009d4eca0236aac0838ecabd4688bc57b8"
+    },
+    {
+      "path": "modules/capture_services/openwrt/dependency_manager.py",
+      "sha256": "945bedc2aac79fde62b22c7d1315021fdd3614ed9629f48068bdbb922b8300e0"
+    },
+    {
+      "path": "modules/capture_services/openwrt/dependency_resolution.py",
+      "sha256": "4a197932eed8e2ff59aaf89503f5377e30ce3175507b238cd065621c2710827b"
+    },
+    {
+      "path": "modules/capture_services/openwrt/device_identity.py",
+      "sha256": "71eb4540015e3975b9232a57ff6515b7da6a8248e9aed3791c6f89063e419131"
+    },
+    {
+      "path": "modules/capture_services/openwrt/device_probe.py",
+      "sha256": "b5bb715238ffae52acb6409d6b32bf1b210d29b3671c2f5dd2395c140d69eeba"
+    },
+    {
+      "path": "modules/capture_services/openwrt/diagnostic_context.py",
+      "sha256": "22129eb82e389f00cb4b2310b82346d3ac4df780cbf31ca97fcfc05a3a0c22f2"
+    },
+    {
+      "path": "modules/capture_services/openwrt/handshake_capture.py",
+      "sha256": "889182d99750851cc9efa675e05abaa6b554cabfd3818ed270bf177e24684075"
+    },
+    {
+      "path": "modules/capture_services/openwrt/hcx_capabilities.py",
+      "sha256": "f48f6ceb1c79bec8b39d1f591562017d7740aa2de01ecd63de24ae2b785506b8"
+    },
+    {
+      "path": "modules/capture_services/openwrt/hcx_filter.py",
+      "sha256": "9e82e6ef5b707bc800d53e6a0f25f428402b1d43d3f90de762dedd317988af15"
+    },
+    {
+      "path": "modules/capture_services/openwrt/models.py",
+      "sha256": "9b38b266285a9258cfbc2f217e98be51a82904a04236d2d3a77abaaa3afd3d0f"
+    },
+    {
+      "path": "modules/capture_services/openwrt/offline_package_repository.py",
+      "sha256": "4ed787c7603c70ab09423e051be2e83c0eb69b237988584a82ea2a4e8d087b53"
+    },
+    {
+      "path": "modules/capture_services/openwrt/package_manager.py",
+      "sha256": "370f0e68e32011b6e3817f3b186d5ff05e5262c9310cb2076f6d3bed2f04b472"
+    },
+    {
+      "path": "modules/capture_services/openwrt/package_space.py",
+      "sha256": "f57f3a4d26b4c6032970acfaf8acbacc885fcf61f79dbd32edecde2d05b78211"
+    },
+    {
+      "path": "modules/capture_services/openwrt/password_reporting.py",
+      "sha256": "9603290529da2605d506922a400392cffd49ae77f8dd135a8f2c33057b2e2575"
+    },
+    {
+      "path": "modules/capture_services/openwrt/password_verification.py",
+      "sha256": "37cc68e50727a12f320687b811fc1fa59d64bb6b4a6f594f5a595769f9dc1875"
+    },
+    {
+      "path": "modules/capture_services/openwrt/pmkid_capture.py",
+      "sha256": "0da982ae2a0b903eebf7f6bd65779b3026e4b95b36c6a30fb8306165e54daf0f"
+    },
+    {
+      "path": "modules/capture_services/openwrt/process_lease.py",
+      "sha256": "5b5aa608153113b3a467fefe8a4ff5fa8732aa9e872099e6c07a8d7104fe7789"
+    },
+    {
+      "path": "modules/capture_services/openwrt/process_output.py",
+      "sha256": "c8cedacfb461d0b13e6d232849c1302673edf88b71b92802d52687b8907c1ae6"
+    },
+    {
+      "path": "modules/capture_services/openwrt/radio_identity.py",
+      "sha256": "0eed495a334a4bc71d0a8d3fe949d2d46c2e40bca9c86cf45406dc2776770b4e"
+    },
+    {
+      "path": "modules/capture_services/openwrt/radio_policy.py",
+      "sha256": "d76b1861629e2591a788c6c1e8dcfa6d0783dcda50c8e22d0dc4e6d2af35f866"
+    },
+    {
+      "path": "modules/capture_services/openwrt/radio_session.py",
+      "sha256": "ec4798d76ae5f07ec242d7e8786e6a98544fecad387a45b3814a2305148ba21c"
+    },
+    {
+      "path": "modules/capture_services/openwrt/radio_takeover.py",
+      "sha256": "285134acd41e82f2699987fd87b575ba96a03d9a8a1aea8b2c3c3ca18fab8d28"
+    },
+    {
+      "path": "modules/capture_services/openwrt/reconnect_cleanup.py",
+      "sha256": "2347adf43dfc70f04ff8fba501dd957358e330e4a90506bef45ed91547d706b4"
+    },
+    {
+      "path": "modules/capture_services/openwrt/remote_process.py",
+      "sha256": "b7e94af38a70c768cd4edd5cd30fb7b9dab2df08ebc7fd8d09c05a3493ddf9b7"
+    },
+    {
+      "path": "modules/capture_services/openwrt/remote_resources.py",
+      "sha256": "2bff185cbf8c69f654038f6641ef05563719935a602155745f51b680699f8611"
+    },
+    {
+      "path": "modules/capture_services/openwrt/result_converter.py",
+      "sha256": "dcc8f3b2945b5b1ef444555389dad0660d708c2daeabd4bdfe1c0b114d4a8075"
+    },
+    {
+      "path": "modules/capture_services/openwrt/router_directory_transfer.py",
+      "sha256": "768ec2be77cf0c66eefdd40276be3cabec04ef311f8f5987246640722cd655ea"
+    },
+    {
+      "path": "modules/capture_services/openwrt/router_management.py",
+      "sha256": "2122421043f2cbde72124d158436d88d2ec9f7ad057cc97db4eeb6c92856a3f9"
+    },
+    {
+      "path": "modules/capture_services/openwrt/session_journal.py",
+      "sha256": "217ceb79b3ff52b86d58d8e02c1d79bce31dfe80974695e3a27a23965003db36"
+    },
+    {
+      "path": "modules/capture_services/openwrt/signal_commands.py",
+      "sha256": "f4d842abcc2c042dbc70f1eab0bb1b27de41450cd7c9c2e427d6b0602367f31c"
+    },
+    {
+      "path": "modules/capture_services/openwrt/signal_detail_commands.py",
+      "sha256": "0d63558029b29c1d52855af6eb74e4d575b9826bdc6984c32045f499b86767e2"
+    },
+    {
+      "path": "modules/capture_services/openwrt/signal_details.py",
+      "sha256": "089c66bb15ad5a8085ac476fcd0d607f3610fe50c6b846dc31bc24eeee2c5e75"
+    },
+    {
+      "path": "modules/capture_services/openwrt/signal_manager.py",
+      "sha256": "9173bdbd8e7a35925480fd9a7ae549b9564a6501e9a6ffc90e89c47be31e70bb"
+    },
+    {
+      "path": "modules/capture_services/openwrt/signal_models.py",
+      "sha256": "97048e6021eb08c19ffae46eecd35638752202efbdd30e65556d4c65686fe9e4"
+    },
+    {
+      "path": "modules/capture_services/openwrt/signal_package_feed.py",
+      "sha256": "0361272df998700b2d1f179269734d021f2fb9466a1c34d4379fe66bd38a3019"
+    },
+    {
+      "path": "modules/capture_services/openwrt/ssh_client.py",
+      "sha256": "7698c888c2f77326be66291df210e8eda51fd0dedb601a7bf86802bee4de0091"
+    },
+    {
+      "path": "modules/capture_services/openwrt/takeover_config.py",
+      "sha256": "e92c7f8b5de5eddaa9c5e5b0c5b85d2141931a81c279219a0f5341a3b3e87ba7"
+    },
+    {
+      "path": "modules/capture_services/openwrt/wifi_scanner.py",
+      "sha256": "6576cea5a0063b1dd4fecc278e4fa47aea9e9e549be02f7fc319fda69f571392"
+    },
+    {
+      "path": "modules/capture_services/openwrt/wireless_diagnostics.py",
+      "sha256": "4465376a8993411048ae3464eb2baf8e8283ee44f61ca0ad348d4f49e421468a"
+    },
+    {
+      "path": "modules/capture_services/openwrt/wireless_setup_commands.py",
+      "sha256": "74b3aa4d8dd3391b46dc713b13211ec03d3392bb01e86ab1fd717e16221466b8"
+    },
+    {
+      "path": "modules/capture_services/openwrt/wireless_setup_manager.py",
+      "sha256": "99ec082a6081c1d7bb8cbf7fe81c4061e03488ae9a02378b9efbdef2c18d4287"
+    },
+    {
+      "path": "modules/capture_services/openwrt/wireless_setup_models.py",
+      "sha256": "0adbfb56a70b181557c9cecba78bf06f0d0ec9231494ec341005e60b88739a90"
+    },
+    {
+      "path": "modules/capture_services/openwrt/workspace.py",
+      "sha256": "12bfc90a966d0ee0d65ca36b001d4966467267ae7e8976203a200cfee3d533a4"
+    },
+    {
+      "path": "modules/capture_services/openwrt/wps_capture.py",
+      "sha256": "8897bee775a9c19ff356f5bbd917a32fe413ce946d1aad2b2817e3c99f342baa"
+    },
+    {
+      "path": "modules/capture_services/parallel_handshake.py",
+      "sha256": "deee0321f5349e74401748cf02e4bf3ee37b1f674d5112cfece1a613a0251b97"
+    },
+    {
+      "path": "modules/capture_services/privacy_mask.py",
+      "sha256": "61da0db78bcfa338681c4ce04248106d887f5bd5fc66880c17fc86192ba0d360"
+    },
+    {
+      "path": "modules/capture_services/router_connection_state.py",
+      "sha256": "8a2ab5811caacc408c439b528cf75f2c8cd7671a5e071d80ed33849ceccf4105"
+    },
+    {
+      "path": "modules/capture_services/router_file_batch.py",
+      "sha256": "7f3cd648df34ea71da4d18b4e23843947faae0e3fc4a12143c56cd347b05c3aa"
+    },
+    {
+      "path": "modules/capture_services/router_file_move.py",
+      "sha256": "7407e12653f05074ce21cbc2663ac2b51818782d1a8faa9efe76c413e3f3295e"
+    },
+    {
+      "path": "modules/capture_services/router_management_service.py",
+      "sha256": "f8e51c226af09bea06e6a6894fc87264af7160de42ea80b3a5b311f06d239e5f"
+    },
+    {
+      "path": "modules/capture_services/router_signal_service.py",
+      "sha256": "641ae8391f2438343d030f8cf3b9f8f45862721b6061fac1ad68464f5f9f2675"
+    },
+    {
+      "path": "modules/capture_services/router_terminal_service.py",
+      "sha256": "e37c9404d8a7e3bb95abb17b7691765a768b58650ebe2cdd27fcee3e485370d8"
+    },
+    {
+      "path": "modules/capture_services/shutdown_cleanup.py",
+      "sha256": "95932ce6e9ae7618e6c15405c7eb16d8ffb5772081cf606fda3b8cbfb5369e51"
+    },
+    {
+      "path": "modules/capture_services/signal_list_export.py",
+      "sha256": "165104ce8d7bc0c0cfaa99779e8d6634c2059c3acef147a8e69bea910548127c"
+    },
+    {
+      "path": "modules/capture_services/task_completion.py",
+      "sha256": "ee2febe435ced595c5ee79aae74d53a127618036915040fcde0ce66db25ce59e"
+    },
+    {
+      "path": "modules/capture_services/task_controller.py",
+      "sha256": "306eedf72d0d5653d1ded11665b5367934f7799c98831a8720fca90538374d50"
+    },
+    {
+      "path": "modules/capture_services/task_pause.py",
+      "sha256": "0961eb0a86dc71c342f260454d7086e53c7eb4c50bb80e4c86d594e44be51ce6"
+    },
+    {
+      "path": "modules/capture_services/task_worker.py",
+      "sha256": "7c4a3e6e7e2a8cc1dea1eec4cbf3b1ac6843b54e35652ef9cc5b3c7a06b32fe3"
+    },
+    {
+      "path": "modules/capture_services/verified_results.py",
+      "sha256": "229f045ab547864c2e9513c8283f948641f6f23cc0e89909d008ce0ec201a62f"
+    },
+    {
+      "path": "modules/capture_services/wireless_setup_service.py",
+      "sha256": "6f1fa2cd5deb8459a305621f0322cd6cc9ae51738bc7760ed7249e75cfd0c9d8"
+    },
+    {
+      "path": "modules/common_widgets/__init__.py",
+      "sha256": "ac611884bababab10a30593b5c78ad770d93c3d55bed0b734f2e3072864f7d1a"
+    },
+    {
+      "path": "modules/common_widgets/action_scroll_area.py",
+      "sha256": "5c1713c5aa566b3ffa7a690bf50fcbc0cb0d423c6e44fc31de2d008909f2a7d4"
+    },
+    {
+      "path": "modules/common_widgets/auto_hide_scroll_bar.py",
+      "sha256": "2ecf5f63e3c99206d3672a208099494d5217ea1af7de866a75481dcf3b377d46"
+    },
+    {
+      "path": "modules/common_widgets/bounce_scroll_area.py",
+      "sha256": "60eee2dac255eac91f532dde656bd8d69e685c0ea7eefbad134597f8c27e303a"
+    },
+    {
+      "path": "modules/common_widgets/centered_combo.py",
+      "sha256": "b6a91f2eb2d41d9259f9caa35d2760929d5023f76ffb12546da201cf2604653a"
+    },
+    {
+      "path": "modules/common_widgets/checkbox_paint.py",
+      "sha256": "145719ab360b153a861ca58193ff98ceb0120f8dd31902fdbef83eac619c7993"
+    },
+    {
+      "path": "modules/common_widgets/collapsible_section.py",
+      "sha256": "76ee8bcd58b3de85ec0861d8679d43eb08388ad5a857db77cba2327eb30ef4ad"
+    },
+    {
+      "path": "modules/common_widgets/combo_box.py",
+      "sha256": "25c4468580b38d8a6c3a9b7879a574a45ea2ddab6bb6fa1dafcfd1d44fb058ed"
+    },
+    {
+      "path": "modules/common_widgets/common_dialogs.py",
+      "sha256": "9cc673d712005b46b825b1f0ef6e72000663101c973faf1123a8dc6024e57055"
+    },
+    {
+      "path": "modules/common_widgets/discrete_tick_slider.py",
+      "sha256": "28717545f581ba838d3def785ec5201bb69436932d50ee9605e7c31b83b8b372"
+    },
+    {
+      "path": "modules/common_widgets/floating_feedback.py",
+      "sha256": "147213eaf3c0f29cc10b56a82553e7e420f259437927f408e4ec76b2e3093d45"
+    },
+    {
+      "path": "modules/common_widgets/frameless_dialog.py",
+      "sha256": "7efa198fc56996ff5a6287b1138981d52b153c7e90453fa108e95c74324818c6"
+    },
+    {
+      "path": "modules/common_widgets/icon_button.py",
+      "sha256": "4bc733a52b3e8cc5a55491fb0ff8afabdc3edbc6b2a1938efd691003a32089e4"
+    },
+    {
+      "path": "modules/common_widgets/input_appearance.py",
+      "sha256": "524bff198a782eba959e5593294514f0884c8db3836b7c5c3817e0eaa8d94f87"
+    },
+    {
+      "path": "modules/common_widgets/left_resize_header.py",
+      "sha256": "c1d5669ecbe513d4470af60d8765e07274af11bb449db09acd3f69c76f47717a"
+    },
+    {
+      "path": "modules/common_widgets/multi_file_selector.py",
+      "sha256": "2b220993b723f6f10f30e8cea371ebbe1021741f0e7d81bc536ec3235178d89a"
+    },
+    {
+      "path": "modules/common_widgets/overflow_marquee_label.py",
+      "sha256": "382ede793cfe6406e2f9465439a20688f3d6908b27c27e44fd1cb487b7fe4dfd"
+    },
+    {
+      "path": "modules/common_widgets/path_drop.py",
+      "sha256": "41aa3036f6e7c703b8697c3d96c5ffb17c458c718ccba28dab9c930ace2f5ead"
+    },
+    {
+      "path": "modules/common_widgets/path_list_editor.py",
+      "sha256": "a075416a191920d663db9541f56305aa3d418810a279279f8bf775b580dde46d"
+    },
+    {
+      "path": "modules/common_widgets/rename_rule_editor.py",
+      "sha256": "f6c8f09b44a70dda0e9135c098e693051748813b2ff5cac31176b61dde2c459d"
+    },
+    {
+      "path": "modules/common_widgets/resizable_list_panel.py",
+      "sha256": "e264e6f5be41897749720d77f52104aaf4b05000acc609a28c436cf47c7f7188"
+    },
+    {
+      "path": "modules/common_widgets/rounded_progress_bar.py",
+      "sha256": "6e29b61c580c275c69ce23f45bb850f41a43f1db070198090ab07bbaa361cae6"
+    },
+    {
+      "path": "modules/common_widgets/settings_nav_panel.py",
+      "sha256": "e93039a8aa1ae7a072040a4d146ca659cd671a1664aaa0fb43c0550ec7a2beb1"
+    },
+    {
+      "path": "modules/common_widgets/spaced_item_delegate.py",
+      "sha256": "ca43bf881debc79f61d5f60b9a6250f3bb95dae869004a53c4e82c7e1d0d3bd8"
+    },
+    {
+      "path": "modules/common_widgets/spin_box.py",
+      "sha256": "da6e2d00ddbc3dedba74190e6bd17792d2fc724c193ad7641b00d57d417e1e51"
+    },
+    {
+      "path": "modules/common_widgets/sweep_button.py",
+      "sha256": "3216ef282bf6d4dd3f84aa3047256e3b1a650f3b08fb73199768c3e707b76f5f"
+    },
+    {
+      "path": "modules/common_widgets/task_progress_dialog.py",
+      "sha256": "b16a491d05e55bb3cabaf25286f85c38f91c41ea79799c5320dcfcf228613c34"
+    },
+    {
+      "path": "modules/common_widgets/tooltip_policy.py",
+      "sha256": "377f19778eac4fc4323e0efb55dd92f89acad5cd6da25017d442a03ccef3f526"
+    },
+    {
+      "path": "modules/common_widgets/widget_event_filters.py",
+      "sha256": "ac0f247f7f4f27c6ebf518eef936c50c793c6b16ecb230fc2804da218c98c67c"
+    },
+    {
+      "path": "modules/config_manager.py",
+      "sha256": "15366466e1ec53e41eb9bbac12a0040b85c434c11a69287b305e7328f90c7e1a"
+    },
+    {
+      "path": "modules/config_services/capture_settings_manager.py",
+      "sha256": "da8616a637af8a14d159e4f268bfb4134a6ac911ca72595bbc692716151b9f82"
+    },
+    {
+      "path": "modules/config_services/config_store.py",
+      "sha256": "0a60e8475f9cfbd89540dffdd9a02660352bc8e41508964d8cb8da95dea3b56f"
+    },
+    {
+      "path": "modules/config_services/proxy_config_manager.py",
+      "sha256": "097aef04ce680e9347f26a2e34b19443afd368e18584d1f4e9813f6659c96d9d"
+    },
+    {
+      "path": "modules/config_services/software_item_tree.py",
+      "sha256": "b370d0f095883732ffd19dfe487653ad7395c3233964583322169b12f853a487"
+    },
+    {
+      "path": "modules/config_services/software_items_manager.py",
+      "sha256": "94303ad4de6922423b65ce267c39b5f4f3eec6fc6cd8ecdfb65992c7027885bd"
+    },
+    {
+      "path": "modules/config_services/verified_result_paths.py",
+      "sha256": "c58b30654fa8b20720188ac674bc1712489dadc410a5e0427c12caf5b58cbc6f"
+    },
+    {
+      "path": "modules/desktop_shell/__init__.py",
+      "sha256": "e2ebd2af478ac327e3a3f6edc8370febaf300e4cd0fb541c49d75c9e7b5f0d74"
+    },
+    {
+      "path": "modules/desktop_shell/app_update_presenter.py",
+      "sha256": "7e704929f57845b389f1fe7c4a5eeb50018d5fe65a7b270963ada14e344ab1dc"
+    },
+    {
+      "path": "modules/desktop_shell/initial_ui_scale.py",
+      "sha256": "578ca5047ce3e3cf708eaf93d4efe66338e6ded45455b3bfed01e8a5855f6e2f"
+    },
+    {
+      "path": "modules/desktop_shell/single_instance.py",
+      "sha256": "91c083ed064d48878d1f284f86571b9e78e718dfca856934506a752f2bbeb343"
+    },
+    {
+      "path": "modules/desktop_shell/startup_firewall_controller.py",
+      "sha256": "52935e0094af3a3e0e1537ce68ca1835e5bcd97b83273ba75be37d104b91ba33"
+    },
+    {
+      "path": "modules/desktop_shell/startup_firewall_presenter.py",
+      "sha256": "789ce7838b64810803d0f71c451cb8a98ed813343d8273f635a70e342896b8aa"
+    },
+    {
+      "path": "modules/dialog_theme.py",
+      "sha256": "0c62e3be0db10b580587a9cd88a308cbf37224547fdc21f4499aa560516ba92d"
+    },
+    {
+      "path": "modules/display_privacy.py",
+      "sha256": "18e14ceb5d75718b847f0b406d7a1f311b0a5fdf61d854912720fdd39c70bb19"
+    },
+    {
+      "path": "modules/download_services/__init__.py",
+      "sha256": "777e71e6e80fd261f55dd24a98c2baa8401e728e031da8ec6d34260f6933eb84"
+    },
+    {
+      "path": "modules/download_services/download_file_session.py",
+      "sha256": "0babc5eb4b95882666a3772e5f8eceece32bda3d281bd91279032a0e00315c35"
+    },
+    {
+      "path": "modules/download_services/download_mode_prompt_preferences.py",
+      "sha256": "5ae45873ae785e5358ef8c2536ddff2e8df5c3ab771d3208aeeccea09cc1b0c2"
+    },
+    {
+      "path": "modules/download_services/download_paths.py",
+      "sha256": "9db1baac5e7fc4add59719340c7ce9f19994df1f967a3fa511307aff4f8ff85c"
+    },
+    {
+      "path": "modules/download_services/download_state_manager.py",
+      "sha256": "3d6ff4fc883f16aa00309c25d8fc1c7e5ba96a5dfddc15f248ac14953cb14e53"
+    },
+    {
+      "path": "modules/error_log_bridge.py",
+      "sha256": "be307b102e31d7eb121405e83bdb25812750bad5e698ec651927c5f388cb81b0"
+    },
+    {
+      "path": "modules/error_log_hooks.py",
+      "sha256": "4c95edb16ac7115039deb932e4e8a8e7fab715cbe160b62d84e09996bb6fab83"
+    },
+    {
+      "path": "modules/error_logs.py",
+      "sha256": "03c62b31e35ce0a596b0d8725a095693bb59aab8b6be78ecfd84b74038f09450"
+    },
+    {
+      "path": "modules/feature_policy.py",
+      "sha256": "8751216614b07f8e09796ff888e4e53807467cf200fa78917791d0c343ce7d6f"
+    },
+    {
+      "path": "modules/http_socks_bridge.py",
+      "sha256": "a73a2e743d3db1c6e84863539947c0f44d86e6ffdac38deb8f82d16620490279"
+    },
+    {
+      "path": "modules/icon_utils.py",
+      "sha256": "b88d05ad765c40a621959a48ffc4b5fbcba2a12f8be219d93eb9b6ac83e91da7"
+    },
+    {
+      "path": "modules/interaction_guards.py",
+      "sha256": "89b6a81dbe20f75909879b0db1675e609eb6f5610859e23effeed59ea96050bd"
+    },
+    {
+      "path": "modules/log_services.py",
+      "sha256": "418a1f55ffc263a5e07e80b504024ff7056d39cd66ecb37b93bceadf59b15535"
+    },
+    {
+      "path": "modules/main_pages/__init__.py",
+      "sha256": "8b8ee541be445a57cfd754ba93e7127273ffa99e72dea020df136a0196e44576"
+    },
+    {
+      "path": "modules/main_pages/base_page_styles.py",
+      "sha256": "5d7ac895fb194af26b669bd4b0864c7212024d2d8e5f0f612b0af7a62b88c507"
+    },
+    {
+      "path": "modules/main_pages/download/__init__.py",
+      "sha256": "dec031565f5d6c015970f1f95fa4f98c188062e79453095b209b7a1b0e885e42"
+    },
+    {
+      "path": "modules/main_pages/download/download_auto_action_coordinator.py",
+      "sha256": "975c569a816872c1a861c54a675fc811a4ba68c86fc02bc0f94d69c6d52095be"
+    },
+    {
+      "path": "modules/main_pages/download/download_check_coordinator.py",
+      "sha256": "eadf15b3d0efb161193d767cb5aae9e10e85902008b3b665f82cc24e60b20dfa"
+    },
+    {
+      "path": "modules/main_pages/download/download_column_handlers.py",
+      "sha256": "26da3e8f9f09767d28515dcf795cf8c3ca4649238375d188fe04a103bb3be527"
+    },
+    {
+      "path": "modules/main_pages/download/download_context_menu.py",
+      "sha256": "fc2ee87780c6e8ea498c30350e6e6b80833a0be1e3830c54cf614b7ea268c66c"
+    },
+    {
+      "path": "modules/main_pages/download/download_debug.py",
+      "sha256": "7931e2a5176edfd3425875c0dcc0fe4c8f0c71777989613eea2982794e163852"
+    },
+    {
+      "path": "modules/main_pages/download/download_mode_switch_prompt.py",
+      "sha256": "3d4aa3b97affaeebd1bef42217cd98fd0db92fa6c429cbb6d13c8b907dc11be9"
+    },
+    {
+      "path": "modules/main_pages/download/download_operations.py",
+      "sha256": "e18ef4be10d5ca43574e34aa71a85f44eb30f7594495d1217d957f3e5f14645f"
+    },
+    {
+      "path": "modules/main_pages/download/download_page_styles.py",
+      "sha256": "6c8eb2decffddfb3601ab8e16d7dffbb5b74592d792866233f58c984afc4ed6b"
+    },
+    {
+      "path": "modules/main_pages/download/download_page_utils.py",
+      "sha256": "23b44b24fafb26d94c4f9d423ae61fdaf45332016e14d284614ef53e4a592e1d"
+    },
+    {
+      "path": "modules/main_pages/download/download_row_builder.py",
+      "sha256": "28167f042e4d5723571200d125464c594c39f6d305820b20b378653ca293e08a"
+    },
+    {
+      "path": "modules/main_pages/download/download_size_cell.py",
+      "sha256": "7f0934f24d1e4af9b0720ad9abdc2d21c6e525879ccdbd0c76dbc96f29404f40"
+    },
+    {
+      "path": "modules/main_pages/download/download_state_restore.py",
+      "sha256": "d72b73505ba8db23be327e5290246f08a559d8b55d86706de34f5c29abef4f65"
+    },
+    {
+      "path": "modules/main_pages/download/download_status.py",
+      "sha256": "7f2db93813bc26a9e723c90517ec209f0a35fdd2bc7b63e5f687f3214a834b8c"
+    },
+    {
+      "path": "modules/main_pages/download/download_table_layout.py",
+      "sha256": "e9485178dccf751c55199ed86c2f321a8561d30c97f78bd4601d7e48952ad76f"
+    },
+    {
+      "path": "modules/main_pages/download/download_task_status.py",
+      "sha256": "a2d4a771ab0f69cdb75f66452ee8a178dc193b65d6e08f046f02958be0bde7b0"
+    },
+    {
+      "path": "modules/main_pages/download/download_ui_helpers.py",
+      "sha256": "42422a990b730132679bf2abb5101c3e6e51181e279e36222404b7bf8753c53c"
+    },
+    {
+      "path": "modules/main_pages/download/multi_file_selection.py",
+      "sha256": "159b9efed55747779cd9c0c8daff585bbaca22530c41be9a88613d1b788cd150"
+    },
+    {
+      "path": "modules/main_pages/info_panel.py",
+      "sha256": "37d347cdb569a3d625287d91a7e1c181b4bec35697c7ce3ceee3903bc8210ef7"
+    },
+    {
+      "path": "modules/main_pages/main_page_workspace.py",
+      "sha256": "069e4b02297568fd6fc5f977f6a2f62a6281d5ce57258898d4795964849bb297"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/__init__.py",
+      "sha256": "dce37fac2052d69e56d2c9d2cb2f91606fa3c59d7d971bdd292490e8ca6f9077"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/capture_page_styles.py",
+      "sha256": "7d903e363cf83c16af675c76fd04d6a71731f644ca60a4b99679c30ec730c533"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/__init__.py",
+      "sha256": "9481325978193446d494e9a9105ac7800738b807b8dfb2f094bedd617ff114d2"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/access_point_table.py",
+      "sha256": "18674e59c1aa95f977cc92c4a226f12db1b6f699b6e90de4b49ee3d893bd9240"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/auto_handshake_action.py",
+      "sha256": "7822fa7ebf6b5c546bc9c3ffda1c099b324607b10c0048ddb7524969c681dee0"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/capture_settings_page.py",
+      "sha256": "661aca7ae946bb77bdd8684a5dc7d42bafa69d58070d1479935490003b75ac34"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/capture_tool_panel.py",
+      "sha256": "1d6ea40d03d5499dab6acffc89258f1929420ac0110bfd57bea01a138e545029"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/common_bundle_controls.py",
+      "sha256": "5441b71ff5a82c14aa5d731fb67c346f29855101e307998b822eb86146c0efc1"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/common_tool_section.py",
+      "sha256": "4040d1c8c2da25a6579b48771f50ef9de339f10a984f2733765d8c90eec24cd0"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/compatible_tool_section.py",
+      "sha256": "b62e9008266f66f1bd75e19958febc0e0ae19cdde638c92c068acead0987dfba"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/confirmation_helpers.py",
+      "sha256": "514488eb351b4c1a17efff858e7ddc5c5809fa7120c2343b53a2948097449024"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/connection_section.py",
+      "sha256": "e5947f8ab41eaf73a8f86998924eccd390a2535392faa6d2d656c4fa4734e578"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/dependency_section.py",
+      "sha256": "ca0b6dae6d4c68284d0d2a1d07d4b0ca17a947fcfc469337927c6b754fb4a0cc"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/device_status_panel.py",
+      "sha256": "fc27d06cb5d38a62bf242946afc46630b3e2841e70613b1ace0c3738a0d5e7c3"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/file_drop_actions.py",
+      "sha256": "3e93ecc703ae5766413a777175e0fa9f9c09a36fa7b89e1554b7d78ac6cd7a84"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/openwrt_page.py",
+      "sha256": "e619429eda09620ce4e463dfc7d9ecb9a40c30c01e2e64e80aa7509d61dc6f6f"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/package_select_dialog.py",
+      "sha256": "14fbb0aa6d476404f8d7284e3cbdc9322b38fae3696286e3cb5dde9670219292"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/password_dictionary_editor.py",
+      "sha256": "20da6b06c2892cde620f0f8be375124c7dc27a75218a60f2c04752a7a9392722"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/privacy_header_view.py",
+      "sha256": "35325d0446dfc7c4652788577f1a3394fcb0f636daf3c81e5a03ea326a4783ab"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/resource_picker.py",
+      "sha256": "a3b3d50bc0a93d0e681597b677ae4b05460e0784efb11a3ceb787d587a96cb3c"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/router_file_widgets.py",
+      "sha256": "b299d1beda6133cd3cd87e9568df5471abcf8e73967f26220ee61c620adfddf8"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/router_files_page.py",
+      "sha256": "bfb976c2f5bbf8c711ba9bd192aec745887ac11d9a9e56a075d844ab73942c44"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/router_login_page.py",
+      "sha256": "f2d4ef9149e4b71a8ab7e3c36d3ffa8432bbec4b778e959635e96bb71e2d231c"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/router_signal_page.py",
+      "sha256": "36fb59b38efa7484d5d791f79f646789b91a2ef23d5a332c876ade684552af4b"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/router_terminal_page.py",
+      "sha256": "acf98b1ad1ba7c14a46dc3ba2cd2044bf52c19b13d9590b88ee2acc89e5e5cfe"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/signal_list_export.py",
+      "sha256": "12c3574cbc531012eebc08afaa664c83a35d54e309cd5d21423cecfc91b4194b"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/signal_row.py",
+      "sha256": "5cb469f01497ea29dd85058ba78abf05eeaae16b0b4f9828ba4ffc3bfb835bac"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/signal_setup_actions.py",
+      "sha256": "6b9d46d78d43227e5b585c9d4e729c65c0c9295f832563cc980ac05958a36ddb"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/signal_setup_dialogs.py",
+      "sha256": "6a7061ba4d9cc1701d80018242aa4bc75987830f46284d3da9bcb2a7372425e0"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/signal_setup_editor.py",
+      "sha256": "f0db470a4627e7e467186acc4f07984a1fe9df1cf1ca0e582d3104c25189db68"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/signal_setup_forms.py",
+      "sha256": "8d25a936ece2d28a6e5298fe140ee103bb500bef8151ae4b7525dba4e09164e3"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/signal_setup_panels.py",
+      "sha256": "3ce81612e550238baebcda90de3be9e87c3ab781c0b79f557ec9596466dd268d"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/signal_setup_preview.py",
+      "sha256": "45ce16208d3241397a5145344559678d6d921843aca1df9c808d3735ce25a7b2"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/task_progress.py",
+      "sha256": "2f830d35419d214cb4baa77bc90d8e4f8a712f516d6b9ffff6ab54c77e06df52"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/ui_features.py",
+      "sha256": "88c81624fbcafafb2db5e41dc6354274e0c4c550793cc5a5970a06273852adc5"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt/wps_dialog.py",
+      "sha256": "7f6b3b9f9d610368fca4c39e2c2dece6b95564846069aa00a7c18f4a6ea98bcf"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/openwrt_capture_tab.py",
+      "sha256": "394683f97207877671e5ec97ecc0ed79c5019e54ecd3b2212d2428bf00f3853f"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/ui_helpers.py",
+      "sha256": "ee619b1b9b4d3802350728001705514da9d676a6f22f6cba3c9b11fb700e5808"
+    },
+    {
+      "path": "modules/main_pages/packet_capture/vertical_tab_bar.py",
+      "sha256": "01cd53f0d348f68a5c6710ea040b807ced6102e12f955ce168f422d85763effa"
+    },
+    {
+      "path": "modules/main_pages/packet_capture_page.py",
+      "sha256": "a79976831496d125ae23d7b0684578259055a160fb2b1a2211112f9c811f52b1"
+    },
+    {
+      "path": "modules/main_pages/page_action_buttons.py",
+      "sha256": "bb6bc00a3a7e0f829bbcee7a27e7c15406a3c478db25213d8b9ef8ed43f7a365"
+    },
+    {
+      "path": "modules/main_pages/software_download_page.py",
+      "sha256": "36d103f8fd31e19ef751fb9fe59f9f559dfe2b730a558e45e208bfe60d1dd66d"
+    },
+    {
+      "path": "modules/main_pages/software_item_edit_coordinator.py",
+      "sha256": "e26d944e0b5ca26abb14782e180bd5d090a6f02aec603c0236e019d86107f99e"
+    },
+    {
+      "path": "modules/main_pages/software_update_page.py",
+      "sha256": "d41192b674c0cfbf458747695c0b4bbfc52ec758a41bc7cee53659a75132f0c1"
+    },
+    {
+      "path": "modules/main_pages/status_widget_factory.py",
+      "sha256": "26a7fee7c9d4e4f4bcee6fd4fb4eb327b71b31714d2f6e9cbb3a35fe6b8fce7c"
+    },
+    {
+      "path": "modules/main_pages/update_confirmations.py",
+      "sha256": "2bcf96f417cfdfa42fe938bad3effb1eb92266b3148e74e9d61864782abaf031"
+    },
+    {
+      "path": "modules/main_pages/update_context_actions.py",
+      "sha256": "188d361f295246f70b837a5bd772124a36c4444f34aa30a0d46dfd6f9842a5a3"
+    },
+    {
+      "path": "modules/main_pages/update_directory_preflight.py",
+      "sha256": "41e3572ddfb351091d76cefc070d5113667fddc809fbf842d2d92d82e174d4b9"
+    },
+    {
+      "path": "modules/main_pages/update_icon_helper.py",
+      "sha256": "3c5647289b2fd41b569e481012fe810e64837f171cebac5233f1b8afa5d01b3e"
+    },
+    {
+      "path": "modules/main_pages/update_package_cell_factory.py",
+      "sha256": "a6a03b4f6a99921beacce6df696d13fb26391a68b92f309f761f78b31a687738"
+    },
+    {
+      "path": "modules/main_pages/update_page_styles.py",
+      "sha256": "225a7e26d1e8d41f7a708c170e7d2990d248dcaa50956bbf9361c6742d5eaeb8"
+    },
+    {
+      "path": "modules/main_pages/update_preflight_config.py",
+      "sha256": "e16e967916d94d40e79f6a015318e08a969e651ecfeaad45afc7717fb33dc0e3"
+    },
+    {
+      "path": "modules/main_pages/update_preflight_controller.py",
+      "sha256": "60aaf4583da0853a0e27d06687e4b842b31fe22b1726c5ac3bb3e6133633dfd7"
+    },
+    {
+      "path": "modules/main_pages/update_process_preflight_worker.py",
+      "sha256": "75e1ce911e65ab41b1b34a2f2c9e7749f8d4ab5b2578146efcfd6bac58f6dc80"
+    },
+    {
+      "path": "modules/main_pages/update_queue_controller.py",
+      "sha256": "d8a35da957a5fd54d56646e1be77ec0fdfcc4adfaafc66a532346a8d3a73a9c0"
+    },
+    {
+      "path": "modules/main_pages/update_row_builder.py",
+      "sha256": "34e4f1b83a28467c4efd9f33e9125b84d4b1e907516d7b59959ea0e9fc564440"
+    },
+    {
+      "path": "modules/main_pages/update_scan_rows.py",
+      "sha256": "6982504adb38acbd587f3c9005cdf6e570681425f0d9d60a677bca544f65d622"
+    },
+    {
+      "path": "modules/main_pages/update_signature_preflight.py",
+      "sha256": "3827f1e2aa6f39f59b025b2f19289f3c07d91be3155d999a4493a9203b618c7a"
+    },
+    {
+      "path": "modules/main_pages/update_status_widget_factory.py",
+      "sha256": "8b7c5f14cff90760f8bb3d8502c996632a1a7163ef7d3625be0eddc291001ad3"
+    },
+    {
+      "path": "modules/main_pages/update_table_factory.py",
+      "sha256": "75663ca568a951953e542caf9bf514772bbdf5647420c7822c6831e26dbbba95"
+    },
+    {
+      "path": "modules/main_pages/update_table_layout.py",
+      "sha256": "94c50824ffd60e0f459640eaacba504eb908e7eaace998b8e8ee3dc8653f30de"
+    },
+    {
+      "path": "modules/main_pages/update_tabs.py",
+      "sha256": "06b3230a26170ae2650324645e6cc0c3fc53a4557200389ea02b1ea1e73d8fc9"
+    },
+    {
+      "path": "modules/main_pages/update_target_dirs.py",
+      "sha256": "22af3ddc395c7a6151b11f07aa62c52c0fed4d077fafce2a634b1f50bcd87e87"
+    },
+    {
+      "path": "modules/main_pages/update_thread_runner.py",
+      "sha256": "78791def15147c19cb07d313b7137254016dcddcc3cfc09efb30f5f8e5ccab42"
+    },
+    {
+      "path": "modules/main_pages/update_worker.py",
+      "sha256": "fe86af6a8703c9667a26341bb8914904c5ba5c67fe7b134262e37918485bc7d4"
+    },
+    {
+      "path": "modules/network_policy.py",
+      "sha256": "e20db612658e42dd687ab82908cc08a8f3269b3606302f67648be5926b22afd2"
+    },
+    {
+      "path": "modules/platform_services/__init__.py",
+      "sha256": "c2289d5681e0f86901ad342635b489224999460028d0bbe20aceba243d043c6c"
+    },
+    {
+      "path": "modules/platform_services/admin_command_worker.py",
+      "sha256": "43108e3584b20315e402454802ed0bcaab5fd41ad8110af374c0a4c56f4e9f96"
+    },
+    {
+      "path": "modules/platform_services/app_update_access.py",
+      "sha256": "a9f8e26fe8b51e925c19595017dde643d3b902655ccc72710dc847d5cc906f0d"
+    },
+    {
+      "path": "modules/platform_services/app_update_install.py",
+      "sha256": "bc56e17aaaac141ac4d03e40313540c6a2dd23f5d56a349eb518c620fa098dd3"
+    },
+    {
+      "path": "modules/platform_services/app_update_runtime.py",
+      "sha256": "54a749ae6edb268043073130f6fbf75cac8ed2561feac8c6a843b20cfeecd0b2"
+    },
+    {
+      "path": "modules/platform_services/elevated_background_command.py",
+      "sha256": "053a3cab56992eb68ddbcfe841ef08ce6ca62665c577238663f73de3d03ad0f3"
+    },
+    {
+      "path": "modules/platform_services/elevated_process_kill.py",
+      "sha256": "5d043f9ead9585263a469ca4766a5ceb39d4f0f292622325ae61573e46d86fec"
+    },
+    {
+      "path": "modules/platform_services/file_metadata.py",
+      "sha256": "b4e4a8d8e0c986d7856b8719e0fcfe5b4bc6f064149b939e8cc08eaede8bb037"
+    },
+    {
+      "path": "modules/platform_services/file_occupancy.py",
+      "sha256": "84da07bff4c0abd275e19885e6e5e1a579a49264c6902dd6d90a7ab38e4a9d37"
+    },
+    {
+      "path": "modules/platform_services/file_presence.py",
+      "sha256": "62307ed2eac360575aa5367d13c36a969e4f16370fa34cd8f2482da6c1bad908"
+    },
+    {
+      "path": "modules/platform_services/firewall_session.py",
+      "sha256": "4c142cae141d6ecc3142c28c5c542f24215c47e46e5af0d2879e4b22da137380"
+    },
+    {
+      "path": "modules/platform_services/firewall_session_host.py",
+      "sha256": "623a5e945279a0dc50e285850298ee7895ce71bfd5344577a2b32f95a85afb33"
+    },
+    {
+      "path": "modules/platform_services/firewall_session_transport.py",
+      "sha256": "1a2c09547686ff2e4156a0f923bd09fc6b40833f83407f8afc1da85da96e1f0b"
+    },
+    {
+      "path": "modules/platform_services/firewall_session_worker.py",
+      "sha256": "0c45e9178b90ee4e351f68fbfd3cfadf896e0999bc94ef1b45e4a89318abe31d"
+    },
+    {
+      "path": "modules/platform_services/local_file_move.py",
+      "sha256": "6e179fb811967837833a07b65a9cec0549592a3ed35c52f0b158957711f65a2c"
+    },
+    {
+      "path": "modules/platform_services/local_file_operations.py",
+      "sha256": "c3aca46a378337f41de88b400eda0c766db4b2c5ea8be627231e6df8d8d65ceb"
+    },
+    {
+      "path": "modules/platform_services/local_gpo_firewall.py",
+      "sha256": "8d9e10f49ca4427dfcecb5c0572292b658258000c6a9788773dbdb211d29667d"
+    },
+    {
+      "path": "modules/platform_services/owned_cache.py",
+      "sha256": "26614c4fc5ce28a98cfea8c93ae5ad57f9eee2fe663c10ad1b1da535f95dfb62"
+    },
+    {
+      "path": "modules/platform_services/process_capture.py",
+      "sha256": "a9c8b498ce0f2a9a1b83c63a0a824681f810e92eae9bca161fdd1ef60c524ca4"
+    },
+    {
+      "path": "modules/platform_services/process_service.py",
+      "sha256": "b424e42a247df65301a0e6012192328ee931d650daad6b6c22c8acb75f20dad0"
+    },
+    {
+      "path": "modules/platform_services/runtime.py",
+      "sha256": "29abb051b4257c5c9c9b212aa7f771ac252aaa87202d0bd0732ad6e43724fbf9"
+    },
+    {
+      "path": "modules/platform_services/startup_firewall.py",
+      "sha256": "b476b2049ad60f64dc5bc81e37bd138d51d7340afed100b476c514ec1228d3ff"
+    },
+    {
+      "path": "modules/platform_services/system_architecture.py",
+      "sha256": "12fb22af0384f2e989fbe6136fd86cc2b10e8cbc0383d2d189f724a5491a234a"
+    },
+    {
+      "path": "modules/platform_services/update_elevation.py",
+      "sha256": "0258fb585f68e038d7385ea0ae1be709630e446230b57f9fc897edf20b13d5c2"
+    },
+    {
+      "path": "modules/platform_services/update_script_runtime.py",
+      "sha256": "d4c1e2d275a8b1dd1c20b7c458748e3f05e7c28aab6b801a11308bc085792ff0"
+    },
+    {
+      "path": "modules/platform_services/windows_archive_tools.py",
+      "sha256": "8f11f8a6970a119448416d48bf629d3ed5af9be9e4e794519bb85dadee7821ef"
+    },
+    {
+      "path": "modules/platform_services/windows_credentials.py",
+      "sha256": "1908aea0cd78add41ca7cfd56d403da2bc65a1da3d5df53bf197fd18f512d5b7"
+    },
+    {
+      "path": "modules/platform_services/windows_exit_codes.py",
+      "sha256": "f5ac6b164c42aa83d425891d3d87faad3d08812bf282bb0917ea55f8e757fc52"
+    },
+    {
+      "path": "modules/platform_services/windows_firewall.py",
+      "sha256": "316765dd8402ccc758c7ab5df63d59e29a99c942c0c7be1d5ce3851a234cf63e"
+    },
+    {
+      "path": "modules/platform_services/windows_recycle_bin.py",
+      "sha256": "db4dc3da2120a0a461c82330fdb38859f20b196a0d5fa0303b29d558a3cf8c04"
+    },
+    {
+      "path": "modules/platform_services/windows_restart.py",
+      "sha256": "68bbe41ac96df05e737a4b3f67eb6396414df2ebdbc1dff318ca30cf0a705e32"
+    },
+    {
+      "path": "modules/platform_services/windows_shortcuts.py",
+      "sha256": "5513c4d7b67c5c66dda67ac45b5f091ff7b1470d543f738d4079ac2ac1967c4f"
+    },
+    {
+      "path": "modules/platform_services/windows_uac.py",
+      "sha256": "5e502598b6920b2a6ac427269c4e0a6cff924e7778ec8b619ce707dbdc0cec93"
+    },
+    {
+      "path": "modules/platform_services/windows_user_paths.py",
+      "sha256": "f2f84fe229608432c38aa76ccce658d2a21d9f2716033b70882dcc91a6d5c16e"
+    },
+    {
+      "path": "modules/platform_services/windows_wifi_capture.py",
+      "sha256": "827c428624797170da35b6be7d0a85b0f88fd8e3ea112955d0705ae8ff2f8c76"
+    },
+    {
+      "path": "modules/resources_rc.py",
+      "sha256": "a098b34670600d083a3fdf77de47ea6916969b4b50760e2f3e988da36f8eee16"
+    },
+    {
+      "path": "modules/settings_pages/__init__.py",
+      "sha256": "9281922c59454a6f47de7fa1ab9a3587f2739b8a786258d3fef8370268c72cbe"
+    },
+    {
+      "path": "modules/settings_pages/app_update_page.py",
+      "sha256": "da909760be358872092860594f0c41038ab54e24ac9983cc649dfd9e9d6bd51b"
+    },
+    {
+      "path": "modules/settings_pages/dialog_form_helpers.py",
+      "sha256": "a6a19a002d223d5fabaea2b91ccf9b0d1f3d4ca0f5b884f64442f441f9b3b14d"
+    },
+    {
+      "path": "modules/settings_pages/proxy_settings_page.py",
+      "sha256": "ac00c8bc7c5874b2395d65db0fd0cfa605a70424a1238d9f84288aa2b36915c8"
+    },
+    {
+      "path": "modules/settings_pages/settings_widgets.py",
+      "sha256": "430fa68dbac939bc79ffa7a2b410c48decfcdf01c441d24919ab7b7b2c3c3ae1"
+    },
+    {
+      "path": "modules/socks_transport.py",
+      "sha256": "5a9e294297c1a388d942fe9e07fcfb84a6e6b0e28e1907f6244f1bba4ec01aae"
+    },
+    {
+      "path": "modules/terminal_widgets/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "modules/terminal_widgets/native_view.py",
+      "sha256": "6bf0a2b33e9db79e67892f433e87fc023f0be4019f4daaed2f14ae4c51b6b7a9"
+    },
+    {
+      "path": "modules/terminal_widgets/smoke_test.py",
+      "sha256": "ec740cbf296d639973dd84301cc38a2323712979ec0ec6ad83b0e2879d2a7a11"
+    },
+    {
+      "path": "modules/ui_layout.py",
+      "sha256": "dd2d49375e173cddc73a7a6f12c7ae50c0fcddde2a3df385250cba241f3955ec"
+    },
+    {
+      "path": "modules/ui_scale_manager.py",
+      "sha256": "2a957a9884fee8fca7233acfd37fbcb974e6fd7a2f14b710bebd0425d2f41776"
+    },
+    {
+      "path": "modules/update_services/__init__.py",
+      "sha256": "1684b5e6e647006d8b99108f7d225525af3d24ddbb8fb5caaaf1bb94e2368bd6"
+    },
+    {
+      "path": "modules/update_services/archive_extractor.py",
+      "sha256": "f77bf9090579eb6dfbe4eef9cb6e09f72e66e04212c072f07742589aa26c05eb"
+    },
+    {
+      "path": "modules/update_services/backup_manager.py",
+      "sha256": "e13eb6166cca505f09c419f9dd59ca15abd4309120e5845efe232ce2a7e16a18"
+    },
+    {
+      "path": "modules/update_services/file_deletion_actions.py",
+      "sha256": "e26916c42b222b8eb39c92562fba853f218f852b96f4ac04a298fa15285e37e9"
+    },
+    {
+      "path": "modules/update_services/file_inventory.py",
+      "sha256": "e381e649964bdf5525aec20df46bccbe4e51372de9b0575e2c16adb20401b8fa"
+    },
+    {
+      "path": "modules/update_services/firewall_rules.py",
+      "sha256": "716c0b354e325f6b328dd5af9e41d51b45ce6c01d8a8230b292b289cf5f0fb54"
+    },
+    {
+      "path": "modules/update_services/multi_download_manifest.py",
+      "sha256": "39b7ad92a26e8b3ec787f25d05fe34ec65c63fccc9045406a1db72858a4b0d8a"
+    },
+    {
+      "path": "modules/update_services/package_naming.py",
+      "sha256": "ed35c188436e15b9cc90a93412c576bc391865f841504b723fc8344d7539eecf"
+    },
+    {
+      "path": "modules/update_services/process_actions.py",
+      "sha256": "7ba24ee066905ba434b6d81b46785cfdee16f944734e8a0b4837207633c00ca5"
+    },
+    {
+      "path": "modules/update_services/process_preflight.py",
+      "sha256": "6439b34afe5b1e82c532aa966551c2810273c4d26d2286d0583c2fa401c86378"
+    },
+    {
+      "path": "modules/update_services/script_completion.py",
+      "sha256": "a829ae75562688fd23529add73c6a66b4d5c6bf4c2442fa820809c4c31cd8860"
+    },
+    {
+      "path": "modules/update_services/signature_verification.py",
+      "sha256": "f889b0bd5db11ce99e8684d791b400b045dbe6efae80f605c86f9abf3af03e0f"
+    },
+    {
+      "path": "modules/update_services/strategy_dispatcher.py",
+      "sha256": "660cc909cc38fbd449763c90e5f9012981e9c396a705325d803a3b3c6a233757"
+    },
+    {
+      "path": "modules/update_services/strategy_executor.py",
+      "sha256": "0b64d82ec3a65330e902071e5dd983ffbb455e33910cb872b8fb51aa0fb12cfc"
+    },
+    {
+      "path": "modules/update_services/update_logging.py",
+      "sha256": "fa786b2b3df670c9fe5252d8a98d1e7de7a71bbd623917732a3a1f370f5ac666"
+    },
+    {
+      "path": "modules/update_services/update_package_scanner.py",
+      "sha256": "48297f52f93d9e5a9ad425172d2108212c73047c08cb86fb66fdeb20f2f4be0b"
+    },
+    {
+      "path": "modules/update_services/update_settings_manager.py",
+      "sha256": "cc9c5a39eb6f4e2ca6f48e111e4a5cab7193e9758e64f609df377e432733b1b5"
+    },
+    {
+      "path": "modules/update_services/update_workspace.py",
+      "sha256": "024157f6d73fd6ffafd6fb3aacc04ce71c670065c801d2e2bb51c765f8ec414d"
+    },
+    {
+      "path": "modules/update_services/windows_update_package_metadata.py",
+      "sha256": "2d2ea6f276953de99a6995a83ce2981cc890ea3037511cdd86edbf3bb6b6632a"
+    },
+    {
+      "path": "modules/version_services/__init__.py",
+      "sha256": "36d9af693b1ba21eb10d05721f305e0488e64f19e7c2b9c9a0c94f49fe8e9947"
+    },
+    {
+      "path": "modules/version_services/download_size.py",
+      "sha256": "e7e542c34704694a1d5ee12f1280ec181d5d94f494a7d1e5b1914201e351daf1"
+    },
+    {
+      "path": "modules/widgets/__init__.py",
+      "sha256": "3cc91fbdc0e098952917237bb43b1baec11aeb84f8e4a64ec0b4494b21b7e964"
+    },
+    {
+      "path": "modules/widgets/custom_grips/__init__.py",
+      "sha256": "3cc91fbdc0e098952917237bb43b1baec11aeb84f8e4a64ec0b4494b21b7e964"
+    },
+    {
+      "path": "modules/widgets/custom_grips/custom_grips.py",
+      "sha256": "1459614846edbeec81d88a69bcab4d5f31ec8176fca2ac08ed69c395ab43a923"
+    }
+  ]
+}

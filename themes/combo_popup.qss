@@ -1,0 +1,13 @@
+/* All combo popup geometry. Table indicators retain their original size. */
+QComboBox QAbstractItemView, QAbstractItemView[winboxComboPopup="true"] {
+    padding: 4px 0px;
+    outline: 0;
+}
+QComboBox QAbstractItemView::item, QAbstractItemView[winboxComboPopup="true"]::item {
+    padding: 2px 8px;
+}
+QComboBox QAbstractItemView::indicator, QAbstractItemView[winboxComboPopup="true"]::indicator {
+    width: 11px;
+    height: 11px;
+    border-radius: 6px;
+}

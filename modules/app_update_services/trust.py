@@ -1,0 +1,2 @@
+"""\u53d1\u5e03\u516c\u94a5\uff1b\u79c1\u94a5\u4e0d\u8fdb\u5165\u6e90\u7801\u6216\u53d1\u5e03\u5305\u3002"""
+PUBLIC_KEY = "VJ8OHg6ELwvPRUMUWzbQDecvBiE0y8NQq9NvHBiMeGE="

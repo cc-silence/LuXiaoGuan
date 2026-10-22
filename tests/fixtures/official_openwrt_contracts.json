@@ -1,0 +1,473 @@
+[
+  {
+    "series": "19.07",
+    "makefile_url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-19.07/package/system/rpcd/Makefile",
+    "rpcd_commit": "67c8a3fda26e441d3ec4a19f50ac72eca8deb14b",
+    "source_url": "https://raw.githubusercontent.com/openwrt/rpcd/67c8a3fda26e441d3ec4a19f50ac72eca8deb14b/iwinfo.c",
+    "sha256": "ee3e1753a96d5c8920062c7cc869de3a697e7d01ccc9eea40d4ec22c333da67a",
+    "scan_fields": [
+      "ssid",
+      "bssid",
+      "mode",
+      "channel",
+      "signal",
+      "quality",
+      "quality_max"
+    ],
+    "rollback": true,
+    "fixture_kind": "synthetic values shaped from pinned official rpcd source, not a device capture",
+    "package_manager": "opkg",
+    "samples": [
+      {
+        "scan": {
+          "bssid": "02:11:22:33:44:00",
+          "ssid": "official-format-fixture",
+          "channel": 6,
+          "signal": 4294967254,
+          "quality": 60,
+          "quality_max": 70,
+          "encryption": {
+            "enabled": false
+          }
+        },
+        "channels": [
+          {
+            "channel": 6,
+            "mhz": 2437
+          }
+        ]
+      },
+      {
+        "scan": {
+          "bssid": "02:11:22:33:44:01",
+          "ssid": "official-format-fixture",
+          "channel": 36,
+          "signal": 4294967254,
+          "quality": 60,
+          "quality_max": 70,
+          "encryption": {
+            "enabled": false
+          }
+        },
+        "channels": [
+          {
+            "channel": 36,
+            "mhz": 5180
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "series": "21.02",
+    "makefile_url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-21.02/package/system/rpcd/Makefile",
+    "rpcd_commit": "8d26a1ba3a175016b342cc5e25d340c08ae20eed",
+    "source_url": "https://raw.githubusercontent.com/openwrt/rpcd/8d26a1ba3a175016b342cc5e25d340c08ae20eed/iwinfo.c",
+    "sha256": "663543b699271062bf19aeb016ac1479f0b3fd2d5c948f94021ac5cfff17c872",
+    "scan_fields": [
+      "ssid",
+      "bssid",
+      "mode",
+      "channel",
+      "signal",
+      "quality",
+      "quality_max",
+      "primary_channel",
+      "secondary_channel_offset",
+      "channel_width",
+      "channel_width",
+      "center_freq_1",
+      "center_freq_2"
+    ],
+    "rollback": true,
+    "fixture_kind": "synthetic values shaped from pinned official rpcd source, not a device capture",
+    "package_manager": "opkg",
+    "samples": [
+      {
+        "scan": {
+          "bssid": "02:11:22:33:44:00",
+          "ssid": "official-format-fixture",
+          "channel": 6,
+          "signal": 4294967254,
+          "quality": 60,
+          "quality_max": 70,
+          "encryption": {
+            "enabled": false
+          }
+        },
+        "channels": [
+          {
+            "channel": 6,
+            "mhz": 2437
+          }
+        ]
+      },
+      {
+        "scan": {
+          "bssid": "02:11:22:33:44:01",
+          "ssid": "official-format-fixture",
+          "channel": 36,
+          "signal": 4294967254,
+          "quality": 60,
+          "quality_max": 70,
+          "encryption": {
+            "enabled": false
+          }
+        },
+        "channels": [
+          {
+            "channel": 36,
+            "mhz": 5180
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "series": "22.03",
+    "makefile_url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-22.03/package/system/rpcd/Makefile",
+    "rpcd_commit": "7de4820c87437033f6b7716018f3bfa60a3f7b12",
+    "source_url": "https://raw.githubusercontent.com/openwrt/rpcd/7de4820c87437033f6b7716018f3bfa60a3f7b12/iwinfo.c",
+    "sha256": "eba2182fb1774a62365ddb1be386b721f2d8dc924a8800cfbddeb8b73fd41eeb",
+    "scan_fields": [
+      "ssid",
+      "bssid",
+      "mode",
+      "channel",
+      "signal",
+      "quality",
+      "quality_max",
+      "primary_channel",
+      "secondary_channel_offset",
+      "channel_width",
+      "channel_width",
+      "center_freq_1",
+      "center_freq_2"
+    ],
+    "rollback": true,
+    "fixture_kind": "synthetic values shaped from pinned official rpcd source, not a device capture",
+    "package_manager": "opkg",
+    "samples": [
+      {
+        "scan": {
+          "bssid": "02:11:22:33:44:00",
+          "ssid": "official-format-fixture",
+          "channel": 6,
+          "signal": 4294967254,
+          "quality": 60,
+          "quality_max": 70,
+          "encryption": {
+            "enabled": false
+          }
+        },
+        "channels": [
+          {
+            "channel": 6,
+            "mhz": 2437
+          }
+        ]
+      },
+      {
+        "scan": {
+          "bssid": "02:11:22:33:44:01",
+          "ssid": "official-format-fixture",
+          "channel": 36,
+          "signal": 4294967254,
+          "quality": 60,
+          "quality_max": 70,
+          "encryption": {
+            "enabled": false
+          }
+        },
+        "channels": [
+          {
+            "channel": 36,
+            "mhz": 5180
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "series": "23.05",
+    "makefile_url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-23.05/package/system/rpcd/Makefile",
+    "rpcd_commit": "c07ab2f91061ad64209e9aaa1fb1b77061a1af25",
+    "source_url": "https://raw.githubusercontent.com/openwrt/rpcd/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/iwinfo.c",
+    "sha256": "69ab89e14338c1999f43734bc6f0ec004a1796ddc82550fbec66ce7f1dccbace",
+    "scan_fields": [
+      "ssid",
+      "bssid",
+      "mode",
+      "band",
+      "channel",
+      "mhz",
+      "signal",
+      "quality",
+      "quality_max",
+      "primary_channel",
+      "secondary_channel_offset",
+      "channel_width",
+      "channel_width",
+      "center_freq_1",
+      "center_freq_2"
+    ],
+    "rollback": true,
+    "fixture_kind": "synthetic values shaped from pinned official rpcd source, not a device capture",
+    "package_manager": "opkg",
+    "samples": [
+      {
+        "scan": {
+          "bssid": "02:11:22:33:44:00",
+          "ssid": "official-format-fixture",
+          "channel": 6,
+          "signal": 4294967254,
+          "quality": 60,
+          "quality_max": 70,
+          "encryption": {
+            "enabled": false
+          },
+          "mhz": 2437,
+          "band": 2
+        },
+        "channels": [
+          {
+            "channel": 6,
+            "mhz": 2437
+          }
+        ]
+      },
+      {
+        "scan": {
+          "bssid": "02:11:22:33:44:01",
+          "ssid": "official-format-fixture",
+          "channel": 36,
+          "signal": 4294967254,
+          "quality": 60,
+          "quality_max": 70,
+          "encryption": {
+            "enabled": false
+          },
+          "mhz": 5180,
+          "band": 5
+        },
+        "channels": [
+          {
+            "channel": 36,
+            "mhz": 5180
+          }
+        ]
+      },
+      {
+        "scan": {
+          "bssid": "02:11:22:33:44:02",
+          "ssid": "official-format-fixture",
+          "channel": 5,
+          "signal": 4294967254,
+          "quality": 60,
+          "quality_max": 70,
+          "encryption": {
+            "enabled": false
+          },
+          "mhz": 5975,
+          "band": 6
+        },
+        "channels": [
+          {
+            "channel": 5,
+            "mhz": 5975
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "series": "24.10",
+    "makefile_url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-24.10/package/system/rpcd/Makefile",
+    "rpcd_commit": "bba95191ff2f22c9118a1ba1355b83afaa277ae3",
+    "source_url": "https://raw.githubusercontent.com/openwrt/rpcd/bba95191ff2f22c9118a1ba1355b83afaa277ae3/iwinfo.c",
+    "sha256": "db67eac5d6de44ca83bf2b80219a68e004aa3ddec973e20f7ae947e313ce8a97",
+    "scan_fields": [
+      "ssid",
+      "bssid",
+      "mode",
+      "band",
+      "channel",
+      "mhz",
+      "signal",
+      "quality",
+      "quality_max",
+      "primary_channel",
+      "secondary_channel_offset",
+      "channel_width",
+      "channel_width",
+      "center_freq_1",
+      "center_freq_2"
+    ],
+    "rollback": true,
+    "fixture_kind": "synthetic values shaped from pinned official rpcd source, not a device capture",
+    "package_manager": "opkg",
+    "samples": [
+      {
+        "scan": {
+          "bssid": "02:11:22:33:44:00",
+          "ssid": "official-format-fixture",
+          "channel": 6,
+          "signal": 4294967254,
+          "quality": 60,
+          "quality_max": 70,
+          "encryption": {
+            "enabled": false
+          },
+          "mhz": 2437,
+          "band": 2
+        },
+        "channels": [
+          {
+            "channel": 6,
+            "mhz": 2437
+          }
+        ]
+      },
+      {
+        "scan": {
+          "bssid": "02:11:22:33:44:01",
+          "ssid": "official-format-fixture",
+          "channel": 36,
+          "signal": 4294967254,
+          "quality": 60,
+          "quality_max": 70,
+          "encryption": {
+            "enabled": false
+          },
+          "mhz": 5180,
+          "band": 5
+        },
+        "channels": [
+          {
+            "channel": 36,
+            "mhz": 5180
+          }
+        ]
+      },
+      {
+        "scan": {
+          "bssid": "02:11:22:33:44:02",
+          "ssid": "official-format-fixture",
+          "channel": 5,
+          "signal": 4294967254,
+          "quality": 60,
+          "quality_max": 70,
+          "encryption": {
+            "enabled": false
+          },
+          "mhz": 5975,
+          "band": 6
+        },
+        "channels": [
+          {
+            "channel": 5,
+            "mhz": 5975
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "series": "25.12",
+    "makefile_url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-25.12/package/system/rpcd/Makefile",
+    "rpcd_commit": "d99f703e4035d03fbcfbada3cb697db346c2b984",
+    "source_url": "https://raw.githubusercontent.com/openwrt/rpcd/d99f703e4035d03fbcfbada3cb697db346c2b984/iwinfo.c",
+    "sha256": "0fd26292e4239831c08dd042b4322833c04d3334bec07f24fdb9722c0ceafede",
+    "scan_fields": [
+      "ssid",
+      "bssid",
+      "mode",
+      "band",
+      "channel",
+      "mhz",
+      "signal",
+      "quality",
+      "quality_max",
+      "primary_channel",
+      "secondary_channel_offset",
+      "channel_width",
+      "channel_width",
+      "center_freq_1",
+      "center_freq_2",
+      "channel_width",
+      "center_freq_1",
+      "center_freq_2",
+      "channel_width",
+      "center_freq_1",
+      "center_freq_2"
+    ],
+    "rollback": true,
+    "fixture_kind": "synthetic values shaped from pinned official rpcd source, not a device capture",
+    "package_manager": "apk",
+    "samples": [
+      {
+        "scan": {
+          "bssid": "02:11:22:33:44:00",
+          "ssid": "official-format-fixture",
+          "channel": 6,
+          "signal": 4294967254,
+          "quality": 60,
+          "quality_max": 70,
+          "encryption": {
+            "enabled": false
+          },
+          "mhz": 2437,
+          "band": 2
+        },
+        "channels": [
+          {
+            "channel": 6,
+            "mhz": 2437
+          }
+        ]
+      },
+      {
+        "scan": {
+          "bssid": "02:11:22:33:44:01",
+          "ssid": "official-format-fixture",
+          "channel": 36,
+          "signal": 4294967254,
+          "quality": 60,
+          "quality_max": 70,
+          "encryption": {
+            "enabled": false
+          },
+          "mhz": 5180,
+          "band": 5
+        },
+        "channels": [
+          {
+            "channel": 36,
+            "mhz": 5180
+          }
+        ]
+      },
+      {
+        "scan": {
+          "bssid": "02:11:22:33:44:02",
+          "ssid": "official-format-fixture",
+          "channel": 5,
+          "signal": 4294967254,
+          "quality": 60,
+          "quality_max": 70,
+          "encryption": {
+            "enabled": false
+          },
+          "mhz": 5975,
+          "band": 6
+        },
+        "channels": [
+          {
+            "channel": 5,
+            "mhz": 5975
+          }
+        ]
+      }
+    ]
+  }
+]

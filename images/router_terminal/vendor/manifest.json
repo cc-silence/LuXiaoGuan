@@ -1,0 +1,65 @@
+[
+  {
+    "package": "@xterm/xterm",
+    "version": "5.5.0",
+    "file": "xterm.js",
+    "sha256": "1f991ac3b4b283ebf96e60ae23a00a52765dd3a2e46fa6fdda9f1aab032f7495",
+    "source": "https://registry.npmjs.org/@xterm/xterm/-/xterm-5.5.0.tgz"
+  },
+  {
+    "package": "@xterm/xterm",
+    "version": "5.5.0",
+    "file": "xterm.css",
+    "sha256": "ba8e6985669488981ccf40c0cefe3aba80722cb6c92de7ad628b0bd717faf2b6",
+    "source": "https://registry.npmjs.org/@xterm/xterm/-/xterm-5.5.0.tgz"
+  },
+  {
+    "package": "@xterm/xterm",
+    "version": "5.5.0",
+    "file": "xterm-LICENSE",
+    "sha256": "b569f629d00f2626a8100df2a1798210535621e42164dfd426a6fe5aac7b0ccd",
+    "source": "https://registry.npmjs.org/@xterm/xterm/-/xterm-5.5.0.tgz"
+  },
+  {
+    "package": "@xterm/addon-fit",
+    "version": "0.10.0",
+    "file": "addon-fit.js",
+    "sha256": "bdaefa370b1bfc42ee88d46fe6072400902a4d4b2d45cd93438dda9b23c97089",
+    "source": "https://registry.npmjs.org/@xterm/addon-fit/-/addon-fit-0.10.0.tgz"
+  },
+  {
+    "package": "@xterm/addon-fit",
+    "version": "0.10.0",
+    "file": "fit-LICENSE",
+    "sha256": "e256f01188af527e4d06d21d06fbf785ae9c50d4b328bf03cbe0ba7f0aa4228f",
+    "source": "https://registry.npmjs.org/@xterm/addon-fit/-/addon-fit-0.10.0.tgz"
+  },
+  {
+    "package": "@xterm/addon-search",
+    "version": "0.15.0",
+    "file": "addon-search.js",
+    "sha256": "3cf52d71d9deb4ba60125087434c53e3fb35bb2249db9b13987991fd2db1c7bd",
+    "source": "https://registry.npmjs.org/@xterm/addon-search/-/addon-search-0.15.0.tgz"
+  },
+  {
+    "package": "@xterm/addon-search",
+    "version": "0.15.0",
+    "file": "search-LICENSE",
+    "sha256": "689ceb10716bd7a87a804c14951d7c2b818cbd60aab83d540902470ce3b13444",
+    "source": "https://registry.npmjs.org/@xterm/addon-search/-/addon-search-0.15.0.tgz"
+  },
+  {
+    "package": "@xterm/addon-web-links",
+    "version": "0.11.0",
+    "file": "addon-web-links.js",
+    "sha256": "f230a6c8211ce4614dda5441f27b603c7c1ca95151a655bc0efac6377ee643f0",
+    "source": "https://registry.npmjs.org/@xterm/addon-web-links/-/addon-web-links-0.11.0.tgz"
+  },
+  {
+    "package": "@xterm/addon-web-links",
+    "version": "0.11.0",
+    "file": "web-links-LICENSE",
+    "sha256": "689ceb10716bd7a87a804c14951d7c2b818cbd60aab83d540902470ce3b13444",
+    "source": "https://registry.npmjs.org/@xterm/addon-web-links/-/addon-web-links-0.11.0.tgz"
+  }
+]

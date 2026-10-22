@@ -1,0 +1,22 @@
+/* Shared table headers: clear text and fine column separators. */
+QTableView QHeaderView, QTreeView QHeaderView,
+QTableView QHeaderView > QWidget, QTreeView QHeaderView > QWidget {
+    background: transparent;
+    border: none;
+}
+QTableView QHeaderView::section:horizontal,
+QTreeView QHeaderView::section:horizontal {
+    background-color: #222830;
+    color: #e6edf5;
+    border: none;
+    border-right: 1px solid #303842;
+    border-bottom: 1px solid #2d343d;
+    border-radius: 0px;
+    padding: 7px 8px;
+    font-weight: 700;
+}
+QTableView QTableCornerButton::section {
+    background-color: #222830;
+    border: none;
+    border-bottom: 1px solid #2d343d;
+}

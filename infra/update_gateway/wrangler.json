@@ -1,0 +1,14 @@
+{
+  "name": "routermanager-updates",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-21",
+  "workers_dev": true,
+  "send_metrics": false,
+  "r2_buckets": [
+    {
+      "binding": "UPDATES",
+      "bucket_name": "routermanager-releases"
+    }
+  ],
+  "account_id": "51c605f2810e0baa09ee0163e9074ac8"
+}

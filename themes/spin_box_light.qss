@@ -1,0 +1,49 @@
+QSpinBox, QDoubleSpinBox { background: #e9eff6; color: #172033; border: 1px solid #c6cdde; border-radius: 5px; min-height: 28px; padding: 2px 22px 2px 8px; }
+QSpinBox:focus, QDoubleSpinBox:focus { border-color: #1687e0; }
+QSpinBox:disabled, QDoubleSpinBox:disabled { background: #edf0f5; border-color: #d7dde7; color: #929ba8; }
+
+QSpinBox::up-button,
+QDoubleSpinBox::up-button {
+	subcontrol-origin: border;
+	subcontrol-position: top right;
+	width: 20px;
+	border: 1px solid #c6cdde;
+	border-left: 1px solid #c6cdde;
+	border-bottom: 1px solid #c6cdde;
+	background-color: #eef6ff;
+	border-top-right-radius: 3px;
+}
+
+QSpinBox::down-button,
+QDoubleSpinBox::down-button {
+	subcontrol-origin: border;
+	subcontrol-position: bottom right;
+	width: 20px;
+	border: 1px solid #c6cdde;
+	border-left: 1px solid #c6cdde;
+	border-top: 1px solid #c6cdde;
+	background-color: #eef6ff;
+	border-bottom-right-radius: 3px;
+}
+
+QSpinBox::up-button:hover,
+QSpinBox::down-button:hover,
+QDoubleSpinBox::up-button:hover,
+QDoubleSpinBox::down-button:hover {
+	background-color: #dff0ff;
+	border-left: 1px solid #c6cdde;
+}
+
+QSpinBox::up-arrow,
+QDoubleSpinBox::up-arrow {
+	image: url(:/icons/images/icons/cil-caret-top.png);
+	width: 10px;
+	height: 10px;
+}
+
+QSpinBox::down-arrow,
+QDoubleSpinBox::down-arrow {
+	image: url(:/icons/images/icons/cil-caret-bottom.png);
+	width: 10px;
+	height: 10px;
+}

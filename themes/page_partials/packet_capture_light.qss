@@ -1,0 +1,165 @@
+/* 抓包页面亮色主题，由 CapturePageStyleManager 加载。 */
+QFrame#packetCapturePage { background-color: #edf2f8; background-image: none; }
+QTabWidget#captureModeTabs::pane { border: none; background: transparent; }
+QFrame#captureCard { background: #e9eff6; border: 1px solid #c3cfdd; border-radius: 7px; }
+QLabel#captureGroupTitle { color: #172033; font: __HEADER_PT__pt "__FONT_FAMILY__"; border: none; background: transparent; }
+QLabel#captureDescription, QLabel#captureFormLabel { color: #52627a; font: __BODY_PT__pt "__FONT_FAMILY__"; border: none; background: transparent; }
+QLabel#captureNotice { color: #725100; background: #fff5d6; border: 1px solid #e7c96c; border-radius: 5px; padding: 8px; }
+QLabel#captureStatusValue { color: #344258; background: transparent; border: none; }
+QLabel#captureStatusValue[captureStatus="ready"] { color: #177746; }
+QLabel#captureStatusValue[captureStatus="blocked"] { color: #b52d2d; }
+QLineEdit#captureLineEdit, QComboBox#captureComboBox { background: #e9eff6; color: #172033; border: 1px solid #c6cdde; border-radius: 5px; min-height: 28px; padding: 2px 8px; }
+QLineEdit#captureLineEdit:focus, QComboBox#captureComboBox:focus { border-color: #1687e0; }
+QCheckBox#captureCheckBox, QCheckBox#captureRiskCheckBox { color: #344258; spacing: 8px; }
+QCheckBox#captureRiskCheckBox { color: #8a5d00; }
+/* Only the direct scroll content is transparent; controls keep their own backgrounds. */
+QScrollArea#captureScrollArea, QScrollArea#captureScrollArea > QWidget > QWidget { background: transparent; border: none; }
+/* 外层平台导航：蓝灰色块强调一级层级，选中后仍保持深色文字。 */
+QTabWidget#captureModeTabs QTabBar::tab { background: #eef3f8; color: #42526b; border: none; border-radius: 5px; margin: 3px 3px; padding: 3px 0; min-width: 40px; font: __BODY_PT__pt "__FONT_FAMILY__"; }
+QTabWidget#captureModeTabs QTabBar::tab:selected { color: #24405c; background: #c9dff3; }
+QTabWidget#captureModeTabs QTabBar::tab:hover:!selected { color: #24405c; background: #dce9f5; }
+QTabWidget#openwrtCaptureTabs::pane { border: none; background: transparent; top: -1px; }
+/* 内层功能导航：中性浅灰高亮，和外层蓝色平台导航形成层级差。 */
+QTabWidget#openwrtCaptureTabs QTabBar::tab { background: transparent; color: #52627a; border: none; border-radius: 4px; margin: 3px 2px; padding: 6px 12px; font: __BODY_PT__pt "__FONT_FAMILY__"; }
+QTabWidget#openwrtCaptureTabs QTabBar::tab:selected { color: #344258; background: #e1e6ed; }
+QTabWidget#openwrtCaptureTabs QTabBar::tab:hover:!selected { color: #344258; background: #edf0f4; }
+QTableWidget#captureAccessPointTable { background: #edf2f8; alternate-background-color: #e7edf6; border: none; color: #172033; selection-background-color: #b8d4f0; selection-color: #172033; }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+QTableWidget#captureAccessPointTable[captureResults="true"] { border: 1px solid #d0d9e3; }
+QTableWidget#captureAccessPointTable::indicator { border: 1px solid #aeb7c2; width: 14px; height: 14px; border-radius: 7px; background: #ffffff; }
+QTableWidget#captureAccessPointTable::indicator:hover { border: 1px solid #7f8b99; }
+QTableWidget#captureAccessPointTable::indicator:checked { background: #8fc5ee; border: 1px solid #7eaed2; background-image: url(:/icons/images/icons/cil-check-alt.png); background-position: center; background-repeat: no-repeat; }
+QTableWidget#captureAccessPointTable::item { padding: 5px; border: none; }
+QTableWidget#captureAccessPointTable QTableCornerButton::section { background: #edf2f8; border: none; }
+QLabel#captureProgressTitle { color: #172033; font: __BODY_PT__pt "__FONT_FAMILY__"; }
+QProgressBar#captureProgressBar { min-height: 8px; max-height: 8px; background: #dce5ef; border: none; border-radius: 4px; }
+QProgressBar#captureProgressBar::chunk { background: #3f91d1; border-radius: 4px; }
+
+
+QFrame#downloadInfoZoomOverlay { background: rgba(238, 246, 255, 235); border: 1px solid #b8d9ff; border-radius: 6px; }
+QFrame#downloadInfoZoomOverlay QLabel#downloadInfoZoomLabel { background: transparent; border: none; color: #44546a; }
+QFrame#downloadInfoZoomOverlay QToolButton#downloadInfoZoomButton, QWidget#infoPanelDock > QToolButton#downloadInfoZoomButton { background: transparent; border: none; border-radius: 4px; min-width: 26px; max-width: 26px; min-height: 26px; max-height: 26px; padding: 0; margin: 0; }
+QFrame#downloadInfoZoomOverlay QToolButton#downloadInfoZoomButton:hover, QWidget#infoPanelDock > QToolButton#downloadInfoZoomButton:hover { background: #dff0ff; }
+QFrame#downloadInfoZoomOverlay QToolButton#downloadInfoZoomButton:pressed, QWidget#infoPanelDock > QToolButton#downloadInfoZoomButton:pressed { background: #c8e7ff; }
+QPlainTextEdit#downloadInfoBox[floatingZoomControls="true"] { padding-bottom: 0; }
+QGroupBox#captureToolGroup { background: transparent; border: 1px solid #c1ccd9; border-radius: 6px; margin-top: 8px; color: #344258; font: __BODY_PT__pt "__FONT_FAMILY__"; }
+QGroupBox#captureToolGroup::title { subcontrol-origin: margin; subcontrol-position: top center; padding: 0 4px; color: #344258; background: #edf2f8; }
+QLabel#captureToolFieldLabel { color: #738196; background: transparent; border: none; padding: 1px 1px 0 1px; }
+QLabel#captureToolSubsectionLabel { color: #637187; background: transparent; border: none; padding: 3px 1px 1px 1px; }
+QLabel#captureToolSubsectionLabel[risk="true"] { color: #8b650f; }
+QSplitter#captureContentSplitter { background: transparent; }
+QSplitter#captureContentSplitter::handle { background: transparent; border: none; border-radius: 0px; }
+QWidget#resizableListPanel, QWidget#resizableListHandle, QWidget#resizableListHandle:hover, QWidget#resizableListGrip { background: transparent; border: none; }
+QWidget#resizableListGripDot { background: #8b98a9; border: none; border-radius: 1px; }
+QWidget#resizableListGripDot[gripHovered="true"] { background: #52627a; }
+
+/* The shared page header is the single color source for selected presets. */
+
+QSplitter#captureContentSplitter::handle:hover { background: #1687e0; }
+QWidget#openwrtCaptureUpperPanel { background: transparent; border: none; }
+QWidget#captureToolPanel QLineEdit#captureLineEdit, QWidget#captureToolPanel QComboBox#captureComboBox { min-height: 25px; padding-left: 4px; padding-right: 4px; }
+QWidget#captureToolPanel QPushButton#downloadActionButton {
+    min-height: 28px;
+    padding: 3px 6px;
+}
+
+
+
+
+
+
+
+
+
+QWidget#captureToolPanel QPushButton#downloadActionButton[riskAction="true"] { color: #755300; border-color: #d2b56b; background: #fff8e3; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[riskAction="true"]:hover { background: #ffefbf; border-color: #b8902e; }
+QPushButton#captureSecondaryButton[riskAction="true"] { color: #c62828; border-color: #e5a3a3; background: #fdecea; }
+QPushButton#captureSecondaryButton[riskAction="true"]:hover { background: #f9d8d8; border-color: #b23a3a; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[hasCaptureResult="true"] { color: #0f7a3d; border-color: #7cc79b; background: #e9f7ef; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[hasCaptureResult="true"]:hover { background: #d7efdf; border-color: #4da975; }
+QWidget#openwrtSignalPage QPushButton#downloadActionButton[needsDependencyInstall="true"] { color: #0f7a3d; border-color: #7cc79b; background: #e9f7ef; }
+QWidget#openwrtSignalPage QPushButton#downloadActionButton[needsDependencyInstall="true"]:hover { background: #d7efdf; border-color: #4da975; }
+QFrame#captureDependencyRow { background: transparent; }
+/* 路由器信号管理列表：分组标题、空提示和单行卡片。 */
+QLabel#captureSignalSectionTitle { color: #172033; font: __BODY_PT__pt "__FONT_FAMILY__"; padding-top: 8px; border: none; background: transparent; }
+QLabel#captureSignalEmpty { color: #738196; padding: 2px 12px; border: none; background: transparent; }
+QFrame#captureSignalRow { background: #f5f6fa; border: 1px solid #cfd9e6; border-radius: 6px; }
+QFrame#captureSignalRow QLabel { background: transparent; border: none; }
+QFrame#captureSignalRow QPushButton#captureSecondaryButton { min-height: 24px; padding: 2px 10px; }
+QPushButton#captureSecondaryButton { background: #eef6ff; color: #172033; border: 1px solid #b8d9ff; border-radius: 5px; min-height: 28px; padding: 4px 10px; }
+QPushButton#captureSecondaryButton:hover { background: #dff0ff; border-color: #1687e0; }
+QPushButton#captureSecondaryButton[connectionActionState="login"] { background: #d4e9fa; border-color: #65a9df; color: #17466d; }
+QPushButton#captureSecondaryButton[connectionActionState="login"]:hover { background: #c2dff5; border-color: #358dcc; }
+QPushButton#captureSecondaryButton[connectionActionState="logout"] { background: #fff1d6; border-color: #d5a24f; color: #704b0e; }
+QPushButton#captureSecondaryButton[connectionActionState="logout"]:hover { background: #ffe5b7; border-color: #b98229; }
+QPushButton#captureSecondaryButton[connectionActionState="busy"] { background: #e2e7ee; border-color: #c5cfde; color: #7b8798; }
+
+/* File browser: scoped Explorer controls. */
+QWidget#openwrtFilesPage QToolButton#routerFileToolButton { background: transparent; border: none; border-radius: 4px; padding: 4px 6px; color: #172033; font: __BODY_PT__pt "__FONT_FAMILY__"; }
+QWidget#openwrtFilesPage QToolButton#routerFileToolButton:hover { background: #dce7f3; }
+QWidget#openwrtFilesPage QToolButton#routerFileToolButton:pressed { background: #b8d4f0; }
+QWidget#openwrtFilesPage QToolButton#routerFileToolButton:disabled { color: #8995a5; background: transparent; }
+QLabel#routerFilePaneTitle { color: #172033; font: bold 12pt "__FONT_FAMILY__"; padding-right: 4px; background: transparent; }
+QListView#routerFileIcons::item { padding: 6px; border: none; }
+
+QWidget#openwrtFilesPage QToolButton#routerFileToolButton:checked { background: #dce7f3; }
+QSplitter#routerFilesSplitter { background: transparent; }
+QSplitter#routerFilesSplitter::handle { background: transparent; border: none; border-radius: 0px; }
+
+QListWidget#captureDictionaryList, QTreeWidget#captureDictionaryList { background-color: #e9eff6; color: #172033; border: 1px solid #c6cdde; border-radius: 5px; padding: 6px; outline: none; }
+QTreeWidget#captureDictionaryList QHeaderView, QTreeWidget#captureDictionaryList QHeaderView > QWidget { background-color: #e9eff6; border: none; }
+QListWidget#captureDictionaryList::item, QTreeWidget#captureDictionaryList::item { min-height: 22px; padding: 2px 6px; border-radius: 4px; }
+QListWidget#captureDictionaryList::item:hover, QTreeWidget#captureDictionaryList::item:hover { background-color: #e7eef6; min-height: 22px; padding: 2px 6px; border-radius: 4px; }
+QListWidget#captureDictionaryList::item:selected, QTreeWidget#captureDictionaryList::item:selected { background-color: #c9dff3; color: #24405c; }
+QTreeWidget#captureDictionaryList::item, QTreeWidget#captureDictionaryList::item:hover { border-radius: 0; border: none; }
+QTreeWidget#captureDictionaryList QHeaderView::section { background: #e9eff6; color: #172033; border: none; border-radius: 0px; padding: 5px 8px; }
+
+QPushButton#captureSecondaryButton[compactDependency="true"] { min-height: 20px; padding: 2px 8px; }
+
+QWidget#routerTerminalContainer {
+    background-color: #1d2126;
+    color: #f4f6f8;
+    border-radius: 6px;
+}
+
+QFrame#captureDependencyRow { background: #edf2f8; border: none; border-radius: 4px; }
+QFrame#captureDependencyRow[alternate="true"] { background: #e7edf6; }
+QFrame#captureDependencyRow[selected="true"] { background: #b8d4f0; }
+
+QPushButton#captureSignalNavigation { background: __TABLE_HEADER_BG__; color: #42526b; border: 1px solid #b7c3d2; border-radius: 4px; margin: 0; padding: 0; text-align: center; font: __BODY_PT__pt "__FONT_FAMILY__"; }
+QPushButton#captureSignalNavigation:checked { color: #344258; background: #e1e6ed; border-color: #5988b2; }
+QPushButton#captureSignalNavigation:hover:!checked { color: #344258; background: #e8eef5; border-color: #5988b2; }
+
+QWidget#openwrtSignalPage QPushButton#downloadActionButton[signalPrimaryAction="true"] { background: #e1f4e7; color: #146334; border: 1px solid #71b98b; min-height: 36px; padding: 5px 14px; border-radius: 5px; text-align: center; }
+QWidget#openwrtSignalPage QPushButton#downloadActionButton[signalPrimaryAction="true"]:hover { background: #ccebd7; }
+QWidget#openwrtSignalPage QPushButton#downloadActionButton[signalPrimaryAction="true"]:disabled { background: transparent; color: #82968a; border-color: #bdcec3; }
+
+/* Wireless scans align with their toolbar and size actions by actual content. */
+QTableWidget#captureAccessPointTable[wirelessNetworks="true"] { padding: 0px; }
+QTableWidget#captureAccessPointTable[wirelessNetworks="true"]::item { padding: 0px 5px; }
+QFrame#tableSearchPanel { background: #edf2f8; border: 1px solid #c6cdde; border-radius: 5px; }
+QToolButton#tableSearchToggle { background: #e1e6ed; border: none; border-radius: 4px; }
+QToolButton#tableSearchToggle:hover { background: #b8d4f0; }
+
+/* Shared full-width destructive action: use dangerAction on a page text button. */
+QPushButton#downloadActionButton[dangerAction="true"] { color: #ffffff; background: #c63740; border: 1px solid #ae2630; border-radius: 5px; }
+QPushButton#downloadActionButton[dangerAction="true"]:hover { background: #db424c; border-color: #c12b35; }
+QPushButton#downloadActionButton[dangerAction="true"]:pressed { background: #aa2932; }
+QPushButton#downloadActionButton[dangerAction="true"]:disabled { color: #af8c91; background: #f0dadd; border-color: #d7b9bd; }
+
+QWidget#captureSignalMaintenanceActions QPushButton#downloadActionButton { margin: 0px; padding: 4px 14px; text-align: center; }

@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "enabled": true,
+  "manifest_url": "https://routermanager-updates.routermanager-update-gateway.workers.dev/manifest",
+  "network_mode": "auto"
+}

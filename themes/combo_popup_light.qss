@@ -1,0 +1,16 @@
+/* Shared single/multiple choice popup colors. */
+QComboBox QAbstractItemView, QAbstractItemView[winboxComboPopup="true"] {
+    color: #172033;
+    background-color: #f3f6fb;
+    border: 1px solid #c5cfde;
+    selection-background-color: #d7e0ee;
+    selection-color: #172033;
+}
+
+QComboBox:disabled, QComboBox:disabled:hover,
+#settingsWindowFrame QComboBox:disabled, #settingsWindowFrame QComboBox:disabled:hover {
+    color: #8d96a3; background-color: #e4e8ed; border: 1px solid #d0d6de;
+}
+QComboBox::drop-down:disabled, #settingsWindowFrame QComboBox::drop-down:disabled {
+    background-color: #e4e8ed; background-image: none; border-left-color: #d0d6de;
+}

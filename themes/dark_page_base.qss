@@ -1,0 +1,529 @@
+/* 页面深色基础样式 — 被 base_page_styles.py 加载并替换占位符 */
+
+QFrame#softwareDownloadPage,
+QFrame#softwareUpdatePage {
+    background-color: #14171a;
+    background-image: none;
+}
+
+#downloadActionButton,
+#updateActionButton {
+    background-image: none;
+    font: __BODY_PT__pt "Segoe UI";
+    background-color: #24282e;
+    border: 1px solid #343b45;
+    border-radius: 6px;
+    color: #f4f6f8;
+    min-height: 24px;
+    padding: 4px 14px;
+}
+
+#downloadActionButton:hover,
+#downloadActionButton[guided="true"],
+#updateActionButton:hover,
+#updateActionButton[guided="true"],
+QToolButton#downloadToolButton:hover,
+QToolButton#downloadMiniButton:hover {
+    background-color: #303742;
+    border-color: rgb(0, 120, 212);
+}
+
+#downloadActionButton:pressed,
+#updateActionButton:pressed,
+QToolButton#downloadToolButton:pressed,
+QToolButton#downloadMiniButton:pressed {
+    background-color: #005a9e;
+    border-color: #003f73;
+    color: #ffffff;
+}
+
+#downloadActionButton:pressed,
+#updateActionButton:pressed {
+    padding-top: 5px;
+    padding-bottom: 3px;
+}
+
+QToolButton#downloadToolButton {
+    background-image: none;
+    background-color: #24282e;
+    border: 1px solid #343b45;
+    border-radius: 6px;
+    color: #f4f6f8;
+    min-width: 32px;
+    min-height: 30px;
+}
+
+QComboBox#downloadModeCombo {
+    background: transparent;
+    border: none;
+    color: #f4f6f8;
+    min-height: 28px;
+    padding: 0px 0px 0px 8px;
+}
+QComboBox#downloadModeCombo:hover {
+    background: transparent;
+}
+QComboBox#downloadModeCombo::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 18px;
+    border: none;
+    background: transparent;
+    background-image: url(:/icons/images/icons/cil-arrow-bottom.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+QTableWidget {
+    qproperty-showGrid: true;
+    gridline-color: #252b32;
+}
+
+QTableWidget#softwareDownloadTable,
+QTableWidget#softwareUpdateTable {
+    background-color: #181b1f;
+    background-image: none;
+    alternate-background-color: #1b1f24;
+    border: 1px solid #2f3640;
+    border-radius: 6px;
+    color: #f4f6f8;
+    selection-background-color: #26364c;
+    selection-color: #ffffff;
+}
+
+QTableWidget#softwareDownloadTable::item,
+QTableWidget#softwareUpdateTable::item {
+    padding: 6px;
+    border: none;
+    outline: 0;
+}
+
+QTableWidget#softwareDownloadTable::item:focus,
+QTableWidget#softwareUpdateTable::item:focus {
+    outline: none;
+    border: none;
+}
+
+QHeaderView { font: __BODY_PT__pt "__FONT_FAMILY__"; }
+QHeaderView::section {
+    background-color: #22272e;
+    color: #dfe5ee;
+    border: none;
+    border-right: 1px solid #343b45;
+    padding: 7px 8px;
+    font: __BODY_PT__pt "Segoe UI Semibold";
+}
+
+QFrame#downloadStatusCell,
+QFrame#updateStatusCell {
+    background: transparent;
+}
+
+QFrame#systemCleanupPage QLabel {
+    color: #f4f6f8;
+    font: __BODY_PT__pt "__FONT_FAMILY__";
+}
+
+QLabel#downloadStatusLabel,
+QLabel#updateStatusLabel {
+    background: transparent;
+    border: none;
+    color: #f4f6f8;
+    padding: 1px 10px;
+    font: __BODY_PT__pt "Segoe UI";
+}
+
+QPushButton#downloadStatusLabel,
+QPushButton#updateStatusLabel {
+    background: transparent;
+    border: none;
+    color: #f4f6f8;
+    padding: 5px 10px;
+    font: __BODY_PT__pt "Segoe UI";
+}
+
+#downloadStatusLabel[guided="true"],
+#updateStatusLabel[guided="true"] {
+    background-color: #303742;
+    border: 1px solid rgb(0, 120, 212);
+    border-radius: 5px;
+}
+
+QLabel[downloadStatus="ready_download"] {
+    background-image: none;
+    background-color: #24282e;
+    border-radius: 5px;
+    color: #f4f6f8;
+    padding: 5px 10px;
+}
+
+#downloadStatusActionButton {
+    background-image: none;
+    background-color: #24282e;
+    border: 1px solid #343b45;
+    border-radius: 5px;
+    color: #f4f6f8;
+    padding: 5px 10px;
+    font: __BODY_PT__pt "Segoe UI";
+    outline: 0;
+}
+
+#downloadStatusActionButton:hover,
+#downloadStatusActionButton[guided="true"] {
+    background-color: #303742;
+    border-color: rgb(0, 120, 212);
+}
+
+#downloadStatusActionButton:focus {
+    outline: none;
+}
+
+#downloadStatusActionButton:pressed {
+    background-image: none;
+    background-color: #20252b;
+    border-color: #343b45;
+    padding: 5px 10px;
+}
+
+#downloadStatusActionButton[downloadStatus="manual_decision"],
+#downloadStatusActionButton[downloadStatus="direct_failed"] {
+    background-color: #5f4824;
+    border-color: #d49a32;
+    color: #fff4dc;
+}
+
+#downloadStatusActionButton[downloadStatus="manual_decision"]:hover,
+#downloadStatusActionButton[downloadStatus="direct_failed"]:hover {
+    background-color: #76592c;
+    border-color: #f0b429;
+}
+
+#downloadStatusActionButton[compactStatus="true"] {
+    padding: 5px 6px;
+}
+
+#downloadStatusActionButton[compactStatus="true"]:pressed {
+    padding: 5px 6px;
+}
+
+#downloadStatusActionButton[downloadStatus="download_failed"] {
+    background-color: #6b2a2a;
+    border-color: #a03030;
+    color: #fff1f1;
+}
+
+#downloadStatusActionButton[downloadStatus="download_failed"]:hover {
+    background-color: #7a3333;
+    border-color: #c04040;
+}
+
+#downloadStatusActionButton[downloadStatus="check_failed"] {
+    background-color: #7a3d4a;
+    border-color: #9a4d5a;
+    color: #fff1f3;
+}
+
+#downloadStatusActionButton[downloadStatus="check_failed"]:hover {
+    background-color: #9a4d5a;
+}
+
+#downloadStatusActionButton[downloadStatus="done"] {
+    background-color: #2f6f55;
+    border-color: #3a8a6b;
+    color: #eafff4;
+}
+
+#downloadStatusActionButton[downloadStatus="done"]:hover {
+    background-color: #3a8a6b;
+    border-color: #4caa80;
+}
+
+QLabel[downloadStatus="no_update"],
+QLabel[downloadStatus="done"],
+QLabel[downloadStatus="existing_file"] {
+    background-color: #2f6f55;
+    border-radius: 5px;
+    color: #eafff4;
+    padding: 5px 10px;
+}
+
+QLabel[downloadStatus="waiting"],
+QLabel[downloadStatus="checking"],
+QLabel[downloadStatus="paused"] {
+    background-image: none;
+    background-color: #303742;
+    border-radius: 5px;
+    color: #f4f6f8;
+    padding: 5px 10px;
+}
+
+QLabel[downloadStatus="manual_decision"],
+QLabel[downloadStatus="direct_failed"] {
+    background-color: #5f4824;
+    border: 1px solid #d49a32;
+    border-radius: 5px;
+    color: #fff4dc;
+    padding: 5px 10px;
+}
+
+QLabel[compactStatus="true"] {
+    padding: 5px 5px;
+}
+
+QLabel[downloadStatus="check_failed"],
+QLabel[downloadStatus="download_failed"] {
+    background-color: #7a3d4a;
+    border-radius: 5px;
+    color: #fff1f3;
+    padding: 5px 10px;
+}
+
+QProgressBar#downloadProgressBar {
+    background-color: #111315;
+    border: 1px solid #343b45;
+    border-radius: 5px;
+    color: #f4f6f8;
+    min-height: 22px;
+    text-align: center;
+}
+
+QProgressBar#downloadProgressBar::chunk {
+    background-color: rgb(0, 120, 212);
+    border-radius: 4px;
+}
+
+QProgressBar#taskDialogProgressBar,
+QProgressBar#dictionaryTaskProgressBar {
+    background-color: #111315;
+    border: 1px solid #343b45;
+    border-radius: 5px;
+    min-height: 10px;
+    max-height: 10px;
+}
+
+QProgressBar#taskDialogProgressBar::chunk,
+QProgressBar#dictionaryTaskProgressBar::chunk {
+    background-color: rgb(0, 120, 212);
+    border-radius: 4px;
+}
+
+QToolButton#downloadMiniButton {
+    background-image: none;
+    background-color: #24282e;
+    border: 1px solid #343b45;
+    border-radius: 5px;
+    color: #f4f6f8;
+    min-width: __MINI_BTN_PX__px;
+    min-height: __MINI_BTN_PX__px;
+    max-width: __MINI_BTN_PX__px;
+    max-height: __MINI_BTN_PX__px;
+    padding: 0;
+    margin: 0;
+    outline: 0;
+}
+
+QToolButton#downloadMiniButton:focus {
+    outline: none;
+}
+
+QToolButton#downloadMiniButton[downloadStatus="manual_decision"] {
+    background-color: #5f4824;
+    border-color: #d49a32;
+    color: #fff4dc;
+}
+
+QToolButton#downloadMiniButton[downloadStatus="manual_decision"]:hover {
+    background-color: #76592c;
+    border-color: #f0b429;
+}
+
+QToolButton#downloadMiniButton[downloadStatus="manual_decision"]:pressed {
+    background-color: #4f3b1e;
+    border-color: #d49a32;
+}
+
+QToolButton#downloadMiniButton:pressed {
+    background-image: none;
+    background-color: #20252b;
+    border-color: #343b45;
+    padding: 0;
+    margin: 0;
+}
+
+QToolButton#downloadToolButton::menu-indicator,
+QToolButton#downloadMiniButton::menu-indicator {
+    image: none;
+    width: 0px;
+    height: 0px;
+}
+
+QToolButton#multiFileArrowBtn {
+    border: none;
+    background: transparent;
+    padding: 0px;
+}
+
+QToolButton#multiFileArrowBtn::menu-indicator {
+    image: none;
+    width: 0px;
+    height: 0px;
+}
+
+QFrame#downloadInfoPanel {
+    background-color: #181b1f;
+    border: 1px solid #2f3640;
+    border-radius: 6px;
+}
+
+QPlainTextEdit#downloadInfoBox {
+    background-color: #181b1f;
+    background-image: none;
+    border: none;
+    border-radius: 0px;
+    color: #cfd6df;
+    padding: 8px;
+}
+
+QScrollBar#autoHideScrollBar:vertical {
+    background: transparent;
+    width: 8px;
+    margin: 0px;
+    border: none;
+}
+QScrollBar#autoHideScrollBar:horizontal {
+    background: transparent;
+    height: 8px;
+    margin: 0px;
+    border: none;
+}
+QScrollBar#autoHideScrollBar::handle:vertical,
+QScrollBar#autoHideScrollBar::handle:horizontal {
+    background: #6d7887;
+    border-radius: 4px;
+}
+QScrollBar#autoHideScrollBar::handle:vertical:hover,
+QScrollBar#autoHideScrollBar::handle:horizontal:hover {
+    background: #0078d4;
+}
+QScrollBar#autoHideScrollBar::add-page:vertical,
+QScrollBar#autoHideScrollBar::sub-page:vertical,
+QScrollBar#autoHideScrollBar::add-page:horizontal,
+QScrollBar#autoHideScrollBar::sub-page:horizontal {
+    background: transparent;
+    border: none;
+}
+QScrollBar#autoHideScrollBar::add-line:vertical,
+QScrollBar#autoHideScrollBar::sub-line:vertical {
+    height: 0px;
+    border: none;
+    background: transparent;
+}
+QScrollBar#autoHideScrollBar::add-line:horizontal,
+QScrollBar#autoHideScrollBar::sub-line:horizontal {
+    width: 0px;
+    border: none;
+    background: transparent;
+}
+
+QWidget#quickSettingsMainPage {
+    background: transparent;
+}
+
+QSlider#quickSettingsIconSizeSlider::groove:horizontal {
+    height: 8px;
+    background: #343b48;
+    border-radius: 4px;
+}
+
+QSlider#quickSettingsIconSizeSlider::sub-page:horizontal {
+    background: #0078d4;
+    border-radius: 4px;
+}
+
+QSlider#quickSettingsIconSizeSlider::handle:horizontal {
+    width: 14px;
+    height: 14px;
+    margin: -3px 0;
+    background: #4aa6f5;
+    border: none;
+    border-radius: 7px;
+}
+
+QFrame#quickSettingsButton {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+}
+
+QFrame#quickSettingsButton:hover {
+    background: #303742;
+    border: 1px solid #4f9be6;
+}
+
+QFrame#quickSettingsButton:pressed {
+    background: #1d2025;
+    border: 1px solid #0078d4;
+}
+
+QToolButton#quickSettingsButtonIcon,
+QLabel#quickSettingsButtonLabel {
+    background: transparent;
+    border: none;
+    color: #f1f3f5;
+}
+
+QToolButton#quickSettingsButtonIcon {
+    padding: 0;
+}
+
+QFrame#quickSettingsMainSeparator {
+    background: transparent;
+    border: none;
+}
+
+QLabel#quickSettingsMainSeparatorLabel {
+    color: #aeb8c5;
+    background: transparent;
+    font: __BODY_PT__pt "Segoe UI";
+}
+
+QFrame#quickSettingsMainSeparatorLine {
+    min-height: 1px;
+    max-height: 1px;
+    background: #4b5664;
+    border: none;
+}
+
+QLabel#downloadInfoZoomLabel {
+    color: #cfd6df;
+    font: __BODY_PT__pt "Segoe UI";
+}
+
+QMenu {
+    background-color: #15181c;
+    color: #f4f6f8;
+    border: 1px solid #343b45;
+    padding: 6px;
+}
+QMenu::item {
+    padding: 6px 24px;
+}
+QMenu::item:selected {
+    background-color: rgb(0, 120, 212);
+    color: rgb(255, 255, 255);
+}
+
+QToolTip {
+       font: __TOOLTIP_PT__pt "__FONT_FAMILY__", "Microsoft YaHei", "Segoe UI";
+      background-color: #15181c;
+      color: #f4f6f8;
+      border: 1px solid #343b45;
+      border-radius: 4px;
+      padding: 0;
+      margin: 0;
+  }
+
+QProgressBar#taskDialogProgressBar { min-height: 6px; max-height: 6px; border: none; border-radius: 3px; }
+QProgressBar#taskDialogProgressBar::chunk { border-radius: 3px; }
+
+QSplitter#mainPageWorkspace::handle { background: transparent; border: none; image: none; }

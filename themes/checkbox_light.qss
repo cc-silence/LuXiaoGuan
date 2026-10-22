@@ -1,0 +1,23 @@
+/* WinBox 亮色主题公共复选框。由 dialog_theme 和 main.py 在最终 QSS 末尾统一追加。 */
+QCheckBox::indicator, QAbstractItemView::indicator {
+    border: 1px solid #aeb7c2;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    background: #ffffff;
+}
+QCheckBox::indicator:hover, QAbstractItemView::indicator:hover {
+    border: 1px solid #7f8b99;
+}
+QCheckBox::indicator:checked, QAbstractItemView::indicator:checked {
+    background: #8fc5ee;
+    border: 1px solid #7eaed2;
+    background-image: url(:/icons/images/icons/cil-check-alt.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+QCheckBox::indicator:indeterminate, QAbstractItemView::indicator:indeterminate {
+    background: #b8d4f0;
+    background-image: none;
+    border: 1px solid #7eaed2;
+}

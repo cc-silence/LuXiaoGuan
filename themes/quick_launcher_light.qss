@@ -1,0 +1,146 @@
+QFrame#quickLauncherSurface {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0 #e9f8fc, stop: 0.55 #f3fafc, stop: 1 #fbfcfd);
+    border: 1px solid #c8d3df;
+    border-radius: 10px;
+}
+QFrame#quickLauncherGroupSurface {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0 #e9f8fc, stop: 0.55 #f3fafc, stop: 1 #fbfcfd);
+    border: 1px solid #c8d3df;
+    border-radius: 10px;
+}
+
+QMenu {
+    color: #263545;
+    background: #ffffff;
+    border: 1px solid #c4d0dc;
+    padding: 4px;
+}
+QMenu::item {
+    min-width: 148px;
+    padding: 7px 24px 7px 12px;
+    border-radius: 4px;
+}
+QMenu::item:selected { background: #e4f1fb; }
+QLabel#settingsWindowTitle { color: #1d3042; background: transparent; }
+
+QFrame#quickLauncherHeader {
+    background: transparent;
+    border: none;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+}
+QFrame#quickLauncherGroupHeader {
+    background: transparent;
+    border: none;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+}
+
+QFrame#quickLauncherSearchSurface {
+    background: #ffffff;
+    border: none;
+    border-radius: 17px;
+}
+
+QLineEdit#quickLauncherSearch {
+    background: transparent;
+    color: #1b2a3a;
+    border: none;
+    border-radius: 0;
+    min-height: 32px;
+    padding: 0 8px;
+    font: 10pt "Microsoft YaHei", "Segoe UI";
+}
+
+QLineEdit#quickLauncherSearch:focus { border: none; }
+QToolButton#quickLauncherSearchIcon { background: transparent; border: none; }
+
+QToolButton#quickLauncherMainButton {
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+}
+QToolButton#quickLauncherMainButton:hover { background: #e6edf5; }
+
+QFrame#quickLauncherViewNavigation {
+    background: transparent;
+    border: none;
+}
+QFrame#quickLauncherViewNavigation QToolButton {
+    color: #657386;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    min-height: 30px;
+    padding: 0 12px;
+}
+QFrame#quickLauncherViewNavigation QToolButton:hover { color: #1f5f94; }
+QFrame#quickLauncherViewNavigation QToolButton:checked {
+    color: #0078d4;
+    border-bottom-color: #0078d4;
+    font-weight: 600;
+}
+
+QScrollArea#quickLauncherGridScroll,
+QScrollArea#quickLauncherGridScroll::viewport,
+QScrollArea#quickLauncherGridScroll QWidget {
+    background: transparent;
+    border: none;
+}
+
+QFrame#groupedLauncherItemTile,
+QFrame#groupedLauncherGroupTile {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+}
+QFrame#groupedLauncherItemTile:hover,
+QFrame#groupedLauncherGroupTile:hover {
+    background: #e4f1fb;
+    border-color: #82bee8;
+}
+QLabel#groupedLauncherItemName {
+    color: #263545;
+    background: transparent;
+    border: none;
+    font: 9pt "Microsoft YaHei", "Segoe UI";
+}
+QFrame#groupedLauncherGroupPreview {
+    background: #e8eef5;
+    border: 1px solid #c4d0dc;
+    border-radius: 5px;
+}
+QFrame#groupedLauncherSeparator { background: transparent; border: none; }
+QLabel#groupedLauncherSeparatorLabel { color: #617083; background: transparent; }
+QFrame#groupedLauncherSeparatorLine { min-height: 1px; max-height: 1px; background: #bac7d5; border: none; }
+
+QScrollBar#autoHideScrollBar:vertical {
+    background: transparent;
+    width: 8px;
+    margin: 0;
+    border: none;
+}
+QScrollBar#autoHideScrollBar:horizontal {
+    background: transparent;
+    height: 8px;
+    margin: 0;
+    border: none;
+}
+QScrollBar#autoHideScrollBar::handle:vertical,
+QScrollBar#autoHideScrollBar::handle:horizontal {
+    background: #718095;
+    border-radius: 4px;
+}
+QScrollBar#autoHideScrollBar::handle:vertical:hover,
+QScrollBar#autoHideScrollBar::handle:horizontal:hover { background: #0078d4; }
+QScrollBar#autoHideScrollBar::add-page:vertical,
+QScrollBar#autoHideScrollBar::sub-page:vertical,
+QScrollBar#autoHideScrollBar::add-page:horizontal,
+QScrollBar#autoHideScrollBar::sub-page:horizontal { background: transparent; border: none; }
+QScrollBar#autoHideScrollBar::add-line:vertical,
+QScrollBar#autoHideScrollBar::sub-line:vertical { height: 0; border: none; background: transparent; }
+QScrollBar#autoHideScrollBar::add-line:horizontal,
+QScrollBar#autoHideScrollBar::sub-line:horizontal { width: 0; border: none; background: transparent; }

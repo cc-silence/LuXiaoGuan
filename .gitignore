@@ -1,0 +1,43 @@
+# Generated builds, downloads and local publisher credentials
+/build/
+/dist/
+/offline_packages/
+/RouterManagerData/
+node_modules/
+.wrangler/
+/infra/update_gateway/python_runtime/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
+*.part
+.env
+.env.*
+.dev.vars
+*.pem
+*.p12
+*.pfx
+*.key
+
+# Personal router, proxy and publisher settings; retain the public update URL
+/config/*
+!/config/app_update.json
+
+# Generated audits/screenshots; keep test code and controlled fixtures
+/tests/**/*.png
+/tests/audit-*
+/tests/*-preview/
+/tests/migration-audit*.json
+/tests/*.jsonl
+/smoke-test.log
+
+# Local editor state
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+/tests/review-*.json
+/tests/window-firewall-verification.json
