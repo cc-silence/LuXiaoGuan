@@ -281,7 +281,8 @@ class SignalSetupPanels:
         """非阻塞打开有所属的弹窗；关闭后解除引用并销毁。"""
         self._dialogs.add(dialog)
         dialog.finished.connect(lambda _result, d=dialog: self._release(d))
-        dialog.open()
+        dialog.setWindowModality(Qt.NonModal)
+        dialog.show()
 
     def _release(self, dialog):
         """回收一次性窗口，密码由弹窗关闭路径清空。"""

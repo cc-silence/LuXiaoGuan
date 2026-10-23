@@ -1,6 +1,6 @@
 """\u8def\u7531\u5668\u7ba1\u7406\u72ec\u7acb\u5165\u53e3\uff1b\u5148\u5206\u6d41\u5de5\u4f5c\u8fdb\u7a0b\uff0c\u518d\u542f\u52a8\u754c\u9762\u3002"""
 import sys
-APP_VERSION = "1.0.11_alpha"
+APP_VERSION = "1.0.12_alpha"
 
 
 def main():

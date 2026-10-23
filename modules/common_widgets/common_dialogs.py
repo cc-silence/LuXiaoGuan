@@ -86,7 +86,7 @@ class ConfirmDialog(FramelessDialog):
 
     def __init__(self, title, message, parent=None, remember_option_text="", yes_text="确定", no_text="取消"):
         # 公共确认弹窗不能继承页面或快捷面板的局部 QSS，否则外壳会被不完整的样式覆盖。
-        super().__init__(title, parent, inherit_parent_stylesheet=False)
+        super().__init__(title, parent, inherit_parent_stylesheet=False, window_controls=False)
         apply_common_dialog_theme(self, parent)
         self.set_scaled_size((460, 220))
         self.remember_checked = False
@@ -127,7 +127,7 @@ class MessageDialog(FramelessDialog):
 
     def __init__(self, title, message, parent=None, button_text="确定"):
         # 公共消息弹窗始终只使用公共主题，调用位置不应影响背景、关闭图标或按钮外观。
-        super().__init__(title, parent, inherit_parent_stylesheet=False)
+        super().__init__(title, parent, inherit_parent_stylesheet=False, window_controls=False)
         apply_common_dialog_theme(self, parent)
         self.set_scaled_size((460, 220))
         _add_message_content(self, message)

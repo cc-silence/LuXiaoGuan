@@ -142,6 +142,11 @@ class WirelessSetupService(QObject):
             self.snapshot = replace(self.snapshot, networks=networks)
             self.snapshotChanged.emit(self.snapshot)
 
+    def check_management_connection(self, request):
+        """Refresh connection evidence off the UI thread before confirmation."""
+        return self._start("apply_check",
+            lambda cancel, message: self.manager.management_connection(request, cancel))
+
     def save(self, request, *, apply=True):
         return self._start("save" if apply else "save_only",
             lambda cancel, message: self.manager.save(request, cancel, message, apply=apply))
@@ -167,7 +172,7 @@ class WirelessSetupService(QObject):
         identity = self._connection_identity()
         self._identity = identity
         session = uuid4().hex
-        kind = "wireless_inspect" if action == "inspect" else "wireless_setup"
+        kind = {"inspect": "wireless_inspect", "apply_check": "wireless_apply_check"}.get(action, "wireless_setup")
         event = self.owner.task_controller.begin(kind, session)
         if event is None:
             self.active = False
@@ -202,6 +207,8 @@ class WirelessSetupService(QObject):
                 return WirelessTaskResult(action, error=safe, code=exc.code if isinstance(exc, SignalError) else "internal")
 
         def finished(result):
+            if action == "apply_check" and event.is_set() and not result.error:
+                result = WirelessTaskResult(action, error="管理连接检查已取消，未应用设置。", code="cancelled")
             valid = self._connection_identity() is identity and self.signals.snapshot.connected
             self.owner.task_controller.finish(failed=bool(result.error))
             self.active = False

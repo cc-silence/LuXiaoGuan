@@ -3,10 +3,11 @@
 import json
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from modules.capture_services.openwrt.command_builder import normalize_bssid, quote_argument
+from .verification_diagnostics import verification_phase
 from modules.capture_services.openwrt.result_converter import final_results_dir, safe_result_stem
 
 
@@ -104,6 +105,7 @@ class OpenWrtPasswordVerifier:
                     unique.add(text)
         return tuple(seen), skipped
 
+    @verification_phase("execute")
     def verify_targets(
         self,
         targets,
@@ -133,6 +135,8 @@ class OpenWrtPasswordVerifier:
         results = []
         setup_done = False
         self.last_restore_errors = ""
+        self._configuration_touched = False
+        primary_error = None
         try:
             self._backup_configs(backup_dir, cancel_event)
             for index, target in enumerate(targets):
@@ -158,23 +162,32 @@ class OpenWrtPasswordVerifier:
                 results.append(outcome["entry"])
                 if target_callback is not None:
                     target_callback(index, outcome["entry"])
-            return tuple(results)
+        except Exception as exc:
+            primary_error = exc
+            raise
         finally:
+            finish_error = None
             if pause_control is not None:
-                pause_control.finish()
-            errors = self._restore(sta_section, net_name, backup_dir, cancel_event)
-            self.last_restore_errors = errors
-            if errors and results:
-                last = results[-1]
-                results[-1] = PasswordTargetResult(
-                    bssid=last.bssid,
-                    ssid=last.ssid,
-                    found=last.found,
-                    tried=last.tried,
-                    total=last.total,
-                    password_file=last.password_file,
-                    note="；".join(filter(None, [last.note, errors])),
-                )
+                try:
+                    self._finish_pause(pause_control)
+                except Exception as exc:
+                    finish_error = exc
+            try:
+                self.last_restore_errors = self._restore(sta_section, net_name, backup_dir, cancel_event)
+            except Exception:
+                self.last_restore_errors = "路由器配置恢复异常，请重新连接后核实无线配置和网络状态。"
+                if primary_error is None:
+                    raise
+            if finish_error is not None and primary_error is None:
+                raise RuntimeError("任务控制收尾异常，已尝试恢复路由器配置，请检查任务状态。") from None
+        if self.last_restore_errors and results:
+            last = results[-1]
+            results[-1] = replace(last, note="；".join(filter(None, [last.note, self.last_restore_errors])))
+        return tuple(results)
+
+    @verification_phase("finish_control")
+    def _finish_pause(self, pause_control):
+        pause_control.finish()
 
     def _verify_single(
         self,
@@ -298,54 +311,28 @@ class OpenWrtPasswordVerifier:
             "setup_done": setup_done,
         }
 
+    @verification_phase("select_radio")
     def _pick_radio(self, band, cancel_event):
         """按频段选一个可用的 wireless 设备名，不存在时抛错。"""
 
+        from .radio_takeover import OpenWrtRadioTakeover, _parse_iwdev_interfaces
+        from .radio_identity import snapshot_radio_mapping, uci_radio_bands
         self._check_cancel(cancel_event)
-        result = self.command_runner.run("password_list_radios", "uci show wireless", timeout=20, cancel_event=cancel_event)
-        self._raise_if_cancelled(result, "在线密码验证已取消。")
-        if result.exit_code != 0:
-            raise RuntimeError("读取路由器无线配置失败，无法选择验证网卡。")
-        devices = {}
-        current = ""
-        for line in (result.stdout or "").splitlines():
-            match = re.match(r"wireless\.([A-Za-z0-9_]+)=(\S+)", line.strip())
-            if match and match.group(2) == "wifi-device":
-                current = match.group(1)
-                devices[current] = {}
-                continue
-            match = re.match(r"wireless\.([A-Za-z0-9_]+)\.(\S+?)='(.*)'$", line.strip())
-            if match and match.group(1) == current:
-                devices[current][match.group(2)] = match.group(3)
-        want_5g = "5G" in str(band).upper()
-        fallback = ""
-        for name, options in devices.items():
-            if options.get("disabled", "0") == "1":
-                continue
-            band_option = str(options.get("band", "") or "").lower()
-            hwmode = str(options.get("hwmode", "") or "").lower()
-            channel = options.get("channel", "")
-            is_5g = (
-                band_option.startswith("5")
-                or "11a" in hwmode
-                or (str(channel).isdigit() and int(channel) >= 36)
-            )
-            is_2g = (
-                band_option.startswith("2")
-                or "11g" in hwmode
-                or "11b" in hwmode
-                or (str(channel).isdigit() and 1 <= int(channel) <= 14)
-            )
-            if not fallback and (is_5g or is_2g or (not band_option and not hwmode)):
-                fallback = name
-            if want_5g and is_5g:
-                return name
-            if not want_5g and is_2g:
-                return name
-        if fallback:
-            return fallback
-        raise RuntimeError("路由器上没有可用的无线设备，无法在线验证。")
+        wanted = {"2.4G": "2g", "2G": "2g", "5G": "5g", "6G": "6g"}.get(str(band).upper())
+        if wanted is None:
+            raise ValueError("无法识别目标频段，请刷新扫描结果。")
+        snapshot = OpenWrtRadioTakeover(self.command_runner).snapshot_wireless(cancel_event)
+        interfaces = {p: tuple(name for name, _ in rows)
+                      for p, rows in _parse_iwdev_interfaces(snapshot).items()}
+        mapping = snapshot_radio_mapping(snapshot, interfaces)
+        disabled = set(re.findall(r"(?m)^wireless\.([A-Za-z0-9_]+)\.disabled=['\"]?1['\"]?\s*$", snapshot))
+        candidates = [radio for radio, actual in uci_radio_bands(snapshot).items()
+                      if actual == wanted and radio not in disabled and radio in mapping]
+        if len(candidates) != 1:
+            raise RuntimeError("无法唯一确认同频段网卡的硬件归属；信息缺失、存在多块候选或归属冲突，已停止验证，请刷新无线状态。")
+        return candidates[0]
 
+    @verification_phase("configure")
     def _setup_environment(self, sta_section, net_name, radio, cancel_event):
         """建临时 STA 与 DHCP 网络，禁用其他无线接口（状态已备份，按名恢复）。"""
 
@@ -435,6 +422,7 @@ class OpenWrtPasswordVerifier:
         addresses = data.get("ipv4-address") or []
         return any(isinstance(item, dict) and item.get("address") for item in addresses)
 
+    @verification_phase("backup")
     def _backup_configs(self, backup_dir, cancel_event):
         """把 wireless/network/firewall 拷到会话独立远端目录，不覆盖用户旧备份。"""
 
@@ -442,7 +430,7 @@ class OpenWrtPasswordVerifier:
         commands = [f"mkdir -p {quote_argument(backup_dir)}"]
         for name in _REMOTE_BACKUP_FILES:
             commands.append(
-                f"cp /etc/config/{name} {quote_argument(backup_dir)}/{name} 2>/dev/null || true"
+                f"cp /etc/config/{name} {quote_argument(backup_dir)}/{name} 2>/dev/null"
             )
         # 记下其他 wifi-iface 的 disabled 原值，恢复时按名写回。
         self._run_batch("password_backup", commands, cancel_event)
@@ -502,12 +490,15 @@ class OpenWrtPasswordVerifier:
                 return current
         return None
 
+    @verification_phase("restore")
     def _restore(self, sta_section, net_name, backup_dir, cancel_event):
         """手术恢复：删临时配置、写回 disabled、摘防火墙；失败回退整文件覆盖。
 
         返回值：空串表示干净恢复，否则是给用户看的恢复异常说明（不含密码）。
         """
 
+        if not getattr(self, "_configuration_touched", True):
+            return ""
         errors = []
         zone = getattr(self, "_wan_zone", None)
         commands = [
@@ -544,7 +535,7 @@ class OpenWrtPasswordVerifier:
         return "；".join(errors)
 
     def _run_batch(self, name, commands, cancel_event):
-        """按序执行一批短命令；失败抛错并附带远端输出摘要（脱敏：不含密码）。"""
+        """按序执行一批短命令；失败抛错，错误信息仅保留操作名和退出码。"""
 
         for command in commands:
             self._run(name, command, 30, cancel_event)
@@ -553,16 +544,15 @@ class OpenWrtPasswordVerifier:
         """执行单条远端命令；取消、超时、非零退出一律抛错。"""
 
         self._check_cancel(cancel_event)
+        if name in {"password_setup_env", "password_set_cred"}:
+            self._configuration_touched = True
         result = self.command_runner.run(name, command, timeout=timeout, cancel_event=cancel_event)
         self._check_cancel(cancel_event)
         self._raise_if_cancelled(result, "在线密码验证已取消。")
         if getattr(result, "timed_out", False):
-            raise RuntimeError(f"路由器命令超时：{name}。")
+            raise TimeoutError(f"路由器命令超时：{name}。")
         if result.exit_code != 0:
-            detail = ((getattr(result, "stderr", "") or "") or (result.stdout or "")).strip()
-            # 恢复类命令自带 || true，走到这里的是主流程命令；输出可能含配置
-            # 回显但不含候选密码（密码只出现在 set key 那条，失败摘要截断长度）。
-            raise RuntimeError(f"路由器命令失败（{name}）：{detail[:200] or result.exit_code}。")
+            raise RuntimeError(f"路由器命令失败（{name}），退出码：{result.exit_code}。")
 
     @staticmethod
     def _raise_if_cancelled(result, message):

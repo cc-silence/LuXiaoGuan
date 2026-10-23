@@ -5,6 +5,17 @@ from datetime import datetime, timezone
 from math import isfinite
 from threading import RLock
 
+# Exact protocol constants may survive text redaction; arbitrary strings may not.
+SAFE_VALUES = {
+    "operation": frozenset({"verification_prepare", "radio_identity", "radio_identity_probe",
+        "password_backup", "password_read_ifaces", "password_find_zone", "password_list_radios",
+        "password_setup_env", "password_reload", "password_ifup", "password_set_cred",
+        "password_check_link", "password_restore", "password_restore_fallback", "password_net_restart"}),
+    "stage": frozenset({"execute", "backup", "select_radio", "configure", "restore", "identity_lookup", "finish_control"}),
+    "reason": frozenset({"cancelled", "timeout", "io_error", "invalid_data", "runtime_error",
+        "unexpected_error", "restore_reported_errors", "phase_completed", "native_identity_available",
+        "native_identity_unavailable", "configuration_untouched"}),
+}
 MAX_EVENTS = 64
 MAX_FAILURES = 8
 MAX_WORKFLOWS = 32
@@ -14,7 +25,7 @@ NUMBER_FIELDS = frozenset({"id", "operation_id", "elapsed_seconds", "connected_b
     "connected_after", "exit_code", "timed_out", "cancelled", "request_bytes",
     "channel", "pending_processes", "takeover", "blocked", "primary_failed",
     "wireless_cleanup_confirmed", "monitor_active", "result_rows", "accepted_rows",
-    "rejected_rows", "frequency_rows", "band_rows", "legacy_rows"})
+    "rejected_rows", "frequency_rows", "band_rows", "legacy_rows", "configured_radios", "identified_radios", "physical_radios"})
 
 
 def _fields(row):
@@ -84,7 +95,7 @@ def sanitized_operation_evidence(data, masker):
         rows = data.get(key, [])
         if not isinstance(rows, list) or len(rows) > limit:
             raise ValueError("operation diagnostic record limit exceeded")
-        result[key] = [{name: sanitized_text(value, masker) if isinstance(value, str) else value
+        result[key] = [{name: (value if value in SAFE_VALUES.get(name, ()) else sanitized_text(value, masker)) if isinstance(value, str) else value
                         for name, value in _fields(row).items()} for row in rows]
     if "login_attempts" in data:
         from .login_diagnostics import sanitized_login_attempts

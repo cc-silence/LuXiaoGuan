@@ -52,7 +52,13 @@ local function save_session_commit(verify)
    end
   end
  end
- if #configs==0 then fail("save_commit") end
+ if #configs==0 then
+  if not verify then fail("save_commit") end
+  verify()
+  if req.revision and req.revision~=revision() then fail("changed") end
+  if req.dhcp_revision and req.dhcp_revision~="" and req.dhcp_revision~=dhcp_revision() then fail("dhcp_changed") end
+  return {saved=true,applied=false}
+ end
  local dir=read("umask 077; mktemp -d /tmp/rouxiaoguan-save.XXXXXX"):gsub("%s+$","")
  if not dir:match("^/tmp/rouxiaoguan%-save%.%w+$") then fail("save_backup") end
  for _,config in ipairs(configs) do

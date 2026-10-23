@@ -3,6 +3,7 @@ import json
 from .command_builder import quote_argument
 from .signal_commands import _LUA_BINS
 from .wireless_options import IFACE_KEYS, RADIO_KEYS
+from .wireless_capabilities import CAPABILITIES_LUA, RADIO_SETTINGS, IFACE_SETTINGS
 from .wireless_bridge_commands import BRIDGE
 from .wireless_bridge_status import STATUS
 from .wireless_bridge_toggle import TOGGLE
@@ -68,12 +69,14 @@ local function fields(s,keys)
  end
  return out
 end
+__CAPABILITIES__
 local sid,set,add
 __BRIDGE_HELPERS__
 __BRIDGE_STATUS__
 local function inspect(readonly)
  local c=clean(readonly);local before=revision()
  local status=rpc("network.wireless","status",{})
+ local validation=optional("network.wireless","get_validate",{})
  local radios,rows,networks,zones,active={},{},{},{},{}
  c:foreach("network","interface",function(s)
   local out=fields(s,{"proto","ipaddr","netmask","gateway","dns","metric","device","type","rm_owner","network","rm_dhcp_backup","hostname"})
@@ -103,15 +106,38 @@ local function inspect(readonly)
   out.powers=optional("iwinfo","txpowerlist",{device=device}).results or {}
   out.countries=optional("iwinfo","countrylist",{device=device}).results or {}
   out.htmodes=info.htmodes or {}
+  out.option_support=option_support(validation[s[".name"]])
   radios[#radios+1]=out
  end)
  c:foreach("wireless","wifi-iface",function(s)
-  local out=fields(s,{"ssid","mode","device","network","encryption","hidden","isolate","maxassoc","description","rm_bridge","rm_wds_backup","rm_suspended","rm_identity_backup","macaddr","disabled","bssid","wmm","ieee80211w","dtim_period","beacon_int",__IFACE_KEYS__})
+  local out=fields(s,{"ssid","mode","device","network","encryption","hidden","isolate","maxassoc","description","rm_bridge","rm_wds_backup","rm_suspended","rm_identity_backup","macaddr","disabled","bssid","wmm","ieee80211w","dtim_period",__IFACE_KEYS__})
   out.section=s[".name"];out.has_key=type(s.key)=="string" and #s.key>0
   rows[#rows+1]=out
  end)
  if before~=revision() then fail("changed") end
  return {revision=before,dhcp_revision=dhcp_revision(),radios=radios,rows=rows,networks=networks,zones=zones,active=active}
+end
+
+local function management_path()
+ local c=uci.cursor()
+ if not c:load("wireless") then fail("read") end
+ local out={}
+ for radio,rs in pairs(rpc("network.wireless","status",{})) do
+  if name(radio) and type(rs)=="table" and rs.up==true and not rs.pending then
+   for _,iface in ipairs(rs.interfaces or {}) do
+    local row=type(iface.section)=="string" and c:get_all("wireless",iface.section) or nil
+    if row and (row.mode=="ap" or row.mode=="sta") and row.device==radio and type(iface.ifname)=="string" and iface.ifname:match("^[%w_.:%-]+$") then
+     local device=optional("network.device","status",{name=iface.ifname})
+     if device.up==true then
+      out[#out+1]={section=iface.section,radio=radio,interface=iface.ifname,mode=row.mode}
+      if #out>512 then fail("response") end
+     end
+    end
+   end
+  end
+ end
+ local target=name(req.radio) and optional("iwinfo","phyname",{section=req.radio}).phyname or ""
+ return {interfaces=out,target_phy=type(target)=="string" and target or ""}
 end
 local function session()
  local value=rpc("session","create",{timeout=300})
@@ -178,7 +204,7 @@ local function stage()
  if v.mode=="ap" then
   if type(network)~="table" and c:get("network",network)~="interface" then fail("network") end
   wf.encryption=opts.encryption or (old and old.encryption) or "psk2"
-  for _,k in ipairs({"hidden","isolate","maxassoc","wmm","ieee80211w","dtim_period","beacon_int",__IFACE_KEYS__}) do if opts[k]~=nil then wf[k]=opts[k] end end
+  for _,k in ipairs({"hidden","isolate","maxassoc","wmm","ieee80211w","dtim_period",__IFACE_KEYS__}) do if opts[k]~=nil then wf[k]=opts[k] end end
   if opts.maclist then
    wf.maclist={};for address in opts.maclist:gmatch("%S+") do wf.maclist[#wf.maclist+1]=address end
   end
@@ -263,7 +289,7 @@ local function saved_status()
  local row=c:get_all("wireless",req.section)
  if not row or row.mode~=v.mode or row.device~=v.radio or row.ssid~=v.ssid or row.disabled~=(req.save_only==true and "1" or "0") then fail("unconfirmed") end
  if v.password~="" and row.key~=v.password then fail("unconfirmed") end
- local keys=v.mode=="ap" and {"encryption","hidden","isolate","maxassoc","wmm","ieee80211w","dtim_period","beacon_int",__IFACE_KEYS__} or {"encryption","bssid"}
+ local keys=v.mode=="ap" and {"encryption","hidden","isolate","maxassoc","wmm","ieee80211w","dtim_period",__IFACE_KEYS__} or {"encryption","bssid"}
  for _,key in ipairs(keys) do
   if opts[key]~=nil and not (key=="bssid" and opts[key]=="") and key~="maclist" and row[key]~=opts[key] then fail("unconfirmed") end
  end
@@ -286,6 +312,34 @@ local function saved_status()
    for _,key in ipairs({"proto","ipaddr","netmask","gateway","metric"}) do
     if opts[key]~=nil and c:get("network",req.network,key)~=opts[key] then fail("unconfirmed") end
    end
+
+   local member,invalid=false,false
+   c:foreach("firewall","zone",function(zone)
+    local members=type(zone.network)=="table" and zone.network or {}
+    if type(zone.network)=="string" then
+     for item in zone.network:gmatch("%S+") do members[#members+1]=item end
+    end
+    for _,item in ipairs(members) do
+     if item==req.network then
+      if zone.name~=(opts.zone or "wan") or member then invalid=true end
+      member=true
+     end
+    end
+   end)
+   if not member or invalid then fail("unconfirmed") end
+   if opts.dns~=nil then
+    local net=c:get_all("network",req.network) or {}
+    if net.peerdns~=(opts.dns=="" and "1" or "0") then fail("unconfirmed") end
+    local wanted,actual={},{}
+    for address in opts.dns:gmatch("%S+") do wanted[#wanted+1]=address end
+    if type(net.dns)=="table" then actual=net.dns
+    elseif type(net.dns)=="string" then
+     for address in net.dns:gmatch("%S+") do actual[#actual+1]=address end
+    elseif net.dns~=nil then fail("unconfirmed") end
+    if #wanted==0 and net.dns~=nil then fail("unconfirmed") end
+    if #wanted~=#actual then fail("unconfirmed") end
+    for i,address in ipairs(wanted) do if actual[i]~=address then fail("unconfirmed") end end
+   end
   end
  end
  for _,key in ipairs({"channel","htmode","country","txpower",__RADIO_KEYS__}) do
@@ -301,8 +355,9 @@ local function status()
  for _,v in ipairs(rs.interfaces or {}) do if v.section==req.section then iface=v.ifname end end
  if type(iface)~="string" or not iface:match("^[%w_.:%-]+$") or rs.pending or rs.up~=true then return {ready=false} end
  if req.mode=="ap" then
-  local value=optional("hostapd."..iface,"get_status",{})
-  return {ready=value.status=="ENABLED"}
+  local c=uci.cursor()
+  if not c:load("wireless") then return {ready=false} end
+  return {ready=ap_ready(iface,c:get("wireless",req.section,"ssid"))}
  end
  if req.expected_mac and req.expected_mac~="" then
   local actual=optional("network.device","status",{name=iface}).macaddr
@@ -337,6 +392,7 @@ local function run()
   clean();if before~=revision() then fail("changed") end
   return {password=key}
  end
+ if req.action=="management_path" then return management_path() end
  if req.action=="session" then return session() end
  if req.action=="delete_stage" then return delete_stage() end
  if req.action=="delete_status" then return delete_status() end
@@ -374,7 +430,7 @@ if ok then io.write(json.stringify({ok=true,result=result}))
 else io.write(json.stringify({ok=false,code=type(result)=="table" and result.code or "internal"})) end
 '''
 
-BOOT = BOOT.replace("__SCAN__", SCAN).replace("__ORPHANS__", ORPHANS).replace("__RELOCATION__", RELOCATION).replace("__PENDING__", PENDING).replace("__SAVE_ONLY__", SAVE_ONLY).replace("__IDENTITY__", IDENTITY).replace("__BRIDGE_HELPERS__", BRIDGE).replace("__BRIDGE_STATUS__", STATUS).replace("__BRIDGE_TOGGLE__", TOGGLE).replace("__DELETE__", DELETE).replace("__IFACE_KEYS__", ",".join(json.dumps(k) for k in IFACE_KEYS)).replace("__RADIO_KEYS__", ",".join(json.dumps(k) for k in RADIO_KEYS))
+BOOT = BOOT.replace("__CAPABILITIES__", CAPABILITIES_LUA).replace("__DEVICE_OPTIONS__", ",".join(json.dumps(k) for k in RADIO_SETTINGS)).replace("__INTERFACE_OPTIONS__", ",".join(json.dumps(k) for k in IFACE_SETTINGS)).replace("__SCAN__", SCAN).replace("__ORPHANS__", ORPHANS).replace("__RELOCATION__", RELOCATION).replace("__PENDING__", PENDING).replace("__SAVE_ONLY__", SAVE_ONLY).replace("__IDENTITY__", IDENTITY).replace("__BRIDGE_HELPERS__", BRIDGE).replace("__BRIDGE_STATUS__", STATUS).replace("__BRIDGE_TOGGLE__", TOGGLE).replace("__DELETE__", DELETE).replace("__IFACE_KEYS__", ",".join(json.dumps(k) for k in IFACE_KEYS)).replace("__RADIO_KEYS__", ",".join(json.dumps(k) for k in RADIO_KEYS))
 
 PROBE = TOOL_RUNTIME_SH + r'''
 for key in uci ubus iw wpa_cli hostapd wpa_supplicant rpcd; do

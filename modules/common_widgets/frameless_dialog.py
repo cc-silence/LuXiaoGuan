@@ -101,7 +101,7 @@ class FramelessDialog(QDialog):
             frame.style().drawPrimitive(QStyle.PE_Widget, option, painter, frame)
             painter.end()
 
-    def __init__(self, title="", parent=None, translucent_background=True, inherit_parent_stylesheet=True):
+    def __init__(self, title="", parent=None, translucent_background=True, inherit_parent_stylesheet=True, *, window_controls=True):
         """创建无边框弹窗外壳。
 
         参数：title 是标题；parent 是 Qt 父窗口；translucent_background 控制透明外层；
@@ -123,6 +123,10 @@ class FramelessDialog(QDialog):
         self._setup_frameless_ui(title)
         self._setup_grips()
         self._connect_frameless_signals()
+        self.window_controls = None
+        if window_controls:
+            from .dialog_window_controls import DialogWindowControls
+            self.window_controls = DialogWindowControls(self)
         scale = UiScaleManager.for_widget(self)
         scale.bind_metrics(self.title_bar, fixed_height=44)
         scale.bind_metrics(self.close_btn, fixed_size=(28, 28))

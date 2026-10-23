@@ -73,6 +73,38 @@ class SaveOnlyTests(unittest.TestCase):
         self.manager=WirelessSetupManager(self.device)
         self.cancel=threading.Event()
 
+
+    def test_unchanged_save_checks_existing_configuration_without_writes(self):
+        request=WirelessRequest("ap","radio7","Deferred","test-password",options={"encryption":"psk2","network":"lan"})
+        first=self.manager.save(request,self.cancel,Mock(),apply=False)
+        before=copy.deepcopy(self.device.config)
+        self.device.commits.clear()
+        second=self.manager.save(replace(request,section=first["section"],password=""),
+                                 self.cancel,Mock(),apply=False)
+        self.assertTrue(second["saved"])
+        self.assertFalse(second["applied"])
+        self.assertEqual(self.device.config,before)
+        self.assertEqual(self.device.commits,[])
+        self.assertFalse(self.device.sessions)
+        self.assertNotIn(("uci","apply"),self.device.calls)
+        self.assertFalse(any("rouxiaoguan-save" in p for p in self.device.files))
+
+    def test_no_change_session_cannot_confirm_wrong_expected_configuration(self):
+        from dataclasses import asdict
+        request=WirelessRequest("ap","radio7","Deferred","test-password",options={"encryption":"psk2","network":"lan"})
+        first=self.manager.save(request,self.cancel,Mock(),apply=False)
+        env=self.manager.inspect(self.cancel)
+        sid=self.manager._call("session",self.cancel)["sid"]
+        try:
+            wrong=replace(request,section=first["section"],ssid="Wrong",password="")
+            with self.assertRaises(SignalError) as error:
+                self.manager._call("save_only_commit",self.cancel,sid=sid,
+                    revision=env.data["revision"],dhcp_revision=env.data["dhcp_revision"],
+                    values=asdict(wrong),save_only=True,section=first["section"],network=first["network"])
+            self.assertEqual(error.exception.code,"unconfirmed")
+        finally:
+            self.manager._call("discard_session",self.cancel,sid=sid)
+
     def test_new_ap_saved_disabled_without_apply_or_live_checks(self):
         before=copy.deepcopy(self.device.config)
         request=WirelessRequest("ap","radio7","Deferred","save-only-secret",options={"encryption":"psk2","network":"lan"})

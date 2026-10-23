@@ -16,7 +16,7 @@ class TaskProgressDialog(FramelessDialog):
     def __init__(self,title,detail='',parent=None,*,show_immediately=True,
                  cancel_text='取消任务',progress_formatter=None):
         """调用方连接 cancelRequested，调用 update_progress 与 finish；本类不运行任务。"""
-        super().__init__(title,parent,inherit_parent_stylesheet=False)
+        super().__init__(title,parent,inherit_parent_stylesheet=False,window_controls=False)
         self.started=time.monotonic()
         self.running=True
         self.cancelling=False

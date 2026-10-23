@@ -114,23 +114,23 @@ def validate_request(request):
         if key in options and options[key] not in ("0", "1"):
             raise ValueError("无线开关值无效。")
     if "ieee80211w" in options and options["ieee80211w"] not in ("0", "1", "2"):
-        raise ValueError("管理帧保护值无效。")
+        raise ValueError("802.11w 管理帧保护值无效。")
     if base in ("sae", "owe") and options.get("ieee80211w") in ("0", "1"):
-        raise ValueError("WPA3 个人版需要强制管理帧保护。")
+        raise ValueError("WPA3-SAE 需要强制 802.11w 管理帧保护。")
     for key, low, high in (("dtim_period", 1, 255), ("beacon_int", 15, 65535), ("maxassoc", 1, 512), ("metric", 0, 65535), ("txpower", 0, 40)):
-        if key in options and (not str(options[key]).isdigit() or not low <= int(options[key]) <= high):
+        if key in options and (not isinstance(options[key], str) or not options[key].isascii() or not options[key].isdigit() or not low <= int(options[key]) <= high):
             raise ValueError("数字设置超出支持范围：" + key)
-    if "channel" in options and options["channel"] != "auto" and not str(options["channel"]).isdigit():
+    if "channel" in options and options["channel"] != "auto" and not (isinstance(options["channel"], str) and options["channel"].isascii() and options["channel"].isdigit()):
         raise ValueError("无线信道无效。")
     if "htmode" in options and not re.fullmatch(r"(?:NOHT|(?:HT|VHT|HE|EHT)(?:20|40|80|160|320|80\+80))", str(options["htmode"])):
         raise ValueError("无线带宽模式无效。")
     if "country" in options and not re.fullmatch(r"(?:[A-Z]{2}|00)", str(options["country"])):
-        raise ValueError("使用地区无效。")
+        raise ValueError("国家代码无效。")
     for key in ("network", "zone"):
         if key in options and not _NAMES.fullmatch(str(options[key])):
             raise ValueError("网络或防火墙区域名称无效。")
     if options.get("bssid") and not _MAC.fullmatch(str(options["bssid"])):
-        raise ValueError("接入点地址无效。")
+        raise ValueError("BSSID 无效。")
     if options.get("bridge_mode", "routed") not in ("routed", "wds", "relayd"):
         raise ValueError("Unsupported wireless bridge mode")
     if options.get("bridge_mode") in ("wds", "relayd") and not options.get("network"):

@@ -64,14 +64,21 @@ def form_row(parent, label_text, widget, label_width=68, wrap_label=False):
     主要作用：左侧放固定宽度标签，右侧放输入控件或子布局，让不同字段的输入框左边缘
     保持对齐。
     输入参数：parent 是 Qt 父控件；label_text 是左侧标签文字；widget 是右侧控件或 QHBoxLayout；
-    label_width 是标签固定宽度，默认 68px；wrap_label 为 True 时标签可在固定宽度内换行。
+    label_width 是标签固定宽度，默认 68px；wrap_label 为 True 时标签可在固定宽度内换行，为 "auto" 时按标签实际字体判断长名称。
     返回值：QHBoxLayout，调用方负责加入外层布局。
     副作用：只创建布局和标签，并把传入控件加入布局；不读写配置。
     """
     row = QHBoxLayout()
     row.setContentsMargins(0, 0, 0, 0)
     UiScaleManager.for_widget(parent).bind_layout(row, spacing=8, margins=(0, 0, 0, 0))
-    label = _FormLabel(label_text, parent, label_width, wrap_label)
+    auto_wrap = wrap_label == "auto"
+    label = _FormLabel(label_text, parent, label_width, False if auto_wrap else wrap_label)
+    if auto_wrap:
+        # Measure the styled label font, which can differ from its parent font.
+        wrap_label = label.fontMetrics().horizontalAdvance(label_text) > UiScaleManager.for_widget(parent).px(160)
+        if wrap_label:
+            label.setWordWrap(True)
+            label._sync_column()
     if wrap_label:
         # 保持所有输入框左边缘一致，长标签在自己的固定列内折成多行而不挤压输入区。
         label.setWordWrap(True)
