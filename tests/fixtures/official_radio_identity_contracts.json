@@ -1,0 +1,80 @@
+[
+  {
+    "series": "19.07",
+    "rpcd_commit": "67c8a3fda26e441d3ec4a19f50ac72eca8deb14b",
+    "source_url": "https://raw.githubusercontent.com/openwrt/rpcd/67c8a3fda26e441d3ec4a19f50ac72eca8deb14b/iwinfo.c",
+    "sha256": "ee3e1753a96d5c8920062c7cc869de3a697e7d01ccc9eea40d4ec22c333da67a",
+    "request": {
+      "section": "wifi_a"
+    },
+    "reply": {
+      "phyname": "phy7"
+    },
+    "fixture_kind": "synthetic values shaped from pinned official source; not a device capture"
+  },
+  {
+    "series": "21.02",
+    "rpcd_commit": "8d26a1ba3a175016b342cc5e25d340c08ae20eed",
+    "source_url": "https://raw.githubusercontent.com/openwrt/rpcd/8d26a1ba3a175016b342cc5e25d340c08ae20eed/iwinfo.c",
+    "sha256": "663543b699271062bf19aeb016ac1479f0b3fd2d5c948f94021ac5cfff17c872",
+    "request": {
+      "section": "wifi_a"
+    },
+    "reply": {
+      "phyname": "phy7"
+    },
+    "fixture_kind": "synthetic values shaped from pinned official source; not a device capture"
+  },
+  {
+    "series": "22.03",
+    "rpcd_commit": "7de4820c87437033f6b7716018f3bfa60a3f7b12",
+    "source_url": "https://raw.githubusercontent.com/openwrt/rpcd/7de4820c87437033f6b7716018f3bfa60a3f7b12/iwinfo.c",
+    "sha256": "eba2182fb1774a62365ddb1be386b721f2d8dc924a8800cfbddeb8b73fd41eeb",
+    "request": {
+      "section": "wifi_a"
+    },
+    "reply": {
+      "phyname": "phy7"
+    },
+    "fixture_kind": "synthetic values shaped from pinned official source; not a device capture"
+  },
+  {
+    "series": "23.05",
+    "rpcd_commit": "c07ab2f91061ad64209e9aaa1fb1b77061a1af25",
+    "source_url": "https://raw.githubusercontent.com/openwrt/rpcd/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/iwinfo.c",
+    "sha256": "69ab89e14338c1999f43734bc6f0ec004a1796ddc82550fbec66ce7f1dccbace",
+    "request": {
+      "section": "wifi_a"
+    },
+    "reply": {
+      "phyname": "phy7"
+    },
+    "fixture_kind": "synthetic values shaped from pinned official source; not a device capture"
+  },
+  {
+    "series": "24.10",
+    "rpcd_commit": "bba95191ff2f22c9118a1ba1355b83afaa277ae3",
+    "source_url": "https://raw.githubusercontent.com/openwrt/rpcd/bba95191ff2f22c9118a1ba1355b83afaa277ae3/iwinfo.c",
+    "sha256": "db67eac5d6de44ca83bf2b80219a68e004aa3ddec973e20f7ae947e313ce8a97",
+    "request": {
+      "section": "wifi_a"
+    },
+    "reply": {
+      "phyname": "phy7"
+    },
+    "fixture_kind": "synthetic values shaped from pinned official source; not a device capture"
+  },
+  {
+    "series": "25.12",
+    "rpcd_commit": "d99f703e4035d03fbcfbada3cb697db346c2b984",
+    "source_url": "https://raw.githubusercontent.com/openwrt/rpcd/d99f703e4035d03fbcfbada3cb697db346c2b984/iwinfo.c",
+    "sha256": "0fd26292e4239831c08dd042b4322833c04d3334bec07f24fdb9722c0ceafede",
+    "request": {
+      "section": "wifi_a"
+    },
+    "reply": {
+      "phyname": "phy7"
+    },
+    "fixture_kind": "synthetic values shaped from pinned official source; not a device capture"
+  }
+]

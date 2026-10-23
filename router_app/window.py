@@ -16,7 +16,7 @@ from modules.main_pages.packet_capture_page import PacketCapturePage
 class RouterWindow(FramelessDialog):
     """\u4e3a\u539f\u8def\u7531\u9875\u63d0\u4f9b\u8bbe\u7f6e\u3001\u4e3b\u9898\u548c\u9000\u51fa\u5165\u53e3\u3002"""
     def __init__(self, runtime, version, *, initial_screen=None):
-        super().__init__(DISPLAY_NAME, inherit_parent_stylesheet=False)
+        super().__init__(DISPLAY_NAME, inherit_parent_stylesheet=False, window_controls=False)
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowMinMaxButtonsHint | Qt.WindowSystemMenuHint)
         from .window_geometry import startup_screen
         screen = initial_screen or startup_screen()

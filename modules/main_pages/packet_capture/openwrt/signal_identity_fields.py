@@ -20,7 +20,7 @@ class IdentityFields:
             "来自参考列表的名称和前缀，不代表厂商认证，不保证上级识别为对应型号。")
         self.mac = add_field(layout, parent, "MAC 地址", text_input(parent),
             "无线接口在上级网络中使用的地址；修改后会重新连接，可能影响原有地址绑定。")
-        self.hostname = add_field(layout, parent, "上报名称", text_input(parent),
+        self.hostname = add_field(layout, parent, "DHCP 请求时发送的主机名", text_input(parent),
             "可选：自动获取地址时发给上级的设备名称。留空保留原名称，不修改路由器系统名称。")
         self.regenerate = QPushButton("重新生成", parent)
         layout.addWidget(self.regenerate)

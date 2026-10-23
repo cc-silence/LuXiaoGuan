@@ -1,6 +1,7 @@
 """信号页面的真实动作协调；界面不直接执行远程命令。"""
 from dataclasses import replace
 from PySide6.QtCore import QObject
+from shiboken6 import isValid
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from modules.capture_services.openwrt.wireless_setup_models import WirelessNetwork
 from .signal_setup_dialogs import AccessPointSetupDialog, RelaySetupDialog
@@ -50,11 +51,14 @@ class SignalSetupActions(QObject):
     def _confirm(self, dialog, title, message):
         confirmation = ConfirmDialog(title, message, dialog, yes_text="继续", no_text="取消")
         try:
-            return confirmation.exec() == ConfirmDialog.Accepted
+            return confirmation.exec() == ConfirmDialog.Accepted and isValid(dialog)
         finally:
-            confirmation.deleteLater()
+            if isValid(confirmation):
+                confirmation.deleteLater()
 
     def _current_dialog(self, dialog):
+        if not isValid(dialog):
+            return False
         identity = getattr(dialog, "_router_connection", None)
         if identity is not None and self.service._connection_identity() is identity:
             return True
@@ -67,7 +71,7 @@ class SignalSetupActions(QObject):
         if self.pending:
             return
         self.pending = (action, dialog, callback)
-        dialog.set_busy(True, {"password": "正在读取已保存的密码……", "install": "正在安装中继组件……", "save": "正在保存并核实无线状态……", "save_only": "正在保存配置，不重载网络……"}[action])
+        dialog.set_busy(True, {"apply_check": "正在确认当前管理连接，尚未应用设置……", "password": "正在读取已保存的密码……", "install": "正在安装中继组件……", "save": "正在保存并核实无线状态……", "save_only": "正在保存配置，不重载网络……"}[action])
         if not start():
             self.pending = None
             dialog.set_busy(False, "任务没有开始：请等待其他任务结束，并检查连接。")
@@ -117,7 +121,6 @@ class SignalSetupActions(QObject):
         load_password = self._bind_stored_password(dialog, env, row)
         if row:
             old = dialog._old
-            dialog.lock_bssid.setCurrentIndex(0 if old.get("bssid") else 1)
             dialog.connection_label.setText("当前状态：" + {"active": "运行中", "inactive": "未运行"}.get(row.running, "尚未确认"))
         dialog.cancelRequested.connect(self.service.cancel)
         context = {"environment": env}
@@ -181,9 +184,20 @@ class SignalSetupActions(QObject):
     def _save(self, dialog, request, *, apply=True):
         if not self._current_dialog(dialog):
             return
-        bridge_note = ""
+        if apply:
+            self._start(dialog, "apply_check",
+                lambda: self.service.check_management_connection(request),
+                lambda connection: self._confirm_and_save(dialog, request, connection=connection))
+        else:
+            self._confirm_and_save(dialog, request, apply=False)
+
+    def _confirm_and_save(self, dialog, request, *, apply=True, connection=None):
+        if not self._current_dialog(dialog):
+            return
+        from modules.capture_services.openwrt.wireless_management_path import management_connection_notice
+        bridge_note = management_connection_notice(connection) + "\n\n" if connection is not None else ""
         if request.options.get("identity_action", "keep") != "keep":
-            bridge_note = "本次会更改中继身份（MAC 地址或上报名称），可能影响上级的固定地址绑定。\n\n"
+            bridge_note += "本次会更改中继身份（MAC 地址或上报名称），可能影响上级的固定地址绑定。\n\n"
         if request.options.get("bridge_mode") in ("wds", "relayd"):
             bridge_note += "桥接会停用 " + str(request.options.get("network")) + " 的地址分配，由上级网络负责。保留原管理地址；建议通过网线管理。\n\n"
         if apply and not self._confirm(dialog, "保存并应用", bridge_note + "设置将应用到路由器，无线可能短暂中断。确认运行后保存，失败时尝试恢复。"):
@@ -200,6 +214,8 @@ class SignalSetupActions(QObject):
             return
         _action, dialog, callback = self.pending
         self.pending = None
+        if not isValid(dialog):
+            return
         closing = dialog._close_pending
         dialog.set_busy(False, result.error)
         if not result.error and not closing and self._current_dialog(dialog):

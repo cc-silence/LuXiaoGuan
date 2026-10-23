@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from modules.capture_services.openwrt.command_builder import quote_argument
 from modules.capture_services.openwrt.device_probe import read_iwdev_complete, probe_monitor_capability
-from modules.capture_services.openwrt.radio_identity import status_radio_ifnames, uci_radio_bands
+from modules.capture_services.openwrt.radio_identity import status_radio_ifnames, uci_radio_bands, snapshot_radio_mapping
 
 
 @dataclass(frozen=True)
@@ -106,7 +106,8 @@ class OpenWrtRadioTakeover:
         head = text.split("__WINBOX_SNAP_IWDEV__")[0]
         if not uci_radio_bands(head):
             raise RuntimeError("无线快照中没有无线配置，拒绝接管无线网卡。")
-        return text
+        from .radio_identity_probe import enrich_radio_identity
+        return enrich_radio_identity(self.command_runner, text, cancel_event)
 
     def resolve_radio(self, phy, snapshot_text, cancel_event=None, expected_band=""):
         """把 phy（如 phy0）唯一映射到 UCI radio（如 radio0）。
@@ -119,14 +120,13 @@ class OpenWrtRadioTakeover:
         phy_name = str(phy or "").strip()
         if not phy_name.startswith("phy") or not phy_name[3:].isdigit():
             raise ValueError(f"无线 phy 名称不合法：{phy_name or '<空>'}")
-        phy_ifnames = {name for name, _mac in _parse_iwdev_interfaces(snapshot_text).get(phy_name, ())}
-        radio_ifnames = _parse_status_radio_ifnames(snapshot_text)
-        candidates = [radio for radio, ifnames in radio_ifnames.items()
-                      if phy_ifnames.intersection(ifnames)]
-        unique = sorted(set(candidates))
+        interfaces = {p: tuple(name for name, _ in rows)
+                      for p, rows in _parse_iwdev_interfaces(snapshot_text).items()}
+        mapping = snapshot_radio_mapping(snapshot_text, interfaces)
+        unique = [radio for radio, owner in mapping.items() if owner == phy_name]
         if len(unique) != 1:
             raise RuntimeError(
-                f"{phy_name} 无法按运行接口唯一对应到无线 radio，不能安全接管无线网卡。"
+                f"{phy_name} 无法按硬件身份和运行接口唯一对应到无线 radio，不能安全接管无线网卡。"
             )
         radio = unique[0]
         wanted = str(expected_band or "").strip().lower()
@@ -143,16 +143,11 @@ class OpenWrtRadioTakeover:
         """从接管前快照反查 radio 的 phy 与原运行接口；无法唯一对应时拒绝。"""
         radio_name = str(radio or "").strip()
         iwdev = _parse_iwdev_interfaces(snapshot_text)
-        radio_ifnames = _parse_status_radio_ifnames(snapshot_text).get(radio_name, set())
-        candidates = []
-        for phy, rows in iwdev.items():
-            matched = tuple(name for name, _mac in rows if name in radio_ifnames)
-            if matched:
-                candidates.append((phy, matched))
+        interfaces = {p: tuple(name for name, _ in rows) for p, rows in iwdev.items()}
+        phy = snapshot_radio_mapping(snapshot_text, interfaces).get(radio_name)
+        candidates = [(phy, tuple(name for name, _ in iwdev.get(phy, ())))] if phy else []
         if len(candidates) != 1:
-            raise RuntimeError(
-                f"{radio_name or '<空>'} 无法按运行接口唯一反查无线 phy，恢复记录保持原样。"
-            )
+            raise RuntimeError("无法唯一确认无线硬件归属，恢复记录保持原样，请刷新无线状态。")
         return candidates[0]
 
     def takeover_phy(self, phy, radio, session_id, cancel_event=None):
@@ -303,10 +298,11 @@ class OpenWrtRadioTakeover:
         掩盖恢复结果。
         """
 
+        unknown = "无线恢复后的硬件归属或接口状态未能核实，请刷新无线状态后检查。"
         try:
             text = self.snapshot_wireless(cancel_event)
         except Exception:
-            return ""
+            return unknown
         radio_sections = {
             name: attrs
             for name, attrs in _parse_uci_wireless_sections(text).items()
@@ -316,14 +312,11 @@ class OpenWrtRadioTakeover:
             return ""
         status_ifnames = _parse_status_ifnames(text)
         phy_interfaces = _parse_iwdev_interfaces(text)
-        if record.phy and phy_interfaces.get(record.phy, ()):
-            phys = [record.phy]
-        else:
-            index = str(record.radio or "").replace("radio", "")
-            if index.isdigit() and f"phy{index}" in phy_interfaces:
-                phys = [f"phy{index}"]
-            else:
-                phys = [key for key in phy_interfaces if phy_interfaces[key]]
+        interfaces = {p: tuple(name for name, _ in rows) for p, rows in phy_interfaces.items()}
+        mapped = snapshot_radio_mapping(text, interfaces).get(record.radio)
+        if not mapped or (record.phy and mapped != record.phy):
+            return unknown
+        phys = [mapped]
         run_names = set()
         run_macs = set()
         for phy in phys:

@@ -172,6 +172,10 @@ io.popen=function(command) return {read=function() return bridge_read(command) e
                 self.applied = self.backup = None
             return None, None
         if obj == "network.wireless":
+            if method == "get_validate":
+                from modules.capture_services.openwrt.wireless_capabilities import RADIO_SETTINGS, IFACE_SETTINGS
+                return self.wrap({"radio7": {"device": dict.fromkeys(RADIO_SETTINGS, "string"),
+                    "interface": dict.fromkeys(IFACE_SETTINGS, "string")}}), None
             interfaces = []
             for name, row in self.config["wireless"].items():
                 if row.get(".type") == "wifi-iface" and row.get("disabled") != "1":
@@ -180,7 +184,8 @@ io.popen=function(command) return {read=function() return bridge_read(command) e
         if obj == "network.device":
             return self.wrap({"up": True}), None
         if obj.startswith("hostapd."):
-            return self.wrap({"status": "ENABLED"}), None
+            section = obj.removeprefix("hostapd.iface-")
+            return self.wrap({"status": "ENABLED", "ssid": self.config["wireless"].get(section, {}).get("ssid", "")}), None
         if obj == "iwinfo":
             values = {"phyname": {"phyname": "phy2"}, "info": {"htmodes": ["HE20", "HE40", "HE80"]},
                 "freqlist": {"results": [{"channel": 36, "mhz": 5180, "restricted": False}, {"channel": 44, "mhz": 5220, "restricted": False}]},
@@ -416,7 +421,9 @@ class NativeWirelessTests(unittest.TestCase):
             "encryption": "psk2", "wmm": "1", "ieee80211w": "1", "dtim_period": "2", "beacon_int": "100"})
         self.manager.save(request, self.event, self.message)
         row = self.device.config["wireless"]["home"]
-        self.assertEqual((row["wmm"], row["dtim_period"], row["beacon_int"]), ("1", "2", "100"))
+        self.assertEqual((row["wmm"], row["dtim_period"]), ("1", "2"))
+        self.assertNotIn("beacon_int", row)
+        self.assertEqual(self.device.config["wireless"]["radio7"]["beacon_int"], "100")
 
     def test_mixed_network_uses_supported_wpa2_without_replacing_stack(self):
         env = self.manager.inspect(self.event)

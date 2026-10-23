@@ -30,12 +30,14 @@ def status_radio_ifnames(text):
     return result
 
 
-def radio_phy_mapping(radio_interfaces, phy_interfaces):
+def radio_phy_mapping(radio_interfaces, phy_interfaces, identities=None):
     """用运行接口交集建立唯一双向归属，冲突和停用射频均不猜测。"""
     candidates = {
         radio: {phy for phy, names in phy_interfaces.items() if set(names) & set(interfaces)}
         for radio, interfaces in radio_interfaces.items()
     }
+    for radio, phy in (identities or {}).items():
+        candidates.setdefault(radio, set()).add(phy)
     result = {}
     for radio, phys in candidates.items():
         if len(phys) != 1:
@@ -76,3 +78,30 @@ def uci_radio_bands(text):
         else:
             result[name] = {'11a': '5g', '11g': '2g'}.get(fields.get('hwmode', ''), '')
     return result
+
+
+IDENTITY_MARKER = "__ROUTERMANAGER_RADIO_IDENTITY__"
+
+
+def snapshot_radio_mapping(text, phy_interfaces):
+    """Merge runtime ownership and native lookup; conflicting claims block both sides."""
+    identities = {}
+    known = set(phy_interfaces)
+    match = re.search(r"(?m)^" + IDENTITY_MARKER + r"([^\r\n]+)$", text)
+    if match and len(match[1]) <= 32768:
+        try:
+            data = json.loads(match[1])
+        except (ValueError, TypeError):
+            data = {}
+        if isinstance(data, dict):
+            phys = data.get("phys", [])
+            if isinstance(phys, list):
+                inventory = {p for p in phys[:64] if isinstance(p, str) and re.fullmatch(r"phy[0-9]+", p)}
+                known = inventory if data.get("inventory_complete") is True else known | inventory
+            radios = data.get("radios", {})
+            if isinstance(radios, dict) and len(radios) <= 64:
+                identities = {r: p for r, p in radios.items() if valid_radio_name(r)
+                              and isinstance(p, str) and re.fullmatch(r"phy[0-9]+", p)}
+    mapping = radio_phy_mapping(status_radio_ifnames(text), phy_interfaces, identities)
+    configured = uci_radio_bands(text)
+    return {r: p for r, p in mapping.items() if r in configured and p in known}

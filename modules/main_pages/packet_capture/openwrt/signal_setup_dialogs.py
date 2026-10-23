@@ -2,7 +2,7 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QScrollArea, QVBoxLayout, QWidget
 from modules.common_widgets.bounce_scroll_area import BounceScrollArea
-from modules.common_widgets.spin_box import CommonSpinBox
+from modules.common_widgets.config_fields import ConfigCheckBox, ConfigValueList
 from modules.common_widgets.collapsible_section import CollapsibleSection
 from modules.common_widgets.frameless_dialog import FramelessDialog
 from modules.config_manager import ConfigManager
@@ -121,6 +121,7 @@ class AccessPointSetupDialog(_SetupDialog):
         super().__init__("编辑发射信号" if editing else "新增" + band_label + "信号", parent)
         self.radio_name, self.editing, self.row = radio_name, editing, row
         self.summary = hint(band_label + " \u00b7 " + radio_name, self.body) if editing else None
+        self._summary_base = self.summary.text() if self.summary is not None else ""
         if self.summary is not None:
             self.form.addWidget(self.summary)
         group, layout = self._basic("Wi-Fi \u540d\u79f0\u4e0e\u5bc6\u7801" if editing else "")
@@ -129,42 +130,39 @@ class AccessPointSetupDialog(_SetupDialog):
         self.password = PasswordInput(group, "留空保留原密码" if editing else "至少 8 位，建议使用字母和数字")
         self.password_fields.append(self.password)
         add_field(layout, group, "连接密码", self.password, "编辑时自动读取已保存的密码，默认隐藏，点眼睛可查看。")
-        self.common_section, self.common_tabs = self._section("常用设置", ("无线参数", "安全设置", "接入网络"))
+        self.common_section, self.common_tabs = self._section("常用设置", ("无线参数", "安全设置", "网络"))
         page, layout = self.common_tabs.pages["无线参数"]
         self.channel = add_field(layout, page, "信道", choice(page, ()), "同一块网卡的所有信号共用信道；中继时通常跟随上级。")
         self.standard_combo = add_field(layout, page, "工作频率", choice(page, ()), "例如 Wi-Fi 4/5/6/7；只列出此网卡和频段已确认支持的标准。同网卡的所有信号共用此设置。")
         self.bandwidth_combo = add_field(layout, page, "带宽", choice(page, ()), "只列出驱动实际提供的模式。")
         page, layout = self.common_tabs.pages["安全设置"]
-        self.encryption = add_field(layout, page, "加密方式", choice(page, (
-            ("WPA2 个人版", "psk2"), ("WPA2 / WPA3 混合", "sae-mixed"),
-            ("WPA3 个人版", "sae"), ("OWE 加密（无需密码）", "owe"), ("WPA / WPA2 兼容", "psk-mixed"), ("开放网络（无需密码）", "none"))),
+        self.encryption = add_field(layout, page, "加密", choice(page, (
+            ("WPA2-PSK", "psk2"), ("WPA2-PSK/WPA3-SAE 混合模式", "sae-mixed"),
+            ("WPA3-SAE", "sae"), ("OWE", "owe"), ("WPA-PSK/WPA2-PSK 混合模式", "psk-mixed"), ("无加密", "none"))),
             "WPA2 兼容性较好；WPA3 仍需系统认证组件支持，应用后将核实启动状态。")
-        self.hidden = add_field(layout, page, "名称广播", choice(page, (("正常广播", "0"), ("隐藏名称", "1"))),
-                                "隐藏名称需要设备手动填写名称，不会提高密码强度。")
-        self.isolation = add_field(layout, page, "客户端隔离", choice(page, (("开启（隔离无线设备）", "1"), ("关闭（允许互相访问）", "0"))),
+        self._encryption_choices = tuple((self.encryption.itemText(i), self.encryption.itemData(i))
+                                         for i in range(self.encryption.count()))
+        self.hidden = add_field(layout, page, "隐藏 ESSID", ConfigCheckBox(page),
+                                "启用后隐藏 Wi-Fi 名称，设备可能需要手动填写名称；关闭则正常广播。隐藏名称不会提高密码强度。")
+        self.isolation = add_field(layout, page, "客户端隔离", ConfigCheckBox(page),
                                    "阻止连接同一个 Wi-Fi 的无线设备互访，可能影响投屏和打印。不等于隔离整个局域网；新增默认开启，编辑保留原值。")
-        page, layout = self.common_tabs.pages["接入网络"]
-        self.network = add_field(layout, page, "接入网络", choice(page, ()), "通常选择 lan，使连接设备使用路由器现有的局域网。")
+        page, layout = self.common_tabs.pages["网络"]
+        self.network = add_field(layout, page, "网络", choice(page, ()), "通常选择 lan，使连接设备使用路由器现有的局域网。")
         self.advanced_section, self.advanced_tabs = self._section("不常用设置", ("地区与功率", "设备访问", "兼容与省电"))
         page, layout = self.advanced_tabs.pages["地区与功率"]
-        self.country = add_field(layout, page, "使用地区", choice(page, ()), "按实际所在地设置；修改会影响同网卡全部信号，信道、功率须重新检测。")
+        self.country = add_field(layout, page, "国家代码", choice(page, ()), "按实际所在地设置；修改会影响同网卡全部信号，信道、功率须重新检测。")
         self.power = add_field(layout, page, "发射功率", choice(page, ()), "只列出当前地区和驱动允许的功率，不建议一味调到最高。")
         page, layout = self.advanced_tabs.pages["设备访问"]
-        self.client_limit = add_field(layout, page, "最多连接", choice(page, (("沿用系统设置", None),) +
-            tuple((str(n) + " 台", str(n)) for n in (8, 16, 32, 64, 128, 256))), "未明确修改时保留系统原有连接数限制。")
+        self.client_limit = add_field(layout, page, "最多连接", text_input(page, placeholder="留空沿用系统设置"), "未明确修改时保留系统原有连接数限制。")
         page, layout = self.advanced_tabs.pages["兼容与省电"]
-        self.wmm = add_field(layout, page, "多媒体优化", choice(page, (("沿用系统设置", None), ("启用 WMM（建议）", "1"), ("关闭", "0"))),
+        self.wmm = add_field(layout, page, "WMM 模式", ConfigCheckBox(page),
                              "高速无线通常需要 WMM；关闭可能降低速度。")
-        self.management = add_field(layout, page, "管理帧保护", choice(page, (("沿用系统设置", None), ("关闭", "0"), ("可选", "1"), ("强制", "2"))),
-                                    "WPA3 要求强制保护；旧设备可能不兼容。")
-        self.dtim = CommonSpinBox(page)
-        self.dtim.setRange(0, 255)
-        self.dtim.setSpecialValueText("沿用系统设置")
-        add_field(layout, page, "唤醒周期", self.dtim, "DTIM 周期，通常为 1 或 2；影响省电设备接收广播的间隔。")
-        self.beacon = CommonSpinBox(page)
-        self.beacon.setRange(0, 65535)
-        self.beacon.setSpecialValueText("沿用系统设置")
-        add_field(layout, page, "信标间隔", self.beacon, "通常为 100；仅在明确了解影响时修改，单位为 1.024 毫秒。")
+        self.management = add_field(layout, page, "802.11w 管理帧保护", choice(page, (("沿用系统设置", None), ("已禁用", "0"), ("可选", "1"), ("必需", "2"))),
+                                    "选择“必需”表示强制保护管理帧。WPA3 要求强制保护；旧设备可能不兼容。")
+        self.dtim = text_input(page, placeholder="留空沿用系统设置")
+        add_field(layout, page, "DTIM 间隔", self.dtim, "DTIM 周期，通常为 1 或 2；影响省电设备接收广播的间隔。")
+        self.beacon = text_input(page, placeholder="留空沿用系统设置")
+        add_field(layout, page, "信标间隔", self.beacon, "通常为 100，单位为 1.024 毫秒。此项属于整块无线网卡，会影响同网卡上的所有热点；未修改时保留原值。")
         self.expert_section, self.expert_tabs = self._section("高级参数", ("兼容与漫游",))
         from .signal_advanced_fields import AdvancedFields
         self.expert_fields = AdvancedFields(*self.expert_tabs.pages["兼容与漫游"])
@@ -177,6 +175,7 @@ class RelaySetupDialog(_SetupDialog):
     def __init__(self, ssid, parent=None, *, radio_name="", password="", row=None):
         super().__init__("编辑中继信号" if row else "中继详细设置", parent)
         self.row = row
+        self.radio_name = radio_name
         group, layout = self._basic("中继连接")
         self._basic_layout = layout
         self.name_edit = text_input(group, ssid, "例如：客厅上级网络")
@@ -192,32 +191,31 @@ class RelaySetupDialog(_SetupDialog):
         self.password_fields.append(self.password)
         add_field(self._basic_layout, group, "连接密码", self.password, "编辑时自动读取已保存的密码，默认隐藏，点眼睛可查看；不写入日志或本机配置。")
         add_field(layout, page, "无线网卡", hint(radio_name or "尚未读取", page), "上级信道会影响这块网卡同时发射的信号。")
-        self.lock_bssid = add_field(layout, page, "固定接入点", choice(page, (
-            ("只连接所选接入点", True), ("允许连接同名信号", False))),
-            "上级有多个同名信号时，是否固定连接扫描时选中的那个。")
+        self.lock_bssid = add_field(layout, page, "锁定到 BSSID", ConfigCheckBox(page),
+            "BSSID 是接入点的无线地址。启用锁定时，只连接扫描选中的接入点；解除锁定后允许连接同名 Wi-Fi。")
+        self.lock_bssid.configure("1", preserve=False)
         page, layout = self.other_tabs.pages["网络设置"]
         self.bridge_mode = add_field(layout, page, "连接方式", choice(page, (
             ("无线上网（独立子网）", "routed"),
             ("WDS 透明桥接", "wds"),
             ("同网段中继（IPv4）", "relayd"))),
-            "WDS 需要上级同时开启 WDS；IPv4 中继使用 relayd。桥接会停用所选局域网的地址分配，由上级负责。")
+            "本软件将多项配置组合为连接方式。WDS 需要上级同时开启 WDS；IPv4 中继使用 relayd。桥接会停用所选局域网的地址分配，由上级负责。")
         self.bridge_network = add_field(layout, page, "桥接局域网", choice(page, ()), "选择需要接入上级网络的现有局域网，通常为 lan。")
-        self.relay_ip = add_field(layout, page, "中继管理地址", text_input(page), "可选：relayd 在上级网段内的本地 IPv4 地址；需要避免与其他设备冲突。")
+        self.relay_ip = add_field(layout, page, "本机 IPv4 地址", text_input(page), "可选：relayd 在上级网段内的本地 IPv4 地址；需要避免与其他设备冲突。")
         self.bridge_hint = hint("", page)
         layout.addWidget(self.bridge_hint)
-        self.protocol = add_field(layout, page, "获取地址", choice(page, (("自动获取（建议）", "dhcp"), ("手动填写", "static"))),
-                                  "连接验证只要求无线认证成功，不要求获得地址。")
-        self.address = add_field(layout, page, "手动地址", text_input(page, placeholder="例如 192.168.1.10"), "此路由器在上级网络中使用的地址。")
-        self.netmask = add_field(layout, page, "子网掩码", text_input(page, placeholder="例如 255.255.255.0"), "仅在手动地址模式填写。")
-        self.gateway = add_field(layout, page, "网关", text_input(page, placeholder="例如 192.168.1.1"), "上级网络出口地址。")
-        self.dns = add_field(layout, page, "域名解析", text_input(page, placeholder="自动获取；手动填写时用空格分隔"), "留空使用上级提供的域名解析服务。")
+        self.protocol = add_field(layout, page, "协议", choice(page, (("DHCP 客户端", "dhcp"), ("静态地址", "static"))),
+                                  "DHCP 客户端由上级自动分配地址；静态地址需要手动填写 IPv4 地址等参数。连接验证只要求无线认证成功，不要求获得地址。")
+        self.address = add_field(layout, page, "IPv4 地址", text_input(page, placeholder="例如 192.168.1.10"), "此路由器在上级网络中使用的地址。")
+        self.netmask = add_field(layout, page, "IPv4 子网掩码", text_input(page, placeholder="例如 255.255.255.0"), "仅在协议为“静态地址”时填写。")
+        self.gateway = add_field(layout, page, "IPv4 网关", text_input(page, placeholder="例如 192.168.1.1"), "上级网络出口地址。")
+        self.dns = add_field(layout, page, "使用自定义的 DNS 服务器", ConfigValueList(page, placeholder="留空自动获取"), "每项填写一个 DNS 服务器地址，使用加减按钮增删；留空使用上级提供的域名解析服务。")
         self.protocol.currentIndexChanged.connect(self._network_mode_changed)
         self.bridge_mode.currentIndexChanged.connect(self._network_mode_changed)
         self._network_mode_changed()
         page, layout = self.other_tabs.pages["高级选项"]
         self.zone = add_field(layout, page, "防火墙区域", choice(page, ()), "通常使用现有 wan 区域，沿用其转发和地址转换规则。")
-        self.metric_combo = add_field(layout, page, "出口优先级", choice(page, (("沿用系统设置", None),) +
-            tuple((str(n) + ("（优先）" if n == 0 else ""), str(n)) for n in (0, 10, 20, 50, 100, 200, 500))),
+        self.metric_edit = add_field(layout, page, "网关跃点", text_input(page, placeholder="留空沿用系统设置"),
             "多条上网线路同时存在时数值越小越优先。")
         page, layout = self.other_tabs.pages["设备身份"]
         self.identity_fields = IdentityFields(page, layout, self.bridge_mode)

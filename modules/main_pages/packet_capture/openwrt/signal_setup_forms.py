@@ -31,7 +31,9 @@ def text_input(parent, value="", placeholder=""):
 def add_field(layout, parent, label, control, tooltip):
     """复用公共表单列宽与布局，把作用说明同时绑定到输入框。"""
     control.setToolTip(tooltip)
-    layout.addLayout(form_row(parent, label, control, label_width=96))
+    row = form_row(parent, label, control, label_width=96, wrap_label="auto")
+    control._form_label = row.itemAt(0).widget()
+    layout.addLayout(row)
     return control
 
 
@@ -43,6 +45,26 @@ def choice(parent, options, tooltip=""):
     box.set_light_theme(detect_light_theme(parent))
     box.setToolTip(tooltip)
     return box
+
+
+def clear_editor_update(owner, name):
+    """Release the previous callback and its captured device data before refill."""
+    bindings = getattr(owner, "_editor_updates", {})
+    previous = bindings.pop(name, None)
+    if previous is not None:
+        callback, signals = previous
+        for signal in signals:
+            signal.disconnect(callback)
+
+
+def bind_editor_update(owner, name, callback, *signals):
+    """Keep one bounded binding for each editor responsibility."""
+    clear_editor_update(owner, name)
+    if not hasattr(owner, "_editor_updates"):
+        owner._editor_updates = {}
+    for signal in signals:
+        signal.connect(callback)
+    owner._editor_updates[name] = (callback, signals)
 
 
 class PasswordInput(QWidget):

@@ -1,0 +1,667 @@
+[
+  {
+    "series": "19.07",
+    "route": "shell",
+    "commit": "1da2e82c1182a3fd681da5760be96821213afadd",
+    "fixture_kind": "Synthetic get_validate response shaped from pinned official declarations, not a device capture",
+    "source": [
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/1da2e82c1182a3fd681da5760be96821213afadd/package/network/services/hostapd/files/hostapd.sh",
+        "sha256": "9eb944eab3f7c24025b0a0c1fde3ba538415c25bb80c2c1db5f6067c9a8454f4",
+        "path": "package/network/services/hostapd/files/hostapd.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/1da2e82c1182a3fd681da5760be96821213afadd/package/network/services/hostapd/src/src/ap/ubus.c",
+        "sha256": "e5257e8037b687df9969ed25f60a46930c01b33c47926c743bf3347932775c73",
+        "path": "package/network/services/hostapd/src/src/ap/ubus.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/1da2e82c1182a3fd681da5760be96821213afadd/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh",
+        "sha256": "0e6a97cd1f902b468e52a1ac64205494d853c87949134ace8e49c7b319948e85",
+        "path": "package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/753c351bc729967a691d99e27693be5aec334028/scripts/netifd-wireless.sh",
+        "sha256": "e542b68244f75cc1c0d0b5954dbdb9027cd26558125b35461498cb63e172fd4d",
+        "path": "netifd/scripts/netifd-wireless.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/753c351bc729967a691d99e27693be5aec334028/ubus.c",
+        "sha256": "4e834f4bccbf170313da1de46ecc5e24f8771f921d8d3aa693482b226bb383f5",
+        "path": "netifd/ubus.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/753c351bc729967a691d99e27693be5aec334028/wireless.c",
+        "sha256": "add80662ea6203102392cbf1816abac2e84cfd0c217c6f51b549adeec8732302",
+        "path": "netifd/wireless.c"
+      },
+      {
+        "path": "package/network/services/hostapd/patches/600-ubus_support.patch",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/1da2e82c1182a3fd681da5760be96821213afadd/package/network/services/hostapd/patches/600-ubus_support.patch",
+        "sha256": "4997df941b8b8ecd7005c2e40c99413c384010b8a7dd83c56631fb349b51478d"
+      }
+    ],
+    "ap_status": "legacy",
+    "get_validate": {
+      "radio7": {
+        "device": {
+          "channel": "string",
+          "htmode": "string",
+          "country": "string",
+          "txpower": "uinteger",
+          "beacon_int": "uinteger",
+          "distance": "string",
+          "rts": "uinteger",
+          "frag": "uinteger"
+        },
+        "interface": {
+          "mode": "string",
+          "ssid": "string",
+          "encryption": "string",
+          "hidden": "bool",
+          "isolate": "bool",
+          "maxassoc": "uinteger",
+          "wmm": "bool",
+          "ieee80211w": "uinteger",
+          "dtim_period": "uinteger",
+          "bssid": "string",
+          "macaddr": "string",
+          "macfilter": "string",
+          "maclist": "list(string)",
+          "wds": "bool",
+          "disassoc_low_ack": "bool",
+          "short_preamble": "bool",
+          "max_inactivity": "uinteger",
+          "ieee80211r": "bool",
+          "mobility_domain": "string",
+          "ft_over_ds": "bool",
+          "ft_psk_generate_local": "bool",
+          "ieee80211k": "bool",
+          "rrm_neighbor_report": "bool",
+          "rrm_beacon_report": "bool",
+          "bss_transition": "bool"
+        }
+      }
+    }
+  },
+  {
+    "series": "21.02",
+    "route": "shell",
+    "commit": "78e4cffcd882389cb8f0bf818303f85f8d1e9c8e",
+    "fixture_kind": "Synthetic get_validate response shaped from pinned official declarations, not a device capture",
+    "source": [
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/78e4cffcd882389cb8f0bf818303f85f8d1e9c8e/package/network/services/hostapd/files/hostapd.sh",
+        "sha256": "2aaa7f48e0e2644ea98c0532233c3447ed4b9794dd907e269bfad7deea2a1d71",
+        "path": "package/network/services/hostapd/files/hostapd.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/78e4cffcd882389cb8f0bf818303f85f8d1e9c8e/package/network/services/hostapd/src/src/ap/ubus.c",
+        "sha256": "1637c1674dd33b313532b3bc68fc506f72ed6b8c7c07852acb72da86ff403fb1",
+        "path": "package/network/services/hostapd/src/src/ap/ubus.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/78e4cffcd882389cb8f0bf818303f85f8d1e9c8e/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh",
+        "sha256": "a1a9c7254c2eb1bd940bf9ca62efdf7a653ea371ff3be915796e962d44178bbd",
+        "path": "package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/8f82742ca4f47f459284f3a07323d04da72ea5f6/ubus.c",
+        "sha256": "77fdf62af5f296c960cb09710b4fa3eb90cbbcdad00fff9006d2a776894a5a1f",
+        "path": "netifd/ubus.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/8f82742ca4f47f459284f3a07323d04da72ea5f6/wireless.c",
+        "sha256": "07f82ff6dd085dc4561f3a8f1fc821fcc671e5057d7e707d4e455d2ecbe8fe3d",
+        "path": "netifd/wireless.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/8f82742ca4f47f459284f3a07323d04da72ea5f6/scripts/netifd-wireless.sh",
+        "sha256": "15caeefdcbfe2e56f2053685378a36d1466cc6037af0e0463cb16c28a6527421",
+        "path": "netifd/scripts/netifd-wireless.sh"
+      }
+    ],
+    "ap_status": "get_status",
+    "get_validate": {
+      "radio7": {
+        "device": {
+          "channel": "string",
+          "htmode": "string",
+          "country": "string",
+          "txpower": "uinteger",
+          "beacon_int": "uinteger",
+          "distance": "string",
+          "rts": "uinteger",
+          "frag": "uinteger"
+        },
+        "interface": {
+          "mode": "string",
+          "ssid": "string",
+          "encryption": "string",
+          "hidden": "bool",
+          "isolate": "bool",
+          "maxassoc": "uinteger",
+          "wmm": "bool",
+          "ieee80211w": "uinteger",
+          "dtim_period": "uinteger",
+          "bssid": "string",
+          "macaddr": "string",
+          "macfilter": "string",
+          "maclist": "list(string)",
+          "wds": "bool",
+          "multicast_to_unicast": "bool",
+          "disassoc_low_ack": "bool",
+          "short_preamble": "bool",
+          "skip_inactivity_poll": "bool",
+          "max_inactivity": "uinteger",
+          "ieee80211r": "bool",
+          "mobility_domain": "string",
+          "ft_over_ds": "bool",
+          "ft_psk_generate_local": "bool",
+          "ieee80211k": "bool",
+          "rrm_neighbor_report": "bool",
+          "rrm_beacon_report": "bool",
+          "bss_transition": "bool"
+        }
+      }
+    }
+  },
+  {
+    "series": "22.03",
+    "route": "shell",
+    "commit": "4e1d1b7df0ce6fa96d7462dc883917682f428046",
+    "fixture_kind": "Synthetic get_validate response shaped from pinned official declarations, not a device capture",
+    "source": [
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4e1d1b7df0ce6fa96d7462dc883917682f428046/package/network/services/hostapd/files/hostapd.sh",
+        "sha256": "a2215c9ccacdbe6bd6d5ff94c86dc9dcad5657578c3e4b3cd272121822a93acf",
+        "path": "package/network/services/hostapd/files/hostapd.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4e1d1b7df0ce6fa96d7462dc883917682f428046/package/network/services/hostapd/src/src/ap/ubus.c",
+        "sha256": "3bd204440834e8c746cb8c877c16e400195493634a8ee41e7512b0adc42da378",
+        "path": "package/network/services/hostapd/src/src/ap/ubus.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4e1d1b7df0ce6fa96d7462dc883917682f428046/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh",
+        "sha256": "2cc315e9cfd70c8533ad8d43c37e2de0bbd71bc0932a21ccbf5f9205a1650a96",
+        "path": "package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/76d2d41b7355e02f95fbfa79affbd232fb090595/ubus.c",
+        "sha256": "8242c94830a4ad2a26a0362a5bdb09ee2b64c687d17592b1177d8d69d837c502",
+        "path": "netifd/ubus.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/76d2d41b7355e02f95fbfa79affbd232fb090595/wireless.c",
+        "sha256": "07f82ff6dd085dc4561f3a8f1fc821fcc671e5057d7e707d4e455d2ecbe8fe3d",
+        "path": "netifd/wireless.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/76d2d41b7355e02f95fbfa79affbd232fb090595/scripts/netifd-wireless.sh",
+        "sha256": "f70139064287ac25e3ce350994f1218f8b968013a3bf80b858f0927960853bb7",
+        "path": "netifd/scripts/netifd-wireless.sh"
+      }
+    ],
+    "ap_status": "get_status",
+    "get_validate": {
+      "radio7": {
+        "device": {
+          "channel": "string",
+          "htmode": "string",
+          "country": "string",
+          "txpower": "uinteger",
+          "beacon_int": "uinteger",
+          "distance": "string",
+          "rts": "uinteger",
+          "frag": "uinteger"
+        },
+        "interface": {
+          "mode": "string",
+          "ssid": "string",
+          "encryption": "string",
+          "hidden": "bool",
+          "isolate": "bool",
+          "maxassoc": "uinteger",
+          "wmm": "bool",
+          "ieee80211w": "uinteger",
+          "dtim_period": "uinteger",
+          "bssid": "string",
+          "macaddr": "string",
+          "macfilter": "string",
+          "maclist": "list(string)",
+          "wds": "bool",
+          "multicast_to_unicast": "bool",
+          "multicast_to_unicast_all": "bool",
+          "disassoc_low_ack": "bool",
+          "short_preamble": "bool",
+          "skip_inactivity_poll": "bool",
+          "max_inactivity": "uinteger",
+          "ieee80211r": "bool",
+          "mobility_domain": "string",
+          "ft_over_ds": "bool",
+          "ft_psk_generate_local": "bool",
+          "ieee80211k": "bool",
+          "rrm_neighbor_report": "bool",
+          "rrm_beacon_report": "bool",
+          "bss_transition": "bool"
+        }
+      }
+    }
+  },
+  {
+    "series": "23.05",
+    "route": "shell",
+    "commit": "33063b4ccf00d39393796499b23df55187b192dc",
+    "fixture_kind": "Synthetic get_validate response shaped from pinned official declarations, not a device capture",
+    "source": [
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/33063b4ccf00d39393796499b23df55187b192dc/package/network/services/hostapd/files/hostapd.sh",
+        "sha256": "3d8ddd69e00a3dcb384acceb843b9c2bdfb2ab73d6a9fae8eb8fa53ffff925dd",
+        "path": "package/network/services/hostapd/files/hostapd.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/33063b4ccf00d39393796499b23df55187b192dc/package/network/services/hostapd/src/src/ap/ubus.c",
+        "sha256": "3c1a67c33e9665b60c33c2c034cf0104d47f5a2755d9e1cf095ff3c6a1a1913a",
+        "path": "package/network/services/hostapd/src/src/ap/ubus.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/33063b4ccf00d39393796499b23df55187b192dc/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh",
+        "sha256": "4ed60762ab0d67cc9ffc21dc1919d42ec59367e5af8c0955c8e16884aef2b45c",
+        "path": "package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/c18cc79d50002ab8529c21184aceb016c61ac61c/ubus.c",
+        "sha256": "e7fd4fc6da1c4133612fe01a84924cc895e053ce386b016492039947d8e036f2",
+        "path": "netifd/ubus.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/c18cc79d50002ab8529c21184aceb016c61ac61c/wireless.c",
+        "sha256": "ef15c152c334f8288b62be2e094542989d8f86aca5e0ce6b8144a7f28a6744e2",
+        "path": "netifd/wireless.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/c18cc79d50002ab8529c21184aceb016c61ac61c/scripts/netifd-wireless.sh",
+        "sha256": "d3c4c956f1581603ae41b59c99740cf1d9063e6b4fab47b8fa2ebbfe6ff45061",
+        "path": "netifd/scripts/netifd-wireless.sh"
+      }
+    ],
+    "ap_status": "get_status",
+    "get_validate": {
+      "radio7": {
+        "device": {
+          "channel": "string",
+          "htmode": "string",
+          "country": "string",
+          "txpower": "uinteger",
+          "beacon_int": "uinteger",
+          "distance": "string",
+          "rts": "uinteger",
+          "frag": "uinteger"
+        },
+        "interface": {
+          "mode": "string",
+          "ssid": "string",
+          "encryption": "string",
+          "hidden": "bool",
+          "isolate": "bool",
+          "maxassoc": "uinteger",
+          "wmm": "bool",
+          "ieee80211w": "uinteger",
+          "dtim_period": "uinteger",
+          "bssid": "string",
+          "macaddr": "string",
+          "macfilter": "string",
+          "maclist": "list(string)",
+          "wds": "bool",
+          "multicast_to_unicast": "bool",
+          "multicast_to_unicast_all": "bool",
+          "disassoc_low_ack": "bool",
+          "short_preamble": "bool",
+          "skip_inactivity_poll": "bool",
+          "max_inactivity": "uinteger",
+          "ieee80211r": "bool",
+          "mobility_domain": "string",
+          "ft_over_ds": "bool",
+          "ft_psk_generate_local": "bool",
+          "ieee80211k": "bool",
+          "rrm_neighbor_report": "bool",
+          "rrm_beacon_report": "bool",
+          "bss_transition": "bool"
+        }
+      }
+    }
+  },
+  {
+    "series": "24.10",
+    "route": "shell",
+    "commit": "f13f178df1c1be46d9a540ab5a6eb3fca6ca4f79",
+    "fixture_kind": "Synthetic get_validate response shaped from pinned official declarations, not a device capture",
+    "source": [
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/f13f178df1c1be46d9a540ab5a6eb3fca6ca4f79/package/network/services/hostapd/src/src/ap/ubus.c",
+        "sha256": "a32b0f259a31d384df48ce6af7029156ec8a3291c229de5004c0171e05ab9fae",
+        "path": "package/network/services/hostapd/src/src/ap/ubus.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/f13f178df1c1be46d9a540ab5a6eb3fca6ca4f79/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh",
+        "sha256": "bb31afa81143b0474ff82c454cdfa6dd6edbe2e9a3b59e9956ef98f9875a9821",
+        "path": "package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/f13f178df1c1be46d9a540ab5a6eb3fca6ca4f79/package/network/config/wifi-scripts/Makefile",
+        "sha256": "3d44768e2c2a9187cfea0106a68b37bb7ab4682caf06f0e1e2b0b3c58e1c3ae0",
+        "path": "package/network/config/wifi-scripts/Makefile"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/f13f178df1c1be46d9a540ab5a6eb3fca6ca4f79/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh",
+        "sha256": "108428f76006ff1152b72ece59338cab5caa4386b6c5ea3c89c50f7e7e5f8c88",
+        "path": "package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/7901e66c5f273bceee8981bc8a0c8b0e60945f60/ubus.c",
+        "sha256": "d3d2b5013748d207bb89a7205d0a6004a812269b186ccbab51a380ef5e5d5151",
+        "path": "netifd/ubus.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/7901e66c5f273bceee8981bc8a0c8b0e60945f60/wireless.c",
+        "sha256": "7c88f0fc26dfee3c872156acfbe9a8bd1098c042c30496fe3d4b0636b90587d4",
+        "path": "netifd/wireless.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/7901e66c5f273bceee8981bc8a0c8b0e60945f60/scripts/netifd-wireless.sh",
+        "sha256": "d3c4c956f1581603ae41b59c99740cf1d9063e6b4fab47b8fa2ebbfe6ff45061",
+        "path": "netifd/scripts/netifd-wireless.sh"
+      }
+    ],
+    "ap_status": "get_status",
+    "get_validate": {
+      "radio7": {
+        "device": {
+          "channel": "string",
+          "htmode": "string",
+          "country": "string",
+          "txpower": "uinteger",
+          "beacon_int": "uinteger",
+          "distance": "string",
+          "rts": "uinteger",
+          "frag": "uinteger"
+        },
+        "interface": {
+          "mode": "string",
+          "ssid": "string",
+          "encryption": "string",
+          "hidden": "bool",
+          "isolate": "bool",
+          "maxassoc": "uinteger",
+          "wmm": "bool",
+          "ieee80211w": "uinteger",
+          "dtim_period": "uinteger",
+          "bssid": "string",
+          "macaddr": "string",
+          "macfilter": "string",
+          "maclist": "list(string)",
+          "wds": "bool",
+          "multicast_to_unicast": "bool",
+          "multicast_to_unicast_all": "bool",
+          "disassoc_low_ack": "bool",
+          "short_preamble": "bool",
+          "skip_inactivity_poll": "bool",
+          "max_inactivity": "uinteger",
+          "ieee80211r": "bool",
+          "mobility_domain": "string",
+          "ft_over_ds": "bool",
+          "ft_psk_generate_local": "bool",
+          "ieee80211k": "bool",
+          "rrm_neighbor_report": "bool",
+          "rrm_beacon_report": "bool",
+          "bss_transition": "bool"
+        }
+      }
+    }
+  },
+  {
+    "series": "25.12",
+    "route": "shell",
+    "commit": "4a686570eb6495635279273f034caa2a0f37f36e",
+    "fixture_kind": "Synthetic get_validate response shaped from pinned official declarations, not a device capture",
+    "source": [
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/services/hostapd/src/src/ap/ubus.c",
+        "sha256": "f2ee99f880ac24d09c6177fa051a5ee56e9d67bbd99cb1f635402e6a61d08c9e",
+        "path": "package/network/services/hostapd/src/src/ap/ubus.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh",
+        "sha256": "5f87f07cca56b20b0cf08cf02711c1c4fc4ddbbb17de7c8780282625c8d3be07",
+        "path": "package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/Makefile",
+        "sha256": "6f52e7f8f19d17601f5f59b0bd710503f622166b86861fe5a06bc29489e1d0b2",
+        "path": "package/network/config/wifi-scripts/Makefile"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh",
+        "sha256": "30f2e5a5241f471c590bc4498efa20c500673b99c584b7ccc5b02574d58f94b3",
+        "path": "package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/ap.uc",
+        "sha256": "d036c64e14ae75297487ac4e572ee4e2504d5795e0c907267341d7b14931275a",
+        "path": "package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/ap.uc"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/iface.uc",
+        "sha256": "be89c76e55e9f838421b99328a9e84ac10b76dac64f4f8950660014123bdfc5f",
+        "path": "package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/iface.uc"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files-ucode/lib/netifd/wireless/mac80211.sh",
+        "sha256": "739f23db05e3d6d9e01b8897fe7779d5c72a13a1d949ae7e40295963319f59a7",
+        "path": "package/network/config/wifi-scripts/files-ucode/lib/netifd/wireless/mac80211.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/cbb83a1857407a28a63dc09412a1f209195914ef/scripts/netifd-wireless.sh",
+        "sha256": "6c93b95b441bf99fba2a8e5d1fe5d6e5149ac6736a351c877d5b84f4f607f463",
+        "path": "netifd/scripts/netifd-wireless.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/validate.uc",
+        "sha256": "2710fca796071133b30abedb28a8615ad0172af2b66a7c47580dde2f804eb4ee",
+        "path": "wifi/validate.uc"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/cbb83a1857407a28a63dc09412a1f209195914ef/ubus.c",
+        "sha256": "3ae2788070d1b0160ffaca536d33bf7514c7c1c546e3067fc975173ab0646205",
+        "path": "netifd/ubus.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/cbb83a1857407a28a63dc09412a1f209195914ef/examples/wireless-device.uc",
+        "sha256": "8570cf9a8cfd9aecd8cf149a5009551980fe16744100f8a9c469caffddedea5e",
+        "path": "netifd/examples/wireless-device.uc"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/cbb83a1857407a28a63dc09412a1f209195914ef/examples/wireless.uc",
+        "sha256": "c64fb9f64f82f710fad7051ea8c7d510734860945c77121cf1967ee7c5cdefe8",
+        "path": "netifd/examples/wireless.uc"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-device.json",
+        "sha256": "5490721e58bbee6b4b1ce6b37e4dbac4f3665e937a1d2f11840a65e437f8c982",
+        "path": "package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-device.json"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-iface.json",
+        "sha256": "c3b93856ee5f0bc13a5b21d0e247e7159dea7319b462b5336c2c19422dddb97b",
+        "path": "package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-iface.json"
+      }
+    ],
+    "ap_status": "get_status",
+    "get_validate": {
+      "radio7": {
+        "device": {
+          "channel": "string",
+          "htmode": "string",
+          "country": "string",
+          "txpower": "uinteger",
+          "beacon_int": "uinteger",
+          "distance": "string",
+          "rts": "uinteger",
+          "frag": "uinteger"
+        },
+        "interface": {
+          "mode": "string",
+          "ssid": "string",
+          "encryption": "string",
+          "hidden": "bool",
+          "isolate": "bool",
+          "maxassoc": "uinteger",
+          "ieee80211w": "uinteger",
+          "dtim_period": "uinteger",
+          "bssid": "string",
+          "macaddr": "string",
+          "macfilter": "string",
+          "maclist": "list(string)",
+          "wds": "bool",
+          "multicast_to_unicast": "bool",
+          "multicast_to_unicast_all": "bool",
+          "disassoc_low_ack": "bool",
+          "short_preamble": "bool",
+          "skip_inactivity_poll": "bool",
+          "max_inactivity": "uinteger",
+          "ieee80211r": "bool",
+          "mobility_domain": "string",
+          "ft_over_ds": "bool",
+          "ft_psk_generate_local": "bool",
+          "ieee80211k": "bool",
+          "rrm_neighbor_report": "bool",
+          "rrm_beacon_report": "bool",
+          "bss_transition": "bool"
+        }
+      }
+    }
+  },
+  {
+    "series": "25.12",
+    "route": "ucode",
+    "commit": "4a686570eb6495635279273f034caa2a0f37f36e",
+    "fixture_kind": "Synthetic get_validate response shaped from pinned official declarations, not a device capture",
+    "source": [
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/services/hostapd/src/src/ap/ubus.c",
+        "sha256": "f2ee99f880ac24d09c6177fa051a5ee56e9d67bbd99cb1f635402e6a61d08c9e",
+        "path": "package/network/services/hostapd/src/src/ap/ubus.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh",
+        "sha256": "5f87f07cca56b20b0cf08cf02711c1c4fc4ddbbb17de7c8780282625c8d3be07",
+        "path": "package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/Makefile",
+        "sha256": "6f52e7f8f19d17601f5f59b0bd710503f622166b86861fe5a06bc29489e1d0b2",
+        "path": "package/network/config/wifi-scripts/Makefile"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh",
+        "sha256": "30f2e5a5241f471c590bc4498efa20c500673b99c584b7ccc5b02574d58f94b3",
+        "path": "package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/ap.uc",
+        "sha256": "d036c64e14ae75297487ac4e572ee4e2504d5795e0c907267341d7b14931275a",
+        "path": "package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/ap.uc"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/iface.uc",
+        "sha256": "be89c76e55e9f838421b99328a9e84ac10b76dac64f4f8950660014123bdfc5f",
+        "path": "package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/iface.uc"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files-ucode/lib/netifd/wireless/mac80211.sh",
+        "sha256": "739f23db05e3d6d9e01b8897fe7779d5c72a13a1d949ae7e40295963319f59a7",
+        "path": "package/network/config/wifi-scripts/files-ucode/lib/netifd/wireless/mac80211.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/cbb83a1857407a28a63dc09412a1f209195914ef/scripts/netifd-wireless.sh",
+        "sha256": "6c93b95b441bf99fba2a8e5d1fe5d6e5149ac6736a351c877d5b84f4f607f463",
+        "path": "netifd/scripts/netifd-wireless.sh"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/validate.uc",
+        "sha256": "2710fca796071133b30abedb28a8615ad0172af2b66a7c47580dde2f804eb4ee",
+        "path": "wifi/validate.uc"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/cbb83a1857407a28a63dc09412a1f209195914ef/ubus.c",
+        "sha256": "3ae2788070d1b0160ffaca536d33bf7514c7c1c546e3067fc975173ab0646205",
+        "path": "netifd/ubus.c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/cbb83a1857407a28a63dc09412a1f209195914ef/examples/wireless-device.uc",
+        "sha256": "8570cf9a8cfd9aecd8cf149a5009551980fe16744100f8a9c469caffddedea5e",
+        "path": "netifd/examples/wireless-device.uc"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/netifd/cbb83a1857407a28a63dc09412a1f209195914ef/examples/wireless.uc",
+        "sha256": "c64fb9f64f82f710fad7051ea8c7d510734860945c77121cf1967ee7c5cdefe8",
+        "path": "netifd/examples/wireless.uc"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-device.json",
+        "sha256": "5490721e58bbee6b4b1ce6b37e4dbac4f3665e937a1d2f11840a65e437f8c982",
+        "path": "package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-device.json"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-iface.json",
+        "sha256": "c3b93856ee5f0bc13a5b21d0e247e7159dea7319b462b5336c2c19422dddb97b",
+        "path": "package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-iface.json"
+      }
+    ],
+    "ap_status": "get_status",
+    "get_validate": {
+      "radio7": {
+        "device": {
+          "channel": "string",
+          "htmode": "string",
+          "country": "string",
+          "txpower": "string",
+          "beacon_int": "string",
+          "distance": "string",
+          "rts": "string",
+          "frag": "string"
+        },
+        "interface": {
+          "mode": "string",
+          "ssid": "string",
+          "encryption": "string",
+          "hidden": "string",
+          "isolate": "string",
+          "maxassoc": "string",
+          "ieee80211w": "string",
+          "dtim_period": "string",
+          "bssid": "string",
+          "macaddr": "string",
+          "macfilter": "string",
+          "maclist": "string",
+          "wds": "string",
+          "multicast_to_unicast": "string",
+          "multicast_to_unicast_all": "string",
+          "disassoc_low_ack": "string",
+          "short_preamble": "string",
+          "skip_inactivity_poll": "string",
+          "max_inactivity": "string",
+          "ieee80211r": "string",
+          "mobility_domain": "string",
+          "ft_over_ds": "string",
+          "ft_psk_generate_local": "string",
+          "ieee80211k": "string",
+          "rrm_neighbor_report": "string",
+          "rrm_beacon_report": "string",
+          "bss_transition": "string"
+        }
+      }
+    }
+  }
+]

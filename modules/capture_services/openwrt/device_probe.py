@@ -5,7 +5,7 @@ import time
 from dataclasses import replace
 
 from .device_identity import BOARD_COMMAND, PHY_COMMAND, board_identity, package_architecture, parse_phy_capabilities, writable_storage_mb
-from .radio_identity import radio_phy_mapping, status_radio_ifnames, uci_radio_bands
+from .radio_identity import snapshot_radio_mapping, status_radio_ifnames, uci_radio_bands
 
 from modules.capture_services.openwrt.command_builder import quote_argument
 from modules.capture_services.openwrt.models import OpenWrtDeviceInfo, OpenWrtRadioInfo
@@ -414,7 +414,14 @@ class OpenWrtDeviceProbe:
             _ifaces, _channels, diag = read_iwdev_complete(
                 self.command_runner, "wireless_iwdev", cancel_event
             )
-        wireless_text = wireless.stdout + "\n__WINBOX_IWDEV__\n" + diag["raw"]
+        from .radio_identity_probe import enrich_radio_identity
+        try:
+            identity_text = enrich_radio_identity(self.command_runner, wireless.stdout, cancel_event)
+        except TimeoutError:
+            if cancel_event is not None and cancel_event.is_set():
+                raise InterruptedError("无线硬件身份查询已取消。")
+            identity_text = wireless.stdout
+        wireless_text = identity_text + "\n__WINBOX_IWDEV__\n" + diag["raw"]
         device = self._parse(system.stdout, wireless_text, storage.stdout, diag["expected"])
         if (
             not device.version
@@ -428,7 +435,7 @@ class OpenWrtDeviceProbe:
     def _with_radio_capabilities(self, device, wireless_text, cancel_event):
         """登录时一次批量读取实际驱动，不按型号猜监听支持。"""
         interfaces, _channels = _parse_iwdev(_iwdev_text(wireless_text))
-        mapping = radio_phy_mapping(status_radio_ifnames(wireless_text), interfaces)
+        mapping = snapshot_radio_mapping(wireless_text, interfaces)
         if not mapping:
             return device
         try:
@@ -502,7 +509,7 @@ class OpenWrtDeviceProbe:
         status_radios = status_radio_ifnames(wireless_text)
         configured = re.findall(r"(?m)^wireless\.([A-Za-z0-9_]+)=['\"]?wifi-device['\"]?\s*$", wireless_text)
         radio_names = sorted(set(configured) | set(status_radios))
-        mapping = radio_phy_mapping(status_radio_ifnames(wireless_text), phy_interfaces)
+        mapping = snapshot_radio_mapping(wireless_text, phy_interfaces)
         radios = []
         radio_bands = uci_radio_bands(wireless_text)
         for name in radio_names:

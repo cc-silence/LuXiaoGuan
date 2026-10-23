@@ -15,3 +15,10 @@
 - `InfoPanelDock(content, panel, orientation, parent, sizes)`: shared draggable information dock. Hides the panel completely, retains its share of available space, and moves the reverse-arrow control outside the hidden panel. Reopening restores the same panel and log history; no timer or duplicated log cache.
 
 - `ConfirmDialog.secondary_selected`: true only after explicitly clicking the secondary action. Title-bar X and Escape keep it false, allowing dialogs with two continuation choices to distinguish cancellation.
+
+- `config_fields.ConfigCheckBox`: native checkbox for configuration switches. `configure(value, preserve=True)` shows known 0/1 values; an unspecified value is indeterminate with an inherit label. `pending_value()` omits untouched values; user clicks choose definite on/off states. Uses the shared checkbox theme.
+- `config_fields.ConfigValueList`: reusable add/remove text rows for DNS and MAC filter lists. `set_values()` / `values()` preserve order; at most 512 rows are retained. Removed rows are deleted through Qt ownership; no background work or timers.
+
+- `FramelessDialog(window_controls=True)`: editing dialogs share `DialogWindowControls` for minimize, maximize/restore and title-bar double click. Controls preserve input and task ownership; resize grips hide while maximized. Use `window_controls=False` for confirmation, message, progress or a main window that already owns its chrome. Styles live in the existing light/dark settings partials.
+
+Modal editors minimize the visible owner group to retain modal ownership; modeless editors minimize independently.

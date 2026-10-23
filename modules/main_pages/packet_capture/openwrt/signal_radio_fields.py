@@ -1,4 +1,6 @@
 """Linked wireless-standard and channel-width choices, preserving untouched radio settings."""
+from modules.capture_services.openwrt.wireless_capabilities import option_supported
+from .signal_setup_forms import clear_editor_update, bind_editor_update
 from modules.capture_services.openwrt.wireless_radio_modes import FAMILIES, split_mode, supported_htmodes, radio_band, default_htmode
 
 _LABELS = {"HT": "N（Wi-Fi 4）", "VHT": "AC（Wi-Fi 5）",
@@ -7,6 +9,7 @@ _LABELS = {"HT": "N（Wi-Fi 4）", "VHT": "AC（Wi-Fi 5）",
 
 
 def configure_radio_fields(dialog, radio, features):
+    clear_editor_update(dialog, "bandwidth")
     modes = supported_htmodes(radio, features)
     labels = dict(_LABELS)
     labels["HE"] = "AX（Wi-Fi 6E）" if radio_band(radio) == "6g" else "AX（Wi-Fi 6）"
@@ -27,7 +30,7 @@ def configure_radio_fields(dialog, radio, features):
             standard.addItem(labels[family], family)
     if fallback is not None:
         standard.setCurrentIndex(standard.findData(current_family))
-    standard.setEnabled(standard.count() > 1)
+    standard.setEnabled(standard.count() > 1 and option_supported(radio, "htmode"))
 
     def update_bandwidth():
         previous_width = split_mode(bandwidth.currentData())[1]
@@ -46,8 +49,8 @@ def configure_radio_fields(dialog, radio, features):
             wanted = previous_width or current_width
             index = next((i for i, mode in enumerate(selected) if split_mode(mode)[1] == wanted), 0)
             bandwidth.setCurrentIndex(index)
-        bandwidth.setEnabled(bool(selected))
+        bandwidth.setEnabled(bool(selected) and option_supported(radio, "htmode"))
         bandwidth.setToolTip("只列出当前工作频率、频段和网卡支持的带宽。" if selected else
                              "请先选择已确认支持的工作频率；未选择时保留原配置。")
-    standard.currentIndexChanged.connect(update_bandwidth)
+    bind_editor_update(dialog, "bandwidth", update_bandwidth, standard.currentIndexChanged)
     update_bandwidth()

@@ -4,6 +4,7 @@ import unittest
 from tests.test_standalone import APP
 from PySide6.QtWidgets import QWidget,QFrame
 from modules.ui_scale_manager import UiScaleManager
+from modules.capture_services.openwrt.wireless_capabilities import RADIO_SETTINGS, IFACE_SETTINGS
 from modules.capture_services.openwrt.wireless_setup_models import WirelessEnvironment,WirelessNetwork
 from modules.main_pages.packet_capture.openwrt.signal_setup_dialogs import AccessPointSetupDialog,RelaySetupDialog
 from modules.main_pages.packet_capture.openwrt.signal_setup_editor import configure_ap,configure_relay,ap_request,relay_request
@@ -11,7 +12,7 @@ from modules.main_pages.packet_capture.openwrt.signal_setup_editor import config
 
 def environment():
     return WirelessEnvironment(data=dict(revision="a"*192,features=dict.fromkeys(("ap_sae","ap_owe","ap_acs","ap_11r","ap_eap","relayd"),True),
-        radios=[dict(name="radio7",type="mac80211",band="5g",channel="36",htmodes=["HE20","HE80"],channels=[dict(channel=36)],powers=[],countries=[])],
+        radios=[dict(name="radio7",type="mac80211",band="5g",channel="36",htmodes=["HE20","HE80"],channels=[dict(channel=36)],powers=[],countries=[],option_support={"device":dict.fromkeys(RADIO_SETTINGS,True),"interface":dict.fromkeys(IFACE_SETTINGS,True)})],
         rows=[dict(section="home",ssid="Home",device="radio7",mode="ap",network=["lan","guest"],encryption="psk2+ccmp")],
         networks=[dict(name="lan",proto="static"),dict(name="guest",proto="static"),dict(name="wan",proto="dhcp")],
         zones=[dict(name="lan",network=["lan"]),dict(name="wan",network=["wan"],masq="1")],active=[]))
@@ -50,7 +51,7 @@ class WirelessUiTests(unittest.TestCase):
         self.assertNotIn("network",request.options)
         self.assertNotIn("distance",request.options)
         dialog.expert_fields.controls["macfilter"].setCurrentIndex(2)
-        dialog.expert_fields.controls["maclist"].setText("02:11:22:33:44:55")
+        dialog.expert_fields.controls["maclist"].set_values(["02:11:22:33:44:55"])
         request=ap_request(dialog)
         self.assertEqual(request.options["macfilter"],"allow")
         dialog.reject()

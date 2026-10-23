@@ -93,7 +93,7 @@ class PasswordAndIdentityUiTests(unittest.TestCase):
         self.assertEqual(field.edit.echoMode(), QLineEdit.Normal)
         self.assertEqual(field.submitted_text(), "")
         target = WirelessNetwork("radio7", "", "Upstream", 36, "5G", -40, "psk2")
-        dialog.lock_bssid.setCurrentIndex(1)
+        dialog.lock_bssid.setChecked(False)
         self.assertEqual(relay_request(dialog, target).password, "")
         field.toggle.click()
         self.assertEqual(field.edit.echoMode(), QLineEdit.Password)

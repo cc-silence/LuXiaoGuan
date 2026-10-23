@@ -16,6 +16,7 @@ from .workflow_diagnostics import record_workflow
 _WIRELESS_WRITERS = frozenset({CaptureTaskType.PASSWORD_VERIFY.value, "wireless_setup"})
 # 他任务执行中的状态行文案；没列到的抓包类任务统一说抓包中。
 _BUSY_COPY = {
+    "wireless_apply_check": "管理连接检查中",
     "wireless_inspect": "\u65e0\u7ebf\u73af\u5883\u68c0\u6d4b\u4e2d",
     "wireless_setup": "无线设置中",
     CaptureTaskType.ROUTER_MANAGEMENT.value: "\u8def\u7531\u5668\u7ba1\u7406\u4e2d",
@@ -117,7 +118,7 @@ class RouterSignalService(QObject):
         if self.snapshot.busy_label:
             self.snapshot = replace(self.snapshot, busy_label="")
             self.snapshotChanged.emit(self.snapshot)
-        if was_busy:
+        if was_busy and task_type != "wireless_apply_check":
             self._refreshRequested.emit()
 
     def _try_auto_refresh(self):

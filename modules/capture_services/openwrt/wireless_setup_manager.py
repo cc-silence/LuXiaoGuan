@@ -11,6 +11,7 @@ from .signal_manager import RouterSignalManager, SignalError
 from .wireless_security import encryption_base
 from .wireless_radio_modes import supported_htmodes, default_htmode
 from .wireless_options import AP_ADVANCED
+from .wireless_capabilities import unsupported_settings
 from .wireless_dependencies import WIRELESS_HELPER_PACKAGES
 from .signal_package_feed import default_cache_dir
 from .wireless_setup_commands import PROBE, wireless_command
@@ -333,6 +334,15 @@ exit 1
             raise SignalError("dependencies", "无线设置环境未就绪，请先检测并处理缺少的组件。")
 
     @staticmethod
+    def _require_supported(request, radio):
+        unsupported = unsupported_settings(request, radio)
+        if unsupported:
+            labels = {spec.key: spec.label for spec in AP_ADVANCED}
+            labels.update(mode="无线模式", ssid="Wi-Fi 名称", encryption="加密", beacon_int="信标间隔",
+                          htmode="工作频率与带宽", bssid="锁定到 BSSID", macaddr="MAC 地址")
+            raise SignalError("capability", "当前无线脚本未确认支持这些设置：" + "、".join(labels.get(key, key) for key in unsupported) + "。请重新检测；未修改配置。")
+
+    @staticmethod
     def _radio(env, name):
         values = [r for r in env.data["radios"] if r.get("name") == name]
         if len(values) != 1 or not re.fullmatch(r"phy\d+", str(values[0].get("phy", ""))):
@@ -507,6 +517,7 @@ exit 1
         request = validate_request(WirelessRequest("sta", network.radio, network.ssid, password,
                                     options={"encryption": network.encryption, "bssid": network.bssid, **({"channel": str(network.channel)} if network.channel else {})}))
         radio = self._radio(env, network.radio)
+        self._require_supported(request, radio)
         band = {"2.4G": "2g", "5G": "5g", "6G": "6g", "2g": "2g", "5g": "5g", "6g": "6g"}.get(network.band)
         configured_band = radio.get("band")
         if not configured_band:
@@ -526,6 +537,12 @@ exit 1
         return hashlib.sha256(json.dumps([request.radio, request.ssid, request.password,
             request.options.get("encryption")], ensure_ascii=True).encode()).digest()
 
+
+    def management_connection(self, request, cancel):
+        """Inspect the current management path in the existing background worker."""
+        from .wireless_management_path import inspect_management_connection
+        return inspect_management_connection(self, request, cancel)
+
     def save(self, request, cancel, message, *, apply=True):
         """应用白名单字段并核实运行状态；原来的高级值只在显式修改时才改变。"""
         request = validate_request(request)
@@ -543,6 +560,7 @@ exit 1
             if fallback is None:
                 raise SignalError("capability", "未能确认此网卡支持的默认工作频率和带宽，请重新检测或手动选择。")
             request = replace(request, options={**request.options, "htmode": fallback})
+        self._require_supported(request, radio)
         others = [r for r in env.data["rows"] if r.get("device") == request.radio and
                   r.get("section") != request.section and r.get("disabled") != "1"]
         ap_count = sum(r.get("mode") == "ap" for r in others) + (request.mode == "ap")

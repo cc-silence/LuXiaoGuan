@@ -30,6 +30,11 @@ class Setup(QObject):
         self.read_password = Mock(return_value=True)
         self.cancel = Mock()
 
+    def check_management_connection(self, request):
+        from modules.capture_services.openwrt.wireless_management_path import ManagementConnection
+        self.completed.emit(WirelessTaskResult("apply_check", ManagementConnection()))
+        return True
+
 
 class DirectUiTests(unittest.TestCase):
     def actions(self):
@@ -41,6 +46,77 @@ class DirectUiTests(unittest.TestCase):
         self.addCleanup(page.deleteLater)
         self.addCleanup(actions.dispose)
         return actions, service, dialogs
+
+
+
+    def test_editor_deleted_while_confirmation_is_open_is_safe(self):
+        from PySide6.QtCore import QTimer
+        from shiboken6 import delete, isValid
+        actions, service, dialogs = self.actions()
+        actions.join(TARGET)
+        dialog = dialogs[0]
+        QTimer.singleShot(0, lambda: delete(dialog))
+        try:
+            self.assertFalse(actions._confirm(dialog, "Confirm", "Offline lifecycle test"))
+            service.save.assert_not_called()
+        finally:
+            if isValid(dialog):
+                dialog.deleteLater()
+
+    def test_queued_result_for_deleted_editor_does_not_touch_widgets(self):
+        from shiboken6 import delete
+        from modules.capture_services.openwrt.wireless_management_path import ManagementConnection
+        actions, service, dialogs = self.actions()
+        actions.join(TARGET)
+        dialog = dialogs[0]
+        dialog.password.edit.setText("test-password")
+        service.check_management_connection = Mock(return_value=True)
+        dialog.save_button.click()
+        self.assertIsNotNone(actions.pending)
+        delete(dialog)
+        actions._completed(WirelessTaskResult("apply_check", ManagementConnection()))
+        self.assertIsNone(actions.pending)
+        service.save.assert_not_called()
+
+    def test_detected_current_signal_is_warned_and_declining_never_saves(self):
+        from modules.capture_services.openwrt.wireless_management_path import ManagementConnection, management_connection_notice
+        actions, service, dialogs = self.actions()
+        actions.join(TARGET)
+        dialog = dialogs[0]
+        self.addCleanup(dialog.deleteLater)
+        dialog.password.edit.setText("test-password")
+        path = ManagementConnection("wifi", "same_signal")
+        def checked(request):
+            service.completed.emit(WirelessTaskResult("apply_check", path))
+            return True
+        service.check_management_connection = Mock(side_effect=checked)
+        with patch.object(actions, "_confirm", return_value=False) as confirmation:
+            dialog.save_button.click()
+        confirmation.assert_called_once()
+        self.assertIn(management_connection_notice(path), confirmation.call_args.args[2])
+        service.save.assert_not_called()
+        self.assertIsNone(actions.pending)
+        self.assertFalse(dialog._busy)
+        dialog.reject()
+
+    def test_cancelled_connection_check_never_opens_confirmation_or_applies(self):
+        actions, service, dialogs = self.actions()
+        actions.join(TARGET)
+        dialog = dialogs[0]
+        self.addCleanup(dialog.deleteLater)
+        dialog.password.edit.setText("test-password")
+        service.check_management_connection = Mock(return_value=True)
+        with patch.object(actions, "_confirm", return_value=True) as confirmation:
+            dialog.save_button.click()
+            self.assertEqual(actions.pending[0], "apply_check")
+            self.assertTrue(dialog._busy)
+            service.save.assert_not_called()
+            dialog.cancel_button.click()
+            service.cancel.assert_called_once()
+            service.completed.emit(WirelessTaskResult("apply_check", error="Cancelled", code="cancelled"))
+            confirmation.assert_not_called()
+        service.save.assert_not_called()
+        self.assertIsNone(actions.pending)
 
     def test_join_opens_settings_without_remote_trial_and_save_directly_applies(self):
         actions, service, dialogs = self.actions()
