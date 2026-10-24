@@ -17,10 +17,11 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from scripts.openwrt_packages.bundle_ledger import ProfileLedger
+from scripts.openwrt_packages.firmware_metadata import firmware_metadata
 from modules.capture_services.openwrt.bundle_specs import bundle_spec
 from modules.capture_services.openwrt.common_bundle_manifest import sha256_file
 from scripts.openwrt_packages.common_bundle_support import (
-    HttpCache, OFFICIAL, TARGETS, ROOTS, closure, hash_table, parse_feed, json_bytes,
+    HttpCache, OFFICIAL, TARGETS, ROOTS, closure, hash_table, parse_feed, json_bytes, MissingPackagesError,
 )
 
 
@@ -67,9 +68,9 @@ class Collector:
 
     def releases(self):
         raw = self.http.get(OFFICIAL + "/")
-        names = set(re.findall(rb'href="((?:21\.02|22\.03|23\.05|24\.10|25\.12)\.\d+)/"', raw))
+        names = set(re.findall(rb'href="((?:19\.07|21\.02|22\.03|23\.05|24\.10|25\.12)\.\d+)/"', raw))
         releases = sorted((v.decode() for v in names), key=lambda v: tuple(map(int, v.split("."))))
-        if not releases or not all(any(v.startswith(s + ".") for v in releases) for s in ("21.02", "22.03", "23.05", "24.10", "25.12")):
+        if not releases or not all(any(v.startswith(s + ".") for v in releases) for s in ("19.07", "21.02", "22.03", "23.05", "24.10", "25.12")):
             raise ValueError("Incomplete official release directory")
         return releases
 
@@ -122,7 +123,7 @@ class Collector:
             target = "ipq807x/generic"
         url = OFFICIAL + "/" + release + "/targets/" + target
         try:
-            device = json.loads(self.http.official(url + "/profiles.json"))
+            device, evidence = firmware_metadata(self.http, release, target)
         except FileNotFoundError:
             return dict(release=release, target=target, status="not-provided-by-upstream")
         arch = device.get("arch_packages")
@@ -141,13 +142,19 @@ class Collector:
         else:
             target_hashes = None
         target_rows = parse_feed(target_raw, "target", target_url, apk, target_hashes)
-        selected, provided = closure(target_rows + architecture["rows"], self.roots)
+        try:
+            selected, provided = closure(target_rows + architecture["rows"], self.roots)
+        except MissingPackagesError as exc:
+            return dict(release=release, target=target, target_family=target_family,
+                        architecture=arch, status="dependencies-unavailable",
+                        missing_packages=list(exc.packages), firmware_evidence=evidence)
         for row in selected:
             if row["architecture"] not in (arch, "all", "noarch"):
                 raise ValueError("Incompatible package architecture: " + row["filename"])
         return dict(release=release, target=target, target_family=target_family, architecture=arch,
                     package_manager="apk" if apk else "opkg", status="index-verified",
                     roots=list(self.roots), packages=selected, firmware_required=provided,
+                    firmware_evidence=evidence,
                     indexes=[target_index] + architecture["indexes"] if apk or self.spec.kind == "common" else [])
 
     def scan(self, releases, targets):
@@ -240,7 +247,7 @@ class Collector:
     def finish(self, inventory, failures):
         complete = (not inventory["errors"] and not failures
                     and any(p["status"] == "index-verified" for p in inventory["profiles"])
-                    and all(p["status"] in ("index-verified", "not-provided-by-upstream")
+                    and all(p["status"] in ("index-verified", "not-provided-by-upstream", "dependencies-unavailable")
                             for p in inventory["profiles"]))
         profiles = []
         logical_packages = 0
@@ -266,8 +273,9 @@ class Collector:
                         for sha, row in referenced.items()}
         catalog = dict(schema_version=1, purpose=self.spec.catalog_purpose, complete=complete,
                        roots=list(self.roots), releases=inventory["releases"], targets=inventory["targets"],
-                       profiles=profiles, unsupported=[p for p in inventory["profiles"] if p["status"] not in ("index-verified", "not-provided-by-upstream")],
+                       profiles=profiles, unsupported=[p for p in inventory["profiles"] if p["status"] not in ("index-verified", "not-provided-by-upstream", "dependencies-unavailable")],
                        unavailable_profiles=[p for p in inventory["profiles"] if p["status"] == "not-provided-by-upstream"],
+                       unavailable_dependencies=[p for p in inventory["profiles"] if p["status"] == "dependencies-unavailable"],
                        index_errors=inventory["errors"], download_errors=failures,
                        note="Firmware base libraries are device-provided; runtime must verify versions and installation plan.")
         (self.root / "bundle" / "catalog.json").write_bytes(json_bytes(catalog))

@@ -27,10 +27,11 @@ def write_inventory(kind,archive,coverage=None,publication=None,docs=DOCS):
     data=json.loads(path.read_text(encoding="utf-8")) if path.is_file() else dict(product="RouterManager",packages=[],router_model_verification=[])
     old=next((r for r in data["packages"] if r["kind"]==kind and r["sha256"]==digest),{})
     row=dict(kind=kind,archive=archive.name,sha256=digest,size=archive.stat().st_size,
-        profiles=len(catalog["profiles"]),roots=sorted(catalog["roots"]),releases=catalog["releases"],
+        profiles=len(catalog["profiles"]),roots=sorted(catalog["roots"]),releases=sorted({p["release"] for p in catalog["profiles"]},key=lambda v:tuple(map(int,v.split(".")))),
         unique_package_files=len({p["sha256"] for r in catalog["profiles"] for p in r["packages"]}),unique_objects=len(objects),
         ancillary_package_names=sorted({p["name"] for r in catalog["profiles"] for p in r["packages"]}-set(catalog["roots"])),
         architecture_targets={},unavailable_profiles=catalog.get("unavailable_profiles",[]),
+        unavailable_dependencies=catalog.get("unavailable_dependencies",[]),
         exact_profiles=[{k:r[k] for k in ["release","target","architecture","package_manager"]} for r in catalog["profiles"]],
         status="built-not-published")
     row["tool_versions"]={name:sorted({p["version"] for r in catalog["profiles"] for p in r["packages"] if p["name"]==name}) for name in catalog["roots"]}
@@ -106,6 +107,10 @@ def render(data,path):
         lines += ["  "+arch+" -> "+", ".join(targets) for arch,targets in row["architecture_targets"].items()]
         lines += ["\u4e3b\u4f9d\u8d56: "+", ".join(row["roots"]),"\u9644\u5c5e\u4f9d\u8d56\uff08\u5404\u7248\u672c\u5e76\u96c6\uff09: "+", ".join(row["ancillary_package_names"])]
         lines += ["\u4e0a\u6e38\u672a\u63d0\u4f9b\u7684\u7ec4\u5408: "+", ".join(r["release"]+"/"+r["target"] for r in row["unavailable_profiles"])]
+        if row.get("unavailable_dependencies"):
+            lines += ["\u5b98\u65b9\u6e90\u7f3a\u5c11\u4f9d\u8d56\u7684\u7ec4\u5408: " + "; ".join(
+                r["release"] + "/" + r["target"] + " (missing: " + ", ".join(r["missing_packages"]) + ")"
+                for r in row["unavailable_dependencies"])]
         if row.get("manifest_url"):lines += ["Manifest: "+row["manifest_url"],"Download: "+row["archive_url"]]
         if row.get("pmkid_runtime_unadapted_profiles"):
             releases=sorted({p["release"] for p in row["pmkid_runtime_unadapted_profiles"]})
