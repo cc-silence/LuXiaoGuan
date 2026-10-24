@@ -1,0 +1,554 @@
+[
+  {
+    "version": "19.07",
+    "sources": {
+      "network": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-19.07/package/network/config/netifd/files/etc/init.d/network",
+        "sha256": "3940b1f4bd035050717a3568e4d3baceddc191239af9a3fa3f04549b6ba092f0"
+      },
+      "dnsmasq": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-19.07/package/network/services/dnsmasq/files/dnsmasq.init",
+        "sha256": "87eab5b0393fabef42902d5fa59e12d90d236f4e39b9ca48409103605799f52e"
+      },
+      "uhttpd": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-19.07/package/network/services/uhttpd/files/uhttpd.init",
+        "sha256": "d5d84be00d97cadcb43134fe536efa40d629aa86277d8cfdce8e9e87c7d05fe6"
+      },
+      "dropbear": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-19.07/package/network/services/dropbear/files/dropbear.init",
+        "sha256": "cd5e438e70888d45aaae2facc252b67d5427b36726e53c396c88a1effa9fb78a"
+      },
+      "cron": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-19.07/package/utils/busybox/files/cron",
+        "sha256": "c5808411f99a803fe7863552b4c4197abe5618f212c2bcfd2289849f704919cb"
+      },
+      "system": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-19.07/package/base-files/files/etc/init.d/system",
+        "sha256": "dc76ce7950cc91a833547bcf5f2485fdb30d22cee414e5f48cd40bb7dd65b445"
+      },
+      "ntp": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-19.07/package/utils/busybox/files/sysntpd",
+        "sha256": "01ce6602072075ba2b875416e8d7000e30e664c21fbd5d42898114a1398d01f4"
+      },
+      "rc_common": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-19.07/package/base-files/files/etc/rc.common",
+        "sha256": "79450c277f25b5369a60622662b55ccd44f53440734090cd25365e222b8b8780"
+      },
+      "failsafe_wait": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-19.07/package/base-files/files/lib/preinit/30_failsafe_wait",
+        "sha256": "390e701c90a70b84c3143c8364d834a183ae9b62cd85b891875d47e708f09dce"
+      },
+      "mount_root": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-19.07/package/base-files/files/lib/preinit/80_mount_root",
+        "sha256": "c7053b3a4c9d66c6aa4b224d98b77d4b59430b1851c6d4bc2190893d6cdf72cc"
+      },
+      "rootfs": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-19.07/package/base-files/Makefile",
+        "sha256": "0407ea7a6ceb5fba89023b94a3a0707b7eda08fda83f3ef99fef606b626741c1"
+      },
+      "firewall": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-19.07/package/network/config/firewall/files/firewall.config",
+        "sha256": "303d858071dfcf1d1e8593168eb9c582a2c774211f23cef4bf7c85e4060a5e8c"
+      },
+      "rpcd_uci.c": {
+        "url": "https://github.com/openwrt/rpcd/blob/67c8a3fda26e441d3ec4a19f50ac72eca8deb14b/uci.c",
+        "commit": "67c8a3fda26e441d3ec4a19f50ac72eca8deb14b",
+        "sha256": "0fc96e74be35956bdb5b90f3a8e31f1609e31106d4173c3969fca44757495dbb"
+      },
+      "rpcd_uci.h": {
+        "url": "https://github.com/openwrt/rpcd/blob/67c8a3fda26e441d3ec4a19f50ac72eca8deb14b/include/rpcd/uci.h",
+        "commit": "67c8a3fda26e441d3ec4a19f50ac72eca8deb14b",
+        "sha256": "73ccf1a7338110b103a7cc768c5451b23d5d8bc61ea33e70a3cdb42e267a41bf"
+      },
+      "fstools_block.c": {
+        "url": "https://github.com/openwrt/fstools/blob/84269037b75de93bdd4ea75b7f50ba77ba976377/block.c",
+        "commit": "84269037b75de93bdd4ea75b7f50ba77ba976377",
+        "sha256": "cd69c84015c6e131dce5a1e611649fb379f68d34824cfacce323a549cbdcda1f"
+      }
+    },
+    "checks": {
+      "policy_before_network": true,
+      "quiet_dhcp": true,
+      "http_and_https": true,
+      "ssh_logical_interface": true,
+      "direct_interface_priority": false,
+      "libuci_session_order": true,
+      "session_prefix": true,
+      "mount_and_swap": true,
+      "early_failsafe": true,
+      "later_overlay_mount": true,
+      "echo_only_possible": true
+    },
+    "facts": {
+      "rpcd_session_prefix": "/var/run/rpcd/uci-",
+      "network_start": 20,
+      "policy_start": 18,
+      "http": "listen_http",
+      "https": "listen_https",
+      "ssh": "Interface",
+      "swap": "anon_swap",
+      "mount": "auto_mount",
+      "dhcp_log": "quietdhcp"
+    }
+  },
+  {
+    "version": "21.02",
+    "sources": {
+      "network": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-21.02/package/network/config/netifd/files/etc/init.d/network",
+        "sha256": "8b0e065293d40210ae45c2e97fc3a92046475ed74aaafb30f9c9a0c1e50b97e0"
+      },
+      "dnsmasq": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-21.02/package/network/services/dnsmasq/files/dnsmasq.init",
+        "sha256": "b8e01383eac57c4d3fb3d15bd0d98e27f368e4cb77e6ed0f2fe91ce1c6544e9c"
+      },
+      "uhttpd": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-21.02/package/network/services/uhttpd/files/uhttpd.init",
+        "sha256": "4ca72c65cb08e2e93d2bd424e7a08caeb78333af4d48c496fcad00af220a09f5"
+      },
+      "dropbear": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-21.02/package/network/services/dropbear/files/dropbear.init",
+        "sha256": "d7989e8ac14e373e216ddd2db82c102a7d323fa9b46902b6a9e85dafeb69093e"
+      },
+      "cron": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-21.02/package/utils/busybox/files/cron",
+        "sha256": "efd3ba0b38246cecc2d38b9604b86ee6bc2bc96eb83bd1b48c54de5d166e9094"
+      },
+      "system": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-21.02/package/base-files/files/etc/init.d/system",
+        "sha256": "55a16f8e7940740d3370a2c4f80ccaeea905082fba5f358096c27401bf7ab82a"
+      },
+      "ntp": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-21.02/package/utils/busybox/files/sysntpd",
+        "sha256": "f4ae98536711bbaf5cd1e8de5154d1e654ebf88af6cc07d003119b0571745c0d"
+      },
+      "rc_common": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-21.02/package/base-files/files/etc/rc.common",
+        "sha256": "ebeeedc132a75942ce876465e4636a75f745e468c573fdf9ad058e57e58a0341"
+      },
+      "failsafe_wait": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-21.02/package/base-files/files/lib/preinit/30_failsafe_wait",
+        "sha256": "0cf55fb8ce263e34cf9dd6208fe87c4a172ecf41de8d626af9aabd0bbf38ef18"
+      },
+      "mount_root": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-21.02/package/base-files/files/lib/preinit/80_mount_root",
+        "sha256": "d03c48d6a9499496873e970ed9aa2eb19847d6b356d1ee947c1c0ee7b64a4e65"
+      },
+      "rootfs": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-21.02/package/base-files/Makefile",
+        "sha256": "8acacc51f4d1c972390c5501fd69640fcb0477dc0d1f0634bca055a28c0e67d0"
+      },
+      "firewall": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-21.02/package/network/config/firewall/files/firewall.config",
+        "sha256": "2d0802f4067ce426ed2b106344cd254c068307e6c2f7ba08ff7446cf9a3f67ca"
+      },
+      "rpcd_uci.c": {
+        "url": "https://github.com/openwrt/rpcd/blob/8d26a1ba3a175016b342cc5e25d340c08ae20eed/uci.c",
+        "commit": "8d26a1ba3a175016b342cc5e25d340c08ae20eed",
+        "sha256": "84e8e3ecc502476dda227df4671473a64c22a78f34849c1987b5e064cdedfe6f"
+      },
+      "rpcd_uci.h": {
+        "url": "https://github.com/openwrt/rpcd/blob/8d26a1ba3a175016b342cc5e25d340c08ae20eed/include/rpcd/uci.h",
+        "commit": "8d26a1ba3a175016b342cc5e25d340c08ae20eed",
+        "sha256": "73ccf1a7338110b103a7cc768c5451b23d5d8bc61ea33e70a3cdb42e267a41bf"
+      },
+      "fstools_block.c": {
+        "url": "https://github.com/openwrt/fstools/blob/c53b18820756f6f32ad0782d3bf489422b7c4ad3/block.c",
+        "commit": "c53b18820756f6f32ad0782d3bf489422b7c4ad3",
+        "sha256": "6ad23159fb5ed93cc86e38043de9a0691069ef3e397bd9f442198f7d1c205cc7"
+      }
+    },
+    "checks": {
+      "policy_before_network": true,
+      "quiet_dhcp": true,
+      "http_and_https": true,
+      "ssh_logical_interface": true,
+      "direct_interface_priority": false,
+      "libuci_session_order": true,
+      "session_prefix": true,
+      "mount_and_swap": true,
+      "early_failsafe": true,
+      "later_overlay_mount": true,
+      "echo_only_possible": true
+    },
+    "facts": {
+      "rpcd_session_prefix": "/var/run/rpcd/uci-",
+      "network_start": 20,
+      "policy_start": 18,
+      "http": "listen_http",
+      "https": "listen_https",
+      "ssh": "Interface",
+      "swap": "anon_swap",
+      "mount": "auto_mount",
+      "dhcp_log": "quietdhcp"
+    }
+  },
+  {
+    "version": "22.03",
+    "sources": {
+      "network": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-22.03/package/network/config/netifd/files/etc/init.d/network",
+        "sha256": "8b0e065293d40210ae45c2e97fc3a92046475ed74aaafb30f9c9a0c1e50b97e0"
+      },
+      "dnsmasq": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-22.03/package/network/services/dnsmasq/files/dnsmasq.init",
+        "sha256": "cb5db9cacf65283e9612b655eae2a154dc6e4c8d3fdf89f35e8054402b19f444"
+      },
+      "uhttpd": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-22.03/package/network/services/uhttpd/files/uhttpd.init",
+        "sha256": "4ffbbaba14d6ebb60811cf3ad34afdb179eaf44b26d8d2222c51f9affd23a065"
+      },
+      "dropbear": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-22.03/package/network/services/dropbear/files/dropbear.init",
+        "sha256": "d7989e8ac14e373e216ddd2db82c102a7d323fa9b46902b6a9e85dafeb69093e"
+      },
+      "cron": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-22.03/package/utils/busybox/files/cron",
+        "sha256": "efd3ba0b38246cecc2d38b9604b86ee6bc2bc96eb83bd1b48c54de5d166e9094"
+      },
+      "system": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-22.03/package/base-files/files/etc/init.d/system",
+        "sha256": "55a16f8e7940740d3370a2c4f80ccaeea905082fba5f358096c27401bf7ab82a"
+      },
+      "ntp": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-22.03/package/utils/busybox/files/sysntpd",
+        "sha256": "f4ae98536711bbaf5cd1e8de5154d1e654ebf88af6cc07d003119b0571745c0d"
+      },
+      "rc_common": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-22.03/package/base-files/files/etc/rc.common",
+        "sha256": "143c915143c351bd96c5e8007d56e191b78975fd75a32709acd42243d68d230d"
+      },
+      "failsafe_wait": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-22.03/package/base-files/files/lib/preinit/30_failsafe_wait",
+        "sha256": "0cf55fb8ce263e34cf9dd6208fe87c4a172ecf41de8d626af9aabd0bbf38ef18"
+      },
+      "mount_root": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-22.03/package/base-files/files/lib/preinit/80_mount_root",
+        "sha256": "25f7e65ebfa648e1f6d62aff86b7ff3f2d1bebaacce16db65a9bfd7cd71f690c"
+      },
+      "rootfs": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-22.03/package/base-files/Makefile",
+        "sha256": "e9798a7fff216dafc44303dcf93bd40ca590d5e7fb8770f6af03bfdffe417b14"
+      },
+      "firewall": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-22.03/package/network/config/firewall/files/firewall.config",
+        "sha256": "2d0802f4067ce426ed2b106344cd254c068307e6c2f7ba08ff7446cf9a3f67ca"
+      },
+      "rpcd_uci.c": {
+        "url": "https://github.com/openwrt/rpcd/blob/7de4820c87437033f6b7716018f3bfa60a3f7b12/uci.c",
+        "commit": "7de4820c87437033f6b7716018f3bfa60a3f7b12",
+        "sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+      },
+      "rpcd_uci.h": {
+        "url": "https://github.com/openwrt/rpcd/blob/7de4820c87437033f6b7716018f3bfa60a3f7b12/include/rpcd/uci.h",
+        "commit": "7de4820c87437033f6b7716018f3bfa60a3f7b12",
+        "sha256": "73ccf1a7338110b103a7cc768c5451b23d5d8bc61ea33e70a3cdb42e267a41bf"
+      },
+      "fstools_block.c": {
+        "url": "https://github.com/openwrt/fstools/blob/93369be040612c906bcbb1631f44a92fa4122d24/block.c",
+        "commit": "93369be040612c906bcbb1631f44a92fa4122d24",
+        "sha256": "8f9e257487f57295986f3b42d162f9ec71e6e2918ff74439f6d8f2886a788efd"
+      }
+    },
+    "checks": {
+      "policy_before_network": true,
+      "quiet_dhcp": true,
+      "http_and_https": true,
+      "ssh_logical_interface": true,
+      "direct_interface_priority": false,
+      "libuci_session_order": true,
+      "session_prefix": true,
+      "mount_and_swap": true,
+      "early_failsafe": true,
+      "later_overlay_mount": true,
+      "echo_only_possible": true
+    },
+    "facts": {
+      "rpcd_session_prefix": "/var/run/rpcd/uci-",
+      "network_start": 20,
+      "policy_start": 18,
+      "http": "listen_http",
+      "https": "listen_https",
+      "ssh": "Interface",
+      "swap": "anon_swap",
+      "mount": "auto_mount",
+      "dhcp_log": "quietdhcp"
+    }
+  },
+  {
+    "version": "23.05",
+    "sources": {
+      "network": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-23.05/package/network/config/netifd/files/etc/init.d/network",
+        "sha256": "8b0e065293d40210ae45c2e97fc3a92046475ed74aaafb30f9c9a0c1e50b97e0"
+      },
+      "dnsmasq": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-23.05/package/network/services/dnsmasq/files/dnsmasq.init",
+        "sha256": "ea21398822c1420a637656cb382f8db945d3b714d060d6201dcd3a71235a0edc"
+      },
+      "uhttpd": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-23.05/package/network/services/uhttpd/files/uhttpd.init",
+        "sha256": "17d3ead42f306ff6332b0affade966618187f6f82ecc6609223eddb92fb5a887"
+      },
+      "dropbear": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-23.05/package/network/services/dropbear/files/dropbear.init",
+        "sha256": "560f9df69052f34960a0e6ccdd3b35d76e573c72ed1aeb923ce04c9d359b89c5"
+      },
+      "cron": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-23.05/package/utils/busybox/files/cron",
+        "sha256": "efd3ba0b38246cecc2d38b9604b86ee6bc2bc96eb83bd1b48c54de5d166e9094"
+      },
+      "system": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-23.05/package/base-files/files/etc/init.d/system",
+        "sha256": "55a16f8e7940740d3370a2c4f80ccaeea905082fba5f358096c27401bf7ab82a"
+      },
+      "ntp": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-23.05/package/utils/busybox/files/sysntpd",
+        "sha256": "f4ae98536711bbaf5cd1e8de5154d1e654ebf88af6cc07d003119b0571745c0d"
+      },
+      "rc_common": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-23.05/package/base-files/files/etc/rc.common",
+        "sha256": "143c915143c351bd96c5e8007d56e191b78975fd75a32709acd42243d68d230d"
+      },
+      "failsafe_wait": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-23.05/package/base-files/files/lib/preinit/30_failsafe_wait",
+        "sha256": "85f5abdfa0a09203357c01826f22ca8fe268dfe7672747767bd70afed7b052b4"
+      },
+      "mount_root": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-23.05/package/base-files/files/lib/preinit/80_mount_root",
+        "sha256": "f8c4b3ca45e5202b636d179099044e2983a262c814f5d57d451a5847d165c5fd"
+      },
+      "rootfs": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-23.05/package/base-files/Makefile",
+        "sha256": "e9a819823c0fa006af2e9b3e1c603caf3c9902dd33fe8ba31688f265749eb9f3"
+      },
+      "firewall": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-23.05/package/network/config/firewall/files/firewall.config",
+        "sha256": "e0f12468e4b0d6bf8c5fb6bf9ae820764b711a8717cfb1140fa6f93b4f72c877"
+      },
+      "rpcd_uci.c": {
+        "url": "https://github.com/openwrt/rpcd/blob/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/uci.c",
+        "commit": "c07ab2f91061ad64209e9aaa1fb1b77061a1af25",
+        "sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+      },
+      "rpcd_uci.h": {
+        "url": "https://github.com/openwrt/rpcd/blob/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/include/rpcd/uci.h",
+        "commit": "c07ab2f91061ad64209e9aaa1fb1b77061a1af25",
+        "sha256": "73ccf1a7338110b103a7cc768c5451b23d5d8bc61ea33e70a3cdb42e267a41bf"
+      },
+      "fstools_block.c": {
+        "url": "https://github.com/openwrt/fstools/blob/bfe882d5ff4eeebb8f57c8a0f9b9e767a57870d8/block.c",
+        "commit": "bfe882d5ff4eeebb8f57c8a0f9b9e767a57870d8",
+        "sha256": "687661228e63a28675a8ab4f45d1366bf001a0c7bdd58852bac0f09c6402b5d7"
+      }
+    },
+    "checks": {
+      "policy_before_network": true,
+      "quiet_dhcp": true,
+      "http_and_https": true,
+      "ssh_logical_interface": true,
+      "direct_interface_priority": false,
+      "libuci_session_order": true,
+      "session_prefix": true,
+      "mount_and_swap": true,
+      "early_failsafe": true,
+      "later_overlay_mount": true,
+      "echo_only_possible": true
+    },
+    "facts": {
+      "rpcd_session_prefix": "/var/run/rpcd/uci-",
+      "network_start": 20,
+      "policy_start": 18,
+      "http": "listen_http",
+      "https": "listen_https",
+      "ssh": "Interface",
+      "swap": "anon_swap",
+      "mount": "auto_mount",
+      "dhcp_log": "quietdhcp"
+    }
+  },
+  {
+    "version": "24.10",
+    "sources": {
+      "network": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-24.10/package/network/config/netifd/files/etc/init.d/network",
+        "sha256": "1c27ae29b6702f51e96d1aacd5181f0041e3672635ed9026fae179afa4e94b6e"
+      },
+      "dnsmasq": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-24.10/package/network/services/dnsmasq/files/dnsmasq.init",
+        "sha256": "610f043921f86083ef8e28f34acc2f853145469c6ae4f2994670916bb4062a7f"
+      },
+      "uhttpd": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-24.10/package/network/services/uhttpd/files/uhttpd.init",
+        "sha256": "f87e3c58bf1eb78a6eb52643ef974ba6f2eddbfa103b5acb333bb77d53c534b9"
+      },
+      "dropbear": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-24.10/package/network/services/dropbear/files/dropbear.init",
+        "sha256": "6cfb1a2b1ac3db2812269d6a33c8fcb9baf2ff8d5b541503c9bbf3dd0b988169"
+      },
+      "cron": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-24.10/package/utils/busybox/files/cron",
+        "sha256": "efd3ba0b38246cecc2d38b9604b86ee6bc2bc96eb83bd1b48c54de5d166e9094"
+      },
+      "system": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-24.10/package/base-files/files/etc/init.d/system",
+        "sha256": "55a16f8e7940740d3370a2c4f80ccaeea905082fba5f358096c27401bf7ab82a"
+      },
+      "ntp": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-24.10/package/utils/busybox/files/sysntpd",
+        "sha256": "f4ae98536711bbaf5cd1e8de5154d1e654ebf88af6cc07d003119b0571745c0d"
+      },
+      "rc_common": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-24.10/package/base-files/files/etc/rc.common",
+        "sha256": "dd8ae95c78d10cccf78cb487874f163ace4c1ee14dace05fe28393b19ba639e4"
+      },
+      "failsafe_wait": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-24.10/package/base-files/files/lib/preinit/30_failsafe_wait",
+        "sha256": "4b09ff1a47ba927f0b73df1c5d12ebe3ba8ee5bdbf1996ae170e9a7a63814e64"
+      },
+      "mount_root": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-24.10/package/base-files/files/lib/preinit/80_mount_root",
+        "sha256": "da58cd08d9de0f9fd51fa2591314a1f32d9f8fadd6e7047a2dc716a87f3857cf"
+      },
+      "rootfs": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-24.10/package/base-files/Makefile",
+        "sha256": "b8e3c8bce5e8d745aa61a113d9ee32d32c320d5cf13af91ad38c5b6c4cf44692"
+      },
+      "firewall": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-24.10/package/network/config/firewall/files/firewall.config",
+        "sha256": "e0f12468e4b0d6bf8c5fb6bf9ae820764b711a8717cfb1140fa6f93b4f72c877"
+      },
+      "rpcd_uci.c": {
+        "url": "https://github.com/openwrt/rpcd/blob/bba95191ff2f22c9118a1ba1355b83afaa277ae3/uci.c",
+        "commit": "bba95191ff2f22c9118a1ba1355b83afaa277ae3",
+        "sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+      },
+      "rpcd_uci.h": {
+        "url": "https://github.com/openwrt/rpcd/blob/bba95191ff2f22c9118a1ba1355b83afaa277ae3/include/rpcd/uci.h",
+        "commit": "bba95191ff2f22c9118a1ba1355b83afaa277ae3",
+        "sha256": "73ccf1a7338110b103a7cc768c5451b23d5d8bc61ea33e70a3cdb42e267a41bf"
+      },
+      "fstools_block.c": {
+        "url": "https://github.com/openwrt/fstools/blob/408c2cc48e6694446c89da7f8121b399063e1067/block.c",
+        "commit": "408c2cc48e6694446c89da7f8121b399063e1067",
+        "sha256": "a976adcac9424ef977a458141e0ecc370d6e48486fee5caaab7377d3975e0c4d"
+      }
+    },
+    "checks": {
+      "policy_before_network": true,
+      "quiet_dhcp": true,
+      "http_and_https": true,
+      "ssh_logical_interface": true,
+      "direct_interface_priority": true,
+      "libuci_session_order": true,
+      "session_prefix": true,
+      "mount_and_swap": true,
+      "early_failsafe": true,
+      "later_overlay_mount": true,
+      "echo_only_possible": true
+    },
+    "facts": {
+      "rpcd_session_prefix": "/var/run/rpcd/uci-",
+      "network_start": 20,
+      "policy_start": 18,
+      "http": "listen_http",
+      "https": "listen_https",
+      "ssh": "Interface",
+      "swap": "anon_swap",
+      "mount": "auto_mount",
+      "dhcp_log": "quietdhcp"
+    }
+  },
+  {
+    "version": "25.12",
+    "sources": {
+      "network": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-25.12/package/network/config/netifd/files/etc/init.d/network",
+        "sha256": "1c27ae29b6702f51e96d1aacd5181f0041e3672635ed9026fae179afa4e94b6e"
+      },
+      "dnsmasq": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-25.12/package/network/services/dnsmasq/files/dnsmasq.init",
+        "sha256": "610f043921f86083ef8e28f34acc2f853145469c6ae4f2994670916bb4062a7f"
+      },
+      "uhttpd": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-25.12/package/network/services/uhttpd/files/uhttpd.init",
+        "sha256": "f87e3c58bf1eb78a6eb52643ef974ba6f2eddbfa103b5acb333bb77d53c534b9"
+      },
+      "dropbear": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-25.12/package/network/services/dropbear/files/dropbear.init",
+        "sha256": "2bed21dcd3c6324c1ebfb75cf3c76952c0d258f33feacc675aec200e64a63ab1"
+      },
+      "cron": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-25.12/package/utils/busybox/files/cron",
+        "sha256": "70f43b1ea4305e7e31be9180adbe3386e56defd10ceb9d1f85af06b515db8a06"
+      },
+      "system": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-25.12/package/base-files/files/etc/init.d/system",
+        "sha256": "794d5e58fead1111cdc9d9a48854a92427a81c7baf514900c5be99c2d522e445"
+      },
+      "ntp": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-25.12/package/utils/busybox/files/sysntpd",
+        "sha256": "f4ae98536711bbaf5cd1e8de5154d1e654ebf88af6cc07d003119b0571745c0d"
+      },
+      "rc_common": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-25.12/package/base-files/files/etc/rc.common",
+        "sha256": "dd8ae95c78d10cccf78cb487874f163ace4c1ee14dace05fe28393b19ba639e4"
+      },
+      "failsafe_wait": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-25.12/package/base-files/files/lib/preinit/30_failsafe_wait",
+        "sha256": "4b09ff1a47ba927f0b73df1c5d12ebe3ba8ee5bdbf1996ae170e9a7a63814e64"
+      },
+      "mount_root": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-25.12/package/base-files/files/lib/preinit/80_mount_root",
+        "sha256": "da58cd08d9de0f9fd51fa2591314a1f32d9f8fadd6e7047a2dc716a87f3857cf"
+      },
+      "rootfs": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-25.12/package/base-files/Makefile",
+        "sha256": "08103be9602a2a6b4b20d13e2fa5ee646100f03b1356efd3e6d5eaf2a02a9009"
+      },
+      "firewall": {
+        "url": "https://github.com/openwrt/openwrt/blob/openwrt-25.12/package/network/config/firewall/files/firewall.config",
+        "sha256": "02429d9c315c5572f0d3119e7e3fdd8e651b33e6151d419c52c62d5a6cc3230f"
+      },
+      "rpcd_uci.c": {
+        "url": "https://github.com/openwrt/rpcd/blob/d99f703e4035d03fbcfbada3cb697db346c2b984/uci.c",
+        "commit": "d99f703e4035d03fbcfbada3cb697db346c2b984",
+        "sha256": "bc3ca56c0a190621f9b14fb930a132494d2d28c5e7b6ffe498604a4d59769f22"
+      },
+      "rpcd_uci.h": {
+        "url": "https://github.com/openwrt/rpcd/blob/d99f703e4035d03fbcfbada3cb697db346c2b984/include/rpcd/uci.h",
+        "commit": "d99f703e4035d03fbcfbada3cb697db346c2b984",
+        "sha256": "73ccf1a7338110b103a7cc768c5451b23d5d8bc61ea33e70a3cdb42e267a41bf"
+      },
+      "fstools_block.c": {
+        "url": "https://github.com/openwrt/fstools/blob/16718b6e3c0fc7db7be6ae5848db0eae88ac8a8b/block.c",
+        "commit": "16718b6e3c0fc7db7be6ae5848db0eae88ac8a8b",
+        "sha256": "a976adcac9424ef977a458141e0ecc370d6e48486fee5caaab7377d3975e0c4d"
+      }
+    },
+    "checks": {
+      "policy_before_network": true,
+      "quiet_dhcp": true,
+      "http_and_https": true,
+      "ssh_logical_interface": true,
+      "direct_interface_priority": true,
+      "libuci_session_order": true,
+      "session_prefix": true,
+      "mount_and_swap": true,
+      "early_failsafe": true,
+      "later_overlay_mount": true,
+      "echo_only_possible": true
+    },
+    "facts": {
+      "rpcd_session_prefix": "/var/run/rpcd/uci-",
+      "network_start": 20,
+      "policy_start": 18,
+      "http": "listen_http",
+      "https": "listen_https",
+      "ssh": "Interface",
+      "swap": "anon_swap",
+      "mount": "auto_mount",
+      "dhcp_log": "quietdhcp"
+    }
+  }
+]

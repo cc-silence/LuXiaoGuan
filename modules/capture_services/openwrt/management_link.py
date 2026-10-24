@@ -172,9 +172,9 @@ def read_management_link(runner, cancel_event=None):
     return link
 
 
-def require_management_link(runner, target_phy, cancel_event=None, *, allow_scan_risk=False):
+def require_management_link(runner, target_phy, cancel_event=None):
     link = read_management_link(runner, cancel_event)
-    blocked = link.status == "unknown" or (link.status == "wireless" and link.phy == target_phy and not allow_scan_risk)
+    blocked = link.status == "unknown" or (link.status == "wireless" and link.phy == target_phy)
     journal = getattr(runner, "operation_diagnostics", None)
     if journal is not None:
         journal.record("safety_gate", operation="management_link_check", source="router_route_fdb",

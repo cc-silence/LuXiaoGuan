@@ -120,6 +120,7 @@ class RouterBackupManager:
             os.replace(source, destination)
 
     def export(self, destination, expected, cancel, progress):
+        progress(dict(stage="\u6b63\u5728\u68c0\u67e5\u8bbe\u5907\u548c\u5907\u4efd\u80fd\u529b",completed=0,total=0))
         self.preflight(cancel)
         destination = Path(destination).absolute()
         workspace = self._workspace(cancel)
@@ -131,14 +132,18 @@ class RouterBackupManager:
                        + " >/dev/null 2>&1 && test -s " + q(remote)
                        + " && test $(wc -c < " + q(remote) + ") -le " + str(MAX_ARCHIVE)
                        + " && chmod 600 " + q(remote))
+            progress(dict(stage="\u6b63\u5728\u8def\u7531\u5668\u4e0a\u751f\u6210\u5907\u4efd\u2026\u2026",completed=0,total=0))
             self._run("backup", command, cancel, 90)
             digest = self._remote_digest(remote, cancel)
             with tempfile.TemporaryDirectory(prefix=".router-backup-", dir=destination.parent) as local:
                 downloaded = Path(local) / "backup.tar.gz"
+                progress(dict(stage="\u6b63\u5728\u4e0b\u8f7d\u5907\u4efd\u5230\u7535\u8111\u2026\u2026",completed=0,total=0))
                 self.manager.transfer_file(False, downloaded, remote, cancel, progress)
+                progress(dict(stage="\u6b63\u5728\u6821\u9a8c\u5907\u4efd\u5b8c\u6574\u6027\u2026\u2026",completed=0,total=0))
                 info = inspect_archive(downloaded, cancel, for_restore=False)
                 if info["sha256"] != digest:
                     raise RuntimeError("备份下载校验失败，未替换目标文件。")
+                progress(dict(stage="\u6b63\u5728\u4fdd\u5b58\u6821\u9a8c\u901a\u8fc7\u7684\u5907\u4efd\u2026\u2026",completed=0,total=0))
                 self._publish(downloaded, destination, expected, cancel)
         finally:
             cleanup_note = self._cleanup(workspace)
@@ -180,6 +185,7 @@ class RouterBackupManager:
                 raise InterruptedError("操作已取消；当前配置备份已保存：" + backup["path"])
             if operation == "reset":
                 command = review["reset_command"] + " -y"
+                progress(dict(stage="\u6b63\u5728\u6062\u590d\u51fa\u5382\u5e76\u8bf7\u6c42\u91cd\u542f\uff0c\u8bf7\u52ff\u65ad\u7535",completed=0,total=0,uncancellable=True))
                 return self._destructive(command, "恢复出厂设置", backup["path"])
             workspace = self._workspace(cancel)
             result = None
@@ -200,6 +206,7 @@ class RouterBackupManager:
                     raise RuntimeError("上传期间配置已变化，未执行恢复。")
                 if cancel.is_set():
                     raise InterruptedError("恢复已取消，尚未写入配置。")
+                progress(dict(stage="\u6b63\u5728\u6062\u590d\u914d\u7f6e\u5e76\u8bf7\u6c42\u91cd\u542f\uff0c\u8bf7\u52ff\u65ad\u7535",completed=0,total=0,uncancellable=True))
                 result = self._destructive("/sbin/sysupgrade -r " + q(remote), "恢复配置", backup["path"])
             finally:
                 if result is not None and result.get("outcome") == "uncertain":
@@ -215,8 +222,7 @@ class RouterBackupManager:
             self._run("apply", command + " >/dev/null 2>&1", Event(), 90)
         except Exception:
             return dict(outcome="uncertain", note=label + "请求的执行结果未确认。请保持供电、重新连接核对，勿连续重试。操作前备份：" + backup_path)
-        try:
-            self._run("reboot", "sync; /sbin/reboot", Event(), 12)
-        except Exception:
+        from .router_reboot import request_reboot
+        if not request_reboot(self._run, self.manager.ssh, self._connection):
             return dict(outcome="reconnect", note=label + "命令已完成，重启请求后连接可能已断开，请等待并重新登录核对。操作前备份：" + backup_path)
         return dict(outcome="reconnect", note=label + "命令已完成并已请求重启。请等待后使用恢复后的管理地址和密码重新登录。操作前备份：" + backup_path)

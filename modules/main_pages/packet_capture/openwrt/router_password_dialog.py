@@ -1,7 +1,8 @@
 """Small secret-entry dialog for the current router login account."""
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from modules.common_widgets.frameless_dialog import FramelessDialog
-from modules.common_widgets.common_dialogs import apply_common_dialog_theme
+from modules.common_widgets.common_dialogs import apply_common_dialog_theme, ConfirmDialog
+from .settings_impacts import PASSWORD_WARNING
 from modules.settings_pages.settings_widgets import create_dialog_ok_cancel_buttons
 from .signal_setup_forms import PasswordInput, add_field, hint
 from modules.capture_services.openwrt.router_password import PasswordChange
@@ -39,6 +40,12 @@ class RouterPasswordDialog(FramelessDialog):
         except ValueError as exc:
             self.error_label.setText(str(exc))
             return
+        confirm = ConfirmDialog("确认修改登录密码", PASSWORD_WARNING, self)
+        try:
+            if confirm.exec() != confirm.Accepted:
+                return
+        finally:
+            confirm.deleteLater()
         self.accept()
 
     def clear(self):

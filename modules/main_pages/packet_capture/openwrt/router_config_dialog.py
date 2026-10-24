@@ -1,11 +1,12 @@
 """Common settings popups reuse the shared form and dialog components."""
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QFrame
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QFrame, QHBoxLayout
 from modules.common_widgets.frameless_dialog import FramelessDialog
 from modules.common_widgets.common_dialogs import apply_common_dialog_theme
 from modules.common_widgets.bounce_scroll_area import BounceScrollArea
 from modules.common_widgets.config_fields import ConfigValueList
 from modules.settings_pages.settings_widgets import create_dialog_ok_cancel_buttons
 from modules.ui_scale_manager import UiScaleManager
+from modules.main_pages.page_action_buttons import create_page_text_button
 from modules.capture_services.openwrt.common_settings import validate_values
 from .signal_setup_forms import text_input, choice, add_field, hint
 
@@ -39,24 +40,45 @@ class RouterConfigDialog(FramelessDialog):
         cancel.clicked.connect(self.reject)
 
     def _system(self,body,layout):
+        from modules.capture_services.openwrt.relocation_identity import generate_relocation_hostname
+        from modules.capture_services.openwrt.router_timezones import FALLBACK_TIMEZONES
         old=self.review["values"]
-        layout.addWidget(hint("修改路由器自己的名称和当地时间。主机名不会改变 Wi-Fi 名称或登录地址。",body))
+        layout.addWidget(hint("\u4fee\u6539\u8def\u7531\u5668\u81ea\u5df1\u7684\u540d\u79f0\u548c\u5f53\u5730\u65f6\u95f4\u3002\u4e3b\u673a\u540d\u4e0d\u4f1a\u6539\u53d8 Wi-Fi \u540d\u79f0\u6216\u767b\u5f55\u5730\u5740\u3002",body))
         host=text_input(body,old.get("hostname",""))
         self.controls["hostname"]=host
-        add_field(layout,body,"主机名",host,"例如 CMCC_G2T7，使用英文字母和数字。")
+        row=QWidget(body)
+        buttons=QHBoxLayout(row)
+        UiScaleManager.for_widget(self).bind_layout(buttons,margins=(0,0,0,0),spacing=8)
+        self.hostname_random_button=create_page_text_button(row,"\u968f\u673a","\u751f\u6210\u4e00\u4e2a\u65b0\u7684\u8def\u7531\u5668\u54c1\u724c\u6216\u624b\u673a\u578b\u53f7\u540d\u79f0\u3002")
+        self.hostname_random_button.clicked.connect(lambda:host.setText(generate_relocation_hostname(host.text().strip())))
+        buttons.addWidget(host,1);buttons.addWidget(self.hostname_random_button)
+        add_field(layout,body,"\u4e3b\u673a\u540d",row,"\u4f8b\u5982 CMCC_G2T7\uff0c\u4e5f\u53ef\u4ee5\u70b9\u51fb\u968f\u673a\u751f\u6210\u3002")
         current=(old.get("zonename",""),old.get("timezone","UTC0"))
-        options=[("当前时区："+(current[0] or current[1]),current),
-                 ("中国 / 北京时间（UTC+08:00）",("Asia/Shanghai","CST-8")),
-                 ("世界标准时间（UTC+00:00）",("Etc/UTC","UTC0"))]
-        for offset in range(-12,15):
-            if offset in (0,8):continue
-            name="Etc/GMT"+("+" if offset<0 else "-")+str(abs(offset))
-            tz="UTC"+("+" if offset<0 else "-")+str(abs(offset))
-            options.append(("固定时差 UTC"+f"{offset:+03d}"+":00",(name,tz)))
+        raw=self.review.get("timezones")
+        valid=[]
+        if isinstance(raw,(list,tuple)):
+            for pair in raw[:1024]:
+                if (isinstance(pair,(list,tuple)) and len(pair)==2 and all(isinstance(v,str) and 0<len(v)<=128 and
+                    not any(ord(c)<32 or ord(c)==127 for c in v) for v in pair)):
+                    valid.append(tuple(pair))
+        zones=valid or FALLBACK_TIMEZONES
+        labels={"Asia/Shanghai":"\u4e2d\u56fd / \u5317\u4eac\u65f6\u95f4","Asia/Hong_Kong":"\u4e2d\u56fd / \u9999\u6e2f","Asia/Taipei":"\u4e2d\u56fd / \u53f0\u5317",
+                "Asia/Tokyo":"\u65e5\u672c / \u4e1c\u4eac","Asia/Seoul":"\u97e9\u56fd / \u9996\u5c14","Asia/Singapore":"\u65b0\u52a0\u5761",
+                "Europe/London":"\u82f1\u56fd / \u4f26\u6566","America/New_York":"\u7f8e\u56fd / \u7ebd\u7ea6","Australia/Sydney":"\u6fb3\u5927\u5229\u4e9a / \u6089\u5c3c"}
+        options=[("\u4e16\u754c\u6807\u51c6\u65f6\u95f4\uff08UTC\uff09",("Etc/UTC","UTC0"))]
+        seen={options[0][1]}
+        for pair in sorted(zones):
+            if pair in seen:continue
+            seen.add(pair)
+            name=pair[0]
+            label=labels.get(name)
+            options.append((name+("\uff08"+label+"\uff09" if label else ""),pair))
+        if current not in seen:options.insert(0,("\u5f53\u524d\u65f6\u533a\uff1a"+(current[0] or current[1]),current))
         zone=choice(body,options)
+        zone.setCurrentIndex(next(i for i,(_,value) in enumerate(options) if value==current))
+        zone.setMaxVisibleItems(12)
         self.controls["zone"]=zone
-        add_field(layout,body,"时区",zone,"保留当前时区，或选择当地固定时差。固定时差选项不自动切换夏令时。")
-        layout.addWidget(hint("选择“当前时区”会保留原有夏令时规则；固定时差选项不自动切换夏令时。",body))
+        add_field(layout,body,"\u65f6\u533a",zone,"\u6309\u6240\u5728\u5730\u533a\u9009\u62e9\u65f6\u533a\uff0c\u4f7f\u7528\u5bf9\u5e94\u7684\u590f\u4ee4\u65f6\u89c4\u5219\u3002")
 
     def _lan(self,body,layout):
         old=self.review["values"]

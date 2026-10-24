@@ -1,0 +1,44 @@
+[
+  {
+    "series": "19.07",
+    "commit": "1da2e82c1182a3fd681da5760be96821213afadd",
+    "url": "https://raw.githubusercontent.com/openwrt/openwrt/1da2e82c1182a3fd681da5760be96821213afadd/package/base-files/files/etc/rc.button/reboot",
+    "sha256": "6423e1dc3179669ec513fe94db93aa08dfe186324f22705daaac7bba41a7d76c",
+    "source": "#!/bin/sh\n\n[ \"${ACTION}\" = \"released\" ] || exit 0\n\nif [ \"$SEEN\" -ge 5 ]\nthen\n\techo \"REBOOT\" > /dev/console\n\tsync\n\treboot\nfi\n\nreturn 0\n"
+  },
+  {
+    "series": "21.02",
+    "commit": "78e4cffcd882389cb8f0bf818303f85f8d1e9c8e",
+    "url": "https://raw.githubusercontent.com/openwrt/openwrt/78e4cffcd882389cb8f0bf818303f85f8d1e9c8e/package/base-files/files/etc/rc.button/reboot",
+    "sha256": "6423e1dc3179669ec513fe94db93aa08dfe186324f22705daaac7bba41a7d76c",
+    "source": "#!/bin/sh\n\n[ \"${ACTION}\" = \"released\" ] || exit 0\n\nif [ \"$SEEN\" -ge 5 ]\nthen\n\techo \"REBOOT\" > /dev/console\n\tsync\n\treboot\nfi\n\nreturn 0\n"
+  },
+  {
+    "series": "22.03",
+    "commit": "4e1d1b7df0ce6fa96d7462dc883917682f428046",
+    "url": "https://raw.githubusercontent.com/openwrt/openwrt/4e1d1b7df0ce6fa96d7462dc883917682f428046/package/base-files/files/etc/rc.button/reboot",
+    "sha256": "6423e1dc3179669ec513fe94db93aa08dfe186324f22705daaac7bba41a7d76c",
+    "source": "#!/bin/sh\n\n[ \"${ACTION}\" = \"released\" ] || exit 0\n\nif [ \"$SEEN\" -ge 5 ]\nthen\n\techo \"REBOOT\" > /dev/console\n\tsync\n\treboot\nfi\n\nreturn 0\n"
+  },
+  {
+    "series": "23.05",
+    "commit": "33063b4ccf00d39393796499b23df55187b192dc",
+    "url": "https://raw.githubusercontent.com/openwrt/openwrt/33063b4ccf00d39393796499b23df55187b192dc/package/base-files/files/etc/rc.button/reboot",
+    "sha256": "6423e1dc3179669ec513fe94db93aa08dfe186324f22705daaac7bba41a7d76c",
+    "source": "#!/bin/sh\n\n[ \"${ACTION}\" = \"released\" ] || exit 0\n\nif [ \"$SEEN\" -ge 5 ]\nthen\n\techo \"REBOOT\" > /dev/console\n\tsync\n\treboot\nfi\n\nreturn 0\n"
+  },
+  {
+    "series": "24.10",
+    "commit": "f13f178df1c1be46d9a540ab5a6eb3fca6ca4f79",
+    "url": "https://raw.githubusercontent.com/openwrt/openwrt/f13f178df1c1be46d9a540ab5a6eb3fca6ca4f79/package/base-files/files/etc/rc.button/reboot",
+    "sha256": "6423e1dc3179669ec513fe94db93aa08dfe186324f22705daaac7bba41a7d76c",
+    "source": "#!/bin/sh\n\n[ \"${ACTION}\" = \"released\" ] || exit 0\n\nif [ \"$SEEN\" -ge 5 ]\nthen\n\techo \"REBOOT\" > /dev/console\n\tsync\n\treboot\nfi\n\nreturn 0\n"
+  },
+  {
+    "series": "25.12",
+    "commit": "f3f5c2e54bf432b444e36b1a77077ff476361825",
+    "url": "https://raw.githubusercontent.com/openwrt/openwrt/f3f5c2e54bf432b444e36b1a77077ff476361825/package/base-files/files/etc/rc.button/reboot",
+    "sha256": "6423e1dc3179669ec513fe94db93aa08dfe186324f22705daaac7bba41a7d76c",
+    "source": "#!/bin/sh\n\n[ \"${ACTION}\" = \"released\" ] || exit 0\n\nif [ \"$SEEN\" -ge 5 ]\nthen\n\techo \"REBOOT\" > /dev/console\n\tsync\n\treboot\nfi\n\nreturn 0\n"
+  }
+]

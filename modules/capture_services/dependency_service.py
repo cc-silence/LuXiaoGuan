@@ -182,7 +182,7 @@ class OpenWrtDependencyService(QObject):
                 diagnostic=getattr(exc,"package_diagnostic","")
                 if diagnostic:
                     try:diagnostic_path=self._save_diagnostic(session,diagnostic)
-                    except OSError:message("\u8be6\u7ec6\u8bca\u65ad\u4fdd\u5b58\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u672c\u673a\u5b58\u50a8\u7a7a\u95f4\u3002","warning")
+                    except (OSError,ValueError):message("\u8be6\u7ec6\u8bca\u65ad\u6587\u4ef6\u672a\u80fd\u4fdd\u5b58\uff0c\u5df2\u4fdd\u7559\u539f\u5b89\u88c5\u9519\u8bef\uff1b\u8bf7\u68c0\u67e5\u672c\u673a\u76ee\u5f55\u4e0e\u6743\u9650\u3002","warning")
                 # 取消安装后允许一次只读复测；不继续安装、不忽略安装首错。
                 if managed and self._same_connection(binding) and not self.owner._shutting_down:
                     try:

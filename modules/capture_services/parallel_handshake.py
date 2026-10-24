@@ -13,15 +13,10 @@ from .backends.openwrt_backend import (
     HandshakeBatchResult, HandshakeTargetResult, OpenWrtCaptureBackend,
 )
 from .openwrt.command_builder import normalize_bssid, quote_argument
-from .openwrt.command_runner import OpenWrtCommandRunner
 from .openwrt.device_probe import _parse_supported_modes
-from .openwrt.handshake_capture import OpenWrtHandshakeCapture
 from .openwrt.models import CaptureCleanupError
 from .openwrt.radio_policy import IdleRadioUnavailable, require_idle_phy
-from .openwrt.radio_session import OpenWrtRadioSession
 from .openwrt.phy_channels import iter_phy_channels
-from .openwrt.remote_process import RemoteProcessManager
-from .openwrt.workspace import CaptureWorkspaceManager
 
 
 @dataclass(frozen=True)
@@ -112,18 +107,11 @@ def assign_targets(radios, targets):
 
 
 class _RadioBackend(OpenWrtCaptureBackend):
-    """只装配握手批次所需协作者；共享连接，不共享任何可变无线/进程记录。"""
+    """复用公共资源装配；各路独立持有清理对象，只共享 SSH 连接。"""
 
     def __init__(self, ssh_client, capability):
-        self.ssh_client = ssh_client
+        super().__init__(ssh_client=ssh_client)
         self.capability = capability
-        self.command_runner = OpenWrtCommandRunner(ssh_client)
-        self.process_manager = RemoteProcessManager(self.command_runner)
-        self.radio_session = OpenWrtRadioSession(self.command_runner)
-        self.workspace_manager = CaptureWorkspaceManager(ssh_client, self.command_runner)
-        self.handshake_capture = OpenWrtHandshakeCapture(self.command_runner, self.process_manager)
-        from modules.capture_services.openwrt.reconnect_cleanup import ReconnectCleanup
-        self.reconnect_cleanup = ReconnectCleanup(self)
         fingerprint = getattr(ssh_client, "host_fingerprint", "")
         if isinstance(fingerprint, str):
             self.reconnect_cleanup.recover(fingerprint)

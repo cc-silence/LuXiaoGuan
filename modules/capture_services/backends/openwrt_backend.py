@@ -373,12 +373,12 @@ class OpenWrtCaptureBackend(CaptureBackend):
 
     key = "openwrt"
 
-    def __init__(self):
+    def __init__(self, *, ssh_client=None):
         self._running = False
         self.snapshot = OpenWrtSessionSnapshot.initial()
         from threading import Event
         self.shutdown_event = Event()
-        self.ssh_client = OpenWrtSshClient()
+        self.ssh_client = ssh_client if ssh_client is not None else OpenWrtSshClient()
         self.command_runner = OpenWrtCommandRunner(self.ssh_client)
         self.process_manager = RemoteProcessManager(self.command_runner)
         self.device_probe = OpenWrtDeviceProbe(self.command_runner)
@@ -822,13 +822,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
             if ((expected_phy and expected_phy != radio) or
                     (expected_fingerprint and expected_fingerprint != self.ssh_client.host_fingerprint)):
                 raise RuntimeError("扫描条件或登录连接已变化，请重新开始扫描。")
-            require_management_link(self.command_runner, radio, cancel_event,
-                allow_scan_risk=bool(expected_fingerprint and expected_phy == radio and
-                                     settings.get("management_scan_allowed_phy") == radio))
-            from modules.capture_services.openwrt.radio_business import require_radio_business_consent
-            require_radio_business_consent(self.command_runner, radio,
-                settings.get("business_scan_allowed_modes", ()) if expected_fingerprint and expected_phy == radio else (),
-                cancel_event)
+            require_management_link(self.command_runner, radio, cancel_event)
             self.workspace_manager.create(workspace, cancel_event)
             record = self.radio_session.create(
                 session_id, radio, band, cancel_event=cancel_event,

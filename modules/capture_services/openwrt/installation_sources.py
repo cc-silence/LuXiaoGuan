@@ -22,3 +22,13 @@ def install_with_sources(local, online, computer, tell):
 def report_verified(source, ready, tell):
     text = "安装后复测" + ("通过" if ready else "未通过")
     tell(text + "；本次最终安装路线：" + source + "。", "success" if ready else "error")
+
+
+def network_retry_error(error):
+    """Change route without dropping the original sanitized diagnostics."""
+    from .signal_manager import SignalError
+    retry = SignalError("offline_retry", str(error))
+    diagnostic = getattr(error, "package_diagnostic", None)
+    if diagnostic is not None:
+        retry.package_diagnostic = diagnostic
+    return retry

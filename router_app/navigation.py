@@ -33,6 +33,7 @@ class RouterNavigation(QWidget):
         self.stack=QStackedWidget(self);self.stack.addWidget(router_page)
         self.stack.setContentsMargins(12,12,12,12)
         layout.addWidget(self.sidebar)
+        self.sidebar.hide()
         right=QWidget(self)
         right_layout=QVBoxLayout(right);right_layout.setContentsMargins(0,0,0,0);right_layout.setSpacing(0)
         right_layout.addWidget(self.stack,1)

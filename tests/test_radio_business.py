@@ -13,10 +13,10 @@ def runner(rows="",code=0,**flags):
     return value
 
 class RadioBusinessTests(unittest.TestCase):
-    def test_wired_management_still_warns_about_active_relay(self):
+    def test_wired_management_does_not_warn_about_active_relay(self):
         modes=read_radio_business(runner("phy0-sta0|managed|1\n"),"phy0")
         plan=ScanManagementPlan("phy0",ManagementLink("wired","eth0"),"fingerprint",modes)
-        self.assertTrue(plan.at_risk);self.assertFalse(plan.management_at_risk)
+        self.assertFalse(plan.at_risk);self.assertFalse(plan.management_at_risk)
         self.assertEqual(plan.business_modes,("managed",))
 
     def test_disabled_interfaces_and_monitor_are_not_business(self):

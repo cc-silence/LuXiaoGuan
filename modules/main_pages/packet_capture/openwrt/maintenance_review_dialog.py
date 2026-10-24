@@ -4,6 +4,7 @@ from modules.common_widgets.frameless_dialog import FramelessDialog
 from modules.common_widgets.common_dialogs import apply_common_dialog_theme
 from modules.settings_pages.settings_widgets import create_dialog_ok_cancel_buttons
 from .signal_setup_forms import hint, add_field
+from .settings_impacts import DISCONNECT_WARNING
 
 
 class MaintenanceReviewDialog(FramelessDialog):
@@ -17,9 +18,14 @@ class MaintenanceReviewDialog(FramelessDialog):
                    "Wi-Fi、上网配置和登录密码会改变，操作后会重启。"
                    if reset else "将用备份覆盖配置，随后重启。管理地址、登录密码和 Wi-Fi 都可能改变；"
                    "不会先清空现有文件，也不会恢复已安装的软件。请仅使用本路由器相同固件的可信备份。")
-        self.content_layout.addWidget(hint(message, self))
-        self.content_layout.addWidget(hint("开始前会先生成当前配置备份并保存到电脑：" + backup_path
-            + "。保存或校验失败就不会继续。配置备份不能找回被重置删除的软件或全部自建文件。", self))
+        self.warning_text = QTextEdit(self)
+        self.warning_text.setObjectName("settingsMessageText")
+        self.warning_text.setProperty("connectionWarning", True)
+        self.warning_text.setReadOnly(True)
+        self.warning_text.setPlainText(DISCONNECT_WARNING + "\n\n" + message + "\n\n"
+            + "开始前会先生成当前配置备份并保存到电脑：" + backup_path
+            + "。保存或校验失败就不会继续。配置备份不能找回被重置删除的软件或全部自建文件。")
+        self.content_layout.addWidget(self.warning_text, 2)
         if reset:
             self.input = QLineEdit(self)
             self.input.setPlaceholderText("输入：恢复出厂")

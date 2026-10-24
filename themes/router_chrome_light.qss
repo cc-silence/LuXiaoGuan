@@ -66,4 +66,4 @@
 #leftMenuBg { border-top-left-radius: 0px; }
 
 #routerEmbeddedSettings { background: #f5f6fa; border: none; border-radius: 0px; }
-#routerMainLogo { border-right: 1px solid #e5e7eb; }
+#routerMainLogo { border: none; }

@@ -3,7 +3,7 @@ import re
 
 
 def prepare_config(directory):
-    if directory != "/tmp/winbox-dependency-pkgs":
+    if directory not in ("/tmp/winbox-dependency-pkgs", "/tmp/winbox-signal-pkgs"):
         raise ValueError("Invalid offline transaction directory")
     return """set -eu
 umask 077
@@ -13,13 +13,20 @@ mkdir -p /tmp/winbox-dependency-pkgs/no-feeds
  opkg print-architecture
  printf 'lists_dir ext /tmp/winbox-dependency-pkgs/no-feeds\n'
 } > /tmp/winbox-dependency-pkgs/local.conf
-"""
+""".replace("/tmp/winbox-dependency-pkgs", directory)
 
 
-def local_command(manager, paths, simulate=False):
+def local_command(manager, paths, simulate=False, *, directory="/tmp/winbox-dependency-pkgs"):
+    from pathlib import PurePosixPath
+    paths = tuple(paths)
+    if directory not in ("/tmp/winbox-dependency-pkgs", "/tmp/winbox-signal-pkgs"):
+        raise ValueError("Invalid offline transaction directory")
+    if any(str(PurePosixPath(path).parent) != directory for path in paths):
+        raise ValueError("Local package directory differs from transaction")
     command = manager.local_install(paths, simulate=simulate)
-    return ("OPKG_CONF_DIR=/tmp/winbox-dependency-pkgs/no-feeds "
-            + command.replace("opkg ", "opkg -f /tmp/winbox-dependency-pkgs/local.conf ", 1))
+    return ("OPKG_CONF_DIR=" + directory + "/no-feeds "
+            + command.replace("opkg ", "opkg -f " + directory + "/local.conf ", 1))
+
 
 
 def verify_local_plan(plan, expected):

@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .signal_package_feed import fetch_bytes
+from .package_cache import prepare_cache_directory, checked_cache_target
 
 _MIRRORS = ("https://downloads.openwrt.org", "https://archive.openwrt.org")
 # 与 opkg 侧保持一致的架构级源；目标级 packages 目前不需要（依赖都在架构源）。
@@ -34,9 +35,7 @@ _SAFE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9+_.\-]*")
 _SAFE_VERSION = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.+~\-]*")
 _SAFE_APK = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.+~\-]*\.apk")
 _SHA256 = re.compile(r"[a-fA-F0-9]{64}")
-# apk 模拟/安装输出：``(1/4) Installing curl (8.7.1-r0)``
-_PLAN_INSTALL = re.compile(r"^\(\s*\d+/\s*\d+\)\s+Installing\s+(\S+)\s+\(([^)]+)\)\s*$")
-_PLAN_OTHER = re.compile(r"^\(\s*\d+/\s*\d+\)\s+(Purging|Removing|Upgrading|Downgrading|Reinstalling|Replacing)\b")
+
 
 
 @dataclass(frozen=True)
@@ -248,10 +247,17 @@ def fetch_sha256sums(fetch, profile, cancel_event=None):
 def _valid_cached(path, sha256):
     """缓存命中必须字节与 sha256 双对，否则视为未命中。"""
     try:
-        if not path.is_file():
+        if not path.is_file() or not 0 < path.stat().st_size <= _MAX_PACKAGE_BYTES:
             return False
-        digest = hashlib.sha256(path.read_bytes()).hexdigest().lower()
-        return digest == sha256
+        digest = hashlib.sha256()
+        received = 0
+        with path.open("rb") as stream:
+            while block := stream.read(256 * 1024):
+                received += len(block)
+                if received > _MAX_PACKAGE_BYTES:
+                    return False
+                digest.update(block)
+        return digest.hexdigest().lower() == sha256
     except OSError:
         return False
 
@@ -263,8 +269,8 @@ def download_apk_packages(packages, sha_map, cache_dir, fetch=fetch_bytes,
     每个包必须能在官方 sha256sums 中找到哈希，否则拒绝下载，不降低校验标准。
     """
     tell = message or (lambda _text, _level: None)
-    root = Path(cache_dir)
-    root.mkdir(parents=True, exist_ok=True)
+    _check_cancel(cancel_event)
+    root = prepare_cache_directory(cache_dir)
     total = len(packages)
     total_bytes = 0
     paths = []
@@ -274,17 +280,25 @@ def download_apk_packages(packages, sha_map, cache_dir, fetch=fetch_bytes,
         sha256 = str(sha_map.get(filename, "")).lower()
         if not _SHA256.fullmatch(sha256):
             raise RuntimeError(f"官方哈希表缺少 {filename}，拒绝下载。")
-        target = root / filename
+        target = checked_cache_target(root, root / filename)
         if _valid_cached(target, sha256):
+            total_bytes += target.stat().st_size
+            if total_bytes > _MAX_TOTAL_BYTES:
+                raise RuntimeError("待下载超过 256MB 上限，已中止。")
             tell(f"{package.name} 已缓存，跳过下载。", "info")
         else:
             tell(f"正在下载 {package.name}（第 {position}/{total} 个）…", "info")
             raw = fetch(package.base_url + filename, timeout=180, cancel_event=cancel_event,
                         limit=_MAX_PACKAGE_BYTES)
+            _check_cancel(cancel_event)
+            if not 0 < len(raw) <= _MAX_PACKAGE_BYTES:
+                raise RuntimeError("安装包大小超出上限。")
             total_bytes += len(raw)
             if total_bytes > _MAX_TOTAL_BYTES:
                 raise RuntimeError("待下载超过 256MB 上限，已中止。")
-            target.write_bytes(raw)
+            if hashlib.sha256(raw).hexdigest().lower() != sha256:
+                raise RuntimeError(f"安装包校验失败：{filename}。")
+            checked_cache_target(root, target).write_bytes(raw)
             if not _valid_cached(target, sha256):
                 target.unlink(missing_ok=True)
                 raise RuntimeError(f"安装包校验失败：{filename}。")
@@ -298,17 +312,12 @@ def parse_simulate_plan(text):
 
     只接受 ``Installing``；出现卸载/升降级/替换等动作一律拒绝，避免误改既有软件。
     """
+    from .apk_plan import parse_actions
     planned = []
-    for raw in str(text or "").splitlines():
-        line = raw.strip()
-        if not line:
-            continue
-        match = _PLAN_INSTALL.match(line)
-        if match:
-            planned.append((match.group(1), match.group(2)))
-            continue
-        if _PLAN_OTHER.match(line):
-            raise ValueError("apk 计划包含卸载或替换既有软件，已停止：" + line)
+    for verb, name, version in parse_actions(text):
+        if verb != "Installing":
+            raise ValueError("apk 计划包含卸载或替换已有软件，已停止：" + name)
+        planned.append((name, version))
     if not planned:
         raise ValueError("apk 未返回可核实的安装计划。")
     return planned

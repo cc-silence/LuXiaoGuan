@@ -53,7 +53,7 @@ class ScanLinkUiTests(unittest.TestCase):
         APP.processEvents()
 
     def deliver(self, link, *, fingerprint="fingerprint"):
-        self.controller.start({"band":"2.4G","skip_scan_confirmation":True})
+        self.controller.start({"band":"2.4G"})
         self.probe.finished.emit("probe",ScanManagementPlan("phy0",link,fingerprint),"",False)
 
     def test_x_and_escape_cancel_without_launching_scan(self):
@@ -71,16 +71,13 @@ class ScanLinkUiTests(unittest.TestCase):
                 self.deliver(ManagementLink("wireless","phy0-ap0","phy0","ssh_return_path"))
                 self.page.capture_service.scan_openwrt_wifi_async.assert_not_called()
 
-    def test_explicit_keep_scanning_is_distinct_from_close(self):
+    def test_cancel_button_cannot_override_management_radio_protection(self):
         def choose(dialog):
             dialog.no_button.click()
-            self.assertTrue(dialog.secondary_selected)
             return dialog.result()
-        with patch.object(ConfirmDialog,"exec",choose):
-            self.deliver(ManagementLink("wireless","phy0-ap0","phy0","ssh_return_path"))
-        self.assertEqual(self.page.capture_service.scan_openwrt_wifi_async.call_count,1)
-        options = self.page.capture_service.scan_openwrt_wifi_async.call_args.args[0]
-        self.assertEqual(options["management_scan_allowed_phy"],"phy0")
+        with patch.object(ConfirmDialog, "exec", choose):
+            self.deliver(ManagementLink("wireless", "phy0-ap0", "phy0", "ssh_return_path"))
+        self.page.capture_service.scan_openwrt_wifi_async.assert_not_called()
 
     def test_wired_and_other_phy_never_show_same_band_dialog(self):
         for link in (ManagementLink("wired","eth0"),ManagementLink("wireless","phy1-ap0","phy1")):
@@ -89,24 +86,38 @@ class ScanLinkUiTests(unittest.TestCase):
         self.assertEqual(self.page.capture_service.scan_openwrt_wifi_async.call_count,2)
 
 
-    def test_wired_management_with_active_relay_gets_business_warning(self):
-        plan=ScanManagementPlan("phy0",ManagementLink("wired","eth0"),"fingerprint",("managed",))
-        self.controller.start({"band":"2.4G","skip_scan_confirmation":True})
-        def choose(dialog):
-            dialog.no_button.click()
-            return dialog.result()
-        with patch.object(ConfirmDialog,"exec",choose):
-            self.probe.finished.emit("probe",plan,"",False)
-        settings=self.page.capture_service.scan_openwrt_wifi_async.call_args.args[0]
-        self.assertEqual(settings["business_scan_allowed_modes"],["managed"])
-        self.assertNotIn("management_scan_allowed_phy",settings)
+    def test_active_business_on_either_radio_does_not_warn_on_independent_login(self):
+        for link in (ManagementLink("wired", "eth0"), ManagementLink("wireless", "phy1-ap0", "phy1")):
+            for modes in (("managed",), ("ap", "managed")):
+                with self.subTest(link=link, modes=modes):
+                    self.controller.start({"band": "2.4G"})
+                    plan = ScanManagementPlan("phy0", link, "fingerprint", modes)
+                    with patch.object(ConfirmDialog, "exec", side_effect=AssertionError("Unexpected warning")):
+                        self.probe.finished.emit("probe", plan, "", False)
+        self.assertEqual(self.page.capture_service.scan_openwrt_wifi_async.call_count, 4)
 
-    def test_business_warning_x_cancels_even_when_general_confirmation_is_skipped(self):
-        plan=ScanManagementPlan("phy0",ManagementLink("wired","eth0"),"fingerprint",("managed",))
-        self.controller.start({"band":"2.4G","skip_scan_confirmation":True})
-        with patch.object(ConfirmDialog,"exec",lambda dialog: dialog.result()):
-            self.probe.finished.emit("probe",plan,"",False)
-        self.page.capture_service.scan_openwrt_wifi_async.assert_not_called()
+    def test_switch_to_other_radio_launches_without_switching_back(self):
+        self.page.openwrt_tab = NS(capture_page=NS(tools=NS(band_combo=NS(setCurrentText=Mock()))))
+        self.page._save_openwrt_settings = Mock()
+        link = ManagementLink("wireless", "phy0-ap0", "phy0", "ssh_return_path")
+        prompts = []
+        def switch(dialog):
+            prompts.append(dialog)
+            dialog.yes_button.click()
+            return dialog.result()
+        with patch.object(ConfirmDialog, "exec", switch):
+            self.deliver(link)
+            self.assertEqual(len(prompts), 1)
+            self.assertEqual(self.probe.options["band"], "5G")
+            self.page.capture_service.scan_openwrt_wifi_async.assert_not_called()
+            plan = ScanManagementPlan("phy1", link, "fingerprint", ("ap", "managed"))
+            self.probe.finished.emit("probe", plan, "", False)
+            self.assertEqual(len(prompts), 1)
+        self.page.openwrt_tab.capture_page.tools.band_combo.setCurrentText.assert_called_once_with("5G")
+        settings = self.page.capture_service.scan_openwrt_wifi_async.call_args.args[0]
+        self.assertEqual(settings["band"], "5G")
+        self.assertEqual(settings["management_scan_phy"], "phy1")
+        self.assertNotIn("management_scan_allowed_phy", settings)
 
     def test_cancelled_stale_or_old_probe_does_not_launch(self):
         self.controller.start({"band":"2.4G"})

@@ -10,12 +10,13 @@ from modules.platform_services.local_file_operations import recycle_local_entry,
 
 class RouterManagementService(QObject):
     """主线程持有队列，写操作占用公共任务槽。"""
-    READ_ONLY = frozenset({'local_list', 'local_upload_selection', 'list', 'common_read'})
+    READ_ONLY = frozenset({'local_list', 'local_upload_selection', 'list', 'common_read', 'policy_read', 'policy_status'})
     completed = Signal(str, object)
     failed = Signal(str, str)
     progress = Signal(str, object)
     status = Signal(str, str)
     passwordChanged = Signal(object)
+    policyStatusChanged = Signal(object)
 
     def __init__(self, owner):
         super().__init__(owner)
@@ -26,15 +27,18 @@ class RouterManagementService(QObject):
         self.tools = CompatibleToolInstaller(backend)
         self.queue = deque()
         self.current = None
+        self.policy_status = None
+        self._policy_connection = None
+        self._publishing_key = None
         owner.activityChanged.connect(self._drain, Qt.QueuedConnection)
         owner.openwrtSnapshotChanged.connect(self._connection_changed)
 
     def submit(self, operation, **arguments):
         """绑定连接实例和设备指纹，队列上限 32 项。"""
         action = operation
-        if action not in {'maintenance_preview','maintenance_backup','maintenance_apply','common_read','common_save','password_change','upload_directory','download_directory','file_batch','tool_reset','tool_check','tool_install','local_list','local_upload_selection','local_delete','local_mkdir','list','upload','download','mkdir','delete','rename','chmod'}:
+        if action not in {'policy_status','policy_read','policy_preview','policy_apply','maintenance_reboot','maintenance_preview','maintenance_backup','maintenance_apply','common_read','common_save','password_change','upload_directory','download_directory','file_batch','tool_reset','tool_check','tool_install','local_list','local_upload_selection','local_delete','local_mkdir','list','upload','download','mkdir','delete','rename','chmod'}:
             raise ValueError('不支持这种管理操作。')
-        if action.startswith("maintenance_") and (self.current or self.queue or self.owner.is_busy):
+        if (action.startswith("maintenance_") or action in {"policy_preview","policy_apply"}) and (self.current or self.queue or (self.owner.is_busy and not self._publication_continuation())):
             raise RuntimeError("请等待当前路由器任务结束后再操作。")
         if action == 'password_change':
             from .openwrt.router_password import PasswordChange
@@ -42,7 +46,7 @@ class RouterManagementService(QObject):
                 raise RuntimeError("请等待当前路由器任务结束。")
             if not isinstance(arguments.get('request'), PasswordChange):
                 raise ValueError("密码修改请求无效。")
-        if action in {'common_read','common_save','maintenance_preview','maintenance_backup','maintenance_apply'}:
+        if action in {'policy_preview','policy_apply','common_read','common_save','maintenance_preview','maintenance_backup','maintenance_apply'}:
             from copy import deepcopy
             arguments = deepcopy(arguments)
         if action == 'file_batch':
@@ -107,10 +111,22 @@ class RouterManagementService(QObject):
         def operation(event, report):
             if ssh._client is not connection or ssh.host_fingerprint != fingerprint:
                 raise RuntimeError('连接已变化，请重新登录并提交操作。')
-            if action.startswith("maintenance_"):
+            if action.startswith("policy_"):
+                from .openwrt.router_policy import RouterPolicyManager
+                policies = RouterPolicyManager(self.manager)
+                if action == "policy_status":
+                    from .openwrt.router_boot_status import read_boot_status
+                    value = read_boot_status(self.manager, event)
+                elif action == "policy_read": value = policies.read(event)
+                elif action == "policy_preview": value = policies.preview(args["kind"], args["options"], event)
+                else: value = policies.apply(args["review"], args["backup_path"], args.get("backup_expected"), event, report)
+            elif action.startswith("maintenance_"):
                 from .openwrt.router_backup import RouterBackupManager
                 maintenance = RouterBackupManager(self.manager)
-                if action == "maintenance_preview":
+                if action == "maintenance_reboot":
+                    from .openwrt.router_reboot import reboot_router
+                    value = reboot_router(self.manager, event)
+                elif action == "maintenance_preview":
                     value = maintenance.preview(args["kind"], args["source"], event)
                 elif action == "maintenance_backup":
                     value = maintenance.export(args["destination"], args.get("expected"), event, report)
@@ -175,17 +191,35 @@ class RouterManagementService(QObject):
     @Slot(object)
     def _success(self, value):
         key = self.current[0]
+        if self.current[1] in {"policy_read", "policy_status"}:
+            ssh = self.manager.ssh
+            self.policy_status = {"boot_state": value.get("boot_state")} if ssh.connected and ssh._client is self.current[4] and ssh.host_fingerprint == self.current[3] else None
+            self.policyStatusChanged.emit(self.policy_status)
         if self.current[1] == 'password_change':
             from .router_password_actions import accept_password_result
             accept_password_result(self, value)
         if self.current[1] in {"tool_check", "tool_install", "tool_reset"}:
             self.owner.settingsMessageGenerated.emit(str(value.get("note", "兼容工具检查完成")), "success")
         self._finish(bool((self.current[1] == 'file_batch' and value.get('error')) or (isinstance(value, dict) and value.get('outcome') == 'uncertain')))
-        self.completed.emit(key, value)
+        self._publishing_key = key
+        try:
+            self.completed.emit(key, value)
+        finally:
+            self._publishing_key = None
+
+    def _publication_continuation(self):
+        key = self._publishing_key
+        workers = getattr(self.owner, "_openwrt_workers", {})
+        if not key or set(workers) != {key} or self.owner.task_controller.busy:
+            return False
+        return not workers[key][0].isRunning()
 
     @Slot(str, str)
     def _failure(self, summary, detail):
         key = self.current[0]
+        if self.current[1] in {"policy_read", "policy_status"}:
+            self.policy_status = None
+            self.policyStatusChanged.emit(None)
         observer=getattr(self.owner,"router_connection_state",None)
         if observer is not None:observer.reconcile()
         self.owner.settingsMessageGenerated.emit(("本机文件操作未完成：" if self.current[1].startswith("local_") else "路由器管理操作未完成：")+summary, "error")
@@ -218,6 +252,15 @@ class RouterManagementService(QObject):
 
     @Slot(object)
     def _connection_changed(self, snapshot):
+        ssh = self.manager.ssh
+        connection = ssh._client if ssh.connected else None
+        if connection is not self._policy_connection:
+            self._policy_connection = connection
+            self.policy_status = None
+            self.policyStatusChanged.emit(None)
+            if connection is not None and not self.owner._shutting_down:
+                try: self.submit("policy_status")
+                except RuntimeError: pass
         if self.current:
             ssh = self.manager.ssh
             if not ssh.connected or ssh._client is not self.current[4]:

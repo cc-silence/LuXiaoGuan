@@ -33,7 +33,7 @@ local function orphan_preview()
   local section=n[".name"]
   local owned=type(n.rm_owner)=="string" and name(n.rm_owner) and
     (section:match("^wbnet_%x+$")~=nil or section:match("^wbr_%x+$")~=nil)
-  if not owned and not section:match("^wwan%d+$") then return end
+  if not owned and not section:match("^wwan%d*$") then return end
   if not name(section) then fail("section") end
   local reasons,seen={},{}
   local function block(reason) if not seen[reason] then reasons[#reasons+1]=reason;seen[reason]=true end end
@@ -61,7 +61,8 @@ local function orphan_preview()
   end
   local state=runtime[section]
   if state then
-   if state.up==true or state.pending==true or state.l3_device or state.device then block("runtime_active")
+   if state.up==true or state.pending==true or
+      (state.l3_device~=nil and state.l3_device~="") or (state.device~=nil and state.device~="") then block("runtime_active")
    elseif state.up~=false or state.pending~=false then block("runtime_unknown") end
   end
   table.sort(zones);table.sort(reasons)

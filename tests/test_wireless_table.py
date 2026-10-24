@@ -100,7 +100,7 @@ class WirelessTableTests(unittest.TestCase):
     def test_strength_sorts_numerically_by_header_and_join_keeps_target(self):
         self.assertEqual(self.powers(),[-9,-42,-80,None])
         header=self.table.horizontalHeader()
-        point=QPoint(header.sectionViewportPosition(4)+header.sectionSize(4)//2,header.height()//2)
+        point=QPoint(header.sectionViewportPosition(self.table.POWER)+header.sectionSize(self.table.POWER)//2,header.height()//2)
         QTest.mouseClick(header.viewport(),Qt.LeftButton,Qt.NoModifier,point)
         self.assertEqual(self.powers(),[None,-80,-42,-9])
         actions=NS(join=Mock())
@@ -108,45 +108,32 @@ class WirelessTableTests(unittest.TestCase):
         self.table.set_actions_enabled(True)
         for row in range(self.table.rowCount()):
             target=self.table.network_at(row)
-            button=self.table.cellWidget(row,6).findChild(QPushButton)
+            button=self.table.cellWidget(row,7).findChild(QPushButton)
             self.assertEqual(button.isEnabled(),not bool(target.reason))
             if button.isEnabled():
                 button.click()
                 self.assertIs(actions.join.call_args.args[0],target)
 
-    def test_single_line_arrow_filter_survives_sort_and_new_scan(self):
-        overlay=self.table.search_overlay
-        self.assertIsInstance(overlay.search,QLineEdit)
-        self.assertTrue(overlay.panel.isHidden())
-        from modules.common_widgets.icon_button import refresh_tool_button_icons
-        for light in (False, True):
-            refresh_tool_button_icons(overlay, light)
-            image=overlay.toggle.icon().pixmap(25,25).toImage()
-            greens=sum(1 for x in range(image.width()) for y in range(image.height())
-                       if image.pixelColor(x,y).alpha()>100
-                       and image.pixelColor(x,y).green()>image.pixelColor(x,y).red()*1.2
-                       and image.pixelColor(x,y).green()>image.pixelColor(x,y).blue()*1.2)
-            self.assertGreater(greens,10)
-        self.assertGreaterEqual(overlay.toggle.iconSize().width(),25)
-        overlay.toggle.click()
-        self.assertTrue(overlay.panel.isVisible())
-        overlay.search.setText("aLpHa")
-        self.assertEqual(self.visible(),["Alpha"])
-        self.table.sortItems(4,Qt.AscendingOrder)
-        self.assertEqual(self.visible(),["Alpha"])
+    def test_persistent_footer_filter_survives_sort_and_new_scan(self):
+        bar = self.table.filter_bar
+        self.assertIsInstance(bar.search, QLineEdit)
+        self.assertTrue(bar.isVisible())
+        self.assertFalse(hasattr(bar, "toggle"))
+        bar.search.setText("aLpHa")
+        self.assertEqual(self.visible(), ["Alpha"])
+        self.table.sortItems(self.table.POWER, Qt.AscendingOrder)
+        self.assertEqual(self.visible(), ["Alpha"])
         self.table.set_networks((network(9,"Alpha new",-20),network(8,"Other",-40)))
-        self.assertEqual(self.visible(),["Alpha new"])
-        overlay.toggle.click()
-        self.assertTrue(overlay.panel.isHidden())
-        self.assertEqual(self.visible(),["Alpha new"])
-        overlay.search.clear()
-        self.assertEqual(len(self.visible()),2)
+        self.assertEqual(self.visible(), ["Alpha new"])
+        self.assertEqual(bar.count.text(), "1/2")
+        bar.search.clear()
+        self.assertEqual(len(self.visible()), 2)
 
     def test_privacy_is_batched_without_column_measurement_or_widget_rebuild(self):
         values=tuple(network(i,f"Private-{i:04d}",-20-i%70) for i in range(1024))
         self.panels._set_networks(values)
         self.root.display_privacy.register_values(row.ssid for row in values)
-        cells={id(self.table.cellWidget(row,6)) for row in range(self.table.rowCount())}
+        cells={id(self.table.cellWidget(row,7)) for row in range(self.table.rowCount())}
         before=self.table.network_at(0)
         self.table.selectRow(0)
         with patch.object(self.table,"resizeColumnToContents",wraps=self.table.resizeColumnToContents) as measure:
@@ -155,14 +142,14 @@ class WirelessTableTests(unittest.TestCase):
             APP.processEvents()
             elapsed=time.perf_counter()-started
             self.assertEqual(measure.call_count,0)
-        self.assertEqual(cells,{id(self.table.cellWidget(row,6)) for row in range(self.table.rowCount())})
+        self.assertEqual(cells,{id(self.table.cellWidget(row,7)) for row in range(self.table.rowCount())})
         self.assertIs(self.table.network_at(self.table.currentRow()),before)
         for row in range(self.table.rowCount()):
-            self.assertNotIn("Private-",self.table.item(row,0).text())
-            self.assertNotIn("02:11",self.table.item(row,1).text())
-            self.assertNotIn("02:11",self.table.item(row,1).toolTip())
+            self.assertNotIn("Private-",self.table.item(row,1).text())
+            self.assertNotIn("02:11",self.table.item(row,2).text())
+            self.assertNotIn("02:11",self.table.item(row,2).toolTip())
         self.assertTrue(all(row.ssid.startswith("Private-") for row in self.table.networks))
-        self.table.search_overlay.search.setText("Private-")
+        self.table.filter_bar.search.setText("Private-")
         self.assertFalse(self.visible())
         self.root.display_privacy.set_enabled(False)
         self.assertEqual(len(self.visible()),1024)
@@ -180,7 +167,7 @@ class WirelessTableTests(unittest.TestCase):
                 APP.processEvents()
                 table=self.table
                 for row in range(table.rowCount()):
-                    cell=table.cellWidget(row,6)
+                    cell=table.cellWidget(row,7)
                     button=cell.findChild(QPushButton)
                     self.assertTrue(cell.rect().contains(button.geometry()),(light,scale,cell.size(),button.geometry()))
                     self.assertGreaterEqual(button.height(),button.minimumSizeHint().height())
@@ -194,10 +181,10 @@ class WirelessTableTests(unittest.TestCase):
                 self.assertLessEqual(info_left-table_right,round(12*scale/100))
                 footer=self.panels.empty_hint
                 self.assertLessEqual(footer.height(),max(footer.sizeHint().height(),footer.heightForWidth(footer.width()))+2)
-                overlay=table.search_overlay
-                overlay.toggle.setChecked(True)
+                bar=table.filter_bar
                 APP.processEvents()
-                self.assertTrue(table.viewport().geometry().contains(overlay.geometry()),(light,scale))
+                self.assertTrue(bar.isVisible())
+                self.assertGreaterEqual(bar.mapTo(self.root,QPoint()).y(),table.mapTo(self.root,QPoint(0,table.height())).y())
+                self.assertLessEqual(bar.mapTo(self.root,QPoint(bar.width(),0)).x(),table_right + 2)
                 if scale in (100,150):
                     self.root.grab().save(str(folder/(("light" if light else "dark")+f"-{scale}.png")))
-                overlay.toggle.setChecked(False)

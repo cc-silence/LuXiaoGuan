@@ -391,29 +391,25 @@ class OpenWrtDependencyManager:
         """按实际包管理器更新源后逐包安装；联网失败转 offline_retry，其他失败诚实报错。"""
         package_manager = self._preflight(0, cancel_event)
         tell("正在更新软件源…", "info")
+        from .installation_sources import network_retry_error
         try:
             self._execute_stage(
                 "dependency_update", package_manager.update(), 180, cancel_event, "更新软件源")
-        except SignalError as exc:
-            if exc.code == "transport" and _looks_like_network(str(exc)):
-                raise SignalError("offline_retry", str(exc)) from None
-            raise
-        # 首次写入前核对完整依赖计划与总安装体积，避免只检查单个根包。
-        self._package_change(package_manager, tuple(packages), cancel_event)
-        total = len(packages)
-        for position, package in enumerate(packages, start=1):
-            tell(f"正在下载安装 {package}（第 {position}/{total} 个）…", "info")
-            try:
+            self._package_change(package_manager, tuple(packages), cancel_event)
+            total = len(packages)
+            for position, package in enumerate(packages, start=1):
+                tell(f"正在下载安装 {package}（第 {position}/{total} 个）…", "info")
                 command = self._package_change(package_manager, (package,), cancel_event)
                 self._execute_stage(
                     "dependency_install_" + package,
                     command,
                     600, cancel_event, f"安装 {package}")
-            except SignalError as exc:
-                if exc.code == "transport" and _looks_like_network(str(exc)):
-                    raise SignalError("offline_retry", str(exc)) from None
-                raise
-            tell(f"{package} 安装完成。", "success")
+                tell(f"{package} 安装完成。", "success")
+        except SignalError as exc:
+            if exc.code == "transport" and _looks_like_network(str(exc)):
+                raise network_retry_error(exc) from None
+            raise
+
 
     def _install_offline(self, wanted, device, cache_dir, sftp_available,
                          cancel_event, tell, uploader=None, *, local_paths=None, local_packages=None):
@@ -451,7 +447,9 @@ class OpenWrtDependencyManager:
             paths = tuple(local_paths)
         if not paths:
             return
-        from .package_space import ipk_installed_size, required_kb
+        from .package_space import ipk_installed_size, ipk_package_versions, required_kb
+        if local_packages is None:
+            local_packages = ipk_package_versions(paths)
         package_manager = self._preflight(required_kb(ipk_installed_size(path) for path in paths), cancel_event)
         sftp_ok = bool(sftp_available) and self._sftp_usable()
         if not sftp_ok:
@@ -497,8 +495,12 @@ class OpenWrtDependencyManager:
                 package_manager.verify_plan(plan, ())
                 if local_packages is not None:
                     verify_local_plan(plan, local_packages)
-            except ValueError as exc:
-                raise SignalError("environment", str(exc)) from exc
+            except (ValueError, SignalError) as exc:
+                error = exc if isinstance(exc, SignalError) else SignalError("environment", str(exc))
+                error.package_diagnostic = self._package_diagnostic("dependency_local_plan validation", plan)
+                if error is exc:
+                    raise
+                raise error from exc
             tell(f"正在安装 {len(paths)} 个已校验离线包…", "info")
             self._execute_stage("dependency_offline_install",
                 command(),
@@ -592,6 +594,10 @@ class OpenWrtDependencyManager:
                 from .package_space import check_plan_space
                 check_plan_space(self, package_manager, plan, cancel_event)
             return package_manager.change(packages, remove=remove)
+        except SignalError as exc:
+            if not getattr(exc, "package_diagnostic", None):
+                exc.package_diagnostic = self._package_diagnostic("dependency_package_plan validation", plan)
+            raise
         except ValueError as exc:
             reason=package_error_reason(plan)
             error=SignalError("environment", reason if reason!=package_error_reason("") else str(exc))
@@ -638,9 +644,20 @@ class OpenWrtDependencyManager:
         分片进度逐段播报，长文件传输不再静默；取消只在片间检查，不掐断片内写入。
         """
         tell = message or (lambda _text, _level: None)
-        name = Path(local_path).name
-        digest = hashlib.sha256(Path(local_path).read_bytes()).hexdigest()
-        chunks = base64.b64encode(Path(local_path).read_bytes()).decode("ascii")
+        path = Path(local_path)
+        name = path.name
+        digest = hashlib.sha256()
+        size = 0
+        with path.open("rb") as stream:
+            while True:
+                if cancel_event is not None and cancel_event.is_set():
+                    raise SignalError("cancelled", "依赖安装已取消。")
+                block = stream.read(256 * 1024)
+                if not block:
+                    break
+                size += len(block)
+                digest.update(block)
+        digest = digest.hexdigest()
         remote_tmp = remote_path + ".b64"
         self._execute(
             "dependency_push_init",
@@ -649,19 +666,20 @@ class OpenWrtDependencyManager:
         # Dropbear 的 exec 请求会把整条 shell 命令放进一个 SSH channel request。
         # 48KB 的 base64 参数在部分精简固件上超过服务端接受上限，首片就会被断开；
         # 8KB 留足 shell 转义和请求头余量，牺牲少量轮次换兼容性。
-        step = 8 * 1024
-        total_parts = max(1, (len(chunks) + step - 1) // step)
+        step = 6 * 1024  # Base64 expands each full chunk to the existing 8 KiB limit.
+        total_parts = max(1, (size + step - 1) // step)
         tell(f"正在命令通道传输 {name}（共 {total_parts} 片）…", "info")
-        for number, offset in enumerate(range(0, len(chunks), step), start=1):
-            if cancel_event is not None and cancel_event.is_set():
-                raise SignalError("cancelled", "依赖安装已取消。")
-            self._execute(
-                "dependency_push_part",
-                "printf '%s' " + quote_argument(chunks[offset:offset + step])
-                + " >> " + quote_argument(remote_tmp),
-                30, cancel_event)
-            if number == 1 or number == total_parts or number % 10 == 0:
-                tell(f"正在命令通道传输 {name}（{number}/{total_parts} 片）…", "info")
+        with path.open("rb") as stream:
+            for number, block in enumerate(iter(lambda: stream.read(step), b""), start=1):
+                if cancel_event is not None and cancel_event.is_set():
+                    raise SignalError("cancelled", "依赖安装已取消。")
+                self._execute(
+                    "dependency_push_part",
+                    "printf '%s' " + quote_argument(base64.b64encode(block).decode("ascii"))
+                    + " >> " + quote_argument(remote_tmp),
+                    30, cancel_event)
+                if number == 1 or number == total_parts or number % 10 == 0:
+                    tell(f"正在命令通道传输 {name}（{number}/{total_parts} 片）…", "info")
         tell(f"正在合并校验 {name}…", "info")
         self._execute(
             "dependency_push_join",

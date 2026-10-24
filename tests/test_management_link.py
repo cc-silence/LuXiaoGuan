@@ -84,10 +84,10 @@ class ManagementLinkTests(unittest.TestCase):
                 read_management_link(runner(report(), **kwargs))
         self.assertEqual(read_management_link(runner("",code=83)).status,"unknown")
 
-    def test_scan_risk_requires_explicit_override_and_still_rejects_unknown(self):
-        require_management_link(runner(report(port="phy0-ap0")),"phy0",allow_scan_risk=True)
-        with self.assertRaises(RuntimeError):
-            require_management_link(runner(""),"phy0",allow_scan_risk=True)
+    def test_scan_always_rejects_management_radio_and_unknown_path(self):
+        for text in (report(port="phy0-ap0"), ""):
+            with self.assertRaises(RuntimeError):
+                require_management_link(runner(text), "phy0")
 
     def test_diagnostics_do_not_export_ip_mac_or_ssid(self):
         backend = runner(report())

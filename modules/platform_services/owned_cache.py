@@ -6,6 +6,26 @@ import time
 from pathlib import Path
 
 
+def _windows_long_name_matches(path, resolved):
+    """Accept only native 8.3 expansion, after every ancestor passed lstat.
+
+    https://learn.microsoft.com/windows/win32/api/fileapi/nf-fileapi-getlongpathnamew
+    """
+    if os.name != "nt":
+        return False
+    import ctypes
+    from ctypes import wintypes
+    convert = ctypes.windll.kernel32.GetLongPathNameW
+    convert.argtypes = (wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD)
+    convert.restype = wintypes.DWORD
+    required = convert(str(path), None, 0)
+    if not 0 < required <= 32768:
+        return False
+    buffer = ctypes.create_unicode_buffer(required)
+    written = convert(str(path), buffer, required)
+    return 0 < written < required and Path(buffer.value) == resolved
+
+
 def checked_path(root, path):
     """校验绝对根及所有父级不含重解析点，返回目标 lstat；不创建目录。"""
     root, path = Path(root), Path(path)
@@ -16,8 +36,10 @@ def checked_path(root, path):
         info = part.lstat()
         if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
             raise ValueError(f"Cache link/reparse point retained: {part}")
-    if path.resolve() != path or root.resolve() != root:
-        raise ValueError(f"Noncanonical cache path retained: {path}")
+    for candidate in ((path,) if root == path else (root, path)):
+        resolved = candidate.resolve()
+        if resolved != candidate and not _windows_long_name_matches(candidate, resolved):
+            raise ValueError(f"Noncanonical cache path retained: {candidate}")
     return info
 
 

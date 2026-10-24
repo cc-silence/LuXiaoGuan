@@ -85,3 +85,34 @@ class CommonSettingsUiTests(unittest.TestCase):
                 self.assertFalse(dialog.new_password.submitted_text())
             theme_patch.stop()
             page.manager.submit.assert_not_called()
+
+    def test_random_hostname_and_regional_timezone_keep_changes_in_editor_until_save(self):
+        page,_=self.create_page()
+        dialog=RouterConfigDialog(SYSTEM,page);self.addCleanup(dialog.deleteLater)
+        self.assertEqual(dialog.values()["timezone"],"CST-8")
+        self.assertGreater(dialog.controls["zone"].count(),300)
+        previous=dialog.values()["hostname"]
+        dialog.hostname_random_button.click()
+        self.assertNotEqual(dialog.values()["hostname"],previous)
+        zone=dialog.controls["zone"]
+        london=next(i for i in range(zone.count()) if tuple(zone.itemData(i))[0]=="Europe/London")
+        zone.setCurrentIndex(london)
+        values=dialog.values()
+        self.assertEqual(values["zonename"],"Europe/London")
+        self.assertIn(",M3.5.0",values["timezone"])
+        from modules.capture_services.openwrt.common_settings import validate_values
+        validate_values(SYSTEM,values)
+        dialog.reject()
+        page.manager.submit.assert_not_called()
+
+    def test_device_timezone_rules_and_unknown_current_timezone_are_preserved(self):
+        page,_=self.create_page()
+        review=dict(SYSTEM,values=dict(SYSTEM["values"],zonename="Custom/Zone",timezone="ABC-3"),
+                    timezones=[["Europe/London","GMT0BST,M3.5.0/1,M10.5.0"]])
+        dialog=RouterConfigDialog(review,page);self.addCleanup(dialog.deleteLater)
+        self.assertEqual(dialog.values()["timezone"],"ABC-3")
+        zone=dialog.controls["zone"]
+        self.assertEqual(zone.count(),3)
+        selected=next(i for i in range(zone.count()) if tuple(zone.itemData(i))[0]=="Europe/London")
+        zone.setCurrentIndex(selected)
+        self.assertEqual(dialog.values()["timezone"],review["timezones"][0][1])
