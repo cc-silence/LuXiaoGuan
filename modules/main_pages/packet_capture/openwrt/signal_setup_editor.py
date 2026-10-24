@@ -69,6 +69,7 @@ def configure_ap(dialog, environment):
     if dialog.summary is not None:
         dialog.summary.setText(dialog._summary_base + " \u00b7 \u5f53\u524d\u4fe1\u9053 " + str(radio.get("channel", "\u81ea\u52a8")))
     dialog.expert_fields.configure(radio, old, data.get("features", {}))
+    dialog.ap_identity.configure(old, option_supported(radio, "macaddr"), data.get("rows", ()))
     for key, control in (("hidden", dialog.hidden), ("isolate", dialog.isolation), ("maxassoc", dialog.client_limit),
             ("wmm", dialog.wmm), ("ieee80211w", dialog.management), ("dtim_period", dialog.dtim), ("beacon_int", dialog.beacon),
             ("channel", dialog.channel), ("country", dialog.country), ("txpower", dialog.power), ("encryption", dialog.encryption),
@@ -80,9 +81,12 @@ def configure_ap(dialog, environment):
             control.setEnabled(True)
         if not supported:
             control.setToolTip("当前无线脚本未提供此参数，保留路由器原配置。")
-    dialog.save_button.setEnabled(True)
+    can_save = dialog.editing or dialog.ap_identity.supported
+    if not can_save:
+        dialog.message("\u5f53\u524d\u65e0\u7ebf\u811a\u672c\u672a\u786e\u8ba4\u652f\u6301\u6307\u5b9a BSSID\uff0c\u8bf7\u91cd\u65b0\u68c0\u6d4b\u3002")
+    dialog.save_button.setEnabled(can_save)
     if dialog.save_only_button is not None:
-        dialog.save_only_button.setEnabled(True)
+        dialog.save_only_button.setEnabled(can_save)
 
 
 def configure_relay(dialog, environment):
@@ -152,6 +156,9 @@ def ap_request(dialog):
         if control.isEnabled() and control.text().strip():
             opts[key] = control.text().strip()
     opts.update(dialog.expert_fields.values())
+    address = dialog.ap_identity.value()
+    if address is not None:
+        opts["macaddr"] = address
     return validate_request(WirelessRequest("ap", dialog.radio_name, dialog.name_edit.text(),
         dialog.password.submitted_text() if encryption_base(opts.get("encryption")) not in ("none", "owe") else "",
         section=dialog.row.section if dialog.row else "", options=opts))

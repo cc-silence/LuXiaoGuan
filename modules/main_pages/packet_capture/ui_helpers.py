@@ -5,7 +5,7 @@ from modules.ui_scale_manager import UiScaleManager
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout
 
 
-def create_capture_card(parent, title, description="", *, collapsible=False):
+def create_capture_card(parent, title, description="", *, collapsible=False, icon_path=None):
     """创建抓包页面专用分组卡片。
 
     参数：parent 是父页面；title 是分组名；description 是普通用户可见说明。
@@ -23,8 +23,21 @@ def create_capture_card(parent, title, description="", *, collapsible=False):
         layout = QVBoxLayout(card)
         layout.setContentsMargins(14, 12, 14, 14)
         layout.setSpacing(8)
+        if icon_path is not None:
+            from modules.common_widgets.card_icon import CardIcon
+            outer = QHBoxLayout()
+            outer.setContentsMargins(0, 0, 0, 0)
+            UiScaleManager.for_widget(parent).bind_layout(outer, margins=(0, 0, 0, 0), spacing=14)
+            outer.addWidget(CardIcon(icon_path, card), 0, Qt.AlignVCenter)
+            text_layout = QVBoxLayout()
+            text_layout.setContentsMargins(0, 0, 0, 0)
+            text_layout.setSpacing(8)
+            outer.addLayout(text_layout, 1)
+            layout.addLayout(outer)
+            layout = text_layout
         title_label = QLabel(title, card)
         title_label.setObjectName("captureGroupTitle")
+        title_label.setWordWrap(icon_path is not None)
         layout.addWidget(title_label)
     card.setAttribute(Qt.WA_StyledBackground, True)
     if description:
@@ -36,6 +49,8 @@ def create_capture_card(parent, title, description="", *, collapsible=False):
     content_layout.setContentsMargins(0, 4, 0, 0)
     content_layout.setSpacing(8)
     layout.addLayout(content_layout)
+    if icon_path is not None and not collapsible:
+        layout.addStretch(1)
     return card, content_layout
 
 

@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 import ipaddress
 import re
 from .wireless_security import encryption_base
-from .wireless_identity import validate_identity
+from .wireless_identity import validate_identity, valid_mac
 from .wireless_options import IFACE_KEYS, RADIO_KEYS, validate_options
 
 
@@ -78,7 +78,7 @@ class WirelessState:
 
 _NAMES = re.compile(r"[A-Za-z0-9_]+")
 _MAC = re.compile(r"(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}")
-AP_OPTIONS = frozenset(IFACE_KEYS + RADIO_KEYS + ("encryption", "hidden", "isolate", "maxassoc", "channel", "htmode", "country", "txpower", "network", "wmm", "ieee80211w", "dtim_period", "beacon_int", "wds"))
+AP_OPTIONS = frozenset(IFACE_KEYS + RADIO_KEYS + ("macaddr", "encryption", "hidden", "isolate", "maxassoc", "channel", "htmode", "country", "txpower", "network", "wmm", "ieee80211w", "dtim_period", "beacon_int", "wds"))
 STA_OPTIONS = frozenset(("encryption", "bssid", "proto", "ipaddr", "netmask", "gateway", "dns", "metric", "zone", "channel", "bridge_mode", "network", "relay_ip", "identity_action", "macaddr", "hostname"))
 
 
@@ -108,6 +108,8 @@ def validate_request(request):
         raise ValueError("密码不能含换行或控制字符。")
     options = request.options
     validate_options(options)
+    if request.mode == "ap" and "macaddr" in options and not valid_mac(options["macaddr"]):
+        raise ValueError("BSSID \u9700\u8981\u662f\u6709\u6548\u7684\u5355\u64ad MAC \u5730\u5740\u3002")
     if request.mode == "sta":
         validate_identity(options)
     for key in ("hidden", "isolate", "wmm", "wds"):

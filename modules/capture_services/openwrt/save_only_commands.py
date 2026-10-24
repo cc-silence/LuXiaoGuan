@@ -27,8 +27,8 @@ local function save_equal(a,b,depth)
  for k in pairs(b) do if a[k]==nil then return false end end
  return true
 end
-local function save_session_commit(verify)
- clean()
+local function save_session_commit(verify,selected_configs,expected_hashes)
+ if not selected_configs then clean() end
  if req.revision and req.revision~=revision() then fail("changed") end
  if req.dhcp_revision and req.dhcp_revision~="" and req.dhcp_revision~=dhcp_revision() then fail("dhcp_changed") end
  local path="/tmp/run/rpcd/uci-"..sid()
@@ -36,7 +36,7 @@ local function save_session_commit(verify)
  if c:get_confdir()~="/etc/config" or c:get_savedir()~=path then fail("save_unsupported") end
  local global=uci.cursor()
  local configs,hashes,expected={},{},{}
- for _,config in ipairs(save_configs) do
+ for _,config in ipairs(selected_configs or save_configs) do
   if global:load(config) then
    local dirty=global:changes(config)
    if type(dirty)~="table" or next(dirty) then fail("pending") end
@@ -47,6 +47,7 @@ local function save_session_commit(verify)
    if next(changes) then
     configs[#configs+1]=config
     hashes[config]=pending_hash("/etc/config/"..config)
+    if expected_hashes and hashes[config]~=expected_hashes[config] then fail("changed") end
     if hashes[config]=="absent" then fail("save_unsupported") end
     expected[config]=save_snapshot(c,config)
    end

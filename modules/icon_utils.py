@@ -37,6 +37,8 @@ _SMALL_ICON_PATHS = {
     "cil-x-circle.png": '<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/>',
     "cil-settings.png": '<path d="m10 3 4 0 .6 2.4 2 .9 2.3-.7 2 3.5-1.7 1.7v2.4l1.7 1.7-2 3.5-2.3-.7-2 .9L14 21h-4l-.6-2.4-2-.9-2.3.7-2-3.5L4.8 13v-2.2L3.1 9.1l2-3.5 2.3.7 2-.9Z"/><circle cx="12" cy="12" r="3"/>',
 }
+_SMALL_ICON_PATHS["cil-chevron-top.png"] = '<path d="m5 15 7-7 7 7"/>'
+_SMALL_ICON_PATHS["cil-chevron-bottom.png"] = '<path d="m5 9 7 7 7-7"/>'
 _SMALL_ICON_PATHS["icon_settings.png"] = _SMALL_ICON_PATHS["cil-settings.png"]
 
 

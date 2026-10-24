@@ -11,6 +11,7 @@ from .wireless_delete_commands import DELETE
 from .wireless_identity_commands import IDENTITY
 from .pending_config_commands import PENDING
 from .save_only_commands import SAVE_ONLY
+from .common_settings_commands import COMMON_SETTINGS
 from .orphan_interface_commands import ORPHANS
 from .relocation_commands import RELOCATION
 from .wireless_scan_commands import SCAN
@@ -78,6 +79,7 @@ local function inspect(readonly)
  local status=rpc("network.wireless","status",{})
  local validation=optional("network.wireless","get_validate",{})
  local radios,rows,networks,zones,active={},{},{},{},{}
+ local runtime_macs={}
  c:foreach("network","interface",function(s)
   local out=fields(s,{"proto","ipaddr","netmask","gateway","dns","metric","device","type","rm_owner","network","rm_dhcp_backup","hostname"})
   out.name=s[".name"];networks[#networks+1]=out
@@ -93,6 +95,7 @@ local function inspect(readonly)
    if type(iface.ifname)=="string" and iface.ifname:match("^[%w_.:%-]+$") then
     ifnames[#ifnames+1]=iface.ifname
     local ds=optional("network.device","status",{name=iface.ifname})
+    if type(iface.section)=="string" and type(ds.macaddr)=="string" and #ds.macaddr==17 then runtime_macs[iface.section]=ds.macaddr end
     if rs.up==true and not rs.pending and ds.up==true then active[#active+1]=iface.section end
    end
   end
@@ -111,6 +114,7 @@ local function inspect(readonly)
  end)
  c:foreach("wireless","wifi-iface",function(s)
   local out=fields(s,{"ssid","mode","device","network","encryption","hidden","isolate","maxassoc","description","rm_bridge","rm_wds_backup","rm_suspended","rm_identity_backup","macaddr","disabled","bssid","wmm","ieee80211w","dtim_period",__IFACE_KEYS__})
+  out.runtime_mac=runtime_macs[s[".name"]]
   out.section=s[".name"];out.has_key=type(s.key)=="string" and #s.key>0
   rows[#rows+1]=out
  end)
@@ -166,6 +170,7 @@ end
 __IDENTITY__
 __PENDING__
 __SAVE_ONLY__
+__COMMON_SETTINGS__
 local function stage()
  local c=clean()
  if revision()~=req.revision then fail("changed") end
@@ -202,6 +207,11 @@ local function stage()
  elseif type(network)~="string" or not name(network) then fail("network") end
  local wf={ssid=v.ssid,mode=v.mode,device=radio,network=network,disabled=req.save_only==true and "1" or "0"}
  if v.mode=="ap" then
+  if opts.macaddr~=nil then
+   if not identity_mac(opts.macaddr) then fail("identity") end
+   identity_unique(c,section,opts.macaddr)
+   wf.macaddr=opts.macaddr
+  end
   if type(network)~="table" and c:get("network",network)~="interface" then fail("network") end
   wf.encryption=opts.encryption or (old and old.encryption) or "psk2"
   for _,k in ipairs({"hidden","isolate","maxassoc","wmm","ieee80211w","dtim_period",__IFACE_KEYS__}) do if opts[k]~=nil then wf[k]=opts[k] end end
@@ -257,7 +267,7 @@ local function stage()
  if req.save_only==true and (wf.rm_bridge or wf.rm_wds_backup) then wf.rm_suspended="1"
  elseif old and old.rm_suspended and not req.temporary then remove("wireless",section,"rm_suspended") end
  if old then set("wireless",section,wf) else add("wireless","wifi-iface",section,wf) end
- local expected_mac=nil
+ local expected_mac=v.mode=="ap" and (opts.macaddr or (old and identity_mac(old.macaddr) and old.macaddr)) or nil
  if v.mode=="sta" and not req.temporary then expected_mac=stage_identity(c,old,section,network,opts,bridged) end
  if v.mode=="sta" and old and opts.bssid=="" and old.bssid then
   rpc("uci","delete",{ubus_rpc_session=sid(),config="wireless",section=section,option="bssid"})
@@ -289,7 +299,7 @@ local function saved_status()
  local row=c:get_all("wireless",req.section)
  if not row or row.mode~=v.mode or row.device~=v.radio or row.ssid~=v.ssid or row.disabled~=(req.save_only==true and "1" or "0") then fail("unconfirmed") end
  if v.password~="" and row.key~=v.password then fail("unconfirmed") end
- local keys=v.mode=="ap" and {"encryption","hidden","isolate","maxassoc","wmm","ieee80211w","dtim_period",__IFACE_KEYS__} or {"encryption","bssid"}
+ local keys=v.mode=="ap" and {"macaddr","encryption","hidden","isolate","maxassoc","wmm","ieee80211w","dtim_period",__IFACE_KEYS__} or {"encryption","bssid"}
  for _,key in ipairs(keys) do
   if opts[key]~=nil and not (key=="bssid" and opts[key]=="") and key~="maclist" and row[key]~=opts[key] then fail("unconfirmed") end
  end
@@ -357,6 +367,11 @@ local function status()
  if req.mode=="ap" then
   local c=uci.cursor()
   if not c:load("wireless") then return {ready=false} end
+  local expected=req.expected_mac or c:get("wireless",req.section,"macaddr")
+  if identity_mac(expected) then
+   local actual=optional("network.device","status",{name=iface}).macaddr
+   if type(actual)~="string" or actual:lower()~=expected:lower() then return {ready=false,identity_pending=true} end
+  end
   return {ready=ap_ready(iface,c:get("wireless",req.section,"ssid"))}
  end
  if req.expected_mac and req.expected_mac~="" then
@@ -374,6 +389,9 @@ __RELOCATION__
 __ORPHANS__
 __SCAN__
 local function run()
+ if req.action=="common_read" then return common_read() end
+ if req.action=="common_stage" then return common_stage() end
+ if req.action=="common_commit" then return common_commit() end
  if req.action=="move_preview" then return move_preview() end
  if req.action=="move_stage" then return move_stage() end
  if req.action=="move_status" then return move_status() end
@@ -430,7 +448,7 @@ if ok then io.write(json.stringify({ok=true,result=result}))
 else io.write(json.stringify({ok=false,code=type(result)=="table" and result.code or "internal"})) end
 '''
 
-BOOT = BOOT.replace("__CAPABILITIES__", CAPABILITIES_LUA).replace("__DEVICE_OPTIONS__", ",".join(json.dumps(k) for k in RADIO_SETTINGS)).replace("__INTERFACE_OPTIONS__", ",".join(json.dumps(k) for k in IFACE_SETTINGS)).replace("__SCAN__", SCAN).replace("__ORPHANS__", ORPHANS).replace("__RELOCATION__", RELOCATION).replace("__PENDING__", PENDING).replace("__SAVE_ONLY__", SAVE_ONLY).replace("__IDENTITY__", IDENTITY).replace("__BRIDGE_HELPERS__", BRIDGE).replace("__BRIDGE_STATUS__", STATUS).replace("__BRIDGE_TOGGLE__", TOGGLE).replace("__DELETE__", DELETE).replace("__IFACE_KEYS__", ",".join(json.dumps(k) for k in IFACE_KEYS)).replace("__RADIO_KEYS__", ",".join(json.dumps(k) for k in RADIO_KEYS))
+BOOT = BOOT.replace("__CAPABILITIES__", CAPABILITIES_LUA).replace("__DEVICE_OPTIONS__", ",".join(json.dumps(k) for k in RADIO_SETTINGS)).replace("__INTERFACE_OPTIONS__", ",".join(json.dumps(k) for k in IFACE_SETTINGS)).replace("__SCAN__", SCAN).replace("__ORPHANS__", ORPHANS).replace("__RELOCATION__", RELOCATION).replace("__PENDING__", PENDING).replace("__SAVE_ONLY__", SAVE_ONLY).replace("__COMMON_SETTINGS__", COMMON_SETTINGS).replace("__IDENTITY__", IDENTITY).replace("__BRIDGE_HELPERS__", BRIDGE).replace("__BRIDGE_STATUS__", STATUS).replace("__BRIDGE_TOGGLE__", TOGGLE).replace("__DELETE__", DELETE).replace("__IFACE_KEYS__", ",".join(json.dumps(k) for k in IFACE_KEYS)).replace("__RADIO_KEYS__", ",".join(json.dumps(k) for k in RADIO_KEYS))
 
 PROBE = TOOL_RUNTIME_SH + r'''
 for key in uci ubus iw wpa_cli hostapd wpa_supplicant rpcd; do

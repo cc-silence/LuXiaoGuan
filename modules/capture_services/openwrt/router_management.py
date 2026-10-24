@@ -6,6 +6,7 @@ import stat
 import time
 from pathlib import Path
 from uuid import uuid4
+from modules.platform_services.local_file_publish import publish_new_file
 
 
 
@@ -165,8 +166,7 @@ class RouterManagement:
                             raise ValueError('本机目标文件已变化，未覆盖，请刷新后重试。')
                         os.replace(temporary, local)
                     else:
-                        os.link(temporary, local)
-                        Path(temporary).unlink()
+                        publish_new_file(temporary, local)
                 created = False
                 return str(local if not upload else remote)
             finally:

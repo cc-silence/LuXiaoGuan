@@ -188,7 +188,7 @@ class OpenWrtPage(QWidget):
             self.tabs,
         )
         self._created_pages = {}
-        pages = (("signal", "信号管理"), ("files", "文件管理"),
+        pages = (("common", "\u5e38\u7528\u8bbe\u7f6e"), ("signal", "信号管理"), ("files", "文件管理"),
                  ("terminal", "路由器终端"), ("capture", "抓包"), ("settings", "抓包设置"))
         self._page_indices = {name: index for index, (name, _title) in enumerate(pages, 1)}
         self._panels = {"capture": info_panel, "signal": signal_info_panel, "files": file_info_panel}
@@ -204,6 +204,11 @@ class OpenWrtPage(QWidget):
         self.login_page.actionRequested.connect(self.actionRequested)
         self.login_page.settingsChanged.connect(self.settingsChanged)
         self.tabs.currentChanged.connect(self._tab_changed)
+        self.service.router_management.passwordChanged.connect(self._password_changed)
+
+    @property
+    def common_page(self):
+        return self._ensure_subpage("common")
 
     @property
     def capture_page(self):
@@ -241,6 +246,9 @@ class OpenWrtPage(QWidget):
             page.actionRequested.connect(self.actionRequested)
             page.settingsChanged.connect(self.settingsChanged)
             page._refresh_history_button()
+        elif name == "common":
+            from .router_common_settings_page import RouterCommonSettingsPage
+            page = RouterCommonSettingsPage(self.service, self.connection_settings, self.tabs)
         elif name == "signal":
             from .router_signal_page import RouterSignalPage
             page = RouterSignalPage(self.service.router_signals, self._panels[name], self.tabs)
@@ -271,6 +279,12 @@ class OpenWrtPage(QWidget):
         if getattr(host, "style_mgr", None) is not None:
             host.style_mgr.refresh_subtree(page)
         return page
+
+    def _password_changed(self, target):
+        connection = self.login_page.connection
+        settings = connection.collect()
+        if (settings["host"], settings["port"], settings["user"]) == tuple(target) and settings["auth_method"] == "password":
+            connection.password.setText(self.service.openwrt_password())
 
     def _tab_changed(self, index):
         name = next((name for name, number in self._page_indices.items() if number == index), None)
@@ -356,6 +370,7 @@ class OpenWrtPage(QWidget):
     def dispose(self):
         """页面释放前断开服务快照信号。"""
 
+        self.service.router_management.passwordChanged.disconnect(self._password_changed)
         for name, page in self._created_pages.items():
             if name == "capture":
                 page.signal_export.dispose()

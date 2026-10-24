@@ -3,7 +3,7 @@ import copy
 import json
 import threading
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from tests.test_wireless_setup import LuaDevice, LuaRuntime
 from modules.capture_services.openwrt.wireless_setup_manager import WirelessSetupManager
 from modules.capture_services.openwrt.relocation_manager import RelocationManager
@@ -56,13 +56,37 @@ class RelocationTests(unittest.TestCase):
         self.assertEqual(self.device.config, self.device.original)
         self.assertEqual(first["token"], second["token"])
         self.assertNotEqual(first["plan"], second["plan"])
-        self.assertRegex(first["plan"]["hostname"], r"^OpenWrt-[a-f0-9]{8}$")
+        self.assertRegex(first["plan"]["hostname"], r"^[A-Za-z0-9][A-Za-z0-9_-]{0,62}$")
+        self.assertNotIn("openwrt", first["plan"]["hostname"].lower())
         self.assertEqual(len(first["targets"]), 2)
         self.assertEqual(len(set(first["plan"]["macs"])), 2)
         for mac in first["plan"]["macs"]:
             self.assertEqual(int(mac[:2], 16) & 3, 2)
         self.assertNotIn("original-password", json.dumps(first))
         self.assertFalse(self.device.sessions)
+
+    def test_brand_and_model_names_apply_unchanged_to_system_and_wan(self):
+        for hostname in ('CMCC_G2T7', 'TP-LINK_A8K2', 'HUAWEI-Mate-60-Pro', 'vivo-X100', 'OpenWrt-1234abcd'):
+            with self.subTest(hostname=hostname):
+                self.setUp()
+                review = self.manager.preview(self.cancel)
+                review['plan']['hostname'] = hostname
+                result = self.manager.apply(review, self.cancel, Mock())
+                self.assertEqual(result['hostname'], hostname)
+                self.assertEqual(self.device.config['system']['main']['hostname'], hostname)
+                self.assertEqual(self.device.config['network']['wan']['hostname'], hostname)
+
+    def test_invalid_hostname_is_rejected_before_config_writes(self):
+        for hostname in ('', 'a'*64, '-CMCC', 'CMCC_', 'CMCC G2T7', 'a;reboot', 'a\n', 12):
+            with self.subTest(hostname=hostname):
+                review = self.manager.preview(self.cancel)
+                review['plan']['hostname'] = hostname
+                with self.assertRaises(SignalError) as error:
+                    self.manager.apply(review, self.cancel, Mock())
+                self.assertEqual(error.exception.code, 'identity')
+                self.assertEqual(self.device.config, self.device.original)
+                self.assertFalse(self.device.sessions)
+                self.assertNotIn(('uci', 'apply'), self.device.calls)
 
     def test_apply_preserves_management_system_and_radio_hardware(self):
         review = self.manager.preview(self.cancel)
@@ -223,3 +247,27 @@ class RelocationTests(unittest.TestCase):
         self.assertEqual(error.exception.code, "dependencies")
         self.assertFalse(self.device.sessions)
         self.assertEqual(self.device.config, self.device.original)
+
+
+class RelocationNameTests(unittest.TestCase):
+    def test_router_name_has_brand_and_four_random_letters_or_digits(self):
+        from modules.capture_services.openwrt.relocation_identity import generate_relocation_hostname
+        with patch('modules.capture_services.openwrt.relocation_identity.secrets.randbelow', return_value=0), \
+             patch('modules.capture_services.openwrt.relocation_identity.secrets.choice', side_effect=['CMCC', 'G', '2', 'T', '7']):
+            self.assertEqual(generate_relocation_hostname(), 'CMCC_G2T7')
+
+    def test_phone_names_reuse_model_library_and_exclude_old_name(self):
+        from modules.capture_services.openwrt.relocation_identity import generate_relocation_hostname
+        with patch('modules.capture_services.openwrt.relocation_identity.secrets.randbelow', return_value=1), \
+             patch('modules.capture_services.openwrt.relocation_identity.secrets.choice', side_effect=lambda names: names[0]):
+            first = generate_relocation_hostname()
+            second = generate_relocation_hostname(first.upper())
+        self.assertNotEqual(first.casefold(), second.casefold())
+        self.assertRegex(first, r'^[A-Za-z0-9][A-Za-z0-9-]{0,62}$')
+        self.assertNotIn('OpenWrt', first)
+
+    def test_router_name_collision_changes_without_retry_loop(self):
+        from modules.capture_services.openwrt.relocation_identity import generate_relocation_hostname
+        with patch('modules.capture_services.openwrt.relocation_identity.secrets.randbelow', return_value=0), \
+             patch('modules.capture_services.openwrt.relocation_identity.secrets.choice', side_effect=['CMCC', 'G', '2', 'T', '7', '8']):
+            self.assertEqual(generate_relocation_hostname('cmcc_g2t7'), 'CMCC_G2T8')

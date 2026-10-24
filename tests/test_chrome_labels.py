@@ -35,11 +35,12 @@ class ChromeLabelsTests(unittest.TestCase):
                 host=window.packet_capture_page.openwrt_tab
                 host.tabs.setCurrentIndex(1)
                 standalone.APP.processEvents()
-                signal_page=host._ensure_subpage("signal")
+                signal_page=host._ensure_subpage("common")
                 first,second=signal_page.relocation_actions.button,signal_page.orphan_actions.button
-                self.assertEqual(first.y(),second.y())
-                self.assertEqual(first.height(),second.height())
-                self.assertLessEqual(abs(first.width()-second.width()),1)
+                self.assertIsNot(first.parentWidget(),second.parentWidget())
+                self.assertGreaterEqual(first.height(),first.fontMetrics().height())
+                self.assertGreaterEqual(second.height(),second.fontMetrics().height())
+                self.assertLessEqual(abs(signal_page.relocation_card.width()-signal_page.orphan_card.width()),1)
                 window.grab().save(str(output/("cleanup-"+theme+"-"+str(scale)+".png")))
                 host.tabs.setCurrentIndex(0)
 
@@ -58,9 +59,9 @@ class ChromeLabelsTests(unittest.TestCase):
         self.assertEqual(initial_ui_scale(ConfigManager(),None),100)
 
 class CleanupRowTests(unittest.TestCase):
-    create_page=signal_ui.SignalActionTests.create_page
+    from tests.common_settings_fixture import create_page
 
-    def test_both_buttons_share_row_and_equal_size_in_both_themes(self):
+    def test_both_buttons_have_separate_cards_and_fit_in_both_themes(self):
         output=BASE_DIR/"build/cleanup-row-review";output.mkdir(parents=True,exist_ok=True)
         for light in (False,True):
             setup=signal_ui.PendingSetup()
@@ -75,10 +76,11 @@ class CleanupRowTests(unittest.TestCase):
                 for width in (850,1250):
                     page.resize(width,680);standalone.APP.processEvents()
                     first,second=page.relocation_actions.button,page.orphan_actions.button
-                    self.assertEqual(first.parentWidget(),second.parentWidget())
-                    self.assertEqual(first.y(),second.y())
-                    self.assertEqual(first.height(),second.height())
-                    self.assertLessEqual(abs(first.width()-second.width()),1)
-                    self.assertGreater(second.x(),first.x()+first.width())
+                    self.assertIsNot(first.parentWidget(),second.parentWidget())
+                    self.assertIsNot(first.parentWidget(),second.parentWidget())
+                    self.assertGreaterEqual(first.height(),first.fontMetrics().height())
+                    self.assertGreaterEqual(second.height(),second.fontMetrics().height())
+                    self.assertLessEqual(abs(page.relocation_card.width()-page.orphan_card.width()),1)
+                    self.assertGreater(page.orphan_card.y(),page.relocation_card.y())
                     self.assertGreaterEqual(second.width(),second.fontMetrics().horizontalAdvance(second.text()))
                 page.grab().save(str(output/(str(light)+"-"+str(percent)+".png")))

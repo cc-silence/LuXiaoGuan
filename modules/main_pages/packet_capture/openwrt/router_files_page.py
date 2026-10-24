@@ -680,6 +680,10 @@ class RouterFilesPage(QWidget):
         browse=self._browse.pop(key,None)
         destination=self._transfer_destinations.pop(key,None)
         if purpose is None: return
+        if isinstance(purpose,tuple) and purpose[0]=='external_upload':
+            from .file_drop_actions import complete_external_upload
+            complete_external_upload(self,purpose,result)
+            return
         if isinstance(purpose,tuple) and purpose[0]=='batch':
             dialog=self._transfers.pop(key,None)
             completed=len(result['results'])

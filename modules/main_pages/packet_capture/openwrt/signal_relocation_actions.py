@@ -1,20 +1,20 @@
 """Relocation preview and explicit confirmation, sharing the standard dialog and task service."""
 from PySide6.QtCore import QObject
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
-from modules.main_pages.page_action_buttons import create_page_text_button
+from modules.main_pages.page_action_buttons import create_page_text_button, set_page_action_enabled
 
 
 class RelocationActions(QObject):
-    def __init__(self, page):
+    def __init__(self, page, container):
         super().__init__(page)
         self.page = page
         self.service = getattr(page.service, "setup", None)
         self._waiting = False
         self._identity = None
-        self.button = create_page_text_button(page.inventory_footer, "搬家清理",
+        self.button = create_page_text_button(container, "搬家清理",
             "清理旧 Wi-Fi 和桥接，更换主机名与网络 MAC。先预览再确认；保留管理地址、登录密码和已装组件。")
         self.button.setProperty("dangerAction", True)
-        page.inventory_footer.layout().addWidget(self.button)
+        container.layout().addWidget(self.button)
         self.button.clicked.connect(self.review)
         page.service.snapshotChanged.connect(self._sync)
         if self.service is not None:
@@ -27,7 +27,7 @@ class RelocationActions(QObject):
         supported = self.service is not None and hasattr(self.service, "relocation_preview")
         if self._waiting and (not snapshot.connected or self.service._connection_identity() is not self._identity):
             self._waiting = False
-        self.button.setEnabled(bool(supported and snapshot.connected and not snapshot.busy
+        set_page_action_enabled(self.button, bool(supported and snapshot.connected and not snapshot.busy
                                    and not self.service.active and not self._waiting))
 
     def review(self):

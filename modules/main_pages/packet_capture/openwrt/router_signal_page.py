@@ -131,19 +131,6 @@ class RouterSignalPage(QWidget):
         self.setup_panels = SignalSetupPanels(self)
         from .signal_pending_actions import PendingConfigActions
         self.pending_actions = PendingConfigActions(self)
-        self.inventory_footer = QWidget(left)
-        self.inventory_footer.setObjectName("captureSignalMaintenanceActions")
-        footer_layout = QHBoxLayout(self.inventory_footer)
-        scale.bind_layout(footer_layout, margins=(10, 0, 10, 8), spacing=8)
-        from .signal_relocation_actions import RelocationActions
-        self.relocation_actions = RelocationActions(self)
-        from .signal_orphan_actions import OrphanInterfaceActions
-        self.orphan_actions = OrphanInterfaceActions(self)
-        for index, button in enumerate((self.relocation_actions.button, self.orphan_actions.button)):
-            button.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
-            scale.bind_metrics(button, fixed_height=40)
-            footer_layout.setStretch(index, 1)
-
         self.page_scrolls = []
         for content in (self.content, self.setup_panels.transmit_page, self.setup_panels.relay_page):
             scroll = BounceScrollArea(self.stack)
@@ -162,7 +149,6 @@ class RouterSignalPage(QWidget):
         self.stack.currentChanged.connect(self._navigation_changed)
         self.navigation_buttons[0].setChecked(True)
         left_layout.addWidget(self.stack, 1)
-        left_layout.addWidget(self.inventory_footer)
         if info_panel is not None:
             from modules.common_widgets.info_panel_dock import InfoPanelDock
             self.info_dock = InfoPanelDock(left, info_panel, Qt.Horizontal, self)
@@ -185,7 +171,6 @@ class RouterSignalPage(QWidget):
     def _navigation_changed(self, index):
         self.navigation_buttons[index].setChecked(True)
         self.inventory_toolbar.setVisible(index == 0)
-        self.inventory_footer.setVisible(index == 0)
 
     def _on_refresh(self):
         """主线程申请只读刷新；未登录先弹窗指引去登录，不断按钮。
@@ -573,8 +558,6 @@ class RouterSignalPage(QWidget):
 
     def dispose(self):
         """仅断开页面订阅，不停止常驻任务。"""
-        self.relocation_actions.dispose()
-        self.orphan_actions.dispose()
         self.pending_actions.dispose()
         self.setup_panels.dispose()
         try:

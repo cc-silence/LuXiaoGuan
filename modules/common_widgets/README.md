@@ -22,3 +22,7 @@
 - `FramelessDialog(window_controls=True)`: editing dialogs share `DialogWindowControls` for minimize, maximize/restore and title-bar double click. Controls preserve input and task ownership; resize grips hide while maximized. Use `window_controls=False` for confirmation, message, progress or a main window that already owns its chrome. Styles live in the existing light/dark settings partials.
 
 Modal editors minimize the visible owner group to retain modal ownership; modeless editors minimize independently.
+
+- `card_icon.CardIcon`: fixed-size, scale-aware colored card illustration; paints through QIcon without per-frame pixmap caches.
+
+- icon_button.create_themed_icon_button accepts optional light_color and dark_color semantic colors; shared refresh retains them. Existing callers retain default behavior.

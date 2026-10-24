@@ -19,7 +19,7 @@ from .privacy_header_view import EYE_COLOR_DARK, EYE_COLOR_LIGHT, PrivacyHeaderV
 
 
 class _CaptureDelegate(SpacedItemDelegate):
-    """运行行保留绿色背景，不被选中高亮覆盖。"""
+    """运行行保留黄色背景，不被选中高亮覆盖。"""
 
     def paint(self, painter, option, index):
         table = self.parent()
@@ -222,12 +222,12 @@ class AccessPointTable(QTableWidget):
         return QColor("#7ee2a8" if not self._light_theme else "#0a5c2e")
 
     def _capturing_bg(self):
-        """正在抓包行的主题绿背景；亮色取浅值保证深字可读。"""
+        """正在抓包行的主题黄背景；亮色取浅值保证深字可读。"""
 
-        return QColor("#1d4d2b" if not self._light_theme else "#c8efd8")
+        return QColor("#574817" if not self._light_theme else "#fff0b3")
 
     def set_capturing_bssids(self, bssids):
-        """按 BSSID 集合刷新正在抓包行的整行绿背景；空集合恢复全部行。"""
+        """按 BSSID 集合刷新正在抓包行的整行黄背景；空集合恢复全部行。"""
 
         wanted = {str(bssid).upper() for bssid in (bssids or ()) if str(bssid).strip()}
         if wanted == self._capturing:
@@ -251,7 +251,7 @@ class AccessPointTable(QTableWidget):
         self.viewport().update()
 
     def _apply_capturing_row(self, row, bssid):
-        """该行正在抓包则整行铺绿背景，否则清除背景恢复交替色。"""
+        """该行正在抓包则整行铺黄背景，否则清除背景恢复交替色。"""
 
         color = self._capturing_bg() if str(bssid).upper() in self._capturing else None
         for column in range(self.columnCount()):
@@ -591,7 +591,7 @@ class AccessPointTable(QTableWidget):
         if point.bssid.upper() in self._capturing:
             status_item.setText("抓包中")
             status_item.setToolTip("正在采集此信号，后台自动检查是否已抓到可用包。")
-        if point.capture_state == AccessPointCaptureState.CAPTURED:
+        if point.capture_state == AccessPointCaptureState.CAPTURED and point.bssid.upper() not in self._capturing:
             status_item.setForeground(self._highlight_green())
         else:
             status_item.setData(Qt.ForegroundRole, None)

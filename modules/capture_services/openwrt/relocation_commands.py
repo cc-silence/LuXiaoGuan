@@ -90,7 +90,8 @@ local function move_stage()
  local before=move_preview()
  if before.token~=req.review_token then fail("changed") end
  local plan=req.plan
- if type(plan)~="table" or type(plan.hostname)~="string" or not plan.hostname:match("^OpenWrt%-%x%x%x%x%x%x%x%x$") or
+ if type(plan)~="table" or type(plan.hostname)~="string" or #plan.hostname<1 or #plan.hostname>63 or
+  not plan.hostname:match("^[A-Za-z0-9][A-Za-z0-9_%-]*$") or not plan.hostname:match("[A-Za-z0-9]$") or
   type(plan.macs)~="table" or #plan.macs~=#before.targets then fail("identity") end
  if not name(req.token) or #req.token~=16 then fail("session") end
  if type(req.review_targets)~="table" or #req.review_targets~=#before.targets then fail("changed") end

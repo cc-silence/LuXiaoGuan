@@ -37,3 +37,10 @@ def create_page_icon_button(parent, icon_path, tooltip):
     副作用：只创建控件，不连接业务信号、不修改配置或业务数据。
     """
     return create_themed_icon_button(parent, icon_path, tooltip)
+
+
+def set_page_action_enabled(button, enabled):
+    """Release focus before disabling, so Qt does not scroll through sibling actions."""
+    if not enabled and button.hasFocus():
+        button.clearFocus()
+    button.setEnabled(enabled)

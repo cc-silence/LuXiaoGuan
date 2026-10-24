@@ -7,6 +7,9 @@ from modules.capture_services.openwrt.wireless_identity_profiles import PROFILES
 from .signal_setup_forms import add_field, choice, hint, text_input
 
 
+PROFILE_NAMES = tuple(dict.fromkeys(hostname for _, hostname, _ in PROFILES))
+
+
 class IdentityFields:
     def __init__(self, parent, layout, bridge_mode):
         self.bridge_mode = bridge_mode
@@ -16,8 +19,8 @@ class IdentityFields:
             ("使用系统默认地址", "default"))),
             "仅修改连接上级 Wi-Fi 的无线接口。保存前可查看生成的地址，重连不会自动更换。")
         self.profile = add_field(layout, parent, "伪装名称", choice(parent,
-            tuple((label + " · " + prefix, i) for i, (label, hostname, prefix) in enumerate(PROFILES))),
-            "来自参考列表的名称和前缀，不代表厂商认证，不保证上级识别为对应型号。")
+            tuple((hostname, hostname) for hostname in PROFILE_NAMES)),
+            "名称参考列表；MAC 地址独立随机生成，不使用固定厂商前缀，不保证识别为对应型号。")
         self.mac = add_field(layout, parent, "MAC 地址", text_input(parent),
             "无线接口在上级网络中使用的地址；修改后会重新连接，可能影响原有地址绑定。")
         self.hostname = add_field(layout, parent, "DHCP 请求时发送的主机名", text_input(parent),
@@ -69,9 +72,8 @@ class IdentityFields:
     def generate(self, *_):
         mode = self.mode.currentData()
         if mode == "profile":
-            _, hostname, prefix = PROFILES[self.profile.currentData()]
-            self.mac.setText(generate_mac(prefix))
-            self.hostname.setText(hostname)
+            self.mac.setText(generate_mac())
+            self.hostname.setText(self.profile.currentData())
         elif mode == "random":
             self.mac.setText(generate_mac())
             self.hostname.clear()

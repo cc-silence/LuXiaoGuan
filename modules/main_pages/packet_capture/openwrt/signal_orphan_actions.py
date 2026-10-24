@@ -1,20 +1,20 @@
 """Read-only orphan preview, user selection and final cleanup confirmation."""
 from PySide6.QtCore import QObject
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
-from modules.main_pages.page_action_buttons import create_page_text_button
+from modules.main_pages.page_action_buttons import create_page_text_button, set_page_action_enabled
 from .orphan_review_dialog import OrphanReviewDialog
 
 
 class OrphanInterfaceActions(QObject):
-    def __init__(self,page):
+    def __init__(self,page,container):
         super().__init__(page)
         self.page=page
         self.service=getattr(page.service,"setup",None)
         self._waiting=False
         self._identity=None
-        self.button=create_page_text_button(page.inventory_footer,"\u9057\u7559\u63a5\u53e3\u68c0\u67e5",
+        self.button=create_page_text_button(container,"开始检查",
             "\u53ea\u8bfb\u68c0\u67e5\u65e7\u4e2d\u7ee7\u7f51\u7edc\u63a5\u53e3\uff0c\u5148\u67e5\u770b\u4f9d\u636e\u518d\u9009\u62e9\u6e05\u7406\u3002")
-        page.inventory_footer.layout().addWidget(self.button)
+        container.layout().addWidget(self.button)
         self.button.clicked.connect(self.review)
         page.service.snapshotChanged.connect(self._sync)
         if self.service is not None:
@@ -28,7 +28,7 @@ class OrphanInterfaceActions(QObject):
         if self._waiting and (not state.connected or self.service._connection_identity() is not self._identity):
             self._waiting=False
         self.button.setVisible(supported)
-        self.button.setEnabled(bool(supported and state.connected and not state.busy and not self.service.active and not self._waiting))
+        set_page_action_enabled(self.button, bool(supported and state.connected and not state.busy and not self.service.active and not self._waiting))
 
     def review(self):
         if not self.button.isEnabled():return

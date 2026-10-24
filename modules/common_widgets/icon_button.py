@@ -37,7 +37,7 @@ class WindowCloseButton(QPushButton):
             self._refresh_icon()
 
 
-def create_themed_icon_button(parent, icon_path, tooltip):
+def create_themed_icon_button(parent, icon_path, tooltip, *, light_color=None, dark_color=None):
     """创建跨页面统一样式的图标按钮。"""
     button = QToolButton(parent)
     button.setObjectName("downloadToolButton")
@@ -45,7 +45,9 @@ def create_themed_icon_button(parent, icon_path, tooltip):
     button.setCursor(Qt.PointingHandCursor)
     button.setToolTip(tooltip)
     button.setProperty("iconPath", icon_path)
-    button.setIcon(get_theme_icon(icon_path, detect_light_theme(parent)))
+    button.setProperty("iconLightColor", light_color)
+    button.setProperty("iconDarkColor", dark_color)
+    button.setIcon(get_theme_icon(icon_path, detect_light_theme(parent), light_color=light_color, dark_color=dark_color))
     UiScaleManager.for_widget(parent).bind_metrics(button, icon_size=18)
     return button
 
@@ -60,4 +62,5 @@ def refresh_tool_button_icons(root, is_light):
     for button in root.findChildren(QToolButton):
         icon_path = button.property("iconPath")
         if icon_path:
-            button.setIcon(get_theme_icon(str(icon_path), bool(is_light)))
+            button.setIcon(get_theme_icon(str(icon_path), bool(is_light),
+                light_color=button.property("iconLightColor"), dark_color=button.property("iconDarkColor")))
