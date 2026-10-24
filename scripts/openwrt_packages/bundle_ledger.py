@@ -76,7 +76,8 @@ class ProfileLedger:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(raw)
             inventory = dict(schema_version=1, purpose=data["purpose"], releases=data["releases"],
-                             targets=data["targets"], roots=data["roots"], profiles=data["profiles"], errors=[])
+                             targets=data["targets"], roots=data["roots"],
+                             profiles=data["profiles"] + data.get("unavailable_profiles", []) + data.get("unavailable_dependencies", []), errors=[])
             self.seed_inventory(inventory)
             (self.root/"inventory.json").write_bytes(json_bytes(inventory))
             return inventory

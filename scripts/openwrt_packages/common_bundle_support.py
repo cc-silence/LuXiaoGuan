@@ -107,6 +107,14 @@ def dependency_name(expr):
     return re.split(r"[ (<>=~]", expr.strip(), maxsplit=1)[0]
 
 
+class MissingPackagesError(ValueError):
+    """Official indexes do not contain a complete dependency graph."""
+
+    def __init__(self, packages):
+        self.packages = tuple(sorted(packages))
+        super().__init__("Missing required packages: " + ", ".join(self.packages))
+
+
 def closure(rows, roots):
     """\u6536\u96c6\u5b8c\u6574\u6b63\u5411\u4f9d\u8d56\uff0c\u5e76\u8bb0\u5f55\u5fc5\u987b\u7531\u56fa\u4ef6\u63d0\u4f9b\u7684\u57fa\u7840\u7ec4\u4ef6\u3002"""
     names, providers = {}, {}
@@ -149,7 +157,7 @@ def closure(rows, roots):
     for name in roots:
         visit(name)
     if missing:
-        raise ValueError("Missing required packages: " + ", ".join(sorted(missing)))
+        raise MissingPackagesError(missing)
     for row in selected.values():
         if not re.fullmatch("[0-9a-f]{64}", row["sha256"]) or row["size"] <= 0:
             raise ValueError("Missing official size or checksum: " + row["name"])

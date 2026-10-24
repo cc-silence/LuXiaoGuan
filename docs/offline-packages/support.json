@@ -28,10 +28,10 @@
   "packages": [
     {
       "kind": "capture",
-      "archive": "RouterManager_OpenWrt_Capture_Offline_20261021_102857.zip",
-      "sha256": "be91c0196066d31eaa0e3e119e9331111a85d230ee333a98628f9e9648b7808e",
-      "size": 172997408,
-      "profiles": 513,
+      "archive": "RouterManager_OpenWrt_Capture_Offline_20261023_155210.zip",
+      "sha256": "b7d064a69bff3acae58d6253e8b8fd3de2493c18d61938ba917e8bff8bc2bfe9",
+      "size": 194422394,
+      "profiles": 634,
       "roots": [
         "aircrack-ng",
         "hcxdumptool",
@@ -40,6 +40,17 @@
         "reaver"
       ],
       "releases": [
+        "19.07.0",
+        "19.07.1",
+        "19.07.2",
+        "19.07.3",
+        "19.07.4",
+        "19.07.5",
+        "19.07.6",
+        "19.07.7",
+        "19.07.8",
+        "19.07.9",
+        "19.07.10",
         "21.02.0",
         "21.02.1",
         "21.02.2",
@@ -80,14 +91,15 @@
         "25.12.5",
         "25.12.6"
       ],
-      "unique_package_files": 708,
-      "unique_objects": 835,
+      "unique_package_files": 834,
+      "unique_objects": 961,
       "ancillary_package_names": [
         "libatomic1",
         "libgcc1",
         "libmnl0",
         "libnl-core200",
         "libnl-genl200",
+        "libnl-tiny",
         "libnl-tiny1",
         "libopenssl1.1",
         "libopenssl3",
@@ -119,6 +131,9 @@
         "arm_cortex-a9": [
           "bcm53xx/generic"
         ],
+        "arm_cortex-a9_vfpv3": [
+          "mvebu/cortexa9"
+        ],
         "arm_cortex-a9_vfpv3-d16": [
           "mvebu/cortexa9"
         ],
@@ -135,6 +150,171 @@
       },
       "unavailable_profiles": [
         {
+          "release": "19.07.0",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.0",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.0",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.1",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.1",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.1",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.10",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.10",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.10",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.2",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.2",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.2",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.3",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.3",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.3",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.4",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.4",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.4",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.5",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.5",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.5",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.6",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.6",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.6",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.7",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.7",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.7",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.8",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.8",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.8",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.9",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.9",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.9",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
           "release": "21.02.0",
           "target": "mediatek/filogic",
           "status": "not-provided-by-upstream"
@@ -220,8 +400,711 @@
           "status": "not-provided-by-upstream"
         }
       ],
+      "unavailable_dependencies": [],
       "exact_profiles": [
         {
+          "release": "19.07.0",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.0",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.0",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.0",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.0",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.0",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.0",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.0",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.0",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.0",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.1",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.1",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.1",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.1",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.1",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.1",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.1",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.1",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.1",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.1",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.2",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.2",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.2",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.2",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.2",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.2",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.2",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.2",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.2",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.2",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.3",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.3",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.3",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.3",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.3",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.3",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.3",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.3",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.3",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.3",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.4",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.4",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.4",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.4",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.4",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.4",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.4",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.4",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.4",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.4",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.4",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.5",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.5",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.5",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.5",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.5",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.5",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.5",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.5",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.5",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.5",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.5",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.6",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.6",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.6",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.6",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.6",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.6",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.6",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.6",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.6",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.6",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.6",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.7",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.7",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.7",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.7",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.7",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.7",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.7",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.7",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.7",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.7",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.7",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "package_manager": "opkg"
+        },
+        {
           "release": "21.02.0",
           "target": "ath79/generic",
           "architecture": "mips_24kc",
@@ -3298,11 +4181,36 @@
           "target": "x86/64",
           "architecture": "x86_64",
           "package_manager": "apk"
+        },
+        {
+          "release": "19.07.0",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.1",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.2",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.3",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "package_manager": "opkg"
         }
       ],
       "status": "published-and-client-verified",
       "tool_versions": {
         "aircrack-ng": [
+          "1.5.2",
           "1.6-1",
           "1.6-3",
           "1.7-1",
@@ -3314,6 +4222,7 @@
           "6.3.4-r1"
         ],
         "ip-tiny": [
+          "5.0.0-2.1",
           "5.11.0-3",
           "5.15.0-4",
           "6.11.0-r1",
@@ -3321,6 +4230,7 @@
           "6.3.0-1"
         ],
         "iw": [
+          "5.0.1-1",
           "5.16-1",
           "5.19-1",
           "5.9-8fab0c9e-3",
@@ -3328,12 +4238,715 @@
           "6.9-r1"
         ],
         "reaver": [
+          "1.6.5-1",
           "1.6.6-1",
           "1.6.6-r1"
         ]
       },
       "pmkid_runtime_unadapted_profiles": [
         {
+          "release": "19.07.0",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.0",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.0",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.0",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.0",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.0",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.0",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.0",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.0",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.0",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.1",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.1",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.1",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.1",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.1",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.1",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.1",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.1",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.1",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.1",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.10",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.10",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.10",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.10",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.10",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.10",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.10",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.10",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.10",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.10",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.10",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.2",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.2",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.2",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.2",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.2",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.2",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.2",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.2",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.2",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.2",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.3",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.3",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.3",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.3",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.3",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.3",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.3",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.3",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.3",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.3",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.4",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.4",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.4",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.4",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.4",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.4",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.4",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.4",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.4",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.4",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.4",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.5",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.5",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.5",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.5",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.5",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.5",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.5",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.5",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.5",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.5",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.5",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.6",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.6",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.6",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.6",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.6",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.6",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.6",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.6",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.6",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.6",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.6",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.7",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.7",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.7",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.7",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.7",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.7",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.7",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.7",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.7",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.7",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.7",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.8",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.8",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.8",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.8",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.8",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.8",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.8",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.8",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.8",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.8",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.8",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.9",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.9",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.9",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.9",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.9",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.9",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.9",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.9",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.9",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.9",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.9",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
           "release": "21.02.0",
           "target": "ath79/generic",
           "architecture": "mips_24kc",
@@ -3901,6 +5514,30 @@
           "release": "21.02.7",
           "target": "x86/64",
           "architecture": "x86_64",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.0",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.1",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.2",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "hcxdumptool_version": "6.0.1-1"
+        },
+        {
+          "release": "19.07.3",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
           "hcxdumptool_version": "6.0.1-1"
         }
       ],
@@ -8357,16 +9994,16 @@
           "not_in_official_firmware": []
         }
       ],
-      "coverage_report": "build/openwrt-capture-21/coverage.json",
+      "coverage_report": "build/openwrt-19-capture/coverage.json",
       "manifest_url": "https://routermanager-updates.routermanager-update-gateway.workers.dev/offline/openwrt-capture/manifest",
-      "archive_url": "https://routermanager-updates.routermanager-update-gateway.workers.dev/offline/openwrt-capture/files/be91c0196066d31eaa0e3e119e9331111a85d230ee333a98628f9e9648b7808e/RouterManager_OpenWrt_Capture_Offline_20261021_102857.zip"
+      "archive_url": "https://routermanager-updates.routermanager-update-gateway.workers.dev/offline/openwrt-capture/files/b7d064a69bff3acae58d6253e8b8fd3de2493c18d61938ba917e8bff8bc2bfe9/RouterManager_OpenWrt_Capture_Offline_20261023_155210.zip"
     },
     {
       "kind": "common",
-      "archive": "RouterManager_OpenWrt_Common_Offline_20261021_102859.zip",
-      "sha256": "64b03158076715e9026b47732adb3de42df76496a84dd0f65ef24f8518390abf",
-      "size": 135689504,
-      "profiles": 513,
+      "archive": "RouterManager_OpenWrt_Common_Offline_20261023_155216.zip",
+      "sha256": "e8fcdd781ddb5968e6f5d98fd79bd0ec48cf76e9b12530ad5fd4aa592352f53e",
+      "size": 164146362,
+      "profiles": 549,
       "roots": [
         "iw",
         "iwinfo",
@@ -8384,6 +10021,12 @@
         "wpa-cli"
       ],
       "releases": [
+        "19.07.0",
+        "19.07.1",
+        "19.07.2",
+        "19.07.8",
+        "19.07.9",
+        "19.07.10",
         "21.02.0",
         "21.02.1",
         "21.02.2",
@@ -8424,10 +10067,11 @@
         "25.12.5",
         "25.12.6"
       ],
-      "unique_package_files": 1633,
-      "unique_objects": 2284,
+      "unique_package_files": 1965,
+      "unique_objects": 2679,
       "ancillary_package_names": [
         "cgi-io",
+        "libblobmsg-json",
         "libblobmsg-json20210516",
         "libblobmsg-json20220515",
         "libblobmsg-json20230523",
@@ -8436,21 +10080,27 @@
         "libevent2-7",
         "libevent2-core7",
         "libiwinfo-data",
+        "libiwinfo20181126",
         "libiwinfo20210430",
         "libiwinfo20230701",
+        "libjson-c2",
         "libjson-c5",
         "liblua5.1.5",
         "liblucihttp-lua",
         "liblucihttp-ucode",
         "liblucihttp0",
         "libncurses6",
+        "libnl-tiny",
         "libnl-tiny1",
         "libopenssl1.1",
+        "libubox20191228",
         "libubox20210516",
         "libubox20220515",
         "libubox20230523",
         "libubox20240329",
         "libubox20260213",
+        "libubus20191227",
+        "libubus20210603",
         "libubus20210630",
         "libubus20220601",
         "libubus20230605",
@@ -8498,6 +10148,9 @@
         "arm_cortex-a9": [
           "bcm53xx/generic"
         ],
+        "arm_cortex-a9_vfpv3": [
+          "mvebu/cortexa9"
+        ],
         "arm_cortex-a9_vfpv3-d16": [
           "mvebu/cortexa9"
         ],
@@ -8513,6 +10166,171 @@
         ]
       },
       "unavailable_profiles": [
+        {
+          "release": "19.07.0",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.0",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.0",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.1",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.1",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.1",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.10",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.10",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.10",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.2",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.2",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.2",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.3",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.3",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.3",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.4",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.4",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.4",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.5",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.5",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.5",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.6",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.6",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.6",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.7",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.7",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.7",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.8",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.8",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.8",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.9",
+          "target": "bcm27xx/bcm2711",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.9",
+          "target": "mediatek/filogic",
+          "status": "not-provided-by-upstream"
+        },
+        {
+          "release": "19.07.9",
+          "target": "qualcommax/ipq807x",
+          "status": "not-provided-by-upstream"
+        },
         {
           "release": "21.02.0",
           "target": "mediatek/filogic",
@@ -8599,7 +10417,1781 @@
           "status": "not-provided-by-upstream"
         }
       ],
+      "unavailable_dependencies": [
+        {
+          "release": "19.07.0",
+          "target": "ath79/generic",
+          "target_family": "ath79/generic",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/ath79/generic/config.buildinfo",
+              "sha256": "ab2ebee99c4b16611d1a4084a4f345dac65402ccda7e264d3dfbcc5f71a26a0f"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/ath79/generic/packages/Packages.manifest",
+              "sha256": "44dd088f935e9c3417046a3b6baa22dce6a37af20ad8d9fde0cc4b3dda3abf9e"
+            }
+          ]
+        },
+        {
+          "release": "19.07.0",
+          "target": "ath79/nand",
+          "target_family": "ath79/nand",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/ath79/nand/config.buildinfo",
+              "sha256": "01e8f96cc5a70a135315fb48c8301a07f9005b9502eddb9f0e79cd6be26f5801"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/ath79/nand/packages/Packages.manifest",
+              "sha256": "95b030572c508ae56c73b1b9349750780280f3f60d21fe490bc2ce50802630f1"
+            }
+          ]
+        },
+        {
+          "release": "19.07.0",
+          "target": "ipq40xx/generic",
+          "target_family": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/ipq40xx/generic/config.buildinfo",
+              "sha256": "2d205a9100b34a887fc1db79268fb85555f09f683b54097508b8a30490a1c0e7"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/ipq40xx/generic/packages/Packages.manifest",
+              "sha256": "107f97802bfbed2198b3cee359bae03c133b0b4d98368528b8ac5e6e328bad7a"
+            }
+          ]
+        },
+        {
+          "release": "19.07.0",
+          "target": "ipq806x/generic",
+          "target_family": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/ipq806x/generic/config.buildinfo",
+              "sha256": "41e6f893ffa3ac7fc358dc5894464d80026fd7354c59bd8b856de7c8e3cf6328"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/ipq806x/generic/packages/Packages.manifest",
+              "sha256": "8839f3ff43ef91f6c72d9b6faef224fe5a29d2124755cf646ee8e2bea46675a4"
+            }
+          ]
+        },
+        {
+          "release": "19.07.0",
+          "target": "mediatek/mt7622",
+          "target_family": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/mediatek/mt7622/config.buildinfo",
+              "sha256": "b2d485f41ebd0921726874c6be4ae4bf88d221cb990f328dcca96817811d8467"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/mediatek/mt7622/packages/Packages.manifest",
+              "sha256": "34f1401888a3211f95e6645256c5d7a4133b4439fe5501df1a913c6befe6f6b6"
+            }
+          ]
+        },
+        {
+          "release": "19.07.0",
+          "target": "mvebu/cortexa53",
+          "target_family": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/mvebu/cortexa53/config.buildinfo",
+              "sha256": "e55f3707e9d5ce3c55b3849559bc7167359e34641dfa06a5cd6f504897156408"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/mvebu/cortexa53/packages/Packages.manifest",
+              "sha256": "3b1fed85f0c37676916e9a43088f2eeebfdf1c1968dbf4817510e983f64f8a2c"
+            }
+          ]
+        },
+        {
+          "release": "19.07.0",
+          "target": "ramips/mt7621",
+          "target_family": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/ramips/mt7621/config.buildinfo",
+              "sha256": "f49aedbef628bd72e7a1ea2feb427d566040fa3209fe0e1ca00b7502271bafd3"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/ramips/mt7621/packages/Packages.manifest",
+              "sha256": "492ae6a8de144262e2949f76a72b277f43e2107f7fbfa07ca697430e5aabfe35"
+            }
+          ]
+        },
+        {
+          "release": "19.07.0",
+          "target": "sunxi/cortexa53",
+          "target_family": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/sunxi/cortexa53/config.buildinfo",
+              "sha256": "755139fcb5c36d30df46a73e6b4cf6eead3b34f3746228b0055150599224870b"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/sunxi/cortexa53/packages/Packages.manifest",
+              "sha256": "c1ee547126edfefcb0acd4ca34133d7aaebd18c555f2751af0d47871fd430f53"
+            }
+          ]
+        },
+        {
+          "release": "19.07.0",
+          "target": "x86/64",
+          "target_family": "x86/64",
+          "architecture": "x86_64",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/x86/64/config.buildinfo",
+              "sha256": "3199bb34548f54a53b7707cf60e93d217919d9895853c9058c7d24252422683d"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/x86/64/packages/Packages.manifest",
+              "sha256": "04ae4f2cd1c8ebfbaecb456b6cd2d164daaf78c7eb9e4d00750e865cf04046ff"
+            }
+          ]
+        },
+        {
+          "release": "19.07.1",
+          "target": "ath79/generic",
+          "target_family": "ath79/generic",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/ath79/generic/config.buildinfo",
+              "sha256": "60b5023857ccd975105fe8d98d6d06807bf8fa43a1509fe0064bfc63a94ad572"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/ath79/generic/packages/Packages.manifest",
+              "sha256": "4920d512157f517f8317bcdb3eb76c0a4fedf3daf539c7f81111325dcd8fd219"
+            }
+          ]
+        },
+        {
+          "release": "19.07.1",
+          "target": "ath79/nand",
+          "target_family": "ath79/nand",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/ath79/nand/config.buildinfo",
+              "sha256": "a77d1d5e72b6faf5ce4b13784ca3de7deb44d6baf39c95fe0caeaa2cde264f08"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/ath79/nand/packages/Packages.manifest",
+              "sha256": "0348391eb454cc63dcc72d34b7e7b6ddf8ac1656a8862ffcfa192fe36935a8d8"
+            }
+          ]
+        },
+        {
+          "release": "19.07.1",
+          "target": "ipq40xx/generic",
+          "target_family": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/ipq40xx/generic/config.buildinfo",
+              "sha256": "a4ef66ba7bab055e1c104692411155cf2bfef3af967be154a471e56213fe0f38"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/ipq40xx/generic/packages/Packages.manifest",
+              "sha256": "874b99ac282470e0817ec27d0b29d12d718fd3483e522a4431901ed5e7313942"
+            }
+          ]
+        },
+        {
+          "release": "19.07.1",
+          "target": "ipq806x/generic",
+          "target_family": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/ipq806x/generic/config.buildinfo",
+              "sha256": "9a3699af675194b66bc27999ee821c8373a65e0baaa41dda8dcf47a84efcec1c"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/ipq806x/generic/packages/Packages.manifest",
+              "sha256": "45276d9b34f560af5b892dd912b18cc025ef2602b92ae725c162a9cfc449627a"
+            }
+          ]
+        },
+        {
+          "release": "19.07.1",
+          "target": "mediatek/mt7622",
+          "target_family": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/mediatek/mt7622/config.buildinfo",
+              "sha256": "593c1a11a524a4e54c28afd7c4dc7169e828915106c3d2096455942849260e49"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/mediatek/mt7622/packages/Packages.manifest",
+              "sha256": "357cfb1488dc98022d789a7bacf754994b87a57e408df5bab638dd57630b4924"
+            }
+          ]
+        },
+        {
+          "release": "19.07.1",
+          "target": "mvebu/cortexa53",
+          "target_family": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/mvebu/cortexa53/config.buildinfo",
+              "sha256": "0b20b73c6836a2df925cb948c0542b25f547f8bd7c254fca0c2a3fec47f2f65f"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/mvebu/cortexa53/packages/Packages.manifest",
+              "sha256": "475f52f57b3418ee314c07aca19b69404e75d69baf83955850f9ccf7caf45bab"
+            }
+          ]
+        },
+        {
+          "release": "19.07.1",
+          "target": "ramips/mt7621",
+          "target_family": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/ramips/mt7621/config.buildinfo",
+              "sha256": "d231a36b269d300f8bc710b0ffa601c5774ec63cfff984e303f0028135e94d1f"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/ramips/mt7621/packages/Packages.manifest",
+              "sha256": "d9c4d23feb7ab2fd0071ad18addb8c602f2cfe6bcd4b9a9fb791b7250d20a91f"
+            }
+          ]
+        },
+        {
+          "release": "19.07.1",
+          "target": "sunxi/cortexa53",
+          "target_family": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/sunxi/cortexa53/config.buildinfo",
+              "sha256": "eb4fb63301ecfdc14d9f4b27bf5e6a6aef60389d7ed52be5a5864bb1b99e5810"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/sunxi/cortexa53/packages/Packages.manifest",
+              "sha256": "92cbbaa6eff91291988e27d0862de2580d1687d90d6a14f557f3857782d7ce96"
+            }
+          ]
+        },
+        {
+          "release": "19.07.1",
+          "target": "x86/64",
+          "target_family": "x86/64",
+          "architecture": "x86_64",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/x86/64/config.buildinfo",
+              "sha256": "19a4cf97b5f0d7ef24f85996877d470a275f160c053633829c9dbe01fd489d9f"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/x86/64/packages/Packages.manifest",
+              "sha256": "ba80f6f3379eba2c972182ce9d29561bbb3c8e2a6e834020a0221966b546c359"
+            }
+          ]
+        },
+        {
+          "release": "19.07.2",
+          "target": "ath79/generic",
+          "target_family": "ath79/generic",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/ath79/generic/config.buildinfo",
+              "sha256": "7f811cba89a128016e59d006bc3930df92190e4fda984b5061f486f18ab0708f"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/ath79/generic/packages/Packages.manifest",
+              "sha256": "ed41e9504aed9fbf7912bb5e9991e37d5ee209338a338a541d66e8ab41bb839a"
+            }
+          ]
+        },
+        {
+          "release": "19.07.2",
+          "target": "ath79/nand",
+          "target_family": "ath79/nand",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/ath79/nand/config.buildinfo",
+              "sha256": "6f1fcf468e5774590255202976b82d54e90e39b14f37d8095d083fb5e2541937"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/ath79/nand/packages/Packages.manifest",
+              "sha256": "117fde6f29542966623681dd6b8733d6857c2274fd23ff2bbf8f0ae1eb9b5181"
+            }
+          ]
+        },
+        {
+          "release": "19.07.2",
+          "target": "ipq40xx/generic",
+          "target_family": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/ipq40xx/generic/config.buildinfo",
+              "sha256": "f2c9a90172e54353966bf4735c9174978d448748e6c53f7205e4c9c311175288"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/ipq40xx/generic/packages/Packages.manifest",
+              "sha256": "37acfa470e4211d9a087ef0dc44ee137685d5d4ed6be0bc2c5b98a30677109fd"
+            }
+          ]
+        },
+        {
+          "release": "19.07.2",
+          "target": "ipq806x/generic",
+          "target_family": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/ipq806x/generic/config.buildinfo",
+              "sha256": "079d65278f7f564c57489d3d1e02dbe5f4a100b8472d93e4d60983fa784a226f"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/ipq806x/generic/packages/Packages.manifest",
+              "sha256": "0ad821ecddcd0c6c11f4673fd2ad5dfbee276bca7f71104ae7e299a0ad8dce41"
+            }
+          ]
+        },
+        {
+          "release": "19.07.2",
+          "target": "mediatek/mt7622",
+          "target_family": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/mediatek/mt7622/config.buildinfo",
+              "sha256": "a8cd618055cc8bb6a8ed3727ccc9460ca047a2911559e21c955487efb311c0be"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/mediatek/mt7622/packages/Packages.manifest",
+              "sha256": "272c07014499353c70d9123c6fba906fb9e71ca1903971de44038278a3ad4c3b"
+            }
+          ]
+        },
+        {
+          "release": "19.07.2",
+          "target": "mvebu/cortexa53",
+          "target_family": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/mvebu/cortexa53/config.buildinfo",
+              "sha256": "c28a2dabeaa44721585be49ee883b0f344c3491467ad9f547beb8e3e59c1bffa"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/mvebu/cortexa53/packages/Packages.manifest",
+              "sha256": "e48930d051d3be7dd4d69426df563f0bd338406f3b8ad18670c53873cc41ecac"
+            }
+          ]
+        },
+        {
+          "release": "19.07.2",
+          "target": "ramips/mt7621",
+          "target_family": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/ramips/mt7621/config.buildinfo",
+              "sha256": "fc95e1ed93013454467ab7433d0d7accf3fc692e268c6a8caa323df96b48eb53"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/ramips/mt7621/packages/Packages.manifest",
+              "sha256": "e10b76b50d057cff25993c7e8ed89d8e2df87f869ae3f111d13ef7dc59d255ac"
+            }
+          ]
+        },
+        {
+          "release": "19.07.2",
+          "target": "sunxi/cortexa53",
+          "target_family": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/sunxi/cortexa53/config.buildinfo",
+              "sha256": "c1519d2206177089404da3532ae3444a519090e1fd97a7302fdb574e8798b765"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/sunxi/cortexa53/packages/Packages.manifest",
+              "sha256": "5f793f77e41a241afa07620869f7c8031ebda377d658dd588d616d2272226154"
+            }
+          ]
+        },
+        {
+          "release": "19.07.2",
+          "target": "x86/64",
+          "target_family": "x86/64",
+          "architecture": "x86_64",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/x86/64/config.buildinfo",
+              "sha256": "1f4cf75400fb4f65f9e9ab48abed095b6a0d58d298c0e0d541bf7f96dd7513d9"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/x86/64/packages/Packages.manifest",
+              "sha256": "ef5360984dbd224486a80ccfa51e3b87e35ee203f63439fb6763e0a7aacc2bdd"
+            }
+          ]
+        },
+        {
+          "release": "19.07.3",
+          "target": "ath79/generic",
+          "target_family": "ath79/generic",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/ath79/generic/config.buildinfo",
+              "sha256": "8a86981f206153dd4a43cbbc5c81ea2145aa25e782169f84032db0d8cd95ecfe"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/ath79/generic/packages/Packages.manifest",
+              "sha256": "d771a8aa5201b3267cb99b6034521883e73554db1998666ed68b1dd2d603f843"
+            }
+          ]
+        },
+        {
+          "release": "19.07.3",
+          "target": "ath79/nand",
+          "target_family": "ath79/nand",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/ath79/nand/config.buildinfo",
+              "sha256": "936aadf1e40e69cb4edeebc7c1e7c106887b262619a96b08de7e15b8cc4bf369"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/ath79/nand/packages/Packages.manifest",
+              "sha256": "b22d9ce8d82b24b0b2d1db6ad55c67b82bdb40ce8c198f9735ce8ff45e792238"
+            }
+          ]
+        },
+        {
+          "release": "19.07.3",
+          "target": "ipq40xx/generic",
+          "target_family": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/ipq40xx/generic/config.buildinfo",
+              "sha256": "917ebc86c6d80184beba2423249ed12510d579839b08e674934ffcab8bdf68e4"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/ipq40xx/generic/packages/Packages.manifest",
+              "sha256": "1780b02d7ccc6e6bdd9f349c97ce7857f56283a383d48461de1f6311887be1e4"
+            }
+          ]
+        },
+        {
+          "release": "19.07.3",
+          "target": "ipq806x/generic",
+          "target_family": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/ipq806x/generic/config.buildinfo",
+              "sha256": "2d636c126ec7c20ab3523ea45d816e5cbf2982a995316e060a4c148e88b629d2"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/ipq806x/generic/packages/Packages.manifest",
+              "sha256": "adb0f53cfededa8f244bf4ef0c462bda43686378cc6da44ec08b44434aac2c54"
+            }
+          ]
+        },
+        {
+          "release": "19.07.3",
+          "target": "mediatek/mt7622",
+          "target_family": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/mediatek/mt7622/config.buildinfo",
+              "sha256": "92d32b67d436d40ab7061cb3fa658ab3ce47915c1f6ff1d13d9cec5443a1d53f"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/mediatek/mt7622/packages/Packages.manifest",
+              "sha256": "3ce23779da9ec41c49693c043e2259fba0efefae9318b8cb275489f62d242f47"
+            }
+          ]
+        },
+        {
+          "release": "19.07.3",
+          "target": "mvebu/cortexa53",
+          "target_family": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/mvebu/cortexa53/config.buildinfo",
+              "sha256": "e211aba1d66c39a1d8a0b1bf99fc4fbc3d6d24320b6fd34ccd4c3ca9e04205bb"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/mvebu/cortexa53/packages/Packages.manifest",
+              "sha256": "2ddd25ad02b2ffaca4a50bb8ad4b268047454e8ac337ca175abe9c1f09b95501"
+            }
+          ]
+        },
+        {
+          "release": "19.07.3",
+          "target": "mvebu/cortexa9",
+          "target_family": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/mvebu/cortexa9/config.buildinfo",
+              "sha256": "75e31442d836dc3ad5ed19051f89a92b64fef36a5464f60843feb499e2ac57dc"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/mvebu/cortexa9/packages/Packages.manifest",
+              "sha256": "a7a738f634db86498b21dd922185d8f715ce977d762629ae53fdbc7925cb80f7"
+            }
+          ]
+        },
+        {
+          "release": "19.07.3",
+          "target": "ramips/mt7621",
+          "target_family": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/ramips/mt7621/config.buildinfo",
+              "sha256": "02d808cb6f4fbda3869c469ad787ea8524095ab63928b6d506feebf5fe1efe34"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/ramips/mt7621/packages/Packages.manifest",
+              "sha256": "9b3d3f5a499fe4f6c150072627da64fc66b8d6478e7a493b196e123b979f8b8a"
+            }
+          ]
+        },
+        {
+          "release": "19.07.3",
+          "target": "sunxi/cortexa53",
+          "target_family": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/sunxi/cortexa53/config.buildinfo",
+              "sha256": "f67151cc54ce8f9eb7175c977f52c0c080108ab901fc022fcfe0e400cbed5b5f"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/sunxi/cortexa53/packages/Packages.manifest",
+              "sha256": "58b3c55d7a9b0d3f532e7509181e60ee4fe9eb9164be6d5c3546aed683670cb3"
+            }
+          ]
+        },
+        {
+          "release": "19.07.3",
+          "target": "x86/64",
+          "target_family": "x86/64",
+          "architecture": "x86_64",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/x86/64/config.buildinfo",
+              "sha256": "8896d26ea5723f2813177554d3ffc3805fd2ad79c3210e6d93ebf2b2fd1aa8b7"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/x86/64/packages/Packages.manifest",
+              "sha256": "2c812c6e6b077d90de23d972ab2d6d56f7ff6d67a547625fed7b9fd45a6e9b0f"
+            }
+          ]
+        },
+        {
+          "release": "19.07.4",
+          "target": "ath79/generic",
+          "target_family": "ath79/generic",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.4/targets/ath79/generic/profiles.json",
+              "sha256": "b6b196fb178c5555e9228202d410dd969e1e91dd7df1d7114464ffbae2c53d22"
+            }
+          ]
+        },
+        {
+          "release": "19.07.4",
+          "target": "ath79/nand",
+          "target_family": "ath79/nand",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.4/targets/ath79/nand/config.buildinfo",
+              "sha256": "ae549348dd985cee50c4fe42080419722b9b0bdc27a398d48fdaf5e6b40c3282"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.4/targets/ath79/nand/packages/Packages.manifest",
+              "sha256": "b1b1c81a67537f921497ee965c3a70faea886b057ae2e05d166893cb37d53bb4"
+            }
+          ]
+        },
+        {
+          "release": "19.07.4",
+          "target": "bcm53xx/generic",
+          "target_family": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.4/targets/bcm53xx/generic/profiles.json",
+              "sha256": "c0b40d06bb812990ce5c56a4d60e6fbeb07782533b5776cd45488f1392460527"
+            }
+          ]
+        },
+        {
+          "release": "19.07.4",
+          "target": "ipq40xx/generic",
+          "target_family": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.4/targets/ipq40xx/generic/profiles.json",
+              "sha256": "c9994bb0308b05a21c2731337faeca26653069766b770d315c7c9895a4e1ad4d"
+            }
+          ]
+        },
+        {
+          "release": "19.07.4",
+          "target": "ipq806x/generic",
+          "target_family": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.4/targets/ipq806x/generic/profiles.json",
+              "sha256": "f6ba47e2c15ccbefd98c4a70a02e0492a4814d09d603fbb4139098c85f738d66"
+            }
+          ]
+        },
+        {
+          "release": "19.07.4",
+          "target": "mediatek/mt7622",
+          "target_family": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.4/targets/mediatek/mt7622/profiles.json",
+              "sha256": "11ab341aa4feedfd6b62db59d1e1462653396b097135c641b93545b9d7a5a40c"
+            }
+          ]
+        },
+        {
+          "release": "19.07.4",
+          "target": "mvebu/cortexa53",
+          "target_family": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.4/targets/mvebu/cortexa53/profiles.json",
+              "sha256": "b40bc954340767759902d733cdf8ac5cae85baf8fe1a1b78cbe06bdd50550823"
+            }
+          ]
+        },
+        {
+          "release": "19.07.4",
+          "target": "mvebu/cortexa9",
+          "target_family": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.4/targets/mvebu/cortexa9/profiles.json",
+              "sha256": "4adb9e32852e1fc33fc9997d8bbb06efe883f63a184518818c9b0f9fa7fe8db9"
+            }
+          ]
+        },
+        {
+          "release": "19.07.4",
+          "target": "ramips/mt7621",
+          "target_family": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.4/targets/ramips/mt7621/profiles.json",
+              "sha256": "3c9502a2d40714fd8a3fe17a8286beca1bbf201d8762ea8001dd3e484362b445"
+            }
+          ]
+        },
+        {
+          "release": "19.07.4",
+          "target": "sunxi/cortexa53",
+          "target_family": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.4/targets/sunxi/cortexa53/profiles.json",
+              "sha256": "73c3365b847424d4e1dddf64b3ec8abfec096c88d877c944ecf43d1b024ecd9d"
+            }
+          ]
+        },
+        {
+          "release": "19.07.4",
+          "target": "x86/64",
+          "target_family": "x86/64",
+          "architecture": "x86_64",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.4/targets/x86/64/config.buildinfo",
+              "sha256": "e6374e86a38f02732210c4cfb33078e18d82e910d900d786dc30b63dbe5612db"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.4/targets/x86/64/packages/Packages.manifest",
+              "sha256": "51fb0f13d5f2497cbdf749df4494d7301e437fa4746fd3bdec23e90d6af3f095"
+            }
+          ]
+        },
+        {
+          "release": "19.07.5",
+          "target": "ath79/generic",
+          "target_family": "ath79/generic",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.5/targets/ath79/generic/profiles.json",
+              "sha256": "3ae59e3ffeb21b697cb89bacf8a1a0d62b16298ea6062db9d2093a403f3507b9"
+            }
+          ]
+        },
+        {
+          "release": "19.07.5",
+          "target": "ath79/nand",
+          "target_family": "ath79/nand",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.5/targets/ath79/nand/config.buildinfo",
+              "sha256": "18637031f9d23c645d7e4658eefe3a8dc37283ac31376213664010b9bba144c7"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.5/targets/ath79/nand/packages/Packages.manifest",
+              "sha256": "bf1eb5b4c0e4dfba8f19c02e454cbd851c0989597c159e6bff004b235c5d7384"
+            }
+          ]
+        },
+        {
+          "release": "19.07.5",
+          "target": "bcm53xx/generic",
+          "target_family": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.5/targets/bcm53xx/generic/profiles.json",
+              "sha256": "bd08ccc63495e4279c73edb7abfd6f7aa6e4eca3a3735d13e31db135d0a82b80"
+            }
+          ]
+        },
+        {
+          "release": "19.07.5",
+          "target": "ipq40xx/generic",
+          "target_family": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.5/targets/ipq40xx/generic/profiles.json",
+              "sha256": "b6e466d27f8ba2144375e25404ce8d92b52fa92d408a655621f6ccb865f1bcd9"
+            }
+          ]
+        },
+        {
+          "release": "19.07.5",
+          "target": "ipq806x/generic",
+          "target_family": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.5/targets/ipq806x/generic/profiles.json",
+              "sha256": "5b3a978e4674cfa4730ee2d4c88ac7494d38269e7f9af4ccf1baf94b31a15be7"
+            }
+          ]
+        },
+        {
+          "release": "19.07.5",
+          "target": "mediatek/mt7622",
+          "target_family": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.5/targets/mediatek/mt7622/profiles.json",
+              "sha256": "4b6e1df2516d48ef35844c82896239654823676120b1d23347f51c3ad0d9615c"
+            }
+          ]
+        },
+        {
+          "release": "19.07.5",
+          "target": "mvebu/cortexa53",
+          "target_family": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.5/targets/mvebu/cortexa53/profiles.json",
+              "sha256": "e9b42153f6298eb5116624939cc85daffacde9715bd7229ac3e1ae9401e224ff"
+            }
+          ]
+        },
+        {
+          "release": "19.07.5",
+          "target": "mvebu/cortexa9",
+          "target_family": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.5/targets/mvebu/cortexa9/profiles.json",
+              "sha256": "b829a8b5ef309aa863267b6b3c16407ff0e35f328a65ce1d6da33e9d70befd2d"
+            }
+          ]
+        },
+        {
+          "release": "19.07.5",
+          "target": "ramips/mt7621",
+          "target_family": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.5/targets/ramips/mt7621/profiles.json",
+              "sha256": "897ced2fbe9e85b6e4da20fa8b4fa96cff8f31fbab7aeadafb14f6f6cbbc4bff"
+            }
+          ]
+        },
+        {
+          "release": "19.07.5",
+          "target": "sunxi/cortexa53",
+          "target_family": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.5/targets/sunxi/cortexa53/profiles.json",
+              "sha256": "951a4fd5dcb75fa5654781faa426e3d2a9e9f3818477ffb6e054f78133a0bbf1"
+            }
+          ]
+        },
+        {
+          "release": "19.07.5",
+          "target": "x86/64",
+          "target_family": "x86/64",
+          "architecture": "x86_64",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.5/targets/x86/64/config.buildinfo",
+              "sha256": "8948edf949bce67f2542e88a4a1680b68c5f84b7c22a1dd8a8e95bbdf1307774"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.5/targets/x86/64/packages/Packages.manifest",
+              "sha256": "d6b4efa0d67fd970cc5121029ba7465a9da5baa577fdf529b4b235e9901e8f42"
+            }
+          ]
+        },
+        {
+          "release": "19.07.6",
+          "target": "ath79/generic",
+          "target_family": "ath79/generic",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.6/targets/ath79/generic/profiles.json",
+              "sha256": "b4332d73a7bcb94763756a2673c81e79182832a3dfe40dee726f0583caa84e85"
+            }
+          ]
+        },
+        {
+          "release": "19.07.6",
+          "target": "ath79/nand",
+          "target_family": "ath79/nand",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.6/targets/ath79/nand/config.buildinfo",
+              "sha256": "60165e9a1e0d15953f1f2cd2397281e872e5198b901ea486ea521e8bab69ec86"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.6/targets/ath79/nand/packages/Packages.manifest",
+              "sha256": "f11527606ec3e86d0115f3ff06035ec4169469108ae65a7e4f19b5b705056153"
+            }
+          ]
+        },
+        {
+          "release": "19.07.6",
+          "target": "bcm53xx/generic",
+          "target_family": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.6/targets/bcm53xx/generic/profiles.json",
+              "sha256": "dbf9dccf51c831dabe2ad69d397e5563c257d1d36090fa0d952ab728f69f8fb8"
+            }
+          ]
+        },
+        {
+          "release": "19.07.6",
+          "target": "ipq40xx/generic",
+          "target_family": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.6/targets/ipq40xx/generic/profiles.json",
+              "sha256": "1aad3cecbbe9412cfddb3d37bf63c0e05d7babfd6be798c9684357673f34c5f4"
+            }
+          ]
+        },
+        {
+          "release": "19.07.6",
+          "target": "ipq806x/generic",
+          "target_family": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.6/targets/ipq806x/generic/profiles.json",
+              "sha256": "1b8a28f470e9725b894db63bd1e86d2434391d6bd88d12c8218d22ae51dee6a1"
+            }
+          ]
+        },
+        {
+          "release": "19.07.6",
+          "target": "mediatek/mt7622",
+          "target_family": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.6/targets/mediatek/mt7622/profiles.json",
+              "sha256": "51066d389702d664e9fb0127dbfc2d9bb6a8b6ed65a74bdb0982f7bae494ccd1"
+            }
+          ]
+        },
+        {
+          "release": "19.07.6",
+          "target": "mvebu/cortexa53",
+          "target_family": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.6/targets/mvebu/cortexa53/profiles.json",
+              "sha256": "68fe148b732bd8bcf837a5f39031b5f0e2e5435ea7e110236a63ca0a017c07c7"
+            }
+          ]
+        },
+        {
+          "release": "19.07.6",
+          "target": "mvebu/cortexa9",
+          "target_family": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.6/targets/mvebu/cortexa9/profiles.json",
+              "sha256": "085649e1620c0fceedc976b771853cc4d740c692088158eafb93e6b7851c7ccf"
+            }
+          ]
+        },
+        {
+          "release": "19.07.6",
+          "target": "ramips/mt7621",
+          "target_family": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.6/targets/ramips/mt7621/profiles.json",
+              "sha256": "f54a598275c1e1f30f21e3b056f9fef273fd237aa99e3bb6e2a8f9c2fc83b316"
+            }
+          ]
+        },
+        {
+          "release": "19.07.6",
+          "target": "sunxi/cortexa53",
+          "target_family": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.6/targets/sunxi/cortexa53/profiles.json",
+              "sha256": "0a0dc06aa53db2a8931e6dae946b7a799f1315ecf5389a312e6e7dba2997efe5"
+            }
+          ]
+        },
+        {
+          "release": "19.07.6",
+          "target": "x86/64",
+          "target_family": "x86/64",
+          "architecture": "x86_64",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.6/targets/x86/64/config.buildinfo",
+              "sha256": "068ea5a65e87dbc55d5606a22c5c083f7e26f2bde616af605e19229881b149f5"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.6/targets/x86/64/packages/Packages.manifest",
+              "sha256": "f6292637a9d09080092a3e7122087c1c7305c460a5e74d032a31f19cd9e6caa9"
+            }
+          ]
+        },
+        {
+          "release": "19.07.7",
+          "target": "ath79/generic",
+          "target_family": "ath79/generic",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.7/targets/ath79/generic/profiles.json",
+              "sha256": "2e774587ee757048da25013354b51afd76ca70b856435f14cc086293ba10f241"
+            }
+          ]
+        },
+        {
+          "release": "19.07.7",
+          "target": "ath79/nand",
+          "target_family": "ath79/nand",
+          "architecture": "mips_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.7/targets/ath79/nand/config.buildinfo",
+              "sha256": "b7996f25b7ddf345fe862bb58ee35af51747b3bc4fb233a3942f76f90a21baa2"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.7/targets/ath79/nand/packages/Packages.manifest",
+              "sha256": "cd005ebba63d6dc595adf2f2ad4dd0f2f13b62bcd3596545190163e866cdb3f9"
+            }
+          ]
+        },
+        {
+          "release": "19.07.7",
+          "target": "bcm53xx/generic",
+          "target_family": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.7/targets/bcm53xx/generic/profiles.json",
+              "sha256": "5d0cdebef7c94c3bdad65f33643a33c91ff0151ae3032e2dc998ad2edee85271"
+            }
+          ]
+        },
+        {
+          "release": "19.07.7",
+          "target": "ipq40xx/generic",
+          "target_family": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.7/targets/ipq40xx/generic/profiles.json",
+              "sha256": "0470107eb7ba6e11ed4b46afcfb8e598ecb9b6205e99e91099284f259ca10558"
+            }
+          ]
+        },
+        {
+          "release": "19.07.7",
+          "target": "ipq806x/generic",
+          "target_family": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.7/targets/ipq806x/generic/profiles.json",
+              "sha256": "50d134995744f0b317341b2abd3bc44dc762bba5515c20d98e7120c62cff3d89"
+            }
+          ]
+        },
+        {
+          "release": "19.07.7",
+          "target": "mediatek/mt7622",
+          "target_family": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.7/targets/mediatek/mt7622/profiles.json",
+              "sha256": "ff7b03c6ccc96224b0989ec878d00bb05ac3a5268b1cdcf7b5bca899baa268ba"
+            }
+          ]
+        },
+        {
+          "release": "19.07.7",
+          "target": "mvebu/cortexa53",
+          "target_family": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.7/targets/mvebu/cortexa53/profiles.json",
+              "sha256": "229068ea409c7f309d16db978076f99607b140483d24669d27de671282f8b19d"
+            }
+          ]
+        },
+        {
+          "release": "19.07.7",
+          "target": "mvebu/cortexa9",
+          "target_family": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.7/targets/mvebu/cortexa9/profiles.json",
+              "sha256": "b7c600dafa5f010cd4e9cafbfa2d96a55b869e0cf0507ee705980657ad4419ca"
+            }
+          ]
+        },
+        {
+          "release": "19.07.7",
+          "target": "ramips/mt7621",
+          "target_family": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.7/targets/ramips/mt7621/profiles.json",
+              "sha256": "0547cc70b410d924964ba6d3600b14b5192eccd272eab7fe19fde1bcbd980383"
+            }
+          ]
+        },
+        {
+          "release": "19.07.7",
+          "target": "sunxi/cortexa53",
+          "target_family": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.7/targets/sunxi/cortexa53/profiles.json",
+              "sha256": "de9ffd76ae81d4d966f75a62a7c61c37e13f082cc581c2ab3d078853108983c0"
+            }
+          ]
+        },
+        {
+          "release": "19.07.7",
+          "target": "x86/64",
+          "target_family": "x86/64",
+          "architecture": "x86_64",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.7/targets/x86/64/config.buildinfo",
+              "sha256": "49050eff559c8ac6d9422564d566bc2ee73c286a04d637aaa32163473c4ffd7d"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.7/targets/x86/64/packages/Packages.manifest",
+              "sha256": "16307fc2a18ae7b3c278d0c520c9868947c9cad18af8e1644c3505b57bdd7f5d"
+            }
+          ]
+        },
+        {
+          "release": "19.07.0",
+          "target": "bcm53xx/generic",
+          "target_family": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/bcm53xx/generic/config.buildinfo",
+              "sha256": "adabfc4e8b6fae0dddb90bf416ddfeece552729d6f1848b4cfe23dff866dfb9f"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.0/targets/bcm53xx/generic/packages/Packages.manifest",
+              "sha256": "279ec13c505ea80cdad03fdcaacf36077f07e1d894a8f049d77fbde18fa3c7ea"
+            }
+          ]
+        },
+        {
+          "release": "19.07.1",
+          "target": "bcm53xx/generic",
+          "target_family": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/bcm53xx/generic/config.buildinfo",
+              "sha256": "7f7a89e9c2955645dc80345c8603edf45e08cb0b700a506b2a16138cfb922dc6"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.1/targets/bcm53xx/generic/packages/Packages.manifest",
+              "sha256": "9c72483de89663c5740c7e9c9210954dd11fb34846dbdd686b33b3ad6e37a110"
+            }
+          ]
+        },
+        {
+          "release": "19.07.2",
+          "target": "bcm53xx/generic",
+          "target_family": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/bcm53xx/generic/config.buildinfo",
+              "sha256": "fdfa321299490508d6e9ab19d820a2bd4276b5fdde40240def26a5c464577320"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.2/targets/bcm53xx/generic/packages/Packages.manifest",
+              "sha256": "12c77067ffa768808fa4fc8866d46b342364ff75fd12fcb931bf5f3b40c4e92a"
+            }
+          ]
+        },
+        {
+          "release": "19.07.3",
+          "target": "bcm53xx/generic",
+          "target_family": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "status": "dependencies-unavailable",
+          "missing_packages": [
+            "libubus20191227"
+          ],
+          "firmware_evidence": [
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/bcm53xx/generic/config.buildinfo",
+              "sha256": "aebff5dec272b1d3fd3b6298cfcd6cdfc2e0a3cc42eb717c4daa0ace35d9330e"
+            },
+            {
+              "url": "https://downloads.openwrt.org/releases/19.07.3/targets/bcm53xx/generic/packages/Packages.manifest",
+              "sha256": "882fc858327fa4770636a1bf05d52c4f5ab6a6f9714de608f5b5b50898e556ef"
+            }
+          ]
+        }
+      ],
       "exact_profiles": [
+        {
+          "release": "19.07.0",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.1",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.10",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.2",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.8",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "ath79/generic",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "ath79/nand",
+          "architecture": "mips_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "bcm53xx/generic",
+          "architecture": "arm_cortex-a9",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "ipq40xx/generic",
+          "architecture": "arm_cortex-a7_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "ipq806x/generic",
+          "architecture": "arm_cortex-a15_neon-vfpv4",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "mediatek/mt7622",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "mvebu/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "mvebu/cortexa9",
+          "architecture": "arm_cortex-a9_vfpv3-d16",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "ramips/mt7621",
+          "architecture": "mipsel_24kc",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "sunxi/cortexa53",
+          "architecture": "aarch64_cortex-a53",
+          "package_manager": "opkg"
+        },
+        {
+          "release": "19.07.9",
+          "target": "x86/64",
+          "architecture": "x86_64",
+          "package_manager": "opkg"
+        },
         {
           "release": "21.02.0",
           "target": "ath79/generic",
@@ -11682,6 +15274,7 @@
       "status": "published-and-client-verified",
       "tool_versions": {
         "iw": [
+          "5.0.1-1",
           "5.16-1",
           "5.19-1",
           "5.9-8fab0c9e-3",
@@ -11689,6 +15282,7 @@
           "6.9-r1"
         ],
         "iwinfo": [
+          "2019-10-16-07315b6f-1",
           "2022-08-19-0dad3e66-1",
           "2022-12-15-8d158096-1",
           "2023-07-01-ca79f641-1",
@@ -11696,13 +15290,17 @@
           "2026.05.26~66bdd1a0-r1"
         ],
         "libubus-lua": [
+          "2019-12-27-041c9d1c-1",
           "2021-06-30-4fc532c8-2",
+          "2022-02-21-b32a0e17-1",
           "2022-06-01-2bebf93c-1",
           "2023-06-05-f787c97b-1",
           "2025.10.17~60e04048-r1",
           "2026.06.28~24864e78-r2"
         ],
         "libuci-lua": [
+          "2019-09-01-415f9e48-3",
+          "2019-09-01-415f9e48-4",
           "2021-04-14-4b3db117-5",
           "2021-10-22-f84f49f0-6",
           "2023-08-10-5781664d-1",
@@ -11711,19 +15309,24 @@
         ],
         "lua": [
           "5.1.5-11",
+          "5.1.5-3",
           "5.1.5-9",
           "5.1.5-r11"
         ],
         "luci-app-commands": [
           "26.286.75782~0e65379",
           "26.288.56989~75a306d",
+          "git-20.105.64099-eeba108-1",
           "git-21.099.45379-36959dc",
           "git-21.099.45423-3fff72a",
+          "git-22.115.68448-712bc8e-1",
           "git-25.222.75657-7ce34fe"
         ],
         "luci-i18n-base-zh-cn": [
           "26.286.75782~0e65379",
           "26.288.56989~75a306d",
+          "git-20.105.64099-eeba108-1",
+          "git-22.115.68448-712bc8e-1",
           "git-23.090.62029-650e6d2",
           "git-24.208.65546-18f3914",
           "git-25.222.75657-7ce34fe"
@@ -11731,6 +15334,8 @@
         "luci-i18n-commands-zh-cn": [
           "26.286.75782~0e65379",
           "26.288.56989~75a306d",
+          "git-20.105.64099-eeba108-1",
+          "git-22.115.68448-712bc8e-1",
           "git-23.090.62029-650e6d2",
           "git-24.200.33193-374888b",
           "git-25.222.75657-7ce34fe"
@@ -11738,17 +15343,22 @@
         "luci-lib-jsonc": [
           "26.286.75782~0e65379",
           "26.288.56989~75a306d",
+          "git-20.105.64099-eeba108-1",
           "git-22.097.61937-bc85ba5",
+          "git-22.115.68448-712bc8e-1",
           "git-23.298.74581-7dfbbca",
           "git-25.222.75657-7ce34fe"
         ],
         "openssh-sftp-server": [
           "10.6_p1-r1",
+          "8.0p1-1",
           "8.4p1-4",
           "9.8p1-1",
           "9.9_p2-r1"
         ],
         "rpcd": [
+          "2019-12-10-aaa08366-2",
+          "2020-05-26-67c8a3fd-1",
           "2022-02-19-8d26a1ba-1",
           "2022-12-15-7de4820c-1",
           "2023-07-01-c07ab2f9-1",
@@ -11756,6 +15366,8 @@
           "2026.10.04~d99f703e-r1"
         ],
         "rpcd-mod-iwinfo": [
+          "2019-12-10-aaa08366-2",
+          "2020-05-26-67c8a3fd-1",
           "2022-02-19-8d26a1ba-1",
           "2022-12-15-7de4820c-1",
           "2023-07-01-c07ab2f9-1",
@@ -11763,6 +15375,7 @@
           "2026.10.04~d99f703e-r1"
         ],
         "tmux": [
+          "2.9a-1",
           "3.1c-1",
           "3.2a-1",
           "3.3a-1",
@@ -11770,6 +15383,8 @@
           "3.6a-r1"
         ],
         "wpa-cli": [
+          "2019-08-08-ca8c2bd2-2",
+          "2019-08-08-ca8c2bd2-8",
           "2020-06-08-5a8b3662-41",
           "2022-01-16-cff80b4f-21.3",
           "2023-09-08-e5ccbfc6-8",
@@ -16229,9 +19844,9 @@
           "not_in_official_firmware": []
         }
       ],
-      "coverage_report": "build/openwrt-common-21/coverage.json",
+      "coverage_report": "build/openwrt-19-common/coverage.json",
       "manifest_url": "https://routermanager-updates.routermanager-update-gateway.workers.dev/offline/openwrt-common/manifest",
-      "archive_url": "https://routermanager-updates.routermanager-update-gateway.workers.dev/offline/openwrt-common/files/64b03158076715e9026b47732adb3de42df76496a84dd0f65ef24f8518390abf/RouterManager_OpenWrt_Common_Offline_20261021_102859.zip"
+      "archive_url": "https://routermanager-updates.routermanager-update-gateway.workers.dev/offline/openwrt-common/files/e8fcdd781ddb5968e6f5d98fd79bd0ec48cf76e9b12530ad5fd4aa592352f53e/RouterManager_OpenWrt_Common_Offline_20261023_155216.zip"
     }
   ],
   "gateway_tests_passed": 10,
@@ -16540,7 +20155,7 @@
       "official_image_first_available": "23.05.3"
     }
   ],
-  "updated_at": "2026-10-21T10:33:03+08:00",
+  "updated_at": "2026-10-23T16:19:15+08:00",
   "maintenance": {
     "generated_by": "scripts/openwrt_packages/support_inventory.py",
     "update_on": [

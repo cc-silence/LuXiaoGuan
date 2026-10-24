@@ -123,6 +123,22 @@ class IncrementalTests(unittest.TestCase):
             task.profile.assert_called_once_with("26.10.0","x86/64")
             self.assertEqual(result["profiles"],[old,new])
 
+    def test_seed_retains_missing_platform_and_dependency_receipts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            archive = Path(directory, "seed.zip")
+            missing = dict(release="19.07.1", target="x86/64", status="dependencies-unavailable", missing_packages=["old-library"])
+            absent = dict(release="19.07.1", target="mediatek/filogic", status="not-provided-by-upstream")
+            catalog = dict(purpose="test", releases=["19.07.1"], targets=["x86/64"], roots=list(ROOTS),
+                           profiles=[], unavailable_profiles=[absent], unavailable_dependencies=[missing])
+            with zipfile.ZipFile(archive, "w") as zipped:
+                zipped.writestr("catalog.json", json.dumps(catalog))
+            digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+            stage = Path(directory, "stage")
+            stage.mkdir()
+            with patch("modules.capture_services.openwrt.common_bundle_repository.validate_catalog", return_value={}):
+                result = ProfileLedger(stage).seed_archive(archive, digest)
+            self.assertEqual(result["profiles"], [absent, missing])
+
     def test_damaged_ledger_cannot_silently_recompute(self):
         with tempfile.TemporaryDirectory() as directory:
             ledger=ProfileLedger(directory);p=self.profile("24.10.8","x86/64");ledger.save(p)
@@ -132,13 +148,13 @@ class IncrementalTests(unittest.TestCase):
             with self.assertRaises(ValueError):ledger.load("24.10.8","x86/64")
 
 class ReleaseCoverageTests(unittest.TestCase):
-    def test_discovery_includes_21_02_and_22_03_stable_releases_only(self):
+    def test_discovery_includes_all_six_supported_stable_series(self):
         with tempfile.TemporaryDirectory() as directory:
             task = Collector(directory)
-            names = ["21.02." + str(i) for i in range(8)] + ["22.03." + str(i) for i in range(8)] + ["23.05.0", "24.10.0", "25.12.0"]
+            names = ["19.07." + str(i) for i in range(11)] + ["21.02." + str(i) for i in range(8)] + ["22.03." + str(i) for i in range(8)] + ["23.05.0", "24.10.0", "25.12.0"]
             names += ["22.03.0-rc1", "21.02.0-rc4", "22.04.0"]
             task.http.get = Mock(return_value="".join('<a href="' + n + '/">' for n in names).encode())
-            self.assertEqual(task.releases(), names[:19])
+            self.assertEqual(task.releases(), names[:30])
 
     def test_official_missing_target_does_not_create_installable_profile(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -147,6 +163,18 @@ class ReleaseCoverageTests(unittest.TestCase):
             profile = task.profile("22.03.7", "mediatek/filogic")
             self.assertEqual(profile["status"], "not-provided-by-upstream")
             self.assertNotIn("packages", profile)
+
+    def test_missing_dependencies_are_excluded_without_masking_other_errors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            task = Collector(directory)
+            metadata = ({"arch_packages": "test", "target": "x86/64"}, [])
+            task.architecture = Mock(return_value={"rows": [], "indexes": []})
+            task.http.official = Mock(return_value=b"index")
+            with patch("scripts.openwrt_packages.collect_common_bundle.firmware_metadata", return_value=metadata), patch("scripts.openwrt_packages.collect_common_bundle.parse_feed", return_value=[]):
+                result = task.profile("19.07.1", "x86/64")
+            self.assertEqual(result["status"], "dependencies-unavailable")
+            self.assertEqual(set(result["missing_packages"]), set(ROOTS))
+            self.assertNotIn("packages", result)
 
     def test_connection_error_is_not_misreported_as_missing_firmware(self):
         with tempfile.TemporaryDirectory() as directory:
