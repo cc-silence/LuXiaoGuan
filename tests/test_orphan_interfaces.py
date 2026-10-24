@@ -72,6 +72,23 @@ class OrphanInterfaceTests(unittest.TestCase):
         self.assertFalse(self.device.sessions)
         self.assertFalse(any("rouxiaoguan-save" in p for p in self.device.files))
 
+    def test_plain_wwan_is_displayed_but_unknown_ownership_remains_protected(self):
+        self.device.config["network"]["wwan"]={".type":"interface","proto":"dhcp"}
+        self.device.sync_files()
+        rows={r["section"]:r for r in self.review()["rows"]}
+        self.assertIn("wwan",rows)
+        self.assertFalse(rows["wwan"]["eligible"])
+        self.assertIn("unowned",rows["wwan"]["reasons"])
+
+    def test_empty_runtime_device_fields_do_not_mean_active_but_real_devices_do(self):
+        self.device.interface_states=[{"interface":ORPHAN,"up":False,"pending":False,"device":"","l3_device":""}]
+        row=next(r for r in self.review()["rows"] if r["section"]==ORPHAN)
+        self.assertTrue(row["eligible"])
+        self.device.interface_states[0]["device"]="eth0"
+        row=next(r for r in self.review()["rows"] if r["section"]==ORPHAN)
+        self.assertFalse(row["eligible"])
+        self.assertIn("runtime_active",row["reasons"])
+
     def test_active_references_physical_bindings_and_owner_are_protected(self):
         cases=(
             ("wireless","home","network",ORPHAN,"wireless_reference"),

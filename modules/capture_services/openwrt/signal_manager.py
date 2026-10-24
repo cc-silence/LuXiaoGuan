@@ -150,12 +150,16 @@ class RouterSignalManager:
                 package_manager.verify_plan(plan, SIGNAL_PACKAGES)
             except ValueError as exc:
                 raise SignalError("environment", str(exc)) from exc
+            from .dependency_manager import OpenWrtDependencyManager
+            from .package_space import check_plan_space
+            check_plan_space(OpenWrtDependencyManager(self.runner), package_manager, plan, cancel_event)
             self._execute_stage(
                 "router_signal_install", package_manager.change(SIGNAL_PACKAGES), 240, cancel_event, "安装信号依赖",
             )
         except SignalError as exc:
             if exc.code == "transport" and _looks_like_network(str(exc)):
-                raise SignalError("offline_retry", str(exc)) from None
+                from .installation_sources import network_retry_error
+                raise network_retry_error(exc) from None
             raise
         after = self.probe_dependencies(cancel_event)
         missing = [key for key in ("lua", "uci", "ubus", "jsonc") if not after[key]]
@@ -240,21 +244,34 @@ class RouterSignalManager:
                 push(str(path), REMOTE_PACKAGE_DIR + "/" + path.name)
             if cancel_event is not None and cancel_event.is_set():
                 raise SignalError('cancelled','信号依赖安装已取消。')
+            from .package_space import ipk_package_versions, ipk_installed_size, required_kb
+            from .dependency_manager import OpenWrtDependencyManager
+            from .local_ipk_transaction import prepare_config, local_command, verify_local_plan
+            expected = ipk_package_versions(paths)
+            OpenWrtDependencyManager(self.runner)._preflight(
+                required_kb(ipk_installed_size(path) for path in paths), cancel_event)
+            self._execute_stage("router_signal_local_config", prepare_config(REMOTE_PACKAGE_DIR),
+                                20, cancel_event, "\u51c6\u5907\u5df2\u6821\u9a8c\u7684\u672c\u5730\u5b89\u88c5")
             package_manager = PackageManager("opkg")
             remote_paths = [REMOTE_PACKAGE_DIR + "/" + path.name for path in paths]
             plan = self._execute_stage("router_signal_local_plan",
-                package_manager.local_install(remote_paths, simulate=True),
+                local_command(package_manager, remote_paths, simulate=True, directory=REMOTE_PACKAGE_DIR),
                 90, cancel_event, "核对离线安装计划")
             try:
                 package_manager.verify_plan(plan, ())
-            except ValueError as exc:
-                raise SignalError("environment", str(exc)) from exc
+                verify_local_plan(plan, expected)
+            except (ValueError, SignalError) as exc:
+                error = exc if isinstance(exc, SignalError) else SignalError("environment", str(exc))
+                error.package_diagnostic = OpenWrtDependencyManager._package_diagnostic("router_signal_local_plan validation", plan)
+                if error is exc:
+                    raise
+                raise error from exc
             if cancel_event is not None and cancel_event.is_set():
                 raise SignalError('cancelled','信号依赖安装已取消。')
             tell(f"正在安装 {total} 个离线包…", "info")
             self._execute_stage(
                 "router_signal_offline_install",
-                package_manager.local_install(remote_paths),
+                local_command(package_manager, remote_paths, directory=REMOTE_PACKAGE_DIR),
                 240, cancel_event, "安装信号依赖",
             )
         finally:
@@ -280,8 +297,14 @@ class RouterSignalManager:
         def stage(command_name, command, timeout, label):
             return self._execute_stage(command_name, command, timeout, cancel_event, label)
 
+        def check_space(plan):
+            from .dependency_manager import OpenWrtDependencyManager
+            from .package_space import check_plan_space
+            check_plan_space(OpenWrtDependencyManager(self.runner), PackageManager("apk"), plan,
+                             cancel_event, repositories="/tmp/winbox-apk/repos.list")
+
         installer = ApkOfflineInstaller(stage, tell=tell, uploader=uploader or self._sftp_upload,
-                                        cleanup_execute=self._execute)
+                                        space_check=check_space, cleanup_execute=self._execute)
         try:
             installer.install(tuple(SIGNAL_PACKAGES), device, cache_dir or default_cache_dir(),
                               cancel_event)
@@ -339,8 +362,9 @@ class RouterSignalManager:
                 "transport", f"{stage}超时（超过 {timeout} 秒）；请检查路由器负载与网速后重试。",
             )
         if result.exit_code != 0:
+            output = (result.stdout or "") + "\n" + (result.stderr or "")
             raise SignalError(
-                "transport", f"{stage}失败：{self._stage_reason(result.stderr or result.stdout)}；请处理后重试。",
+                "transport", f"{stage}失败：{self._stage_reason(output)}；请处理后重试。",
             )
         return (result.stdout or "") + "\n" + (result.stderr or "") if command_name.endswith("_plan") else result.stdout
 

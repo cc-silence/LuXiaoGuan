@@ -18,6 +18,8 @@ class WirelessNetwork:
     power: int | None
     encryption: str
     reason: str = ""
+    encryption_label: str = ""
+    encryption_detail: str = ""
 
 
 @dataclass(frozen=True)

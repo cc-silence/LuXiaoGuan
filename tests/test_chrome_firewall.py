@@ -70,24 +70,25 @@ class ChromeTests(unittest.TestCase):
         self.assertTrue(self.window.windowFlags() & Qt.FramelessWindowHint)
         self.assertEqual(self.window.windowType(),Qt.Window)
         chrome=self.window.chrome
-        for button in (chrome.privacy_button,chrome.theme_button,self.window.navigation.settings_button,chrome.minimize_button,chrome.maximize_button):
+        for button in (chrome.privacy_button,chrome.theme_button,chrome.settings_button,chrome.minimize_button,chrome.maximize_button):
             self.assertEqual(button.text(),'');self.assertFalse(button.icon().isNull())
-            self.assertEqual(button.width(),56 if button is self.window.navigation.settings_button else 28);self.assertTrue(button.toolTip())
+            self.assertEqual(button.width(),28);self.assertTrue(button.toolTip())
         initial=chrome.privacy_button.icon().cacheKey()
         chrome.privacy_button.click();self.assertTrue(self.runtime.display_privacy.enabled)
         self.assertNotEqual(initial,chrome.privacy_button.icon().cacheKey())
         chrome.privacy_button.click();self.assertFalse(self.runtime.display_privacy.enabled)
         with patch.object(self.window.navigation,'show_settings') as settings:
-            self.window.navigation.settings_button.click();settings.assert_called_once_with(update=False)
+            chrome.settings_button.click();settings.assert_called_once_with(update=False)
 
     def test_left_navigation_and_embedded_settings_immediate_save(self):
         nav=self.window.navigation
         self.assertEqual(nav.sidebar.objectName(),'leftMenuBg')
+        self.assertTrue(nav.sidebar.isHidden())
         self.assertIs(nav.stack.currentWidget(),self.window.packet_capture_page)
         nav.toggle_button.click();self.assertTrue(nav.expanded)
         self.assertTrue(nav.settings_button.text())
         nav.toggle_button.click();self.assertFalse(nav.expanded)
-        nav.settings_button.click();APP.processEvents()
+        self.window.chrome.settings_button.click();APP.processEvents()
         controller=self.window.settings_window
         self.assertIsNotNone(controller)
         self.assertIs(nav.stack.currentWidget(),controller.window_frame)
@@ -97,7 +98,7 @@ class ChromeTests(unittest.TestCase):
         self.assertIs(nav.router_page,self.window.packet_capture_page)
         controller.ui_scale_combo.setCurrentIndex(controller.ui_scale_combo.findData(125))
         self.assertEqual(self.window.scale_manager.global_scale,125)
-        controller.reject();APP.processEvents()
+        self.window.chrome.settings_button.click();APP.processEvents()
         self.assertEqual(self.window.scale_manager.global_scale,125)
         self.assertIs(nav.stack.currentWidget(),self.window.packet_capture_page)
         self.assertIsNone(self.window.settings_window)
@@ -118,7 +119,7 @@ class ChromeTests(unittest.TestCase):
     def test_dark_light_icons_and_preview(self):
         for theme in ('dark.qss','light.qss'):
             self.window.apply_appearance(100,'default',theme);APP.processEvents()
-            for button in (self.window.chrome.privacy_button,self.window.chrome.theme_button,self.window.navigation.settings_button):
+            for button in (self.window.chrome.privacy_button,self.window.chrome.theme_button,self.window.chrome.settings_button):
                 image=button.icon().pixmap(20,20).toImage()
                 values=[image.pixelColor(x,y).lightness() for x in range(image.width()) for y in range(image.height()) if image.pixelColor(x,y).alpha()>128]
                 self.assertTrue(values)

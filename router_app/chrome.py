@@ -17,6 +17,9 @@ class RouterChrome(QObject):
         self.logo.setAttribute(Qt.WA_TransparentForMouseEvents)
         window.title_bar_layout.insertWidget(0, self.logo)
         window.scale_manager.bind_layout(window.title_bar_layout, margins=(0,0,8,0), spacing=10)
+        self.settings_button = self._button('settingsAppBtn', self._toggle_settings)
+        self.settings_button.setToolTip('\u8bbe\u7f6e\uff08\u518d\u6b21\u70b9\u51fb\u8fd4\u56de\uff09')
+        self.settings_button.setAccessibleName('\u8bbe\u7f6e')
         self.privacy_button = self._button('privacyToggleBtn', self._toggle_privacy)
         self.privacy_button.setCheckable(True)
         self.theme_button = self._button('themeToggleBtn', window.toggle_theme)
@@ -53,6 +56,12 @@ class RouterChrome(QObject):
         window.scale_manager.bind_metrics(button, fixed_size=(28,28), icon_size=20)
         return button
 
+    def _toggle_settings(self):
+        if self.window.settings_window is None:
+            self.window.openSettingsWindow()
+        else:
+            self.window.navigation.show_router()
+
     def _toggle_privacy(self, checked):
         """\u5c06\u9690\u79c1\u72b6\u6001\u4ea4\u7ed9\u539f\u516c\u5171\u63a7\u5236\u5668\u3002"""
         self.window.display_privacy.set_enabled(checked)
@@ -74,6 +83,7 @@ class RouterChrome(QObject):
         private = window.display_privacy.enabled
         maximized = window.isMaximized()
         icons = (
+            (self.settings_button, ':/icons/images/icons/icon_settings.png'),
             (self.privacy_button, str(BASE_DIR/'images/icons'/('cil-lock-locked.png' if private else 'cil-lock-unlocked.png'))),
             (self.theme_button, str(BASE_DIR/'images/icons'/('cil-sun.png' if light else 'cil-moon.png'))),
             (self.minimize_button, ':/icons/images/icons/icon_minimize.png'),

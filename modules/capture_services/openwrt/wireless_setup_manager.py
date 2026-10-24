@@ -14,6 +14,7 @@ from .wireless_options import AP_ADVANCED
 from .wireless_capabilities import unsupported_settings
 from .wireless_dependencies import WIRELESS_HELPER_PACKAGES
 from .signal_package_feed import default_cache_dir
+from .wireless_scan_commands import SCAN_COMMAND_TIMEOUT_SECONDS
 from .wireless_setup_commands import PROBE, wireless_command
 from .wireless_setup_models import WirelessEnvironment, WirelessRequest, StoredWirelessPassword, parse_scan, validate_request
 
@@ -61,8 +62,10 @@ class WirelessSetupManager:
         self.signal = RouterSignalManager(runner)
         self._proof = None
 
-    def _call(self, action, cancel, *, timeout=25, **values):
+    def _call(self, action, cancel, *, timeout=None, **values):
         """只解析结构化白名单响应，错误不携带密码或设备原始正文。"""
+        if timeout is None:
+            timeout = SCAN_COMMAND_TIMEOUT_SECONDS if action == "scan" else 25
         command = wireless_command(action, self.signal._lua_bin, **values)
         text = self.signal._execute("wireless_setup_" + action, command, timeout, cancel)
         try:
@@ -266,7 +269,7 @@ exit 1
             radios = [r for r in env.data["radios"] if not r.get("runtime_pending")]
         if not radios:
             raise SignalError("radio", "没有当前可用的无线网卡，请检查驱动或等待网卡状态切换完成。")
-        message("开始扫描：" + "、".join(r["name"] for r in radios) + "，采集时间 " + str(seconds) + " 秒，每块网卡最多等待 20 秒完成扫描。", "info")
+        message("开始扫描：" + "、".join(r["name"] for r in radios) + "，采集时间 " + str(seconds) + " 秒；已发起的原生扫描最多等待 " + str(SCAN_COMMAND_TIMEOUT_SECONDS) + " 秒完成。", "info")
         deadline = time.monotonic() + seconds
         networks = {}
         published_at = None
@@ -287,7 +290,7 @@ exit 1
                     interface = interfaces[0] if interfaces and radio.get("runtime_up") is not False else ""
                     message("正在扫描 " + radio["name"] + "（" + (interface or "临时扫描接口，不发射 AP") + "）。", "info")
                     target = {} if interface else {"expected_phy": self._radio(env, radio["name"])["phy"]}
-                    result = self._call("scan", cancel, timeout=20,
+                    result = self._call("scan", cancel, timeout=SCAN_COMMAND_TIMEOUT_SECONDS,
                                         interface=interface, radio=radio["name"], **target)
                     def evidence(values):
                         journal = getattr(self.runner, "operation_diagnostics", None)

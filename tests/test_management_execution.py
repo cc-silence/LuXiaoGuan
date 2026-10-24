@@ -9,6 +9,7 @@ from tests import test_standalone as standalone
 from tests.test_management_link import report, runner
 from modules.capture_services.openwrt.radio_takeover import OpenWrtRadioTakeover
 from modules.capture_services.backends.openwrt_backend import OpenWrtCaptureBackend
+from modules.capture_services.scan_management_service import ScanManagementService
 from modules.capture_services.openwrt.models import OpenWrtConnectionState
 
 
@@ -43,7 +44,7 @@ class ManagementExecutionTests(unittest.TestCase):
                 backend.radio_session.create = Mock(return_value=NS(interface="wbmonfixture"))
                 backend.wifi_scanner.scan = Mock(return_value="scanned")
                 backend._finish_capture_task = Mock()
-                options = dict(band="2.4G",management_scan_phy="phy0",
+                options = dict(band="2.4G",management_scan_allowed_phy="phy0",management_scan_phy="phy0",
                                management_scan_fingerprint="fingerprint")
                 if allowed:
                     self.assertEqual(backend.scan_wifi("session",options),"scanned")
@@ -53,6 +54,39 @@ class ManagementExecutionTests(unittest.TestCase):
                         backend.scan_wifi("session",options)
                     backend.radio_session.create.assert_not_called()
                     backend.workspace_manager.create.assert_not_called()
+
+    def test_preflight_and_execution_only_protect_actual_login_with_dual_band_in_use(self):
+        for target, band, login, blocked in (
+                ("phy1", "5G", "phy0-ap0", False),
+                ("phy0", "2.4G", "phy1-ap0", False),
+                ("phy1", "5G", "eth0.1", False),
+                ("phy1", "5G", "phy1-ap0", True)):
+            with self.subTest(target=target, login=login):
+                backend = OpenWrtCaptureBackend()
+                backend.ssh_client = NS(connected=True, host_fingerprint="fingerprint")
+                text = report(port=login).replace("__MGLINK_END__", "phy0-sta0|phy0|1|link||\nphy1-sta0|phy1|1|link||\n__MGLINK_END__")
+                backend.command_runner = runner(text)
+                backend._find_scan_radio = Mock(return_value=target)
+                plan = ScanManagementService._probe(
+                    NS(owner=NS(openwrt_backend=backend)), {"band": band}, Event())
+                self.assertEqual(plan.at_risk, blocked)
+                backend._ensure_remote_tmp = Mock()
+                backend.reconnect_cleanup.require_ready = Mock()
+                backend.workspace_manager.create = Mock()
+                backend.radio_session.create = Mock(return_value=NS(interface="wbmonfixture"))
+                backend.wifi_scanner.scan = Mock(return_value="scanned")
+                backend._finish_capture_task = Mock()
+                settings = dict(band=band, management_scan_phy=target,
+                                management_scan_fingerprint="fingerprint")
+                if blocked:
+                    with self.assertRaises(RuntimeError):
+                        backend.scan_wifi("session", settings)
+                    backend.radio_session.create.assert_not_called()
+                else:
+                    self.assertEqual(backend.scan_wifi("session", settings), "scanned")
+                    backend.radio_session.create.assert_called_once()
+                self.assertEqual([call.args[0] for call in backend.command_runner.run.call_args_list],
+                                 ["management_link_probe", "management_link_probe"])
 
     def test_changed_phy_or_router_identity_invalidates_scan_confirmation(self):
         backend = OpenWrtCaptureBackend()

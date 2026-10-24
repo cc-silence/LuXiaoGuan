@@ -12,6 +12,8 @@ from .command_builder import quote_argument
 from .hcx_capabilities import read_hcx_capabilities, SUPPORTED_HCX_VERSIONS
 from .compatible_store import ROOT, prepare_store, read_selection, publish_selection, validate_binary
 from .bundled_compatible_tool import BundledTool, match_bundled_tool, verify_modern_interface_api
+from .apk_compatible_tool import ApkToolPackage, lookup_tool, unpack_tool as unpack_apk_tool
+from .apk_package_feed import normalize_apk_profile
 
 LIMIT = 8*1024*1024
 
@@ -74,6 +76,11 @@ def unpack_tool(blob, package, profile):
     return binaries[0], fields.get('Depends','')
 
 
+def compatible_profile(device):
+    normalize = normalize_apk_profile if device.package_manager == "apk" else normalize_profile
+    return normalize(device.version, device.package_architecture, device.package_manager)
+
+
 class CompatibleToolInstaller:
     """独立持久安装，校验与原子发布成功前不改变工具选择。"""
     def __init__(self, backend):
@@ -84,7 +91,7 @@ class CompatibleToolInstaller:
         """只读核对固件和官方源，不跨版本找包。"""
         self.candidate=None
         device=self.backend.snapshot.device
-        profile=normalize_profile(device.version,device.package_architecture,device.package_manager)
+        profile=compatible_profile(device)
         bundled=match_bundled_tool(device)
         if bundled is not None:
             ssh=self.backend.ssh_client
@@ -100,10 +107,13 @@ class CompatibleToolInstaller:
             if remaining <= 0: raise TimeoutError('检查官方软件源超时，请检查电脑网络后重试。')
             options['timeout']=min(20,remaining)
             return fetch_bytes(url, **options)
-        index=fetch_index(profile,fetch=fetch,cancel_event=cancel,feeds=("packages",),require_complete=True)
-        if not index:
-            raise RuntimeError('无法读取官方软件源，未能确认兼容包；请检查电脑网络后重试。')
-        package=index.get('hcxdumptool')
+        if device.package_manager == "apk":
+            package = lookup_tool(profile, fetch, cancel)
+        else:
+            index=fetch_index(profile,fetch=fetch,cancel_event=cancel,feeds=("packages",),require_complete=True)
+            if not index:
+                raise RuntimeError("\u65e0\u6cd5\u8bfb\u53d6\u5b98\u65b9\u8f6f\u4ef6\u6e90\uff0c\u672a\u80fd\u786e\u8ba4\u517c\u5bb9\u5305\u3002")
+            package=index.get('hcxdumptool')
         context=f"OpenWrt {profile.release} / {profile.package_arch}"
         if package is None:
             raise RuntimeError(f"已完整读取 {context} 的 packages 官方源，未找到 hcxdumptool 包。旧工具未更改，请暂用常规握手抓包。")
@@ -158,7 +168,11 @@ class CompatibleToolInstaller:
             blob=fetch_bytes(package.url,timeout=60,cancel_event=cancel,limit=LIMIT)
             if len(blob)!=package.size or hashlib.sha256(blob).hexdigest()!=package.sha256:
                 raise ValueError('工具包校验失败，已停止安装，旧工具未替换。')
-            binary,dependencies=unpack_tool(blob,package,profile)
+            if isinstance(package, ApkToolPackage):
+                binary = unpack_apk_tool(self.backend, blob, package, cancel)
+                dependencies = ""
+            else:
+                binary,dependencies=unpack_tool(blob,package,profile)
         runner=self.backend.command_runner
         for dependency in dependencies.split(','):
             dependency=dependency.strip()
@@ -228,6 +242,7 @@ class CompatibleToolInstaller:
                     raise InterruptedError('Installation cancelled or connection changed')
                 publish_selection(sftp,dict(schema=1,enabled=True,directory=directory.rsplit('/',1)[1],
                     release=profile.release,architecture=profile.package_arch,version=capabilities.version,
+                    package_manager=self.backend.snapshot.device.package_manager,
                     package_version=package.version,package_sha256=package.sha256,
                     size=len(binary),sha256=hashlib.sha256(binary).hexdigest()),cancel)
                 created=False
@@ -262,8 +277,9 @@ class CompatibleToolInstaller:
             record=read_selection(sftp)
             if not record or not record['enabled']:
                 return False
-            profile=normalize_profile(device.version,device.package_architecture,device.package_manager)
-            if record.get('release') != profile.release or record.get('architecture') != profile.package_arch:
+            profile=compatible_profile(device)
+            if (record.get('release') != profile.release or record.get('architecture') != profile.package_arch
+                    or record.get("package_manager", device.package_manager) != device.package_manager):
                 raise ValueError('路由器系统已变化，原兼容工具未启用，请重新检查工具包。')
             if record.get('version') not in SUPPORTED_HCX_VERSIONS:
                 raise ValueError('已保存工具的版本未适配，已保留原工具。')

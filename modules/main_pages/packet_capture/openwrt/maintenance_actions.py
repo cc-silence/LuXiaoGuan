@@ -3,6 +3,8 @@ from datetime import datetime
 from pathlib import Path
 from PySide6.QtWidgets import QFileDialog
 from .maintenance_review_dialog import MaintenanceReviewDialog
+from modules.common_widgets.common_dialogs import ConfirmDialog
+from .settings_impacts import DISCONNECT_WARNING
 
 
 class MaintenanceActions:
@@ -10,6 +12,9 @@ class MaintenanceActions:
         self.page = page
         self.pending = {}
         self.disposed = False
+        self.progress_dialogs = {}
+        progress_signal = getattr(page.manager, "progress", None)
+        if progress_signal is not None: progress_signal.connect(self._progress)
 
     @property
     def active(self):
@@ -43,13 +48,26 @@ class MaintenanceActions:
             return
         identity = self._identity()
         try:
-            if operation == "backup":
+            if operation == "reboot":
+                dialog = ConfirmDialog("确认重启路由器", DISCONNECT_WARNING +
+                    "\n\n请先保存配置，并确认已结束其他路由器任务。", page,
+                    yes_text="确认重启", no_text="取消")
+                try:
+                    if dialog.exec() != dialog.Accepted or not self._current(identity):
+                        return
+                finally:
+                    dialog.deleteLater()
+                key = page.manager.submit("maintenance_reboot")
+                self.pending[key] = ("done", identity)
+                page.status_label.setText("正在发送重启请求；连接断开属于预期情况，请等待后重新登录。")
+            elif operation == "backup":
                 picked = self._destination()
                 if picked is None or not self._current(identity):
                     return
                 path, expected = picked
                 key = page.manager.submit("maintenance_backup", destination=path, expected=expected)
                 self.pending[key] = ("done", identity)
+                self._show_progress(key)
                 page.status_label.setText("正在生成并校验配置备份，请等待。")
             else:
                 source = ""
@@ -68,6 +86,7 @@ class MaintenanceActions:
         item = self.pending.pop(key, None)
         if item is None:
             return False
+        self._finish_progress(key)
         page = self.page
         try:
             if self.disposed:
@@ -95,6 +114,7 @@ class MaintenanceActions:
                 new_key = page.manager.submit("maintenance_apply", review=result,
                                              backup_path=backup_path, backup_expected=expected)
                 self.pending[new_key] = ("done", identity)
+                self._show_progress(new_key)
                 page.status_label.setText("正在备份当前配置；校验通过后执行所确认的操作，请保持供电。")
             finally:
                 dialog.deleteLater()
@@ -107,13 +127,31 @@ class MaintenanceActions:
     def failed(self, key, message):
         if self.pending.pop(key, None) is None:
             return False
+        self._finish_progress(key)
         if not self.disposed:
             self.page.status_label.setText(message)
             self.page._sync()
         return True
+
+    def _show_progress(self, key):
+        from .router_task_progress import RouterTaskProgressDialog
+        dialog = RouterTaskProgressDialog("\u8def\u7531\u5668\u5907\u4efd\u4e0e\u7ef4\u62a4", lambda: self.page.manager.cancel(key), self.page)
+        self.progress_dialogs[key] = dialog
+        dialog.show()
+
+    def _progress(self, key, value):
+        dialog = self.progress_dialogs.get(key)
+        if dialog is not None: dialog.update_progress(value)
+
+    def _finish_progress(self, key):
+        dialog = self.progress_dialogs.pop(key, None)
+        if dialog is not None: dialog.finish()
 
     def dispose(self):
         self.disposed = True
         for key in tuple(self.pending):
             self.page.manager.cancel(key)
         self.pending.clear()
+        for key in tuple(self.progress_dialogs): self._finish_progress(key)
+        signal = getattr(self.page.manager, "progress", None)
+        if signal is not None: signal.disconnect(self._progress)

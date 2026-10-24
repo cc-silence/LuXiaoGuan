@@ -40,6 +40,10 @@ class HcxCapabilities:
     def capture_options(self, band, active_beacon=False, filtered=False, bpf_path=None):
         """返回已核实参数；需要 BPF 的组合没有文件路径时禁止构造命令。"""
 
+        if self.version == "6.0.1":
+            raise HcxCompatibilityError(
+                "hcxdumptool 6.0.1 缺少当前流程必需的接收过滤能力，未启动 PMKID 采集。"
+                "请使用常规握手抓包。")
         if self.version not in SUPPORTED_HCX_VERSIONS:
             raise HcxCompatibilityError(
                 f"hcxdumptool {self.version or '版本未知'} 未经 API 核对，已拒绝启动。"

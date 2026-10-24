@@ -67,6 +67,12 @@ def _with_header(points):
     yield from signal_rows(points)
 
 
+def _text_rows(points):
+    yield ("\u5f3a\u5ea6", "BSSID", "\u540d\u79f0")
+    for row in signal_rows(points):
+        yield row[3], row[2], row[1]
+
+
 def export_signal_list(points, destination, cancel_event=None, timeout=30):
     """导出不可变信号快照到 xlsx/txt，成功才原子替换目标，失败清理自有暂存。"""
     points = tuple(points)
@@ -91,7 +97,7 @@ def export_signal_list(points, destination, cancel_event=None, timeout=30):
         else:
             with temporary.open('w', encoding='utf-8-sig', newline='') as stream:
                 writer = csv.writer(stream, delimiter='\t')
-                for values in _with_header(points):
+                for values in _text_rows(points):
                     check()
                     writer.writerow(_BAD_XML.sub(" ", v) if isinstance(v, str) else v for v in values)
         check()

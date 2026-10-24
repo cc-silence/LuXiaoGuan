@@ -154,3 +154,9 @@ class CommonSettingsTests(unittest.TestCase):
         self.assertEqual(error.exception.code,"changed")
         self.assertEqual(self.device.config["system"]["cfg01"]["hostname"],"ExternalEdit")
         self.assertFalse(self.device.commits)
+
+    def test_system_read_uses_installed_luci_timezone_table_when_present(self):
+        self.device.lua.execute('package.preload["luci.sys.zoneinfo.tzdata"]=function() return {TZ={{"Europe/London","GMT0BST,M3.5.0/1,M10.5.0"},{"Asia/Shanghai","CST-8"}}} end')
+        review=read_settings(self.device,"system",self.cancel)
+        self.assertEqual(review["timezones"],[["Europe/London","GMT0BST,M3.5.0/1,M10.5.0"],["Asia/Shanghai","CST-8"]])
+        self.assertFalse(self.device.commits)

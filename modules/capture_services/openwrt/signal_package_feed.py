@@ -7,6 +7,7 @@
 import re
 
 import hashlib
+import http.client
 import urllib.request
 import urllib.error
 import urllib.parse
@@ -14,16 +15,19 @@ import socket
 import ssl
 import errno
 from dataclasses import dataclass
+from datetime import timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from functools import wraps
-from threading import RLock, local
-import logging
+from threading import Event, RLock, local
 import inspect
 import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 
 from .dependency_resolution import InstalledPackages, resolve_packages
+from .offline_cleanup import report_cleanup_warning
+from .package_cache import prepare_cache_directory, checked_cache_target
 
 from modules.platform_services.owned_cache import checked_path, delete_inventory
 
@@ -79,9 +83,7 @@ def offline_cache_transaction(verified):
                             empty_candidates.update(((root, path.parent), (root, path.parent.parent)))
                         except (OSError, ValueError) as exc:
                             text = f"安装成功，缓存保留：{path}；{exc}。请核对文件占用与权限。"
-                            logging.getLogger(__name__).warning(text)
-                            if tell is not None:
-                                tell(text, "warning")
+                            report_cleanup_warning(tell, text)
                     # 全部包清理后再移除空层级，避免后续回执访问已删除的父目录。
                     for root, directory in sorted(empty_candidates, key=lambda item: len(item[1].parts), reverse=True):
                         try:
@@ -91,9 +93,7 @@ def offline_cache_transaction(verified):
                                     directory.rmdir()
                         except (OSError, ValueError) as exc:
                             text = f"安装成功，空缓存目录保留：{directory}；{exc}。"
-                            logging.getLogger(__name__).warning(text)
-                            if tell is not None:
-                                tell(text, "warning")
+                            report_cleanup_warning(tell, text)
                 return result
             finally:
                 _cache_transaction.receipts = previous
@@ -298,13 +298,25 @@ def _connection_error(exc):
     return reason, code
 
 
+def _proxy_auth_error(exc):
+    if isinstance(exc, urllib.error.HTTPError):
+        return exc.code == 407
+    reason, _ = _connection_error(exc)
+    # CPython exposes a failed HTTPS CONNECT as OSError, not HTTPError.
+    return isinstance(reason, OSError) and str(reason).startswith("Tunnel connection failed: 407 ")
+
+
 def _reason_text(exc):
     """将网络错误分类为可读原因，不泄露代理凭据。"""
     reason, code = _connection_error(exc)
+    if _proxy_auth_error(exc):
+        return "代理认证失败；请核对代理账号和密码"
     if code in (10061, errno.ECONNREFUSED):
         return "连接被拒绝；若为本机代理，请启动代理并核对端口"
     if code in (10013, errno.EACCES, errno.EPERM):
         return "电脑系统拒绝网络连接；请检查防火墙或安全软件规则"
+    if isinstance(reason, http.client.HTTPException):
+        return "响应中断或内容长度不符；请检查网络或代理"
     if isinstance(reason, socket.gaierror):
         return "域名解析失败；请检查 DNS 或代理地址"
     if isinstance(reason, ssl.SSLCertVerificationError):
@@ -318,6 +330,14 @@ def _read_body(response, limit, cancel_event, deadline):
     """分块限长读取，每次读取前后核对取消和整体期限。"""
     chunks = []
     received = 0
+    header = getattr(response, "headers", {}).get("Content-Length")
+    expected = None
+    if isinstance(header, str):
+        if not header.strip().isascii() or not header.strip().isdigit():
+            raise http.client.HTTPException("Invalid Content-Length")
+        expected = int(header.strip())
+        if expected > limit:
+            raise RuntimeError("下载内容超过上限，已中止。")
     read = getattr(response, "read1", response.read)
     while True:
         _check_cancel(cancel_event)
@@ -333,53 +353,118 @@ def _read_body(response, limit, cancel_event, deadline):
         if received > limit:
             raise RuntimeError("下载内容超过上限，已中止。")
         chunks.append(block)
+    if expected is not None and received != expected:
+        raise http.client.IncompleteRead(b"", max(0, expected - received))
     return b"".join(chunks)
+
+
+def _retry_after_seconds(headers):
+    """Read the explicit server delay; absent/invalid values add no wait."""
+    value = headers.get("Retry-After", "") if headers is not None else ""
+    if not isinstance(value, str):
+        return 0.0
+    value = value.strip()
+    if value.isascii() and value.isdecimal():
+        return float(value)
+    try:
+        date = parsedate_to_datetime(value)
+        if date.tzinfo is None:
+            date = date.replace(tzinfo=timezone.utc)
+        return max(0.0, date.timestamp() - time.time())
+    except (TypeError, ValueError, OverflowError, OSError):
+        return 0.0
+
+
+def _wait_download_retry(not_before, deadline, cancel_event):
+    _check_cancel(cancel_event)
+    delay = not_before - time.monotonic()
+    if delay > 0:
+        if not_before >= deadline:
+            _download_message("服务器要求的重试等待超出本次下载剩余时间，已停止本次请求。")
+            return False
+        _download_message(f"服务器要求等待 {delay:.1f} 秒后再试；等待期间可取消…")
+        waiter = cancel_event if cancel_event is not None else Event()
+        waiter.wait(delay)
+        _check_cancel(cancel_event)
+    return time.monotonic() < deadline
 
 
 @download_session()
 def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
-    """短等待切换线路，任务内优先复用成功线路；timeout 限制本次请求总预算。"""
+    """线路试完后最多重试一轮；两轮共用 timeout 总预算。"""
     _check_cancel(cancel_event)
     deadline = time.monotonic() + max(0, float(timeout))
-    request = urllib.request.Request(url, headers={"User-Agent": "LuXiaoGuan-offline/1.0"})
     state = _download_state.get()
     plans = list(_attempt_plans())
     preferred = state["preferred"]
     plans.sort(key=lambda plan: plan[0] != preferred)
     errors = []
-    for position, (label, handler) in enumerate(plans):
+    round_plans = plans
+    not_before = 0.0
+    for round_number in range(2):
         _check_cancel(cancel_event)
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
+        if not round_plans or time.monotonic() >= deadline:
             break
-        key = _route_key(label, url)
-        route = _route_description(label, url)
-        if key in state["unavailable"]:
-            errors.append(state["unavailable"][key])
-            continue
-        try:
-            with urllib.request.build_opener(handler).open(
-                    request, timeout=min(_ROUTE_TIMEOUT, remaining)) as response:
-                status = getattr(response, "status", 200)
-                if status != 200:
-                    raise RuntimeError(f"下载失败：HTTP {status}。")
-                payload = _read_body(response, limit, cancel_event, deadline)
-            state["preferred"] = label
-            return payload
-        except RuntimeError:
-            raise
-        except urllib.error.HTTPError as exc:
-            raise RuntimeError(f"下载失败：HTTP {exc.code}。") from None
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            if state["preferred"] == label:
-                state["preferred"] = None
-            reason, code = _connection_error(exc)
-            failure = f"{route}：{_reason_text(exc)}（错误码 {code}）"
-            errors.append(failure)
-            if code in (10061, errno.ECONNREFUSED, 10013, errno.EACCES, errno.EPERM):
-                state["unavailable"][key] = failure
-            if position + 1 < len(plans):
-                _download_message(f"{failure}；正在切换下一条线路…")
+        if round_number:
+            _download_message("首轮线路均未成功；开始第 2/2 轮，重试临时网络故障的线路…")
+        retry_plans = []
+        for position, (label, handler) in enumerate(round_plans):
+            if not _wait_download_retry(not_before, deadline, cancel_event):
+                _raise_download_failure(errors, cancel_event)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            key = _route_key(label, url)
+            route = _route_description(label, url)
+            if key in state["unavailable"]:
+                errors.append(state["unavailable"][key])
+                continue
+            try:
+                # ProxyHandler mutates Request host, tunnel and authentication state.
+                request = urllib.request.Request(url, headers={"User-Agent": "LuXiaoGuan-offline/1.0"})
+                with urllib.request.build_opener(handler).open(
+                        request, timeout=min(_ROUTE_TIMEOUT, remaining)) as response:
+                    status = getattr(response, "status", 200)
+                    if status != 200:
+                        raise RuntimeError(f"下载失败：HTTP {status}。")
+                    payload = _read_body(response, limit, cancel_event, deadline)
+                state["preferred"] = label
+                return payload
+            except RuntimeError:
+                raise
+            except urllib.error.HTTPError as exc:
+                status = exc.code
+                retry_delay = _retry_after_seconds(exc.headers) if status in (429, 503) else 0.0
+                exc.close()
+                if status not in (407, 408, 429, 500, 502, 503, 504):
+                    raise RuntimeError(f"下载失败：HTTP {status}。") from None
+                if state["preferred"] == label:
+                    state["preferred"] = None
+                not_before = max(not_before, time.monotonic() + retry_delay)
+                failure = f"{route}：HTTP {status}"
+                if status == 407:
+                    failure += "（代理认证失败，请核对代理账号和密码）"
+                    state["unavailable"][key] = failure
+                else:
+                    retry_plans.append((label, handler))
+                errors.append(failure)
+                _download_message(f"{failure}" + ("；正在切换下一条线路…" if position + 1 < len(round_plans) else ""))
+            except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException) as exc:
+                if state["preferred"] == label:
+                    state["preferred"] = None
+                reason, code = _connection_error(exc)
+                failure = f"{route}：{_reason_text(exc)}（错误码 {code}）"
+                errors.append(failure)
+                if code in (10013, errno.EACCES, errno.EPERM) or _proxy_auth_error(exc):
+                    state["unavailable"][key] = failure
+                elif not isinstance(reason, ssl.SSLCertVerificationError):
+                    retry_plans.append((label, handler))
+                _download_message(f"{failure}" + ("；正在切换下一条线路…" if position + 1 < len(round_plans) else ""))
+        round_plans = retry_plans
+    _raise_download_failure(errors, cancel_event)
+
+
+def _raise_download_failure(errors, cancel_event):
     _check_cancel(cancel_event)
     raise RuntimeError("下载失败（线路不可用或超出等待时间）：" + "；".join(errors))
 
@@ -459,20 +544,13 @@ def _download_profile_packages(profile, installed, cache_dir, fetch, cancel_even
         tell(f"需下载 {len(missing)} 个包，共约 {max(1, total // 1024)} KB。", "info")
     else:
         tell("安装包均已缓存，无需下载。", "info")
-    root = Path(cache_dir) / profile.release / profile.package_arch
-    existing = root
-    while not existing.exists():
-        existing = existing.parent
-    checked_path(existing, existing)
-    root.mkdir(parents=True, exist_ok=True)
-    checked_path(Path(cache_dir), root)
+    cache_root = Path(cache_dir).absolute()
+    root = prepare_cache_directory(cache_root / profile.release / profile.package_arch)
     paths = []
     total_count = len(missing)
     for position, package in enumerate(missing, start=1):
         _check_cancel(cancel_event)
-        target = root / package.filename
-        if target.exists() or target.is_symlink():
-            checked_path(Path(cache_dir), target)
+        target = checked_cache_target(cache_root, root / package.filename)
         if _valid_cached(target, package):
             tell(f"{package.name} 已缓存，跳过下载。", "info")
         else:
@@ -488,7 +566,7 @@ def _download_profile_packages(profile, installed, cache_dir, fetch, cancel_even
         paths.append(target)
         receipts = getattr(_cache_transaction, "receipts", None)
         if receipts is not None:
-            receipts.append((Path(cache_dir), target, checked_path(Path(cache_dir), target)))
+            receipts.append((cache_root, target, checked_path(cache_root, target)))
     return paths
 
 

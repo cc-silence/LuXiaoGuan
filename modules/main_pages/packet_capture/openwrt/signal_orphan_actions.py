@@ -3,6 +3,7 @@ from PySide6.QtCore import QObject
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from modules.main_pages.page_action_buttons import create_page_text_button, set_page_action_enabled
 from .orphan_review_dialog import OrphanReviewDialog
+from .settings_impacts import ORPHAN_SAVE_WARNING
 
 
 class OrphanInterfaceActions(QObject):
@@ -27,7 +28,8 @@ class OrphanInterfaceActions(QObject):
         supported=self.service is not None and hasattr(self.service,"orphan_preview")
         if self._waiting and (not state.connected or self.service._connection_identity() is not self._identity):
             self._waiting=False
-        self.button.setVisible(supported)
+        self.button.setVisible(True)
+        self.button.setToolTip("\u5148\u68c0\u67e5\u518d\u9009\u62e9\u6e05\u7406\uff0c\u4e0d\u4f1a\u76f4\u63a5\u5220\u9664\u3002" if supported else "\u63a5\u53e3\u68c0\u67e5\u670d\u52a1\u5c1a\u672a\u5c31\u7eea\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55\u540e\u91cd\u8bd5\u3002")
         set_page_action_enabled(self.button, bool(supported and state.connected and not state.busy and not self.service.active and not self._waiting))
 
     def review(self):
@@ -54,7 +56,7 @@ class OrphanInterfaceActions(QObject):
                         if selected:
                             confirm=ConfirmDialog("\u786e\u8ba4\u6e05\u7406\u9057\u7559\u63a5\u53e3",
                                 "\u4ec5\u6e05\u7406\u4ee5\u4e0b\u5df2\u52fe\u9009\u63a5\u53e3\uff1a\n"+"\n".join(selected)+
-                                "\n\n\u540c\u65f6\u79fb\u9664\u5176\u9632\u706b\u5899\u533a\u57df\u6210\u5458\u5173\u7cfb\u3002\u5907\u4efd\u540e\u4fdd\u5b58\uff0c\u4e0d\u91cd\u8f7d\u7f51\u7edc\u3002",self.page,
+                                "\n\n" + ORPHAN_SAVE_WARNING,self.page,
                                 yes_text="\u6e05\u7406\u6240\u9009",no_text="\u53d6\u6d88")
                             try:
                                 if confirm.exec()==confirm.Accepted:

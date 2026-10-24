@@ -1,6 +1,7 @@
 """Normalize official iwinfo scan formats using the scanning PHY's frequency list."""
 import re
 from .wireless_setup_models import WirelessNetwork
+from .wireless_scan_security import scan_security_description
 
 _MAC = re.compile(r"(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}")
 _BANDS = {2: "2.4G", 5: "5G", 6: "6G"}
@@ -67,7 +68,8 @@ def _row(row, radio, channel_bands):
         power -= 4294967296
     if power is not None and (type(power) is not int or not -150 <= power <= 0):
         power = None
-    return WirelessNetwork(radio, row["bssid"].lower(), ssid, channel, band, power, code, reason)
+    label, detail = scan_security_description(enc)
+    return WirelessNetwork(radio, row["bssid"].lower(), ssid, channel, band, power, code, reason, label, detail)
 
 
 def parse_scan_results(rows, radio, *, channels=(), on_evidence=None):

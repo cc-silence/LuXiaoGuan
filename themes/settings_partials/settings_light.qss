@@ -1097,3 +1097,11 @@ QToolButton#quickSettingsButton:pressed {
 }
 #settingsTitleButtons QPushButton[windowControl="true"]:hover { background-color: #e2e8f0; }
 #settingsTitleButtons QPushButton[windowControl="true"]:pressed { background-color: #d6e0ed; }
+
+QTextEdit#settingsMessageText[connectionWarning="true"] {
+    font-size: 10pt;
+}
+
+/* Title controls must not inherit left alignment from content buttons. */
+#settingsTitleButtons QPushButton[windowControl="true"],
+#settingsTitleButtons QPushButton#settingsCloseBtn { text-align: center; }

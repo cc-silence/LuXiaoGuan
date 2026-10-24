@@ -12,6 +12,7 @@
 
 ## 主题与公共组件
 
+- 新增界面组件前，必须先搜索公共组件和相似页面；已有公共实现时优先复用，不另造一套。进度弹窗和进度条优先使用 TaskProgressDialog / RoundedProgressBar；确实缺少时再抽成公共组件，同步更新说明和验证。
 - 主窗口样式由 `router_app/appearance.py` 组合，外框使用 `themes/router_chrome_*.qss`；业务页使用 `CapturePageStyleManager`；设置和弹窗各自使用 `build_base_stylesheet()`。
 - 禁止把整套设置窗口 QSS 套到主窗口，防止通用按钮对齐、字体和 `QScrollArea QWidget` 背景规则泄漏到业务页。不逐个控件叠加反向补丁。
 - 颜色、边框和背景写入 QSS。同时支持明暗主题；缩放从原始尺寸计算，不重复缩放当前值。标题栏与导航保留图标入口和左下角设置。

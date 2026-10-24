@@ -29,7 +29,20 @@ local function common_read()
   table.sort(devices)
  end
  if token~=pending_hash("/etc/config/"..req.config) then fail("changed") end
- return {config=req.config,section=section,token=token,values=fields(row,keys),devices=devices}
+ local timezones={}
+ if req.config=="system" then
+  local ok,data=pcall(require,"luci.sys.zoneinfo.tzdata")
+  if ok and type(data)=="table" and type(data.TZ)=="table" then
+   for _,pair in ipairs(data.TZ) do
+    if #timezones>=1024 then break end
+    if type(pair)=="table" and type(pair[1])=="string" and #pair[1]<=128 and
+       type(pair[2])=="string" and #pair[2]<=128 and not pair[1]:find("%c") and not pair[2]:find("%c") then
+     timezones[#timezones+1]={pair[1],pair[2]}
+    end
+   end
+  end
+ end
+ return {config=req.config,section=section,token=token,values=fields(row,keys),devices=devices,timezones=timezones}
 end
 local function common_validate()
  local review=req.review

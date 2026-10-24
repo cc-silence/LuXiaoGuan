@@ -1,5 +1,6 @@
 """Relocation preview and explicit confirmation, sharing the standard dialog and task service."""
 from PySide6.QtCore import QObject
+from .settings_impacts import DISCONNECT_WARNING
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from modules.main_pages.page_action_buttons import create_page_text_button, set_page_action_enabled
 
@@ -54,6 +55,7 @@ class RelocationActions(QObject):
         lines.append("\n更新外网自动取地址时上报的主机名，清除原有自定义客户端标识。保留管理 IP、登录密码、系统和已安装组件。")
         lines.append("\n请先用网线连接路由器，并停止在网页或脚本中改配置。旧 Wi-Fi 会全部断开，上网连接可能重新取地址。若无法确认成功，设备会在 90 秒内自动回滚，请等待后重连。")
         lines.append("\n本功能只清理当前网络配置，用户自建文件、备份和其他软件的数据需另行处理。")
+        lines.append("\n" + DISCONNECT_WARNING)
         return "\n".join(lines)
 
     def _completed(self, result):

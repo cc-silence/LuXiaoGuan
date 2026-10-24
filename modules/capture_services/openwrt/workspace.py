@@ -17,18 +17,30 @@ _TRANSFER_RETRY_DELAY = 1.0
 def local_session_root():
     """返回本机抓包会话临时根目录，各任务会话子目录建在这里。
 
-    主目录为软件根目录 `RouterManagerData/capture-work`，不可写时受控降级到系统临时目录。
+    主目录为软件根目录 `RouterManagerData/capture-work`，不可写或安全检查不通过时受控降级到系统临时目录。
     会话中间产物只放这里；最终产物由 finalize_result_file 另行搬运。副作用：确保目录存在。
     """
 
     from modules.config_manager import CAPTURE_WORK_DIR
-    try:
-        CAPTURE_WORK_DIR.mkdir(parents=True, exist_ok=True)
-        return CAPTURE_WORK_DIR
-    except OSError:
-        root = Path(tempfile.gettempdir()) / "winbox-capture-work"
-        root.mkdir(parents=True, exist_ok=True)
-        return root
+    from modules.platform_services.owned_cache import checked_path
+    candidates = (CAPTURE_WORK_DIR, Path(tempfile.gettempdir()) / "winbox-capture-work")
+    last_error = None
+    for root in candidates:
+        try:
+            # Validate existing ancestors before creating anything through them.
+            existing = root
+            while not existing.exists() and not existing.is_symlink():
+                if existing == existing.parent:
+                    raise OSError("Session root has no existing ancestor")
+                existing = existing.parent
+            checked_path(existing, existing)
+            root.mkdir(parents=True, exist_ok=True)
+            checked_path(root, root)
+            return root
+        except (OSError, ValueError) as exc:
+            last_error = exc
+    raise OSError("No safe local session directory is available") from last_error
+
 
 
 @dataclass(frozen=True)

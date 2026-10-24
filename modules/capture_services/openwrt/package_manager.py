@@ -58,18 +58,13 @@ class PackageManager:
         """apk 预演仅允许新装；卸载不得超出用户清单。"""
         if self.name == 'opkg':
             return self._verify_opkg_plan(text, packages, remove=remove)
+        from .apk_plan import parse_actions
         allowed = set(packages)
-        actions = 0
-        for line in text.splitlines():
-            match = re.match(r'^\s*\(\s*\d+/\s*\d+\)\s+(Installing|Purging|Removing|Upgrading|Downgrading|Reinstalling|Replacing)\s+(\S+)', line)
-            if match:
-                actions += 1
-                verb, name = match.groups()
-                safe = (verb in {'Purging', 'Removing'} and name in allowed) if remove else verb == 'Installing'
-                if not safe or not _PACKAGE.fullmatch(name):
-                    raise ValueError('操作会更改已有软件或删除清单外的包，已停止：' + name)
-            elif re.search(r'\b(Installing|Purging|Removing|Upgrading|Downgrading|Reinstalling|Replacing)\b', line):
-                raise ValueError('无法识别 apk 操作计划，未继续更改。')
+        actions = parse_actions(text)
+        for verb, name, _version in actions:
+            safe = (verb in {'Purging', 'Removing'} and name in allowed) if remove else verb == 'Installing'
+            if not safe:
+                raise ValueError('操作会更改已有软件或删除清单外的包，已停止：' + name)
         if not actions and not re.search(r'(?m)^OK[:\s]', text):
             raise ValueError('apk 未返回可核实的操作计划。')
 
@@ -91,13 +86,19 @@ class PackageManager:
                 actions += 1
             elif re.match(r'^(Upgrading|Downgrading|Reinstalling|Replacing|Installing|Removing)\b', line):
                 raise ValueError('操作会替换既有包或计划无法识别，未继续。')
-        if not actions and not re.search(r'(?m)^Package \S+ .* is up to date\.$', text):
+        unchanged = re.search(r'(?m)^Package \S+ .* is up to date\.$', text)
+        if not remove:
+            unchanged = unchanged or re.search(r'(?m)^Package \S+ is already installed on \S+\.$', text)
+        if not actions and not unchanged:
             raise ValueError('opkg 未返回可核实的操作计划。')
 
 
 def package_error_reason(output):
     """将两种包管理器的常见失败分类，不把签名失败当成断网。"""
-    text = str(output or '')[-4096:].lower()
+    # A successful opkg feed check is status, not a signature error. Keep all
+    # captured output so a genuine failure in an earlier feed is not discarded.
+    text = str(output or '').lower()
+    text = re.sub(r'(?m)^[ \t]*signature check passed\.?[ \t]*\r?$', '', text)
     if any(x in text for x in ('could not lock', 'unable to lock', 'database is locked')):
         return '包管理器正被其他任务占用，稍后重试'
     if 'no space left on device' in text:

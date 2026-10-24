@@ -16,12 +16,12 @@ REVIEW = dict(operation="reset", model="Router A", version="25.12", reset_comman
 class MaintenanceUiTests(unittest.TestCase):
     create_page = create_page
 
-    def test_all_eight_cards_have_reference_icons_and_two_columns(self):
+    def test_all_thirteen_cards_have_reference_icons_and_three_columns(self):
         page, _ = self.create_page()
-        self.assertEqual(len(page.cards), 8)
+        self.assertEqual(len(page.cards), 13)
         for index, card in enumerate(page.cards):
             row, col, _, _ = page.cards_layout.getItemPosition(index)
-            self.assertEqual((row,col),(index//2,index%2))
+            self.assertEqual((row,col),(index//3,index%3))
             illustration = card.findChild(CardIcon)
             self.assertIsNotNone(illustration)
             self.assertFalse(illustration.icon.isNull())
@@ -113,6 +113,8 @@ class MaintenanceUiTests(unittest.TestCase):
                         self.addCleanup(dialog.deleteLater)
                         dialog.show();APP.processEvents()
                         self.assertFalse(dialog.go.isEnabled())
+                        self.assertGreater(dialog.warning_text.height(),80)
+                        self.assertGreaterEqual(dialog.warning_text.font().pointSize(),round(10*percent/100))
                         dialog.grab().save(str(output/(kind+"-"+str(light)+"-"+str(percent)+".png")))
                         if kind=="reset":
                             dialog.input.setText("wrong")

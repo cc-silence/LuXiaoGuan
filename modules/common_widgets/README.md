@@ -10,7 +10,6 @@
 
 - `settings_widgets.ContentSizedStackedWidget`: shared current-page stack for inline wireless settings. Size hints, minimum size and height-for-width all come from the current page, so hidden long forms cannot add blank space. Pages retain their original size policies.
 
-- `TableSearchOverlay(table)`: WiKey-style bottom-right arrow with a single-line, clearable search field and visible/total count. Emits `changed(str)`; the host owns filtering. Call `refresh_scale()` after theme/scale changes. Uses viewport resize events, never a timer; closing the panel preserves the current filter.
 
 - `InfoPanelDock(content, panel, orientation, parent, sizes)`: shared draggable information dock. Hides the panel completely, retains its share of available space, and moves the reverse-arrow control outside the hidden panel. Reopening restores the same panel and log history; no timer or duplicated log cache.
 
@@ -26,3 +25,9 @@ Modal editors minimize the visible owner group to retain modal ownership; modele
 - `card_icon.CardIcon`: fixed-size, scale-aware colored card illustration; paints through QIcon without per-frame pixmap caches.
 
 - icon_button.create_themed_icon_button accepts optional light_color and dark_color semantic colors; shared refresh retains them. Existing callers retain default behavior.
+
+
+
+- `TaskProgressDialog`: shared task dialog with `RoundedProgressBar`, theme, scale and resource cleanup. Connect `cancelRequested`, send real stage/byte progress and call `finish` on every outcome. Router backup/policy tasks use a thin `RouterTaskProgressDialog` adapter; avoid separate progress styles and fake timer percentages.
+
+- `TableFilterBar(parent)`: always-visible single-line search and filtered/total count. Emits `changed(str)`; the table owns filtering. Put it in the footer beside status text and call `refresh_scale()` after appearance changes. No overlay, position persistence, mouse dragging or timer.

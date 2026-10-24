@@ -250,3 +250,114 @@ Validation record: `build/radio-identity-audit/summary.json` contains 8 isolated
 验证结果：build/wireless-responsiveness/review-before 保留四条失败证据；review-fixed 中 9 个相关模块、70 项测试全部通过，零失败、零跳过。覆盖主窗口响应、销毁后的迟到结果、取消交接、窗口状态恢复、六系列七路线识别以及原抓包保护和任务调度。Python 语法、UTF-8 与差异空白检查通过。Qt 对模态窗口及其父窗口销毁关系的说明见 https://doc.qt.io/qt-6/qdialog.html#exec 。
 
 本轮没有连接真实路由器，没有执行 Wi-Fi 断线操作；离屏 Qt 回归不作为真机断线验证。源码需要重启生效，未更新安装版或发布。
+
+
+## Dependency installation three-pass review (2026-10-24)
+
+- Online update, full-plan and package installation failures share one bounded retry policy; retry exceptions preserve sanitized package diagnostics. Signature errors and existing-package conflicts still stop.
+- Both PC-downloaded IPK entrypoints use no-feed configuration and exact control-metadata package/version validation. APK downloads must match the native simulated version.
+- Remote and local-cache cleanup warnings cannot replace installation or cancellation results when an observer fails. Cleanup remains independent of the cancelled installation event.
+- Final targeted regression: 95 tests passed, zero failures/skips. Offline compatibility checked 216 unique packages/records across official 19.07, 21.02, 22.03, 23.05, 24.10 and 25.12; IPK control data and APK object hashes/version binding verified. Evidence: build/dependency-install-review/. Earlier 19.07 missing-package exclusions remain.
+- No live router installation, application build or publication was performed.
+
+
+## Dependency installation additional three-pass review (2026-10-24)
+
+- Pass 1: transient HTTP 408/429/500/502/503/504 responses release their response handles and allow the next existing proxy/direct route within the original deadline. Missing files and other permanent HTTP responses still fail; TLS and package verification are unchanged.
+- Pass 2: IPK, APK and native APK index files share the existing owned-cache path checks. APK hashing reads bounded chunks; oversized cached files are rejected before reading, and cache hits count toward the 256 MiB transaction limit. Cancelled or hash-invalid downloads do not replace existing cached files.
+- Pass 3: legacy signal dependency online, PC-IPK and PC-APK routes use the common complete-plan/installed-size space checks before installation. Cancellation and independent cleanup regressions remain passing.
+- Final targeted regression: 118 tests passed, zero failures/skips. Twelve new regressions cover the changes. Current source also checked 216 real package records (36 per series) from the retained official common ZIP across 19.07, 21.02, 22.03, 23.05, 24.10 and 25.12. IPK identities/installed sizes and APK version binding/hashed cache reuse passed. Evidence: build/dependency-install-followup/.
+- Size-output references: https://lxr.openwrt.org/source/opkg-lede/libopkg/pkg.c and https://raw.githubusercontent.com/alpinelinux/apk-tools/v3.0.3/src/app_info.c . Existing six-series fixtures and unavailable-profile exclusions remain in force.
+- No visual changes, live-router installation, application build or publication performed. Source changes require restarting the source application.
+
+
+## Dependency installation six further audit passes (2026-10-24)
+
+- Pass 1: APK index/package upload checks cancellation before and after every file, including after progress callbacks. Both PC and local-bundle routes stop before installation and clean independently.
+- Pass 2: one bounded native APK action parser serves online guards, offline plans and size accounting. Official Updating pinning and unknown numbered actions are rejected. Duplicate package identities cannot be collapsed; whitespace accepted by validation is also counted by space checks.
+- Pass 3: cache parent traversal and pre-creation boundaries verified; no new defect reproduced.
+- Pass 4: HTTP Content-Length is checked against the received body; truncated/protocol-failed responses use the next existing route within the original deadline. Declared oversized bodies stop before reading. TLS and package verification remain enabled.
+- Pass 5: command-channel uploads hash and encode bounded chunks instead of loading/base64-encoding the entire file. Encoded chunks remain 8 KiB for old Dropbear compatibility; remote digest comparison is preserved. Offline tracemalloc experiment with an 8 MiB file and non-retaining executor measured 536115 bytes peak Python allocations; this does not measure router/network memory. Failed cache transactions release their lock and download-session state.
+- Pass 6: full-route cancellation/cleanup and six-series package-record verification passed with no additional defect. 216 official records (36 per series) cover IPK identity/installed size, APK cache/hash/version matching, and generated plan strings derived from real metadata. Generated plans are not captured router output.
+- Final targeted regression: 134 tests passed, zero failures/skips, including 16 new regressions. Python syntax, UTF-8 and diff whitespace checks passed. Evidence: build/dependency-install-six-rounds/.
+- Primary references: https://raw.githubusercontent.com/alpinelinux/apk-tools/v3.0.3/src/commit.c and https://docs.python.org/3/library/http.client.html . Existing six-series support exclusions remain unchanged.
+- Source only: no visual changes, live-router installation, application build or publication performed.
+
+
+## Feedback 20261024_130059: correction of overstrict plan checks
+
+The previous audit introduced an incorrect rejection of any repeated opkg package name. This was a regression. Earlier passing metadata/generated-plan tests did not exercise native noaction dependency revisits and therefore did not justify claiming the guard was compatible.
+
+The new feedback identifies OpenWrt 21.02.1 / ath79/generic / mips_24kc on TP-Link TL-WDR7500 v3. Router online update failed, then PC downloaded and uploaded tmux and libevent2-7 successfully. Local simulation exited zero; software validation rejected repeated names before any actual install command. The ZIP lacks that simulation output, so the exact repeated lines cannot be recovered. Its attached package log is an earlier, correctly blocked iw removal.
+
+Official release Makefiles and their pinned package-manager source were downloaded for 19.07.10, 21.02.1, 22.03.0, 23.05.0, 24.10.0 and 25.12.0. The five opkg sources return on noaction before setting the installed/unpacked state, while install processes arguments individually. Same-name/same-version repetitions are legitimate. Normalize them once, reject conflicting versions, and count unique identities for the existing package limit. This supersedes the earlier unqualified duplicate rejection in the six-pass record above.
+
+Also correct pre-existing false rejection of native already-installed/no-change success: opkg's already installed status is accepted, and both APK local and computer routes accept an action-free OK. The APK computer route skips package download/add when nothing changes, retaining cleanup and post-verification. Empty or unknown output and software-replacement actions remain rejected.
+
+Both local IPK entrypoints now attach bounded sanitized simulation output for validation errors, even when the native command exits zero. Common online space-validation errors retain the current plan as well. No UI, feed, signature, driver, default dependency policy or firmware configuration was changed.
+
+Review of prior additions found no further confirmed false rejection in the inspected normal fixtures. Full retained bundle checks passed for 1965 common and 834 capture artifacts (counts are per bundle and may overlap): package names/versions/installed sizes, hashes and reconstructed valid plan strings. This is metadata/contract verification, not native execution. Existing archive support exclusions remain unchanged.
+
+Final targeted regression: 146 tests passed, zero failures/skips, including 12 new cases for legitimate repetitions, actual conflicts, limit accounting, diagnostic retention, already-installed and no-change behavior. Syntax/UTF-8/diff checks passed. Evidence and per-change review: build/opkg-feedback-130059/. Source only; no router installation, application build or publication performed.
+
+Pinned references: https://raw.githubusercontent.com/openwrt/openwrt/v21.02.1/package/system/opkg/Makefile ; https://raw.githubusercontent.com/openwrt/opkg-lede/1bf042dd06751b693a8544d2317e5b969d666b69/libopkg/opkg_install.c ; https://raw.githubusercontent.com/alpinelinux/apk-tools/d093f7c198a64bff0cd58afeaf638909fda24ca8/src/commit.c .
+
+
+## Additional introduced-regression review (2026-10-24)
+
+- Confirmed regression: adding shared owned-cache checks rejected relative APK cache/index directories that the baseline supported. An isolated execution of the HEAD APK downloader and the repaired downloader with the same relative directory confirms both now succeed. Paths become absolute without resolving links; the existing link/traversal checks remain.
+- Confirmed inherited defect: the old IPK ancestor loop was copied into the shared cache helper and thereby also exposed to APK. An unavailable drive/share root has itself as parent, so repeated parent lookup could never finish. Finite ancestor enumeration now fails explicitly when none is accessible. The root behavior is documented at https://docs.python.org/3.10/library/pathlib.html#pathlib.PurePath.parent .
+- Download targets and IPK cleanup receipts now use one absolute root consistently. A real temporary-filesystem transaction verifies successful cleanup removes its downloaded file while preserving an unrelated file.
+- Reviewed action parsing, exact versions, no-change statuses, space checks, no-feed configuration, HTTP/route handling and cleanup/diagnostics; no further introduced regression was confirmed in this pass. These are bounded offline checks, not a claim that every real device path has been tested.
+- Final related regression: 151 tests passed, zero failures/skips; five new cases cover relative APK package/index paths, inaccessible ancestors, IPK receipt consistency and actual cleanup. Python syntax, UTF-8 and diff checks passed. Evidence: build/installation-added-regressions/.
+- Source only; no user incident attributed to these directory scenarios, no router installation, visual changes, build or publication.
+
+
+## Three official-web contract review rounds (2026-10-24)
+
+- Round 1: pinned opkg metadata output and pinned OpenWrt 25.12 APK info/context sources checked. APK context initializes legacy_info=1; the default installed-size block matches the existing parser. Installed/no-change native statuses remain accepted. No new error confirmed.
+- Round 2: RFC 9112 sections 6.3/8 and Python 3.10 HTTP/path documentation checked. New tests feed actual wire bytes through stdlib HTTPResponse, accepting complete Content-Length, chunked and close-delimited bodies and rejecting a declared truncated body. Earlier directory fixes remain covered. No new error confirmed.
+- Round 3: Python Event and Paramiko SFTP.put documentation checked against fallback/cleanup implementation. Existing put uses its default confirm=True size confirmation. Only explicit offline_retry uses PC fallback; conflict/environment/cancellation and ordinary transport errors stop. Cleanup has an independent event and existing timeout. No new error confirmed.
+- No business code or limits changed in this pass. Seven new contract regressions added. Final related tests: 158 passed, zero failures/skips; syntax/UTF-8/diff checks passed. Evidence: build/installation-web-three-rounds/summary.json and sources/.
+- References: https://raw.githubusercontent.com/alpinelinux/apk-tools/d093f7c198a64bff0cd58afeaf638909fda24ca8/src/app_info.c ; https://raw.githubusercontent.com/alpinelinux/apk-tools/d093f7c198a64bff0cd58afeaf638909fda24ca8/src/context.c ; https://www.rfc-editor.org/rfc/rfc9112.html#section-6.3 ; https://docs.python.org/3.10/library/threading.html#event-objects ; https://docs.paramiko.org/en/stable/api/sftp.html#paramiko.sftp_client.SFTPClient.put .
+- No router installation, visual changes, application build or publication. These bounded contract checks do not certify all real-device behavior.
+
+
+### 2026-10-24 shared download route isolation review
+
+Compared retry handling with CPython 3.10.11 urllib.request source and RFC 9110 section 9.2.2. Real ProxyHandler tests exposed mutable Request reuse across proxy/direct attempts, for both HTTP and HTTPS. Each route attempt now creates its own Request, isolating proxy host, tunnel, selector and credentials across both rounds. The shared IPK/APK download path keeps its existing cancellation checks, total request budget and package validation. All 172 related tests passed, including three real loopback HTTP cases (503 recovery, truncated-body recovery and failure bounded to two attempts). Evidence: build/download-route-review/summary.json. This verifies PC download behavior, not live-router compatibility across OpenWrt 19.07 through 25.12. Cancellation is checked between blocking network operations; it does not abort an in-flight socket operation instantly.
+
+
+### 2026-10-24 explicit server retry-delay review
+
+Reviewed RFC 9110 section 10.2.3, RFC 6585 section 4 and Python 3.10 urllib/email/threading documentation. Shared PC downloads now honor an explicit Retry-After on HTTP 429/503 responses before a follow-up attempt. Both delay-seconds and HTTP-date are accepted; missing or malformed values leave immediate route fallback unchanged. Waiting is cancellable, consumes the existing URL request budget and never adds another retry round. A server delay beyond the remaining budget ends that URL request. All 181 related tests passed, including 23 download tests and four real loopback HTTP cases. Router commands, opkg/apk parameters and UI visuals were unchanged. This is PC-layer verification, not all-version live-router certification. Evidence: build/download-route-review/retry-after-review.json.
+
+
+### 2026-10-24 proxy authentication and response review
+
+Reviewed RFC 9110 section 15.5.8, RFC 9112 section 8, and CPython urllib/http.client sources. HTTP 407 now fails only its proxy route, allowing valid alternate routes to proceed. The exact CPython HTTPS CONNECT 407 error is classified the same way and is not retried with unchanged credentials in round two. Authentication failures are remembered only within the current download session. All 189 related tests passed, including 31 download tests, a real loopback 407 proxy followed by a successful direct origin, actual CPython tunnel error generation, bounded redirects, and incomplete chunk rejection with response closure. Router commands, package parameters and UI visuals were unchanged. This is PC-layer verification, not live-router certification. Evidence: build/download-route-review/proxy-auth-review.json.
+
+
+### 2026-10-24 bridge table and scan security review
+
+Verified native rpcd encryption field names and iwinfo authentication names against pinned source packages for all six supported series (19.07, 21.02, 22.03, 23.05, 24.10, 25.12). Scan security display is now separate from the supported join mode: WPA/WPA2 mixtures, SAE mixtures, OWE, enterprise authentication and WEP retain their reported identity; missing version details stay unknown. Original join parameters and unsupported-mode guards remain unchanged. The bridge table adds visible row ordinals, reduces encryption width and preserves readable names in narrow windows. The shared green search arrow supports bounded dragging and a normalized persisted location through the host runtime configuration; writes occur only on release. The 276-test related suite passed, followed by 14 targeted checks after the final width adjustment and one security-format recheck. Both themes and 100/125/150/175 percent scales were rendered; 1024-row privacy updates preserved existing cells without column remeasurement. The additional download source review found no new issue and required no download production change. Evidence and exact official source hashes: build/bridge-table-review/. This is offline/loopback and rendered UI verification, not a live router test.
+
+
+### 2026-10-24 15:47 scan feedback and footer revision
+
+The supplied signal-management feedback shows radio0/wlan0 (ath10k, 5G) scan timed out after 20.047 seconds while SSH remained connected; the following configuration read succeeded. Parsing was never reached. Pinned Lua ubus sources for all six supported series use a 30-second default native RPC budget. The shared scan action now uses 40 seconds at the transport layer (30 native plus 10 for status/transport/result overhead), also when called through the common action default. Non-scan defaults remain unchanged. This fixes a confirmed early cutoff, but the feedback cannot establish the eventual native result or explain the browser request latency; a live router retest is still required.
+
+At the user request, the bridge filter now remains visible in the footer beside status text; the floating arrow, dragging and position-storage component were removed. This supersedes the preceding draggable-overlay record. Both main-window themes remove the logo right divider. Shared dialog title controls now explicitly center icons instead of inheriting left alignment: rendered testing covered both themes, all four scales, pressed and maximized/restore states. All 96 related tests passed; syntax, UTF-8 and diff checks passed. Evidence and exact source hashes: build/scan-feedback-154731/. No router configuration was changed or live installation/scan performed by this review.
+
+
+## Capture safeguards and APK compatible tools (2026-10-24)
+
+- Scanning always rejects the physical radio carrying the current SSH management path. The page offers another-band recheck or cancellation; old management_scan_allowed_phy values cannot bypass execution. An independent radio remains usable even with both bands serving AP/relay traffic. Unknown paths still stop safely.
+- Parallel lanes use the common backend constructor with an injected shared SSH client. Each lane independently owns its takeover, monitor, process, workspace and recovery collaborators; the normal UI parallel switch remains disabled.
+- APK compatible tools use the same-release/architecture official packages.adb metadata and SHA256 table. Native `apk --no-network verify` and `apk --no-network extract --destination` run in an exclusive temporary directory, without installing a package or running its scripts. Missing installed dependencies stop the operation; system libraries and the original tool are preserved. Temporary resources are cleaned independently of cancellation. Unconfirmed cleanup blocks publication and is reported. Successful binaries use the existing atomic selection, self-check and reconnect validation transaction.
+- The bounded APK index reader is shared by production and offline-package build tools. Official OpenWrt 25.12.0/aarch64_cortex-a53 metadata was checked online: hcxdumptool 6.3.4-r1, archive size 36,836 bytes; this is source/metadata evidence, not a physical-device capture result.
+- hcxdumptool 6.0.1 remains intentionally blocked: its upstream CLI lacks the required receive BPF interface. The error now explains the limitation and points to regular handshake capture. Do not infer old PMKID support from release or architecture. 6.2.4 passive capture retains its existing driver requirements; no tool version whitelist was broadened.
+
+Upstream contracts: [OpenWrt APK build](https://github.com/openwrt/openwrt/blob/openwrt-25.12/package/system/apk/Makefile), [pinned applets including the minimal build](https://github.com/alpinelinux/apk-tools/blob/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/meson.build), [native extraction](https://github.com/alpinelinux/apk-tools/blob/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/app_extract.c), [native signature verification](https://github.com/alpinelinux/apk-tools/blob/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/app_verify.c).
+
+Validation: 213 relevant tests passed without fixture adaptation; the 12 legacy parallel-workflow tests also passed after their capture double accepted the current `defer_analysis` keyword. Raw failures are retained and the test-only adaptation is recorded. Both guard themes were rendered and inspected. Evidence is under build/capture-fixes-20261024. No router configuration, live RF capture, application packaging or publication was performed.

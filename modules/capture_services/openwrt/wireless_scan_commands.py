@@ -1,4 +1,8 @@
 """Native iwinfo scanning, including inactive radios without a configured AP."""
+# Native Lua ubus RPC budget plus transport/status/JSON completion time.
+SCAN_RPC_TIMEOUT_SECONDS = 30
+SCAN_COMMAND_TIMEOUT_SECONDS = SCAN_RPC_TIMEOUT_SECONDS + 10
+
 SCAN = r'''
 local function scan_native()
  if not name(req.radio) or type(req.interface)~="string" then fail("radio") end

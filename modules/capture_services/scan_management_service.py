@@ -16,7 +16,7 @@ class ScanManagementPlan:
 
     @property
     def at_risk(self):
-        return self.management_at_risk or bool(self.business_modes)
+        return self.management_at_risk
 
     @property
     def management_at_risk(self):
@@ -57,11 +57,9 @@ class ScanManagementService(QObject):
         band = "5G" if options.get("band") == "5G" else "2.4G"
         phy = backend._find_scan_radio(band, event, idle_radio_only=bool(options.get("idle_radio_only", False)))
         link = read_management_link(backend.command_runner, event)
-        from .openwrt.radio_business import read_radio_business
-        business_modes = read_radio_business(backend.command_runner, phy, event)
         if event.is_set():
             raise InterruptedError("\u626b\u63cf\u9884\u68c0\u5df2\u53d6\u6d88\u3002")
-        return ScanManagementPlan(phy, link, fingerprint, business_modes)
+        return ScanManagementPlan(phy, link, fingerprint)
 
     def _complete(self, probe_id, plan, error, cancelled):
         if probe_id != self._probe_id:
