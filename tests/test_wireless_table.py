@@ -118,6 +118,16 @@ class WirelessTableTests(unittest.TestCase):
         overlay=self.table.search_overlay
         self.assertIsInstance(overlay.search,QLineEdit)
         self.assertTrue(overlay.panel.isHidden())
+        from modules.common_widgets.icon_button import refresh_tool_button_icons
+        for light in (False, True):
+            refresh_tool_button_icons(overlay, light)
+            image=overlay.toggle.icon().pixmap(25,25).toImage()
+            greens=sum(1 for x in range(image.width()) for y in range(image.height())
+                       if image.pixelColor(x,y).alpha()>100
+                       and image.pixelColor(x,y).green()>image.pixelColor(x,y).red()*1.2
+                       and image.pixelColor(x,y).green()>image.pixelColor(x,y).blue()*1.2)
+            self.assertGreater(greens,10)
+        self.assertGreaterEqual(overlay.toggle.iconSize().width(),25)
         overlay.toggle.click()
         self.assertTrue(overlay.panel.isVisible())
         overlay.search.setText("aLpHa")

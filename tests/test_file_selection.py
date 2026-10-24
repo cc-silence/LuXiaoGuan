@@ -147,6 +147,59 @@ class FileSelectionTests(unittest.TestCase):
             self.assertTrue(all(job["operation"] == "download" for job in jobs))
             self.assertEqual({job["arguments"]["remote"] for job in jobs}, {"/root/a.txt", "/root/b.txt"})
 
+    def test_name_column_still_fills_available_width_before_manual_resize(self):
+        for light in (True, False):
+            self.theme(light)
+            self.parent.resize(self.parent.width() + 80, self.parent.height())
+            for _ in range(12):
+                APP.processEvents()
+            for remote in (False, True):
+                with self.subTest(light=light, remote=remote):
+                    tree = self.page._views[remote][1]
+                    other = sum(tree.columnWidth(column)
+                                for column in range(1, tree.columnCount())
+                                if not tree.isColumnHidden(column))
+                    self.assertEqual(tree.columnWidth(0),
+                                     max(200, tree.viewport().width() - other))
+
+    def test_manual_name_width_survives_scrollbar_and_window_layout(self):
+        from PySide6.QtCore import QPoint
+        for light in (True, False):
+            self.theme(light)
+            for remote in (False, True):
+                with self.subTest(light=light, remote=remote):
+                    tree = self.page._views[remote][1]
+                    header = tree.header()
+                    tree.horizontalScrollBar().setValue(0)
+                    APP.processEvents()
+                    original = tree.columnWidth(0)
+                    start = QPoint(header.sectionViewportPosition(0) + original - 1,
+                                   header.height() // 2)
+                    changes = []
+                    def record(column, old, new):
+                        if column == 0:
+                            changes.append(new)
+                    header.sectionResized.connect(record)
+                    try:
+                        QTest.mousePress(header.viewport(), Qt.LeftButton, Qt.NoModifier, start)
+                        QTest.mouseMove(header.viewport(), start + QPoint(80, 0))
+                        QTest.mouseRelease(header.viewport(), Qt.LeftButton, Qt.NoModifier,
+                                           start + QPoint(80, 0))
+                        for _ in range(12):
+                            APP.processEvents()
+                        self.assertEqual(tree.columnWidth(0), original + 80)
+                        count = len(changes)
+                        for _ in range(12):
+                            APP.processEvents()
+                        self.assertEqual(len(changes), count)
+                        tree.fit_name_column()
+                        self.parent.resize(self.parent.width() + 40, self.parent.height())
+                        for _ in range(12):
+                            APP.processEvents()
+                        self.assertEqual(tree.columnWidth(0), original + 80)
+                    finally:
+                        header.sectionResized.disconnect(record)
+
     def test_batch_download_writes_both_files_through_real_executor(self):
         payloads = {"/a": b"one"*100, "/b": b"two"*200}
         sftp = Mock()

@@ -5,6 +5,7 @@ import threading
 import time
 from .signal_manager import SignalError
 from .wireless_setup_commands import PROBE
+from .relocation_identity import generate_relocation_hostname
 
 
 class RelocationManager:
@@ -37,7 +38,7 @@ class RelocationManager:
             if review.get(key) == {}:
                 review[key] = []
         self._validate(review)
-        review["plan"] = {"hostname": "OpenWrt-" + secrets.token_hex(4), "macs": []}
+        review["plan"] = {"hostname": generate_relocation_hostname(review["hostname"]), "macs": []}
         used = {t["old_mac"].lower() for t in review["targets"]}
         for _ in review["targets"]:
             while True:

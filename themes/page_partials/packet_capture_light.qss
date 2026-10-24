@@ -153,8 +153,8 @@ QWidget#openwrtSignalPage QPushButton#downloadActionButton[signalPrimaryAction="
 QTableWidget#captureAccessPointTable[wirelessNetworks="true"] { padding: 0px; }
 QTableWidget#captureAccessPointTable[wirelessNetworks="true"]::item { padding: 0px 5px; }
 QFrame#tableSearchPanel { background: #edf2f8; border: 1px solid #c6cdde; border-radius: 5px; }
-QToolButton#tableSearchToggle { background: #e1e6ed; border: none; border-radius: 4px; }
-QToolButton#tableSearchToggle:hover { background: #b8d4f0; }
+QToolButton#tableSearchToggle { background: #e2f5e8; border: 1px solid #71b88a; border-radius: 5px; }
+QToolButton#tableSearchToggle:hover { background: #c9ecd5; }
 
 /* Shared full-width destructive action: use dangerAction on a page text button. */
 QPushButton#downloadActionButton[dangerAction="true"] { color: #ffffff; background: #c63740; border: 1px solid #ae2630; border-radius: 5px; }
@@ -163,3 +163,5 @@ QPushButton#downloadActionButton[dangerAction="true"]:pressed { background: #aa2
 QPushButton#downloadActionButton[dangerAction="true"]:disabled { color: #af8c91; background: #f0dadd; border-color: #d7b9bd; }
 
 QWidget#captureSignalMaintenanceActions QPushButton#downloadActionButton { margin: 0px; padding: 4px 14px; text-align: center; }
+
+QWidget#captureActionContainer { background: transparent; border: none; }

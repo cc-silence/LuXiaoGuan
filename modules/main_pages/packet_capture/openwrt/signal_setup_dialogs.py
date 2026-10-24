@@ -135,6 +135,8 @@ class AccessPointSetupDialog(_SetupDialog):
         self.channel = add_field(layout, page, "信道", choice(page, ()), "同一块网卡的所有信号共用信道；中继时通常跟随上级。")
         self.standard_combo = add_field(layout, page, "工作频率", choice(page, ()), "例如 Wi-Fi 4/5/6/7；只列出此网卡和频段已确认支持的标准。同网卡的所有信号共用此设置。")
         self.bandwidth_combo = add_field(layout, page, "带宽", choice(page, ()), "只列出驱动实际提供的模式。")
+        from .ap_identity_fields import AccessPointIdentityFields
+        self.ap_identity = AccessPointIdentityFields(page, layout, editing=editing)
         page, layout = self.common_tabs.pages["安全设置"]
         self.encryption = add_field(layout, page, "加密", choice(page, (
             ("WPA2-PSK", "psk2"), ("WPA2-PSK/WPA3-SAE 混合模式", "sae-mixed"),

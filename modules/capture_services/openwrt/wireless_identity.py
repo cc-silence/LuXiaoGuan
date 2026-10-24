@@ -38,6 +38,16 @@ def generate_mac(prefix=None):
     if not re.fullmatch(r"(?:[0-9A-Fa-f]{2}:){2}[0-9A-Fa-f]{2}",prefix) or int(prefix[:2],16)&1:raise ValueError("Invalid unicast prefix")
     return prefix.upper()+":"+":".join(f"{x:02X}" for x in secrets.token_bytes(3))
 
+def generate_unique_mac(excluded=()):
+    """Bound retries and avoid known local addresses without keeping a global cache."""
+    used = {value.upper() for value in excluded if isinstance(value, str)}
+    for _ in range(32):
+        address = generate_mac()
+        if address not in used:
+            return address
+    raise ValueError("\u672a\u80fd\u751f\u6210\u4e0d\u91cd\u590d\u7684\u65e0\u7ebf\u5730\u5740\uff0c\u8bf7\u91cd\u8bd5\u3002")
+
+
 def validate_identity(options):
     action=options.get("identity_action","keep")
     if action not in ("keep","set","restore","default"):raise ValueError("无效的设备身份选项。")

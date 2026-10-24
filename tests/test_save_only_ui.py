@@ -56,7 +56,7 @@ class SaveButtonTests(unittest.TestCase):
                     dialog.close()
 
 class OrphanUiTests(unittest.TestCase):
-    create_page=signal_ui.SignalActionTests.create_page
+    from tests.common_settings_fixture import create_page
     def setup_page(self,light=False):
         setup=signal_ui.PendingSetup()
         setup.orphan_preview=Mock(return_value=True)

@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import threading
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from tests.test_wireless_setup import LuaDevice, LuaRuntime
 from tests.test_standalone import APP
 from tests.test_wireless_ui import environment
@@ -16,7 +16,6 @@ from modules.capture_services.openwrt.wireless_setup_models import StoredWireles
 from modules.capture_services.wireless_setup_service import WirelessSetupService
 from modules.main_pages.packet_capture.openwrt.signal_setup_dialogs import RelaySetupDialog
 from modules.main_pages.packet_capture.openwrt.signal_setup_editor import configure_relay, relay_request
-from modules.capture_services.openwrt.wireless_identity_profiles import PROFILES
 
 
 @unittest.skipUnless(LuaRuntime, "Test-only Lua runtime unavailable")
@@ -112,14 +111,46 @@ class PasswordAndIdentityUiTests(unittest.TestCase):
         fields.regenerate.click()
         self.assertNotEqual(fields.profile.currentIndex(), first)
         self.assertNotEqual(fields.mac.text(), mac)
-        label, hostname, prefix = PROFILES[fields.profile.currentData()]
-        self.assertEqual(fields.hostname.text(), hostname)
-        self.assertTrue(fields.mac.text().startswith(prefix))
+        self.assertEqual(fields.hostname.text(), fields.profile.currentData())
+        self.assertEqual(int(fields.mac.text()[:2], 16) & 3, 2)
         saved = fields.values()
         fields.refresh()
         self.assertEqual(fields.values(), saved)
         dialog.bridge_mode.setCurrentIndex(dialog.bridge_mode.findData("wds"))
         self.assertNotIn("hostname", fields.values())
+
+    def test_profile_mac_is_fully_random_and_submitted_unchanged(self):
+        from tests.test_wireless_setup import TARGET
+        dialog = self.dialog(editing=False)
+        dialog.password.edit.setText('test-password')
+        fields = dialog.identity_fields
+        names = [fields.profile.itemText(i) for i in range(fields.profile.count())]
+        self.assertEqual(len(names), len(set(names)))
+        self.assertTrue(all(':' not in name for name in names))
+        with patch('modules.capture_services.openwrt.wireless_identity.secrets.token_bytes', return_value=bytes.fromhex('001122334455')) as random_bytes:
+            for index in (0, fields.profile.count()-1):
+                fields.profile.setCurrentIndex(index)
+                fields.generate()
+                self.assertEqual(fields.mac.text(), '02:11:22:33:44:55')
+                self.assertEqual(fields.hostname.text(), fields.profile.currentData())
+                request = relay_request(dialog, TARGET)
+                self.assertEqual(request.options['macaddr'], '02:11:22:33:44:55')
+                self.assertEqual(request.options['hostname'], fields.profile.currentData())
+                random_bytes.assert_called_with(6)
+        saved = fields.values()
+        fields.refresh()
+        self.assertEqual(fields.values(), saved)
+        output = Path('build/password-identity-preview')
+        output.mkdir(exist_ok=True)
+        for light in (False, True):
+            preview = self.dialog(light=light, editing=False)
+            preview.other_section.set_expanded(True, animate=False)
+            preview.other_tabs.stack.setCurrentIndex(3)
+            preview.show()
+            APP.processEvents()
+            self.assertTrue(preview.identity_fields.profile.isEnabled())
+            self.assertTrue(preview.grab().save(str(output/('random-profile-light.png' if light else 'random-profile-dark.png'))))
+            preview.reject()
 
     def test_disabled_dropdowns_are_visibly_different_in_both_themes(self):
         output = Path("build/password-identity-preview")

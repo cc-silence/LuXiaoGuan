@@ -69,7 +69,7 @@ class WirelessSetupManager:
             result = json.loads(text)
             if result.get("ok") is not True:
                 code = str(result.get("code", "internal"))
-                messages = {"scan_native": "当前驱动未能完成临时扫描，请核对无线驱动和 iwinfo 组件。", "scan_interface_busy": "存在同名临时扫描接口，为避免影响其他任务已停止。", "scan_recovery": "临时扫描接口的清理未确认，请保持设备在线并导出日志，勿连续重试。", "save_large": "配置超过安全保存上限，未执行保存。", "save_commit": "保存失败，已尝试恢复原配置，请重新读取核对。", "save_unsupported": "当前系统不支持独立保存而不应用，未执行保存。", "save_backup": "配置备份失败，未执行保存。", "save_recovery": "保存或恢复未确认，请停止重试并核对路由器 /tmp/rouxiaoguan-save.* 备份。", "orphan_runtime": "无法完整确认接口运行状态，未执行清理。", "orphan_large": "遗留接口数量超过检查上限，未执行清理。", "orphan_selection": "所选接口已变化或不可安全清理，请重新检查。", "radio": "无线网卡或接口不能明确对应，请刷新后重试。", "bridge_shared": "所选局域网已有中继配置，请编辑原连接，避免多条中继抢占同一网络。",
+                messages = {"common_values": "设置内容无效，请重新读取。", "common_section": "无法唯一确定系统配置，请先在路由器网页中核对。", "common_legacy": "旧式设备绑定需要保留，请在路由器网页中调整。", "scan_native": "当前驱动未能完成临时扫描，请核对无线驱动和 iwinfo 组件。", "scan_interface_busy": "存在同名临时扫描接口，为避免影响其他任务已停止。", "scan_recovery": "临时扫描接口的清理未确认，请保持设备在线并导出日志，勿连续重试。", "save_large": "配置超过安全保存上限，未执行保存。", "save_commit": "保存失败，已尝试恢复原配置，请重新读取核对。", "save_unsupported": "当前系统不支持独立保存而不应用，未执行保存。", "save_backup": "配置备份失败，未执行保存。", "save_recovery": "保存或恢复未确认，请停止重试并核对路由器 /tmp/rouxiaoguan-save.* 备份。", "orphan_runtime": "无法完整确认接口运行状态，未执行清理。", "orphan_large": "遗留接口数量超过检查上限，未执行清理。", "orphan_selection": "所选接口已变化或不可安全清理，请重新检查。", "radio": "无线网卡或接口不能明确对应，请刷新后重试。", "bridge_shared": "所选局域网已有中继配置，请编辑原连接，避免多条中继抢占同一网络。",
                             "bridge_state": "中继停用状态已被其他管理工具改变，请重新编辑并保存。",
                             "bridge_transition": "切换两种桥接前，请先保存为独立子网，恢复原有地址分配。",
                             "bridge_zone": "中继需要包含所选局域网的防火墙区域：允许输入、输出与转发，并关闭地址伪装。",

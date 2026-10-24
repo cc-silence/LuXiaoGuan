@@ -27,3 +27,31 @@ def handle_file_drop(page, source_remote, target_remote, entries, folder=None):
             arguments=dict(path=entry['path'],parent=page._current_path[target_remote],folder=folder['path'],
                            expected=entry['identity'],folder_expected=folder['identity'])))
     page._submit_batch(jobs,target_remote,title)
+
+
+def external_upload_paths(view, event):
+    """Accept only local URL payloads on the connected router pane; no disk IO."""
+    if not view.remote or not view.file_page.service.manager.ssh.connected:
+        return ()
+    mime = event.mimeData()
+    if mime.hasFormat(view.MIME) or not mime.hasUrls():
+        return ()
+    urls = mime.urls()
+    if not 1 <= len(urls) <= 10000 or any(not url.isLocalFile() for url in urls):
+        return ()
+    paths = tuple(url.toLocalFile() for url in urls)
+    return paths if all(paths) else ()
+
+
+def begin_external_upload(page, paths, folder=None):
+    """Freeze connection and destination before asynchronous local inspection."""
+    destination = folder['path'] if folder else page._current_path[True]
+    connection = page.service.manager.ssh._client
+    page._submit('local_upload_selection', ('external_upload', destination, connection), paths=paths)
+
+
+def complete_external_upload(page, purpose, entries):
+    ssh = page.service.manager.ssh
+    if not ssh.connected or ssh._client is not purpose[2]:
+        return
+    page._transfer(False, entries, destination=purpose[1])

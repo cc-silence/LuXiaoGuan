@@ -232,8 +232,8 @@ class SignalActionTests(unittest.TestCase):
             first = relay_request(dialog, TARGET)
             self.assertEqual(first.options["identity_action"], "set")
             self.assertEqual(fields.mode.currentData(), "profile")
-            from modules.capture_services.openwrt.wireless_identity_profiles import PROFILES
-            self.assertTrue(first.options["macaddr"].startswith(PROFILES[fields.profile.currentData()][2]))
+            self.assertEqual(int(first.options["macaddr"][:2], 16) & 3, 2)
+            self.assertEqual(first.options["hostname"], fields.profile.currentData())
             self.assertIn("hostname", first.options)
             self.assertEqual(relay_request(dialog, TARGET).options["macaddr"], first.options["macaddr"])
             fields.mode.setCurrentIndex(fields.mode.findData("profile"))

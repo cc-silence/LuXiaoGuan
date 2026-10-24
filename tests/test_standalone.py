@@ -58,26 +58,27 @@ class StandaloneTests(unittest.TestCase):
         self.assertEqual(user_config_dir(),Path(self.temp.name)/'user')
         self.assertTrue(self.runtime.capture_service._openwrt_credential_target({'host':'router','port':22,'username':'root'}).startswith('RouterManager:'))
 
-    def test_02_six_pages_theme_and_scale(self):
+    def test_02_seven_pages_theme_and_scale(self):
         tabs=self.window.packet_capture_page.openwrt_tab.tabs
-        self.assertEqual(tabs.count(),6)
-        self.assertEqual([tabs.tabText(i) for i in range(6)], ["路由器登录", "信号管理", "文件管理", "路由器终端", "抓包", "抓包设置"])
+        self.assertEqual(tabs.count(),7)
+        self.assertEqual([tabs.tabText(i) for i in range(7)], ["路由器登录", "常用设置", "信号管理", "文件管理", "路由器终端", "抓包", "抓包设置"])
         theme=os.environ.get('ROUTERMANAGER_TEST_THEME','dark.qss')
-        for index in range(6):
+        for index in range(7):
             tabs.setCurrentIndex(index);APP.processEvents()
             self.assertIsNotNone(tabs.currentWidget())
         container = self.window.packet_capture_page.openwrt_tab
-        self.assertIs(tabs.widget(2), container.files_page)
-        self.assertIs(tabs.widget(3), container.terminal_page)
-        self.assertIs(tabs.widget(4), container.capture_page)
-        self.assertIs(tabs.widget(5), container.settings_page)
+        self.assertIs(tabs.widget(1), container.common_page)
+        self.assertIs(tabs.widget(3), container.files_page)
+        self.assertIs(tabs.widget(4), container.terminal_page)
+        self.assertIs(tabs.widget(5), container.capture_page)
+        self.assertIs(tabs.widget(6), container.settings_page)
         self.window.hide()
         for scale in (100,125,150,175,100):
             self.window.apply_appearance(scale,'default',theme)
             APP.processEvents()
             self.assertEqual(self.window.packet_capture_page.scale_manager.global_scale,scale)
             from modules.ui_scale_manager import UiScaleManager
-            for index in range(6):
+            for index in range(7):
                 self.assertEqual(UiScaleManager.for_widget(tabs.widget(index)).global_scale,scale)
         tabs.setCurrentIndex(0);self.window.show();APP.processEvents()
         if os.environ.get('ROUTERMANAGER_CAPTURE_PREVIEW') == '1':

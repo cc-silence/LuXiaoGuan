@@ -1,5 +1,6 @@
 """Single-line adaptation of WiKey's bottom-right table filter entrypoint."""
 from PySide6.QtCore import QEvent, Qt, Signal
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QWidget, QFrame, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel
 from modules.common_widgets.icon_button import create_themed_icon_button, refresh_tool_button_icons
 from modules.config_manager import BASE_DIR
@@ -35,7 +36,8 @@ class TableSearchOverlay(QWidget):
         root.addWidget(self.panel)
         bottom = QHBoxLayout()
         bottom.addStretch()
-        self.toggle = create_themed_icon_button(self, "", "\u5c55\u5f00\u641c\u7d22")
+        self.toggle = create_themed_icon_button(self, "", "\u5c55\u5f00\u641c\u7d22",
+            light_color=QColor("#15803d"), dark_color=QColor("#4ade80"))
         self.toggle.setObjectName("tableSearchToggle")
         self.toggle.setCheckable(True)
         self.toggle.setAutoRaise(True)
@@ -70,7 +72,7 @@ class TableSearchOverlay(QWidget):
 
     def refresh_scale(self):
         scale = UiScaleManager.for_widget(self)
-        scale.bind_metrics(self.toggle, fixed_size=(26, 26), icon_size=15)
+        scale.bind_metrics(self.toggle, fixed_size=(36, 36), icon_size=25)
         self._sync_icon()
         self.reposition()
 

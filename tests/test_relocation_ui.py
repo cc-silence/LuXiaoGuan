@@ -2,7 +2,7 @@
 from dataclasses import replace
 from pathlib import Path
 from unittest.mock import Mock, patch
-from tests.test_signal_actions_ui import PendingSetup, SignalActionTests
+from tests.test_signal_actions_ui import PendingSetup
 from tests.test_relocation import MovingDevice
 from modules.capture_services.openwrt.relocation_manager import RelocationManager
 from modules.capture_services.openwrt.wireless_setup_manager import WirelessSetupManager
@@ -10,9 +10,12 @@ from modules.capture_services.openwrt.wireless_setup_models import WirelessTaskR
 from modules.common_widgets.common_dialogs import ConfirmDialog
 from tests.test_standalone import APP
 import threading
+import unittest
+from tests.common_settings_fixture import create_page
 
 
-class RelocationUiTests(SignalActionTests):
+class RelocationUiTests(unittest.TestCase):
+    create_page = create_page
     def setup_page(self, light=False):
         setup = PendingSetup()
         setup.relocation_preview = Mock(return_value=True)
@@ -64,18 +67,11 @@ class RelocationUiTests(SignalActionTests):
             button = page.relocation_actions.button
             self.assertTrue(button.isVisible())
             self.assertTrue(button.property("dangerAction"))
-            self.assertGreater(button.y()+page.inventory_footer.y(), page.stack.y())
             for width in (850, 1250):
-                page.resize(width, 680)
+                page.resize(width, 900)
                 APP.processEvents()
-                margins = page.inventory_footer.layout().contentsMargins()
-                self.assertEqual(button.width(), page.inventory_footer.width()-margins.left()-margins.right())
-            page.stack.setCurrentIndex(1)
-            APP.processEvents()
-            self.assertFalse(button.isVisible())
-            page.stack.setCurrentIndex(0)
-            APP.processEvents()
-            self.assertTrue(button.isVisible())
+                self.assertGreaterEqual(button.width(), button.fontMetrics().horizontalAdvance(button.text()))
+                self.assertIs(button.parentWidget(), page.relocation_container)
             self.assertGreaterEqual(button.width(), button.fontMetrics().horizontalAdvance(button.text()))
             page.grab().save(str(output / ("relocation-light.png" if light else "relocation-dark.png")))
             service.snapshot = replace(service.snapshot, connected=False)

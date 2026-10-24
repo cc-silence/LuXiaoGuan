@@ -10,7 +10,7 @@ from modules.ui_scale_manager import UiScaleManager
 
 
 class FileDragMixin:
-    """同栏拖入文件夹移动；跨栏上传下载，拒绝外部拖放。"""
+    """同栏拖入文件夹移动；跨栏上传下载，路由器栏接收外部文件。"""
     MIME='application/x-winbox-file-copy'
 
     def setup_transfer(self,page,remote):
@@ -51,7 +51,11 @@ class FileDragMixin:
         return entry if isinstance(entry,dict) and stat.S_ISDIR(entry['mode']) else None
 
     def dragEnterEvent(self,event):
-        if self.can_drop(event):
+        from .file_drop_actions import external_upload_paths
+        if external_upload_paths(self,event):
+            event.setDropAction(Qt.CopyAction)
+            event.accept()
+        elif self.can_drop(event):
             source=self.file_page._drag_file[2]
             event.setDropAction(Qt.MoveAction if source.remote==self.remote else Qt.CopyAction)
             event.accept()
@@ -63,6 +67,14 @@ class FileDragMixin:
             event.ignore()
 
     def dropEvent(self,event):
+        from .file_drop_actions import external_upload_paths,begin_external_upload
+        paths=external_upload_paths(self,event)
+        if paths:
+            folder=self._drop_folder(event)
+            event.setDropAction(Qt.CopyAction)
+            event.accept()
+            begin_external_upload(self.file_page,paths,folder)
+            return
         if not self.can_drop(event):
             event.ignore()
             return
@@ -86,10 +98,17 @@ class FileTree(FileDragMixin,QTreeWidget):
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.setItemDelegate(SpacedItemDelegate(self,show_focus_rect=False))
         self._fitting_name=False
+        self._name_column_user_sized=False
+        self.header().sectionResized.connect(self._remember_name_column_resize)
+
+    def _remember_name_column_resize(self,column,old_width,new_width):
+        # Automatic fitting owns its changes; visible external changes belong to the user.
+        if column==0 and not self._fitting_name and self.isVisible():
+            self._name_column_user_sized=True
 
     def fit_name_column(self):
         """名称列至少保留可读宽度；窄窗口允许横向滚动，不挤成几个字。"""
-        if self._fitting_name:return
+        if self._fitting_name or self._name_column_user_sized:return
         self._fitting_name=True
         try:
             other=sum(self.columnWidth(column) for column in range(1,self.columnCount()) if not self.isColumnHidden(column))

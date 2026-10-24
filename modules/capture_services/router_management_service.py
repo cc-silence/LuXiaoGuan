@@ -10,10 +10,12 @@ from modules.platform_services.local_file_operations import recycle_local_entry,
 
 class RouterManagementService(QObject):
     """主线程持有队列，写操作占用公共任务槽。"""
+    READ_ONLY = frozenset({'local_list', 'local_upload_selection', 'list', 'common_read'})
     completed = Signal(str, object)
     failed = Signal(str, str)
     progress = Signal(str, object)
     status = Signal(str, str)
+    passwordChanged = Signal(object)
 
     def __init__(self, owner):
         super().__init__(owner)
@@ -30,8 +32,19 @@ class RouterManagementService(QObject):
     def submit(self, operation, **arguments):
         """绑定连接实例和设备指纹，队列上限 32 项。"""
         action = operation
-        if action not in {'upload_directory','download_directory','file_batch','tool_reset','tool_check','tool_install','local_list','local_delete','local_mkdir','list','upload','download','mkdir','delete','rename','chmod'}:
+        if action not in {'maintenance_preview','maintenance_backup','maintenance_apply','common_read','common_save','password_change','upload_directory','download_directory','file_batch','tool_reset','tool_check','tool_install','local_list','local_upload_selection','local_delete','local_mkdir','list','upload','download','mkdir','delete','rename','chmod'}:
             raise ValueError('不支持这种管理操作。')
+        if action.startswith("maintenance_") and (self.current or self.queue or self.owner.is_busy):
+            raise RuntimeError("请等待当前路由器任务结束后再操作。")
+        if action == 'password_change':
+            from .openwrt.router_password import PasswordChange
+            if self.current or self.queue or self.owner.is_busy:
+                raise RuntimeError("请等待当前路由器任务结束。")
+            if not isinstance(arguments.get('request'), PasswordChange):
+                raise ValueError("密码修改请求无效。")
+        if action in {'common_read','common_save','maintenance_preview','maintenance_backup','maintenance_apply'}:
+            from copy import deepcopy
+            arguments = deepcopy(arguments)
         if action == 'file_batch':
             from copy import deepcopy
             jobs = arguments.get('jobs')
@@ -46,6 +59,10 @@ class RouterManagementService(QObject):
         ssh = self.manager.ssh
         if self.owner._shutting_down or not ssh.connected or not ssh.host_fingerprint:
             raise RuntimeError('请先登录路由器。')
+        if action == "password_change":
+            target = arguments["request"].settings
+            if (target.get("host"), target.get("port"), target.get("user")) != (ssh._host, ssh._port, ssh._user):
+                raise ValueError("登录目标已变化，请重新打开密码设置。")
         if len(self.queue) >= 32:
             raise RuntimeError('等待队列已满。')
         key = uuid4().hex
@@ -59,18 +76,20 @@ class RouterManagementService(QObject):
         if self.current or not self.queue or self.owner._shutting_down:
             return
         item = self.queue[0]
-        if self.owner.is_busy and item[1] not in {'local_list','list'}:
-            item = next((entry for entry in self.queue if entry[1] in {'local_list','list'}), None)
+        if self.owner.is_busy and item[1] not in self.READ_ONLY:
+            item = next((entry for entry in self.queue if entry[1] in self.READ_ONLY), None)
             if item is None:
                 return
         key, action, args, fingerprint, connection, cancel = item
         ssh = self.manager.ssh
         if not ssh.connected or ssh.host_fingerprint != fingerprint or ssh._client is not connection:
             self.queue.remove(item)
+            from .router_password_actions import clear_password_request
+            clear_password_request(item[2])
             self.failed.emit(key, '连接已变化，已取消旧操作。')
             self._drain()
             return
-        readonly = action in {'local_list','list'}
+        readonly = action in self.READ_ONLY
         if not readonly and self.owner.is_busy:
             return
         if readonly and self.owner._shutting_down:
@@ -88,7 +107,25 @@ class RouterManagementService(QObject):
         def operation(event, report):
             if ssh._client is not connection or ssh.host_fingerprint != fingerprint:
                 raise RuntimeError('连接已变化，请重新登录并提交操作。')
-            if action == 'file_batch':
+            if action.startswith("maintenance_"):
+                from .openwrt.router_backup import RouterBackupManager
+                maintenance = RouterBackupManager(self.manager)
+                if action == "maintenance_preview":
+                    value = maintenance.preview(args["kind"], args["source"], event)
+                elif action == "maintenance_backup":
+                    value = maintenance.export(args["destination"], args.get("expected"), event, report)
+                else:
+                    value = maintenance.execute(args["review"], args["backup_path"], args.get("backup_expected"), event, report)
+            elif action == 'password_change':
+                from .openwrt.router_password import change_password
+                value = change_password(self.manager, args['request'], event)
+            elif action == 'common_read':
+                from .openwrt.common_settings import read_settings
+                value = read_settings(self.manager.runner, args['config'], event)
+            elif action == 'common_save':
+                from .openwrt.common_settings import save_settings
+                value = save_settings(self.manager.runner, args['review'], args['values'], event)
+            elif action == 'file_batch':
                 from .router_file_batch import run_file_batch
                 value = run_file_batch(self.manager, args['jobs'], event, report,
                     lambda: ssh.connected and ssh._client is connection and ssh.host_fingerprint == fingerprint)
@@ -98,6 +135,9 @@ class RouterManagementService(QObject):
                 value = self.tools.check(event)
             elif action == 'tool_install':
                 value = self.tools.install(event)
+            elif action == 'local_upload_selection':
+                from modules.platform_services.local_upload_selection import inspect_upload_paths
+                value = inspect_upload_paths(args['paths'], event)
             elif action == 'local_list':
                 from pathlib import Path
                 import stat
@@ -135,9 +175,12 @@ class RouterManagementService(QObject):
     @Slot(object)
     def _success(self, value):
         key = self.current[0]
+        if self.current[1] == 'password_change':
+            from .router_password_actions import accept_password_result
+            accept_password_result(self, value)
         if self.current[1] in {"tool_check", "tool_install", "tool_reset"}:
             self.owner.settingsMessageGenerated.emit(str(value.get("note", "兼容工具检查完成")), "success")
-        self._finish(bool(self.current[1] == 'file_batch' and value.get('error')))
+        self._finish(bool((self.current[1] == 'file_batch' and value.get('error')) or (isinstance(value, dict) and value.get('outcome') == 'uncertain')))
         self.completed.emit(key, value)
 
     @Slot(str, str)
@@ -155,8 +198,10 @@ class RouterManagementService(QObject):
             self.progress.emit(self.current[0], value)
 
     def _finish(self, failed):
-        if self.current[1] not in {'local_list','list'}:
+        if self.current[1] not in self.READ_ONLY:
             self.owner.task_controller.finish(failed=failed)
+        from .router_password_actions import clear_password_request
+        clear_password_request(self.current[2])
         self.current = None
         # Activity is delivered only after the owning thread has released its resources.
 
@@ -167,6 +212,8 @@ class RouterManagementService(QObject):
         for item in tuple(self.queue):
             if item[0] == key:
                 self.queue.remove(item)
+                from .router_password_actions import clear_password_request
+                clear_password_request(item[2])
                 self.failed.emit(key, '操作已取消。')
 
     @Slot(object)
