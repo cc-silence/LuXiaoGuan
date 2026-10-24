@@ -11,6 +11,7 @@ from modules.capture_services.openwrt.signal_manager import RouterSignalManager,
 from modules.capture_services.openwrt.command_runner import RemoteCommandResult
 from modules.capture_services.openwrt.wireless_setup_manager import WirelessSetupManager
 from modules.capture_services.openwrt.wireless_setup_models import WirelessEnvironment
+from modules.capture_services.openwrt.wireless_scan_commands import SCAN_COMMAND_TIMEOUT_SECONDS
 
 
 class RuntimeDevice(LuaDevice):
@@ -135,7 +136,7 @@ class ScanBudgetTests(unittest.TestCase):
         with patch("modules.capture_services.openwrt.wireless_setup_manager.time.monotonic", side_effect=lambda: now[0]):
             result = manager.scan(10, cancel, message)
         self.assertEqual(len(result), 1)
-        self.assertEqual([v["timeout"] for v in calls], [20, 20])
+        self.assertEqual([v["timeout"] for v in calls], [SCAN_COMMAND_TIMEOUT_SECONDS] * 2)
         self.assertTrue(any(args[0][1] == "warning" for args in message.call_args_list))
 
     def test_even_slow_first_radio_does_not_starve_second(self):

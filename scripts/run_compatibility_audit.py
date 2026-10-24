@@ -51,6 +51,8 @@ def main():
         row = dict(module=module, status=status, exit_code=code, seconds=round(time.monotonic()-started, 2),
                    tests=int(tests[-1]) if tests else 0, skipped=int(skipped[-1]) if skipped else 0, log=str(path))
         print(module + " " + status + " (" + str(row["tests"]) + " tests)", flush=True)
+        if status != "passed":
+            print(output[-12000:], flush=True)
         return row
     rows = []
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
