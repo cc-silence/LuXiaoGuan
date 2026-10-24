@@ -80,14 +80,16 @@ class WindowDetailsTests(unittest.TestCase):
     def test_only_top_header_corners_are_clipped(self):
         from PySide6.QtWidgets import QHeaderView
         w=self.window
-        tabs=w.packet_capture_page.openwrt_tab.tabs
+        host=w.packet_capture_page.openwrt_tab
+        tabs=host.tabs
         for theme in ('dark.qss','light.qss'):
             w.apply_appearance(100,'default',theme)
             w.resize(1280,720)
-            for index in (1,2,4):
+            for name in ("signal","files","capture"):
+                index=host._page_indices[name]
                 tabs.setCurrentIndex(index)
                 APP.processEvents()
-                if index == 1:
+                if name == "signal":
                     from modules.main_pages.packet_capture.openwrt.router_signal_page import RouterSignalPage
                     current = tabs.currentWidget()
                     signals = current if isinstance(current, RouterSignalPage) else current.findChild(RouterSignalPage)
