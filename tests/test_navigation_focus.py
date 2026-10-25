@@ -23,6 +23,8 @@ class NavigationFocusTests(unittest.TestCase):
         self.assertIsInstance(button,NavigationButton)
         self.assertNotEqual(button.focusPolicy(),Qt.NoFocus)
         button.window().activateWindow()
+        APP.processEvents()
+        self.assertTrue(button.isVisible())
         button.setFocus(Qt.TabFocusReason)
         APP.processEvents()
         self.assertTrue(button.hasFocus())
@@ -33,6 +35,10 @@ class NavigationFocusTests(unittest.TestCase):
 
     def test_main_and_settings_navigation_focus_pixels(self):
         w=self.window
+        if not w.navigation.expanded:w.navigation.toggle()
+        # Host the retained, normally hidden sidebar for its paint contract.
+        w.navigation.sidebar.show()
+        APP.processEvents()
         for theme in ('dark.qss','light.qss'):
             w.apply_appearance(100,'default',theme)
             for button in (w.navigation.toggle_button,w.navigation.router_button,w.navigation.settings_button):
@@ -43,6 +49,7 @@ class NavigationFocusTests(unittest.TestCase):
                 self.assert_no_focus_frame(button)
             w.settings_window.reject()
         button=w.navigation.toggle_button
+        w.activateWindow();APP.processEvents()
         spy=QSignalSpy(button.clicked)
         button.setFocus(Qt.TabFocusReason)
         QTest.keyClick(button,Qt.Key_Space)
