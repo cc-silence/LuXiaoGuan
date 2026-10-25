@@ -27,6 +27,7 @@ from contextvars import ContextVar
 
 from .dependency_resolution import InstalledPackages, resolve_packages
 from .offline_cleanup import report_cleanup_warning
+from .package_download_diagnostics import AttemptDiagnostics, configuration_lines
 from .package_cache import prepare_cache_directory, checked_cache_target
 
 from modules.platform_services.owned_cache import checked_path, delete_inventory
@@ -40,15 +41,19 @@ _ROUTE_TIMEOUT = 5.0
 
 @contextmanager
 def download_session(message=None):
-    """同一安装任务复用成功线路；嵌套调用共享、结束即释放。"""
+    """同一安装任务共享代理转接；嵌套调用共享、结束即释放。"""
     if _download_state.get() is not None:
         yield
         return
-    token = _download_state.set({"preferred": None, "message": message, "unavailable": {}})
+    token = _download_state.set({"route_names": {}, "message": message, "unavailable": {}, "diagnostic_configuration": False, "bridges": None})
     try:
         yield
     finally:
-        _download_state.reset(token)
+        try:
+            bridges=_download_state.get()["bridges"]
+            if bridges is not None:bridges.close()
+        finally:
+            _download_state.reset(token)
 
 
 def _download_message(text, level="info"):
@@ -225,13 +230,8 @@ def parse_packages_index(text, base_url):
 
 def parse_installed(text):
     """保留已装包名和版本，不再只按名称判定依赖齐全。"""
-    versions = {}
-    for line in str(text or "").splitlines():
-        name, separator, version = line.partition(" - ")
-        name = name.strip()
-        if _SAFE_SEGMENT.fullmatch(name):
-            versions[name] = version.strip() if separator else ""
-    return InstalledPackages(versions)
+    from .package_inventory import parse_package_listing
+    return parse_package_listing(text, "opkg", allow_names_only=True)
 
 
 def resolve_closure(index, wanted=_WANTED, installed=frozenset(), version_check=None):
@@ -240,7 +240,7 @@ def resolve_closure(index, wanted=_WANTED, installed=frozenset(), version_check=
 
 
 def _proxy_candidates():
-    """返回依次尝试的代理地址（一级→二级→系统），去重；读取失败按无代理处理。
+    """返回依次尝试的代理地址（HTTP→SOCKS→系统），去重；读取失败按无代理处理。
 
     只读 \u8def\u5c0f\u7ba1 代理配置与系统代理，不改环境变量；取不到时返回空列表，
     模块仍可离线单测。导入放在函数内，避免无代理环境下牵连配置模块。
@@ -248,28 +248,40 @@ def _proxy_candidates():
     urls = []
     try:
         from modules.network_policy import (
-            winbox_primary_http_url, winbox_secondary_http_url, system_proxy_url,
+            winbox_http_url, winbox_socks_url, system_proxy_url, proxy_enabled,
         )
+        if not proxy_enabled():
+            return urls
     except Exception:
         return urls
-    for getter in (winbox_primary_http_url, winbox_secondary_http_url, system_proxy_url):
+    for title,getter in (("HTTP 代理",winbox_http_url),("SOCKS 代理",winbox_socks_url),("系统代理",system_proxy_url)):
         try:
             url = str(getter() or "").strip()
         except Exception:
             url = ""
         if url and url not in urls:
             urls.append(url)
+            state=_download_state.get()
+            if state is not None:state["route_names"][url]=title
     return urls
 
 
 def _attempt_plans():
-    """下载通道顺序：一级→二级→系统代理，代理不通再直连。
+    """下载通道顺序：HTTP→SOCKS→系统代理，代理不通再直连。
 
     直连用空 ProxyHandler 阻断 urllib 在 Windows 上回退读系统代理，保证“直连”是真的直连。
     """
+    from .dependency_proxy import DependencyProxyHandler
+    def pool():
+        state=_download_state.get()
+        if state is None:raise RuntimeError("Dependency proxy requires a download session")
+        if state["bridges"] is None:
+            from modules.http_socks_bridge import ProxyBridgePool
+            state["bridges"]=ProxyBridgePool()
+        return state["bridges"]
     plans = []
     for proxy in _proxy_candidates():
-        plans.append((proxy, urllib.request.ProxyHandler({"http": proxy, "https": proxy})))
+        plans.append((proxy, DependencyProxyHandler(proxy,pool)))
     plans.append(("直连", urllib.request.ProxyHandler({})))
     return plans
 
@@ -289,7 +301,10 @@ def _route_description(label, url):
         port = parsed.port or (443 if parsed.scheme == 'https' else 80)
     except ValueError:
         port = '?'
-    return f"{'直连' if direct else '代理'}（{host}:{port}）"
+    state=_download_state.get()
+    default="SOCKS \u4ee3\u7406" if parsed.scheme.lower().startswith("socks") else "HTTP \u4ee3\u7406"
+    name="\u76f4\u8fde" if direct else (state or {}).get("route_names",{}).get(label,default)
+    return f"{name}\uff08{host}:{port}\uff09"
 
 
 def _connection_error(exc):
@@ -326,7 +341,7 @@ def _reason_text(exc):
     return f"网络连接失败（{type(reason).__name__}，错误码 {code}）"
 
 
-def _read_body(response, limit, cancel_event, deadline):
+def _read_body(response, limit, cancel_event, deadline, diagnostic=None):
     """分块限长读取，每次读取前后核对取消和整体期限。"""
     chunks = []
     received = 0
@@ -336,6 +351,7 @@ def _read_body(response, limit, cancel_event, deadline):
         if not header.strip().isascii() or not header.strip().isdigit():
             raise http.client.HTTPException("Invalid Content-Length")
         expected = int(header.strip())
+        if diagnostic is not None:diagnostic.expected=expected
         if expected > limit:
             raise RuntimeError("下载内容超过上限，已中止。")
     read = getattr(response, "read1", response.read)
@@ -350,6 +366,7 @@ def _read_body(response, limit, cancel_event, deadline):
         if not block:
             break
         received += len(block)
+        if diagnostic is not None:diagnostic.received=received
         if received > limit:
             raise RuntimeError("下载内容超过上限，已中止。")
         chunks.append(block)
@@ -396,8 +413,9 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
     deadline = time.monotonic() + max(0, float(timeout))
     state = _download_state.get()
     plans = list(_attempt_plans())
-    preferred = state["preferred"]
-    plans.sort(key=lambda plan: plan[0] != preferred)
+    if state.get("message") is not None and not state.get("diagnostic_configuration"):
+        for line in configuration_lines(plans):_download_message(line,"diagnostic")
+        state["diagnostic_configuration"]=True
     errors = []
     round_plans = plans
     not_before = 0.0
@@ -418,28 +436,40 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
             route = _route_description(label, url)
             if key in state["unavailable"]:
                 errors.append(state["unavailable"][key])
+                _download_message(state["unavailable"][key]+"\uff1b\u672c\u6b21\u4efb\u52a1\u5df2\u786e\u8ba4\u4e0d\u53ef\u7528\uff0c\u8df3\u8fc7\u3002","diagnostic")
                 continue
+            try:
+                bypass=label!="\u76f4\u8fde" and urllib.request.proxy_bypass(urllib.request.Request(url).host)
+            except (OSError,ValueError):
+                bypass=None
+            diagnostic=AttemptDiagnostics(url,route,min(_ROUTE_TIMEOUT,remaining),round_number,bypass)
+            _download_message(diagnostic.start(),"diagnostic")
+            _download_message(diagnostic.short_start())
             try:
                 # ProxyHandler mutates Request host, tunnel and authentication state.
                 request = urllib.request.Request(url, headers={"User-Agent": "LuXiaoGuan-offline/1.0"})
                 with urllib.request.build_opener(handler).open(
                         request, timeout=min(_ROUTE_TIMEOUT, remaining)) as response:
                     status = getattr(response, "status", 200)
+                    diagnostic.status=status
+                    diagnostic.stage="\u8bfb\u53d6\u54cd\u5e94\u5185\u5bb9"
                     if status != 200:
                         raise RuntimeError(f"下载失败：HTTP {status}。")
-                    payload = _read_body(response, limit, cancel_event, deadline)
-                state["preferred"] = label
+                    payload = _read_body(response, limit, cancel_event, deadline, diagnostic)
+                _download_message(diagnostic.result(),"diagnostic")
+                _download_message(diagnostic.short_result(),"success")
                 return payload
-            except RuntimeError:
+            except RuntimeError as exc:
+                _download_message(diagnostic.result(exc),"diagnostic")
                 raise
             except urllib.error.HTTPError as exc:
                 status = exc.code
+                diagnostic.status=status
+                _download_message(diagnostic.result(exc),"diagnostic")
                 retry_delay = _retry_after_seconds(exc.headers) if status in (429, 503) else 0.0
                 exc.close()
                 if status not in (407, 408, 429, 500, 502, 503, 504):
                     raise RuntimeError(f"下载失败：HTTP {status}。") from None
-                if state["preferred"] == label:
-                    state["preferred"] = None
                 not_before = max(not_before, time.monotonic() + retry_delay)
                 failure = f"{route}：HTTP {status}"
                 if status == 407:
@@ -448,10 +478,10 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
                 else:
                     retry_plans.append((label, handler))
                 errors.append(failure)
-                _download_message(f"{failure}" + ("；正在切换下一条线路…" if position + 1 < len(round_plans) else ""))
+                _download_message(f"{failure}" + ("；正在切换下一条线路…" if position + 1 < len(round_plans) else ""),"diagnostic")
+                _download_message(diagnostic.short_result(failed=True),"warning")
             except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException) as exc:
-                if state["preferred"] == label:
-                    state["preferred"] = None
+                _download_message(diagnostic.result(exc),"diagnostic")
                 reason, code = _connection_error(exc)
                 failure = f"{route}：{_reason_text(exc)}（错误码 {code}）"
                 errors.append(failure)
@@ -459,7 +489,8 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
                     state["unavailable"][key] = failure
                 elif not isinstance(reason, ssl.SSLCertVerificationError):
                     retry_plans.append((label, handler))
-                _download_message(f"{failure}" + ("；正在切换下一条线路…" if position + 1 < len(round_plans) else ""))
+                _download_message(f"{failure}" + ("；正在切换下一条线路…" if position + 1 < len(round_plans) else ""),"diagnostic")
+                _download_message(diagnostic.short_result(failed=True),"warning")
         round_plans = retry_plans
     _raise_download_failure(errors, cancel_event)
 

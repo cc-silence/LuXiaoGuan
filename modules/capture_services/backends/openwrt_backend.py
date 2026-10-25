@@ -513,7 +513,6 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 if item.state.value == "missing" and item.missing_packages else item
                 for item in dependencies
             )
-            reaped = self.radio_session.reap_stale_monitors(cancel_event)
             detail = "OpenWrt SSH 登录和设备探测完成."
             self.pmkid_capture.tool_selection = None
             if sftp_available is True:
@@ -529,8 +528,6 @@ class OpenWrtCaptureBackend(CaptureBackend):
                     detail += "兼容工具未启用，继续使用原工具：" + str(exc)
             if recovery_note:
                 detail += recovery_note
-            if reaped > 0:
-                detail += f"另清理了{reaped}个残留临时接口。"
             reaped_procs = self.process_manager.reap_stale_processes(
                 cancel_event, force_sids=self._finished_sessions)
             if reaped_procs > 0:
@@ -1654,7 +1651,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 f"r{round_no}t{index}",
                 lambda: self.radio_session.heal_link(cancel_event),
                 **({"group_targets": group} if group_targets else {}),
-                **({"defer_analysis": True} if defer_processing else {}),
+                defer_analysis=True,
             )
         except Exception as exc:
             errors.extend(getattr(exc, "cleanup_errors", ()))

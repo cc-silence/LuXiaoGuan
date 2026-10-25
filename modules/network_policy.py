@@ -7,7 +7,7 @@
 
 调用约定：
 - direct 软件只走真正直连；失败后由界面让用户选择重试或临时切换代理。
-- proxy 软件只按 HTTP -> SOCKS -> 系统代理 顺序尝试，不允许回退真正直连。
+- proxy 软件按 HTTP -> SOCKS -> 系统代理 -> 真正直连 顺序尝试。
 - 真正直连会清理 HTTP_PROXY/HTTPS_PROXY 等环境变量，避免残留代理影响结果。
 """
 
@@ -60,6 +60,11 @@ def _load_proxy_manager():
     return ProxyConfigManager()
 
 
+def proxy_enabled():
+    """The saved master switch also controls inherited system proxy discovery."""
+    return _load_proxy_manager().is_enabled()
+
+
 def winbox_http_url():
     """返回单套配置中的 HTTP 地址，不联网。"""
     return _load_proxy_manager().get_http_url()
@@ -87,6 +92,8 @@ def winbox_proxy_url(config_manager=None):
 
 def system_proxy_url():
     """优先读取环境变量代理，其次读取 Windows 代理，不写系统设置。"""
+    if not proxy_enabled():
+        return ""
     for key in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy", "ALL_PROXY", "all_proxy"):
         value = os.environ.get(key, "").strip()
         if value:
@@ -97,10 +104,17 @@ def system_proxy_url():
 def allowed_channels(config_manager, download_mode):
     """检测和下载共用选路：HTTP、SOCKS、系统代理，按 URL 去重。
 
-    direct 仅返回清代理直连；proxy 不自动回退直连。该函数不联网。
+    direct 仅返回真正直连；proxy 在所有代理之后追加直连。该函数不联网。
     """
     if str(download_mode or "direct").lower() == "direct":
         return [NetworkChannel(CHANNEL_DIRECT, "直连")]
+    return configured_proxy_channels(config_manager) + [NetworkChannel(CHANNEL_DIRECT, "直连")]
+
+
+def configured_proxy_channels(config_manager=None):
+    """Only configured proxies, for explicit proxy controls and availability checks."""
+    if not proxy_enabled():
+        return []
     result = []
     seen = set()
     for name, label, url in (
@@ -112,6 +126,11 @@ def allowed_channels(config_manager, download_mode):
             result.append(NetworkChannel(name, label, url))
             seen.add(url)
     return result
+
+
+def retryable_route_status(status):
+    """Proxy authentication and transient gateway/server failures may change routes."""
+    return status in {407, 408, 429, 500, 502, 503, 504}
 
 
 def env_for_channel(channel):

@@ -33,8 +33,9 @@ def options():
 
 def select(dialog,release="24.10.8",target="mediatek/filogic"):
     dialog.release.setCurrentIndex(dialog.release.findData(release))
+    profile=next(p for p in dialog.options["profiles"] if p["release"]==release and p["target"]==target)
+    dialog.architecture.setCurrentIndex(dialog.architecture.findData(profile["architecture"]))
     dialog.target.setCurrentIndex(dialog.target.findData(target))
-    dialog.architecture.setCurrentIndex(1)
 
 class ExportUiTests(unittest.TestCase):
     def test_cascade_lists_only_valid_combinations_and_resets_downstream(self):
@@ -48,9 +49,27 @@ class ExportUiTests(unittest.TestCase):
         self.assertTrue(dialog.export_button.isEnabled())
         dialog.release.setCurrentIndex(dialog.release.findData("25.12.6"))
         self.assertIsNone(dialog.profile);self.assertFalse(dialog.checks)
-        self.assertEqual(dialog.target.count(),2)
+        self.assertEqual(dialog.architecture.count(),2)
+        self.assertFalse(dialog.target.isEnabled())
         select(dialog,"25.12.6")
         self.assertIn("APK",dialog.format_label.text())
+
+    def test_architecture_selection_filters_platforms_and_invalidates_previous_choice(self):
+        data=options()
+        extra=copy.deepcopy(data["profiles"][0]);extra["target"]="mediatek/mt7622";data["profiles"].append(extra)
+        dialog=BundleExportDialog(data);self.addCleanup(dialog.deleteLater)
+        self.assertFalse(dialog.architecture.isEnabled())
+        dialog.release.setCurrentIndex(dialog.release.findData("24.10.8"))
+        self.assertTrue(dialog.architecture.isEnabled());self.assertFalse(dialog.target.isEnabled())
+        dialog.architecture.setCurrentIndex(dialog.architecture.findData("aarch64_cortex-a53"))
+        self.assertEqual({dialog.target.itemData(i) for i in range(1,dialog.target.count())},{"mediatek/filogic","mediatek/mt7622"})
+        self.assertIsNone(dialog.profile)
+        dialog.target.setCurrentIndex(dialog.target.findData("mediatek/mt7622"))
+        dialog.checks["iw"].setChecked(True);self.assertTrue(dialog.export_button.isEnabled())
+        dialog.architecture.setCurrentIndex(dialog.architecture.findData("mips_24kc"))
+        self.assertEqual(dialog.target.count(),2);self.assertEqual(dialog.target.itemData(1),"ath79/generic")
+        self.assertIsNone(dialog.target.currentData());self.assertIsNone(dialog.profile)
+        self.assertFalse(dialog.checks);self.assertFalse(dialog.export_button.isEnabled())
 
     def test_multi_selection_emits_exact_profile_without_doing_file_io(self):
         dialog=BundleExportDialog(options());self.addCleanup(dialog.deleteLater)

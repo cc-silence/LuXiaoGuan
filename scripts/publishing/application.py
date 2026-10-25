@@ -18,9 +18,11 @@ from .offline import gateway
 from .signing import sign
 from modules.release_identity import APPLICATION_EXECUTABLES,archive_root
 from scripts.release_metadata import metadata_path
-from .storage import ensure_space, publication_lock
+from .storage import ensure_space, publication_lock, StorageQuotaError
 from .retention import cleanup_retention
 from scripts.build_cleanup import cleanup_publishing
+from modules.app_update_services.release_targets import channel_key, manifest_endpoint, validate_platform
+from .alpha_space import reserve_alpha_space, resume_alpha_space, prepared_alpha, assert_alpha_channel, complete_alpha_space
 
 
 def prepare(archive, notes, previous_manifest=None, previous_catalog=None):
@@ -95,10 +97,26 @@ def publish(archive, notes, previous_manifest=None, previous_catalog=None):
 
 
 
+def _publication_platform(archive):
+    # prepare() still validates every actual archive and its required descriptor.
+    try:
+        descriptor = metadata_path(archive, ".release.json", existing=True)
+    except ValueError:
+        return "win-x64"
+    if not descriptor.is_file():
+        return "win-x64"
+    return validate_platform(json.loads(descriptor.read_text(encoding="utf-8"))["platform"])
+
+
 @publication_lock
 def publish_alpha(archive, notes='', previous_manifest=None, previous_catalog=None):
     """Use the existing protected tester channel and verify public bytes before switching."""
     import tempfile
+    import base64
+    platform = _publication_platform(archive)
+    alpha_key = channel_key(platform, 'alpha')
+    endpoint = gateway() + manifest_endpoint(platform)
+    replacement = resume_alpha_space(archive, platform, root=ROOT)
     from modules.platform_services.app_update_access import read_code
     code = read_code(publisher=True) or read_code()
     if not code:
@@ -106,29 +124,34 @@ def publish_alpha(archive, notes='', previous_manifest=None, previous_catalog=No
     headers = {'X-RouterManager-Test-Code': code}
     def read_current():
         try:
-            return _receive(gateway()+'/manifest', None, 65536, Event(), lambda *_:None,
+            return _receive(endpoint, None, 65536, Event(), lambda *_:None,
                             time.monotonic()+60, headers=headers)
         except ValueError as exc:
             if str(exc).endswith('HTTP 204'):
                 return None
             raise
-    current_raw = read_current()
+    current_raw = base64.b64decode(replacement["previous_manifest"], validate=True) if replacement else read_current()
     previous = {}
     if current_raw is not None:
-        previous_release = verify_manifest(current_raw, PUBLIC_KEY)
+        previous_release = verify_manifest(current_raw, PUBLIC_KEY, expected_platform=platform)
         prior_raw = _receive(previous_release.catalog_url, None, previous_release.catalog_size,
                              Event(), lambda *_:None, time.monotonic()+60)
         previous = parse_catalog(prior_raw, previous_release)
-        folder = ROOT/'build/publishing/previous-alpha'
+        folder = ROOT/'build/publishing/previous-alpha'/platform
         folder.mkdir(parents=True, exist_ok=True)
         previous_manifest = folder/'manifest.json'
         previous_catalog = folder/'catalog.json'
         previous_manifest.write_bytes(current_raw)
         previous_catalog.write_bytes(prior_raw)
-    archive, manifest, payload, objects = prepare(archive, notes, previous_manifest, previous_catalog)
+    archive, manifest, payload, objects = prepared_alpha(replacement) if replacement else prepare(archive, notes, previous_manifest, previous_catalog)
     if version_key(payload['version'])[1] != 1:
         raise ValueError('Only alpha versions may use publish_alpha')
-    ensure_space(objects, archive, manifest, payload, "channel/manifest.json")
+    if replacement is None:
+        try:
+            ensure_space(objects, archive, manifest, payload, alpha_key)
+        except StorageQuotaError:
+            replacement = reserve_alpha_space(objects, archive, manifest, payload,
+                                               current_raw, root=ROOT)
     known = {row['blob_sha256'] for row in previous.get('files', [])}
     pending = []
     reused = 0
@@ -159,21 +182,24 @@ def publish_alpha(archive, notes='', previous_manifest=None, previous_catalog=No
         _receive(payload['url'], downloaded, payload['size'], Event(), lambda *_:None, time.monotonic()+900)
         if downloaded.stat().st_size != payload['size'] or sha256_file(downloaded) != payload['sha256']:
             raise ValueError('Public alpha archive verification failed; channel was not switched')
-    latest_raw = read_current()
-    if latest_raw != current_raw:
+    if replacement is not None:
+        assert_alpha_channel(replacement)
+    elif read_current() != current_raw:
         raise ValueError('The alpha channel changed during publication; refusing to overwrite it')
-    upload(manifest, 'channel/manifest.json', 'application/json')
-    raw = _receive(gateway()+'/manifest', None, 65536, Event(), lambda *_:None,
+    upload(manifest, alpha_key, 'application/json')
+    raw = _receive(endpoint, None, 65536, Event(), lambda *_:None,
                    time.monotonic()+60, headers=headers)
-    release = verify_manifest(raw, PUBLIC_KEY)
+    release = verify_manifest(raw, PUBLIC_KEY, expected_platform=platform)
     if raw != manifest.read_bytes() or release.sha256 != payload['sha256']:
         raise ValueError('Alpha client manifest verification failed')
     catalog_raw = _receive(release.catalog_url, None, release.catalog_size, Event(), lambda *_:None, time.monotonic()+60)
     parse_catalog(catalog_raw, release)
     cleanup_retention()
+    if replacement is not None:
+        complete_alpha_space(replacement, root=ROOT)
     cleanup_publishing(ROOT,manifest.parent)
     result = dict(status='published-and-client-verified', channel='alpha', version=release.version,
                   archive_url=release.url, sha256=release.sha256, size=release.size,
-                  manifest_url=gateway()+'/manifest', uploaded_objects=uploaded, reused_objects=reused)
+                  manifest_url=endpoint, uploaded_objects=uploaded, reused_objects=reused)
     (manifest.parent/'publication.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')
     return result

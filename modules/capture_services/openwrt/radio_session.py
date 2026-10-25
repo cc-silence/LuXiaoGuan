@@ -1,6 +1,8 @@
 """OpenWrt monitor 接口事务边界。"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from uuid import uuid4
+from .monitor_ownership import preflight_command, create_command, owner_guard, remove_command
 
 from modules.capture_services.openwrt.command_builder import quote_argument
 from modules.capture_services.openwrt.command_runner import require_command_completion
@@ -23,6 +25,8 @@ class RadioSessionRecord:
     original_state_path: str = ""
     idle_radio_only: bool = False
     tool_managed: bool = False
+    ownership_token: str = ""
+    creation_pending: bool = False
 
 
 class OpenWrtRadioSession:
@@ -75,32 +79,31 @@ class OpenWrtRadioSession:
         if idle_radio_only or tool_managed:
             require_idle_phy(self.command_runner, phy, cancel_event)
         interface_type = "managed" if tool_managed else "monitor"
-        add_result = self.command_runner.run(
-            "create_monitor",
-            f"iw phy {quote_argument(phy)} interface add {quote_argument(interface)} type {interface_type}",
-            timeout=15,
-            cancel_event=cancel_event,
-        )
+        check = self.command_runner.run("check_monitor_name", preflight_command(interface),
+                                        timeout=8, cancel_event=cancel_event)
+        require_command_completion(check)
+        if check.exit_code != 0 or check.stdout.strip() != "absent":
+            raise RuntimeError("临时接口名称已占用或无法核实，未创建或删除接口。")
+        self.record = RadioSessionRecord(str(session_id), phy, interface, "",
+            idle_radio_only=idle_radio_only, tool_managed=tool_managed,
+            ownership_token="routermanager:"+uuid4().hex, creation_pending=True)
+        # Publish recovery ownership before any remote mutation. Unknown results keep it.
+        add_result = self.command_runner.run("create_monitor", create_command(self.record, interface_type),
+                                             timeout=15, cancel_event=cancel_event)
+        require_command_completion(add_result)
         if add_result.exit_code != 0:
-            detail = (add_result.stderr or add_result.stdout).strip()
-            raise RuntimeError(f"创建 OpenWrt monitor 接口失败：{detail or add_result.exit_code}")
-        # 接口一旦创建就先登记所有权。后续启用失败时，即使即时回滚也失败，恢复流程
-        # 仍知道只能处理这个由本任务创建的接口。
-        self.record = RadioSessionRecord(
-            str(session_id),
-            phy,
-            interface,
-            "",
-            idle_radio_only=idle_radio_only,
-            tool_managed=tool_managed,
-        )
+            if add_result.exit_code in (72,74):
+                self.record = None  # Confirmed refusal before creating our interface.
+            raise RuntimeError("创建临时接口或写入归属标记失败；结果未确认时已保留恢复记录。")
+        self.record = replace(self.record, creation_pending=False)
         try:
             link_result = self.command_runner.run(
                 "activate_monitor",
-                f"ip link set dev {quote_argument(interface)} up",
+                owner_guard(self.record) + f"ip link set dev {quote_argument(interface)} up",
                 timeout=10,
                 cancel_event=cancel_event,
             )
+            require_command_completion(link_result)
             if link_result.exit_code != 0:
                 raise RuntimeError(
                     "启用 monitor 接口失败："
@@ -143,12 +146,14 @@ class OpenWrtRadioSession:
             return True
         result = self.command_runner.run(
             "remove_monitor",
-            f"iw dev {quote_argument(record.interface)} del",
+            remove_command(record) if record.ownership_token else f"iw dev {quote_argument(record.interface)} del",
             timeout=10,
             cancel_event=cancel_event,
         )
         require_command_completion(result)
         if result.exit_code != 0:
+            if record.ownership_token:
+                raise RuntimeError("临时接口的归属或创建结果未确认，已保留恢复记录；未删除其他接口。")
             # 接口已不存在也视为恢复完成。
             check = self.command_runner.run(
                 "check_monitor_removed",
@@ -189,10 +194,11 @@ class OpenWrtRadioSession:
             require_idle_phy(self.command_runner, record.radio, cancel_event, record.interface)
         up_result = self.command_runner.run(
             "heal_monitor_link",
-            f"ip link set dev {quote_argument(record.interface)} up",
+            (owner_guard(record) if record.ownership_token else "") + f"ip link set dev {quote_argument(record.interface)} up",
             timeout=10,
             cancel_event=cancel_event,
         )
+        require_command_completion(up_result)
         if up_result.exit_code != 0:
             detail = (up_result.stderr or up_result.stdout).strip()
             return False, f"重新启用 monitor 接口失败：{detail or up_result.exit_code}"
@@ -227,22 +233,25 @@ class OpenWrtRadioSession:
             return False, f"monitor 接口{monitor_status_text(status)}，无法自动重建。"
         if record.idle_radio_only:
             require_idle_phy(self.command_runner, record.radio, cancel_event, record.interface)
+        if record.ownership_token:
+            self.record = replace(record, creation_pending=True)
         add_result = self.command_runner.run(
             "recover_monitor",
-            f"iw phy {quote_argument(record.radio)} interface add "
-            f"{quote_argument(record.interface)} type monitor",
-            timeout=15,
-            cancel_event=cancel_event,
-        )
+            create_command(record, "monitor") if record.ownership_token else
+                f"iw phy {quote_argument(record.radio)} interface add {quote_argument(record.interface)} type monitor",
+            timeout=15, cancel_event=cancel_event)
+        require_command_completion(add_result)
         if add_result.exit_code != 0:
-            detail = (add_result.stderr or add_result.stdout).strip()
-            return False, f"重建 monitor 接口失败：{detail or add_result.exit_code}"
+            return False, "重建临时接口失败，恢复记录已保留。"
+        if record.ownership_token:
+            self.record = replace(record, creation_pending=False)
         up_result = self.command_runner.run(
             "recover_monitor_up",
-            f"ip link set dev {quote_argument(record.interface)} up",
+            (owner_guard(record) if record.ownership_token else "") + f"ip link set dev {quote_argument(record.interface)} up",
             timeout=10,
             cancel_event=cancel_event,
         )
+        require_command_completion(up_result)
         if up_result.exit_code != 0:
             detail = (up_result.stderr or up_result.stdout).strip()
             return False, f"重建后启用 monitor 接口失败：{detail or up_result.exit_code}"
@@ -252,43 +261,3 @@ class OpenWrtRadioSession:
         ):
             return False, "monitor 接口已重建但类型仍异常，请检查无线驱动。"
         return True, "monitor 接口在启动前丢失，已重建并继续任务。"
-
-    def reap_stale_monitors(self, cancel_event=None):
-        """删除以往残留的本任务命名空间（wbmon*）临时接口，返回清理数量。
-
-        只认 wbmon 前缀，本会话已登记的除外，绝不碰其他接口。SSH 中断等导致清理
-        没跑完时，下次连接顺手收尸，避免残留接口堆积干扰驱动。单个删除失败即停，
-        不抛异常（连接流程不能因此失败），返回已清理数。
-        """
-
-        try:
-            result = self.command_runner.run(
-                "list_stale_monitors",
-                "iw dev 2>/dev/null | sed -n 's/^[[:space:]]*Interface[[:space:]][[:space:]]*"
-                "\\(wbmon[A-Za-z0-9]*\\)[[:space:]]*$/\\1/p'",
-                timeout=12,
-                cancel_event=cancel_event,
-            )
-        except Exception:
-            return 0
-        if result.exit_code != 0:
-            return 0
-        own = self.record.interface if self.record is not None else ""
-        cleaned = 0
-        for name in (result.stdout or "").split():
-            # Python 侧再卡一次前缀：即使远端 sed 行为异常，也绝不碰非 wbmon 接口。
-            if not name.startswith("wbmon") or name == own:
-                continue
-            try:
-                deleted = self.command_runner.run(
-                    "remove_stale_monitor",
-                    f"iw dev {quote_argument(name)} del",
-                    timeout=10,
-                    cancel_event=cancel_event,
-                )
-            except Exception:
-                break
-            if deleted.exit_code != 0:
-                break
-            cleaned += 1
-        return cleaned

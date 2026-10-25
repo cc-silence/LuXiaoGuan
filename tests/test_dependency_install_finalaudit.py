@@ -158,14 +158,14 @@ class CommandUploadMemoryTests(unittest.TestCase):
         from modules.capture_services.openwrt import signal_package_feed as feed
         @feed.offline_cache_transaction(lambda value:bool(value))
         def failing(message=None):
-            feed._download_state.get()["preferred"]="old-route"
+            feed._download_state.get()["unavailable"]["old-route"]="blocked"
             raise SignalError("transport","disconnected")
         with self.assertRaises(SignalError):
             failing()
         self.assertIsNone(feed._download_state.get())
         @feed.offline_cache_transaction(lambda value:bool(value))
         def retry(message=None):
-            self.assertIsNone(feed._download_state.get()["preferred"])
+            self.assertEqual(feed._download_state.get()["unavailable"],{})
             return True
         self.assertTrue(retry())
 

@@ -1,6 +1,5 @@
 """常用管理工具目录与只读检测，不执行安装或无线操作。"""
 from dataclasses import dataclass
-import re
 
 from .command_runner import require_command_completion
 from .models import DependencyInfo, DependencyState
@@ -24,12 +23,12 @@ class CommonTool:
 
 TOOLS = (
     CommonTool('iw', '无线管理工具', 'iw', '查看与管理无线接口、信道及驱动能力。卸载可能影响其他无线管理功能。', 'iw'),
-    CommonTool('wpa_cli', '无线连接验证', 'wpa-cli', '用于检查上级 Wi-Fi 的认证和连接状态，发射与中继功能会使用。安装不会替换无线驱动或认证服务。', 'wpa_cli', removable=False),
+    CommonTool('wpa_cli', '无线连接验证', 'wpa-cli', '用于检查上级 Wi-Fi 的认证和连接状态，发射与中继功能会使用。安装不会替换无线驱动或认证服务。', 'wpa_cli'),
     CommonTool('iwinfo', '无线信息查询', 'iwinfo', '查看无线名称、信号强度与加密信息。卸载可能影响网页无线信息显示。', 'iwinfo'),
     CommonTool('luci_commands', '网页自定义命令', 'luci-app-commands', '在路由器网页中保存并执行命令，不是交互式终端。命令权限较高，请仅保存可信命令。'),
     CommonTool('luci_base_zh', '网页简体中文', 'luci-i18n-base-zh-cn', '路由器网页基础功能的简体中文翻译，不改变 \u8def\u5c0f\u7ba1 的语言。'),
     CommonTool('luci_commands_zh', '自定义命令简体中文', 'luci-i18n-commands-zh-cn', '路由器网页“自定义命令”的简体中文翻译；安装时可能连带安装该功能。'),
-    CommonTool('signal', '信号管理', ', '.join(SIGNAL_PACKAGES), '用于读取路由器无线配置与运行状态。Lua 组件可能被网页管理等其他功能共用，此处仅安装和检查，不提供一键卸载。', packages=SIGNAL_PACKAGES, removable=False),
+    CommonTool('signal', '信号管理', ', '.join(SIGNAL_PACKAGES), '用于读取路由器无线配置与运行状态。Lua 组件可能被网页管理等其他功能共用，卸载前由包管理器核对依赖，不强制删除共用组件。', packages=SIGNAL_PACKAGES),
 )
 TOOL_BY_KEY = {tool.key: tool for tool in TOOLS}
 TOOL_KEYS = frozenset(TOOL_BY_KEY)
@@ -52,11 +51,11 @@ def check_tools(runner, keys, cancel_event=None):
             lines = (result.stdout or '').splitlines()
             if not lines or lines[0] not in {'__OPKG__', '__APK__'} or len(lines) < 3 or lines[-1] != '__PACKAGES_END__':
                 raise ValueError('软件包清单格式无法确认')
-            pattern = r'([A-Za-z0-9][A-Za-z0-9+_.-]*) - \S+' if lines[0] == '__OPKG__' else r'([A-Za-z0-9][A-Za-z0-9+_.-]*)'
-            matches = [re.fullmatch(pattern, line.strip()) for line in lines[1:-1] if line.strip()]
-            if not matches or not all(matches):
-                raise ValueError('软件包清单格式无法确认')
-            packages = {match[1] for match in matches}
+            from .package_inventory import parse_package_listing
+            packages = parse_package_listing("\n".join(lines[1:-1]),
+                'opkg' if lines[0] == '__OPKG__' else 'apk')
+            if not packages:
+                raise ValueError('Empty installed-package listing')
         except InterruptedError:
             raise
         except Exception as exc:

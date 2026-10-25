@@ -31,10 +31,12 @@ class PolicyDevice(CommonDevice):
         self.config["wireless"]["default_radio7"]={".type":"wifi-iface","mode":"ap","ssid":"OpenWrt","device":"radio7","network":"lan","disabled":"1","encryption":"none"}
         self.config["wireless"]["station"]={".type":"wifi-iface","mode":"sta","ssid":"Upstream","device":"radio7","network":"wwan","key":"preserve-station-password"}
         self.config["network"]["wwan"]={".type":"interface","proto":"dhcp","hostname":"OldPhone"}
+        self.config["firewall"]["zone_wan"]["network"]=["wan","wwan"]
         self.files={"/etc/config/"+k:json.dumps(v,sort_keys=True) for k,v in self.config.items()}
         self.files["/www/index.html"]="<html>Old</html>"
         self.files["/etc/rc.button/failsafe"]=OFFICIAL_RESCUE
         self.flags=dict(chinese=True,time=True,mount=True,attended=False,old_watch=False,boot_hook_enabled=False)
+        self.flags.update(firewall3=legacy,firewall4=not legacy)
         self.interfaces=[dict(interface="lan",**{"ipv4-address":[dict(address="192.168.8.1",mask=24)]}),
                          dict(interface="wwan",**{"ipv4-address":[dict(address="10.2.3.4",mask=24)]})]
         self.board=dict(model="Fixture",release=dict(distribution="OpenWrt",version="19.07" if legacy else "25.12"))
@@ -70,6 +72,8 @@ os.rename=function(a,b) return file_rename(a,b) end
         if command.startswith("("):
             if "grep -E" in command and "/etc/rc.local" in command:return "ok" if self.flags["old_watch"] else ""
             if "test -f /usr/lib/lua/luci/i18n" in command:return "ok" if self.flags["chinese"] else ""
+            if "test -x /sbin/fw3" in command:return "ok" if self.flags["firewall3"] else ""
+            if "test -x /sbin/fw4" in command:return "ok" if self.flags["firewall4"] else ""
             if "test -x /etc/init.d/sysntpd" in command:return "ok" if self.flags["time"] else ""
             if "test -x /etc/init.d/attendedsysupgrade" in command:return "ok" if self.flags["attended"] else ""
             if "command -v block" in command:return "ok" if self.flags["mount"] else ""

@@ -148,6 +148,7 @@ class ReconnectCleanupTests(unittest.TestCase):
         b.device_probe.probe.side_effect=probe
         with patch("modules.capture_services.local_cache_cleanup.acknowledge_session"):
             result=b.connect({"host":"router.example","port":22,"user":"root"},"mock-password")
+        b.radio_session.reap_stale_monitors.assert_not_called()
         self.assertEqual(result.status,"connected")
         b.ssh_client.open_sftp.assert_called_once_with(timeout=10, cancel_event=None)
         self.assertIn("清理完成",result.detail)

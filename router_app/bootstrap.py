@@ -48,14 +48,13 @@ def run(version):
     app.setWindowIcon(window.windowIcon())
     if smoke:
         import time
-        from .settings import RouterSettings
         window.show()
-        dialog = RouterSettings(window)
+        window.openSettingsWindow()
+        settings = window.settings_window
         for index in range(6):
             window.packet_capture_page.openwrt_tab.tabs.setCurrentIndex(index)
             app.processEvents()
-        dialog.reject()
-        dialog.deleteLater()
+        settings.reject()
         runtime.exit_application()
         deadline = time.monotonic() + 15
         while not runtime._ready_to_close and time.monotonic() < deadline:

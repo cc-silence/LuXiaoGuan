@@ -8,6 +8,7 @@ from modules.settings_pages.settings_widgets import create_dialog_ok_cancel_butt
 from modules.ui_scale_manager import UiScaleManager
 from modules.main_pages.page_action_buttons import create_page_text_button
 from modules.capture_services.openwrt.common_settings import validate_values
+from modules.capture_services.openwrt.uci_booleans import netifd_bool
 from .signal_setup_forms import text_input, choice, add_field, hint
 
 
@@ -109,7 +110,7 @@ class RouterConfigDialog(FramelessDialog):
             control.setReadOnly(True)
         add_field(layout,body,"设备",control,"连接到 LAN 的网络设备，通常是 br-lan。旧式桥接绑定保留原配置。")
         auto=QCheckBox("开机自动运行",body)
-        auto.setChecked(old.get("auto","1")!="0")
+        auto.setChecked(netifd_bool(old.get("auto"),default=True))
         self.controls["auto"]=auto
         layout.addWidget(auto)
         fields=[("ipaddr","IPv4 地址",True,"使用加减按钮增删地址；可以填写 192.168.1.1/24。"),
@@ -152,6 +153,8 @@ class RouterConfigDialog(FramelessDialog):
     def _validate(self,apply=False):
         try:validate_values(self.review,self.values())
         except ValueError as exc:
+            from modules.capture_services.management_diagnostics import record_dialog_validation
+            record_dialog_validation(self.parentWidget(),self.review["config"],exc)
             self.error_label.setText(str(exc))
             return
         self.apply_requested=bool(apply)

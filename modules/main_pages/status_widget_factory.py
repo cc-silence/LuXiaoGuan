@@ -23,7 +23,7 @@ from modules.main_pages.download.download_page_utils import (
     is_download_mode_allowed,
     network_channels,
 )
-from modules.network_policy import allowed_channels
+from modules.network_policy import configured_proxy_channels
 from modules.main_pages.download.download_status import (
     STATUS_ARCH_MISMATCH,
     STATUS_CHECKING,
@@ -240,7 +240,7 @@ def build_status_widget(row_data, table, light_theme, scale_manager, config_mana
         proxy_retry_btn.setToolTip("临时切换为代理模式，并重新提交这个下载任务。")
         proxy_retry_btn.set_light_theme(light_theme)
         proxy_retry_btn.set_hover_sweep(False)
-        proxy_retry_btn.setEnabled(bool(allowed_channels(config_manager, "proxy")))
+        proxy_retry_btn.setEnabled(bool(configured_proxy_channels(config_manager)))
         if not proxy_retry_btn.isEnabled():
             proxy_retry_btn.setToolTip("当前没有可用代理。请先在代理设置中启用 WinBox 代理或系统代理。")
         proxy_retry_btn.clicked.connect(
@@ -276,7 +276,7 @@ def build_status_widget(row_data, table, light_theme, scale_manager, config_mana
         proxy_retry_btn.setToolTip("临时切换为代理模式，并重新检测更新。")
         proxy_retry_btn.set_light_theme(light_theme)
         proxy_retry_btn.set_hover_sweep(False)
-        proxy_retry_btn.setEnabled(bool(allowed_channels(config_manager, "proxy")))
+        proxy_retry_btn.setEnabled(bool(configured_proxy_channels(config_manager)))
         if not proxy_retry_btn.isEnabled():
             proxy_retry_btn.setToolTip("当前没有可用代理。请先在代理设置中启用 WinBox 代理或系统代理。")
         proxy_retry_btn.clicked.connect(

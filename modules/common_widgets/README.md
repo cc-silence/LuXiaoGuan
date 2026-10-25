@@ -31,3 +31,5 @@ Modal editors minimize the visible owner group to retain modal ownership; modele
 - `TaskProgressDialog`: shared task dialog with `RoundedProgressBar`, theme, scale and resource cleanup. Connect `cancelRequested`, send real stage/byte progress and call `finish` on every outcome. Completion stops busy animation; failure keeps the last known progress and late updates are ignored. Router backup/policy tasks use a thin `RouterTaskProgressDialog` adapter; avoid separate progress styles and fake timer percentages.
 
 - `TableFilterBar(parent)`: always-visible single-line search and filtered/total count. Emits `changed(str)`; the table owns filtering. Put it in the footer beside status text and call `refresh_scale()` after appearance changes. No overlay, position persistence, mouse dragging or timer.
+
+- `InfoPanel.append_info(text, "diagnostic")`: retain bounded detailed evidence in `export_entries()` without rendering it, including after theme/privacy redraws. Visible messages continue to use info/success/warning/error.

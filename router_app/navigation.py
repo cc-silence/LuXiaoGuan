@@ -1,7 +1,7 @@
 """\u4e3b\u7a97\u53e3\u5de6\u4fa7\u5bfc\u822a\u548c\u5185\u5d4c\u8bbe\u7f6e\u9875\u9762\u7684\u6240\u6709\u8005\u3002"""
 from .identity import DISPLAY_NAME
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QFrame,QWidget,QPushButton,QVBoxLayout,QHBoxLayout,QStackedWidget,QLabel,QSizeGrip
+from PySide6.QtWidgets import QFrame,QWidget,QVBoxLayout,QHBoxLayout,QStackedWidget,QLabel,QSizeGrip
 from modules.common_widgets.navigation_button import NavigationButton
 from modules.config_manager import BASE_DIR
 from modules.app_settings import is_light_theme
@@ -32,7 +32,6 @@ class RouterNavigation(QWidget):
         self.stack=QStackedWidget(self);self.stack.addWidget(router_page)
         self.stack.setContentsMargins(12,12,12,12)
         layout.addWidget(self.sidebar)
-        self.sidebar.hide()
         right=QWidget(self)
         right_layout=QVBoxLayout(right);right_layout.setContentsMargins(0,0,0,0);right_layout.setSpacing(0)
         right_layout.addWidget(self.stack,1)
@@ -88,23 +87,24 @@ class RouterNavigation(QWidget):
             self.stack.setCurrentWidget(self.router_page);self.refresh()
 
     def show_settings(self, update=False):
-        """Open one settings dialog while keeping the router page resident."""
+        """Switch to one embedded settings page; keep the router page resident."""
         if self.settings_controller is None:
             from .settings import RouterSettings
             controller=RouterSettings(self.owner)
             self.settings_controller=controller
             self.owner.settings_window=controller
             controller.finished.connect(self._settings_finished)
+            self.stack.addWidget(controller)
         controller=self.settings_controller
         if update:controller.pages.setCurrentIndex(2)
         controller.sync_appearance()
-        controller.show()
-        controller.raise_()
-        controller.activateWindow()
+        self.stack.setCurrentWidget(controller)
         self.refresh()
 
     def _settings_finished(self, result):
-        """Release only the settings dialog after its edits have been flushed."""
+        """Release the settings page after its edits have been flushed."""
         controller=self.settings_controller
         self.settings_controller=None;self.owner.settings_window=None
+        self.stack.setCurrentWidget(self.router_page)
+        self.stack.removeWidget(controller)
         controller.deleteLater();self.refresh()

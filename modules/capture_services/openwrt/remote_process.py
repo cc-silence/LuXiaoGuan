@@ -363,7 +363,7 @@ class RemoteProcessManager:
         try:
             result = self.command_runner.run(
                 f"poll_{handle.program}",
-                (resource_check_command(handle.remote_work_dir) if handle.program in BOUNDED_PROGRAMS else "") + (resource_check_command(handle.remote_work_dir) if handle.program in BOUNDED_PROGRAMS else "") + self._identity_test(handle),
+                (resource_check_command(handle.remote_work_dir) if handle.program in BOUNDED_PROGRAMS else "") + self._identity_test(handle),
                 timeout=5,
                 cancel_event=cancel_event,
             )
@@ -386,35 +386,8 @@ class RemoteProcessManager:
     def reap_stale_processes(self, cancel_event=None, force_sids=()):
         """只停止明确结束名单中的自有进程，核对会话路径和程序白名单。"""
 
-        forced = " ".join(
-            str(sid) for sid in (force_sids or ())
-            if re.fullmatch(r"[A-Za-z0-9]+", str(sid) or ""))
-        script = (
-            "reaped=0; "
-            "targets=\"\"; "
-            f"for sid in {forced or '__none__'}; do "
-            "case \"$sid\" in ''|*[!A-Za-z0-9]* ) continue;; esac; "
-            "d=\"/tmp/winbox-capture/$sid/\"; "
-            "[ -d \"$d\" ] || continue; "
-            "case \"$targets\" in *\"$d\"*) continue;; esac; "
-            "targets=\"$targets $d\"; "
-            "done; "
-            "for d in $targets; do "
-            "for c in /proc/[0-9]*/cmdline; do "
-            "line=$(tr '\\0' ' ' <\"$c\" 2>/dev/null) || continue; "
-            "case \"$line\" in *\"$d\"*) ;; *) continue;; esac; "
-            "case \"$line\" in *airodump-ng*|*hcxdumptool*|*reaver*|*aireplay-ng*|*airbase-ng*) ;; *) continue;; esac; "
-            "pid=${c#/proc/}; pid=${pid%/cmdline}; "
-            "case \"$pid\" in ''|*[!0-9]*|1) continue;; esac; "
-            "[ \"$pid\" = \"$$\" ] && continue; "
-            "kill \"$pid\" 2>/dev/null || continue; "
-            "reaped=$((reaped+1)); "
-            "n=0; while [ -d \"/proc/$pid\" ] && [ $n -lt 2 ]; do sleep 1; n=$((n+1)); done; "
-            "[ -d \"/proc/$pid\" ] && kill -9 \"$pid\" 2>/dev/null; "
-            "done; "
-            "done; "
-            "echo \"reaped=$reaped\""
-        )
+        from .stale_processes import reap_command
+        script = reap_command(force_sids)
         try:
             result = self.command_runner.run(
                 "reap_stale_processes", script, timeout=60, cancel_event=cancel_event

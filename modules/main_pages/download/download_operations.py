@@ -19,7 +19,7 @@ from PySide6.QtWidgets import QApplication
 
 from modules.network_policy import (
     CHANNEL_DIRECT,
-    allowed_channels,
+    configured_proxy_channels,
     aria2_options_for_channel,
     blocked_proxy_message,
 )
@@ -799,7 +799,7 @@ class DownloadOperationsCoordinator:
             return
         if not is_download_mode_allowed(row_data, "proxy"):
             return
-        if not allowed_channels(page.config_manager, "proxy"):
+        if not configured_proxy_channels(page.config_manager):
             page._append_info(
                 blocked_proxy_message(row_data["node"].get("name", "这个软件")),
                 level="warning",
@@ -929,7 +929,7 @@ class DownloadOperationsCoordinator:
         self._task_status.on_task_failed(task)
 
     def _try_next_network_channel(self, task, row_data):
-        """代理模式当前通道失败后尝试下一个允许代理通道。
+        """代理通道失败后继续下一条线路，最后尝试直连。
 
         参数：task 是失败的 aria2 任务；row_data 是所属下载行。
         返回值：True 表示已提交下一通道任务，False 表示不应自动重试。

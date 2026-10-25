@@ -14,7 +14,7 @@
 - 不要在协调器内创建 Qt 控件或弹窗 —— 它运行在主线程，但不应绕过页面直接操控 UI。
 """
 
-from modules.network_policy import allowed_channels, blocked_proxy_message
+from modules.network_policy import configured_proxy_channels, blocked_proxy_message
 from .download_size_cell import refresh_download_size
 from modules.main_pages.download.download_page_utils import (
     current_download_mode,
@@ -348,7 +348,7 @@ class DownloadCheckCoordinator:
             return
         if not is_download_mode_allowed(row_data, "proxy"):
             return
-        if not allowed_channels(page.config_manager, "proxy"):
+        if not configured_proxy_channels(page.config_manager):
             page._append_info(
                 blocked_proxy_message(row_data["node"].get("name", "这个软件")),
                 level="warning",

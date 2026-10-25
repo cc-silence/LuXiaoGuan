@@ -415,7 +415,6 @@ def _parse_uci_wireless_sections(text):
     """
 
     sections = {}
-    current = None
     for raw in (text or "").splitlines():
         line = raw.strip()
         if not line.startswith("wireless.") or "=" not in line:
@@ -424,24 +423,23 @@ def _parse_uci_wireless_sections(text):
         rest = key[len("wireless."):]
         if "." not in rest:
             if value.strip() == "wifi-iface":
-                current = rest
                 sections.setdefault(
-                    current,
+                    rest,
                     {"device": "", "mode": "", "disabled": False, "macaddr": ""},
                 )
             continue
-        if current is None:
+        section, prop = rest.split(".", 1)
+        if section not in sections:
             continue
-        prop = rest.split(".", 1)[1]
         val = value.strip().strip("'\"").strip()
         if prop == "device":
-            sections[current]["device"] = val
+            sections[section]["device"] = val
         elif prop == "mode":
-            sections[current]["mode"] = val
+            sections[section]["mode"] = val
         elif prop == "disabled":
-            sections[current]["disabled"] = val not in ("", "0", "false")
+            sections[section]["disabled"] = val not in ("", "0", "false")
         elif prop == "macaddr":
-            sections[current]["macaddr"] = val.lower()
+            sections[section]["macaddr"] = val.lower()
     return sections
 
 

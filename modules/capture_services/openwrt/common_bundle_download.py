@@ -46,24 +46,36 @@ def _receive(url, target, limit, cancel, progress, deadline, channels=None, head
     """\u6d41\u5f0f\u4e0b\u8f7d\u5e76\u9075\u5b88\u516c\u5171\u4ee3\u7406\u7b56\u7565\uff0c\u6709\u53d6\u6d88\u548c\u603b\u8d85\u65f6\u3002"""
     import requests
     from modules.http_socks_bridge import ProxyBridgePool
-    from modules.network_policy import allowed_channels
+    from modules.network_policy import allowed_channels, retryable_route_status
     if channels is None:
-        channels = allowed_channels(None, "proxy") or allowed_channels(None, "direct")
+        channels = allowed_channels(None, "proxy")
     last = ""
     with requests.Session() as session, ProxyBridgePool() as bridges:
         session.trust_env = False
-        for channel in channels:
+        for position, channel in enumerate(channels):
             _cancelled(cancel)
             if time.monotonic() > deadline:
                 raise TimeoutError("\u79bb\u7ebf\u5305\u4e0b\u8f7d\u8d85\u65f6\uff0c\u8bf7\u91cd\u8bd5\u3002")
-            proxy = bridges.http_proxy(channel.proxy_url)
+            try:
+                proxy = bridges.http_proxy(channel.proxy_url)
+            except (OSError, ValueError, RuntimeError) as exc:
+                last = type(exc).__name__
+                continue
             proxies = {"http": proxy, "https": proxy} if proxy else {}
             memory = io.BytesIO() if target is None else None
             meter = _TransferProgress(limit, progress)
             meter.update(0, force=True)
+            # Reserve connection/read time for the remaining routes, including
+            # direct. Slow or broken proxies must not consume the whole budget.
+            route_timeout = max(0.1, (deadline - time.monotonic()) / (2 * (len(channels) - position)))
             try:
-                with session.get(url, proxies=proxies, timeout=(10, 30), stream=True, allow_redirects=False,
+                with session.get(url, proxies=proxies,
+                                 timeout=(min(10, route_timeout), min(30, route_timeout)),
+                                 stream=True, allow_redirects=False,
                                  headers={"Accept-Encoding": "identity", "Cache-Control": "no-cache", **(headers or {})}) as response:
+                    if retryable_route_status(response.status_code):
+                        last = "HTTP " + str(response.status_code)
+                        continue
                     if response.status_code != 200:
                         raise ValueError("\u4e0b\u8f7d\u670d\u52a1\u8fd4\u56de HTTP " + str(response.status_code))
                     stream = memory if memory is not None else Path(target).open("wb")
@@ -188,7 +200,11 @@ def download_bundle(cancel, progress, stage, root=None, channels=None, kind="com
             if part.stat().st_size != payload["size"] or sha256_file(part, cancel) != payload["sha256"]:
                 raise ValueError("\u79bb\u7ebf\u5305\u4e0b\u8f7d\u4e0d\u5b8c\u6574\u6216\u6821\u9a8c\u5931\u8d25\u3002")
             part.replace(archive)
-        return prepare_archive(archive, raw, root, cancel, stage, kind=kind)
+        result = prepare_archive(archive, raw, root, cancel, stage, kind=kind)
+        from .bundle_archive_cleanup import discard_prepared_archive
+        if discard_prepared_archive(root, payload, stage):
+            result["archive"] = ""
+        return result
     finally:
         part.unlink(missing_ok=True)
         safe_path(root, "current.pending.json").unlink(missing_ok=True)

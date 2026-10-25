@@ -3,6 +3,7 @@ import hashlib
 import ipaddress
 import re
 import secrets
+from .uci_booleans import netifd_bool, shell_bool
 from .wireless_identity import generate_unique_mac
 from .relocation_identity import generate_relocation_hostname
 
@@ -31,7 +32,7 @@ PAGES={"wireless":("\u65e0\u7ebf\u8bbe\u7f6e","admin/network/wireless"),"interfa
 NTP_SERVERS=("ntp1.tencent.com","ntp2.tencent.com","ntp1.aliyun.com","ntp2.aliyun.com")
 DEFAULT_PASSWORD="luxiaoguan123"
 BOOT_SCRIPT=r'''#!/bin/sh /etc/rc.common
-# luxiaoguan-wifi-policy-v1
+# luxiaoguan-wifi-policy-v2
 START=18
 STOP=89
 start() { return 0; }
@@ -43,7 +44,7 @@ boot() {
   config_get mode "$1" mode
   [ "$mode" = sta ] || return 0
   config_get disabled "$1" disabled 0
-  [ "$disabled" = 1 ] && return 0
+  case "$disabled" in 1|true) return 0;; 0|false) :;; *) return 1;; esac
   uci -q set "wireless.$1.disabled=1" || return 1
   uci -q set "wireless.$1.lxg_boot_disabled=1" || return 1
   lxg_changed=1
@@ -53,6 +54,9 @@ boot() {
  [ "$lxg_changed" = 0 ] || uci -q commit wireless
 }
 '''
+# Exact previous delivered script, accepted only for explicit policy updates.
+BOOT_SCRIPT_HASHES=frozenset((hashlib.sha256(BOOT_SCRIPT.encode()).hexdigest(),
+    "0d0341acafb04ca4cc54241613cc4d4b19444dfd95f37b73b0907e97a4a36508"))
 RESCUE_SCRIPT="#!/bin/sh\n# luxiaoguan-button-policy-v1\n# Only suppress this button trigger; other rescue paths remain.\nreturn 0\n"
 OFFICIAL_RESCUE='#!/bin/sh\n\n[ "'+chr(36)+'{TYPE}" = "switch" ] || echo '+chr(36)+'{BUTTON} > /tmp/failsafe_button\n\nreturn 0\n'
 
@@ -74,7 +78,7 @@ def words(value):
 def boot_state(s):
     if s.get("capabilities",{}).get("old_watch"):return None
     digest=s.get("files",{}).get("/etc/init.d/luxiaoguan-wifi-policy","absent")
-    if digest!="absent" and digest!=hashlib.sha256(BOOT_SCRIPT.encode()).hexdigest():return None
+    if digest!="absent" and digest not in BOOT_SCRIPT_HASHES:return None
     return not bool(s.get("capabilities",{}).get("boot_hook_enabled"))
 
 
@@ -135,11 +139,16 @@ class Builder:
                 if net.overlaps(ipaddress.IPv4Network(str(a["address"])+"/"+str(a["mask"]),strict=False)):
                     raise ValueError("\u65b0\u767b\u5f55\u5730\u5740\u4e0e\u5f53\u524d\u4e0a\u7ea7\u7f51\u7edc\u51b2\u7a81\uff0c\u8bf7\u6362\u4e00\u4e2a\u7f51\u6bb5\u3002")
             for route in iface.get("route",[]):
-                if route.get("mask") and route.get("target") and net.overlaps(ipaddress.IPv4Network(str(route["target"])+"/"+str(route["mask"]),strict=False)):
+                if route.get("mask") is None or not route.get("target"):continue
+                try:
+                    route_network=ipaddress.ip_network(str(route["target"])+"/"+str(route["mask"]),strict=False)
+                except ValueError:
+                    raise ValueError("路由器返回的路由地址或前缀无效，无法核对登录地址冲突，未修改。") from None
+                if route_network.version==4 and route_network.prefixlen and net.overlaps(route_network):
                     raise ValueError("\u65b0\u767b\u5f55\u5730\u5740\u4e0e\u5f53\u524d\u5176\u4ed6\u7f51\u7edc\u8def\u7ebf\u51b2\u7a81\uff0c\u8bf7\u6362\u4e00\u4e2a\u7f51\u6bb5\u3002")
         if isinstance(lan.get("ipaddr"),list) or lan.get("gateway"):raise ValueError("\u5f53\u524d LAN \u662f\u591a\u5730\u5740\u6216\u5e26\u4e0a\u7ea7\u7f51\u5173\u7684\u7279\u6b8a\u914d\u7f6e\uff0c\u8bf7\u5148\u5728 LAN \u8bbe\u7f6e\u4e2d\u6838\u5bf9\u3002")
         dhcp=self.s["configs"].get("dhcp",{}).get("lan",{})
-        if dhcp.get("ignore")!="1":
+        if not shell_bool(dhcp.get("ignore"),default=False):
             try:
                 start=int(dhcp.get("start","100"));limit=int(dhcp.get("limit","150"))
                 if start<1 or limit<1 or start+limit-1>254:raise ValueError()
@@ -221,8 +230,9 @@ class Builder:
         self.finish_firewall_order()
 
     def firewall(self,item):
-        zones=[r for _,r in rows(self.s,"firewall","zone") if r.get("name")=="wan"]
-        if len(zones)!=1:raise ValueError("\u65e0\u6cd5\u552f\u4e00\u786e\u5b9a\u4e0a\u7ea7\u7f51\u7edc\u9632\u706b\u5899\u533a\u57df\uff0c\u672a\u731c\u6d4b\u3002")
+        from .upstream_firewall_zones import upstream_zones
+        zones=upstream_zones(self.s)
+        if not zones:raise ValueError("\u65e0\u6cd5\u552f\u4e00\u786e\u5b9a\u4e0a\u7ea7\u7f51\u7edc\u9632\u706b\u5899\u533a\u57df\uff0c\u672a\u731c\u6d4b\u3002")
         if item=="ping":rules=[("ping4",dict(proto="icmp",icmp_type=["echo-request"],family="ipv4")),("ping6",dict(proto="icmp",icmp_type=["echo-request"],family="ipv6"))]
         elif item=="igmp":rules=[("igmp",dict(proto="igmp",family="ipv4"))]
         else:
@@ -235,15 +245,17 @@ class Builder:
                         ports.add(match[1])
             if not ports:raise ValueError("\u65e0\u6cd5\u786e\u8ba4\u7ba1\u7406\u7f51\u9875\u7aef\u53e3\u3002")
             rules=[("web",dict(proto="tcp",dest_port=sorted(ports,key=int)))]
-        for suffix,values in rules:
-            section="lxg_initial_"+suffix
-            values.update(name="Luxiaoguan initial "+suffix,src="wan",target="DROP",enabled="1")
-            old=self.s["configs"].get("firewall",{}).get(section)
-            if old:
-                if old.get(".type")!="rule" or old.get("name")!=values["name"]:raise ValueError("\u5b89\u5168\u89c4\u5219\u540d\u79f0\u88ab\u5360\u7528\u3002")
-                self.change("firewall",section,values)
-            else:self.add("firewall",section,"rule",values)
-            self.plan.setdefault("first_rules",[]).append(section)
+        for zone in zones:
+            for suffix,base in rules:
+                tag=suffix if zone=="wan" else suffix+"_"+hashlib.sha256(zone.encode()).hexdigest()[:12]
+                section="lxg_initial_"+tag
+                values=dict(base,name="Luxiaoguan initial "+tag,src=zone,target="DROP",enabled="1")
+                old=self.s["configs"].get("firewall",{}).get(section)
+                if old:
+                    if old.get(".type")!="rule" or old.get("name")!=values["name"]:raise ValueError("\u5b89\u5168\u89c4\u5219\u540d\u79f0\u88ab\u5360\u7528\u3002")
+                    self.change("firewall",section,values)
+                else:self.add("firewall",section,"rule",values)
+                self.plan.setdefault("first_rules",[]).append(section)
 
     def finish_firewall_order(self):
         if not self.plan.get("first_rules"):return
@@ -261,7 +273,7 @@ class Builder:
         for radio in environment.get("radios",[]):
             band=radio.get("band") or {"11g":"2g","11a":"5g"}.get(radio.get("hwmode"))
             if band!="2g" or not any(2400<=c.get("mhz",0)<2500 and not c.get("restricted",False) for c in radio.get("channels",[])):continue
-            active=[r for _,r in rows(self.s,"wireless","wifi-iface") if r.get("device")==radio["name"] and r.get("disabled")!="1"]
+            active=[r for _,r in rows(self.s,"wireless","wifi-iface") if r.get("device")==radio["name"] and not netifd_bool(r.get("disabled"),default=False)]
             if any(r.get("mode") not in {"ap","sta"} for r in active):continue
             if supports_interfaces(radio.get("capabilities",""),sum(r.get("mode")=="ap" for r in active)+1,sum(r.get("mode")=="sta" for r in active)):candidates.append(radio)
         if not candidates:raise ValueError("\u6ca1\u6709\u53ef\u6838\u5b9e\u5bb9\u91cf\u8db3\u591f\u7684 2.4G \u7f51\u5361\uff0c\u4fdd\u7559\u539f\u70ed\u70b9\uff0c\u672a\u6267\u884c\u521d\u59cb\u5316\u3002")
@@ -286,12 +298,16 @@ class Builder:
         if type(options.get("enabled")) is not bool:raise ValueError("\u8bf7\u9009\u62e9\u5f00\u542f\u6216\u5173\u95ed\u3002")
         if boot_state(self.s) is None:raise ValueError("\u53d1\u73b0\u5176\u4ed6\u811a\u672c\u7684\u5f00\u673a\u65e0\u7ebf\u7b56\u7565\uff0c\u8bf7\u5148\u5904\u7406\u51b2\u7a81\u3002")
         digest=self.s["files"]["/etc/init.d/luxiaoguan-wifi-policy"]
-        if digest!="absent" and digest!=hashlib.sha256(BOOT_SCRIPT.encode()).hexdigest():raise ValueError("\u5f00\u673a\u7b56\u7565\u6587\u4ef6\u5df2\u88ab\u5176\u4ed6\u5de5\u5177\u4fee\u6539\uff0c\u672a\u8986\u76d6\u3002")
+        if digest!="absent" and digest not in BOOT_SCRIPT_HASHES:raise ValueError("\u5f00\u673a\u7b56\u7565\u6587\u4ef6\u5df2\u88ab\u5176\u4ed6\u5de5\u5177\u4fee\u6539\uff0c\u672a\u8986\u76d6\u3002")
         enabled=options["enabled"]
         if not enabled:
             lan=self.s["configs"].get("network",{}).get("lan",{})
             pool=self.s["configs"].get("dhcp",{}).get("lan",{})
-            if lan.get("proto")!="static" or not lan.get("ipaddr") or pool.get(".type")!="dhcp" or pool.get("ignore")=="1":
+            if netifd_bool(lan.get("disabled"),default=False):
+                raise ValueError("当前 LAN 已禁用，关闭上级开机连接可能导致重启后无法管理；请先启用 LAN 并确认管理入口。")
+            if not netifd_bool(lan.get("auto"),default=True):
+                raise ValueError("\u5f53\u524d LAN \u5df2\u8bbe\u4e3a\u5f00\u673a\u4e0d\u81ea\u52a8\u542f\u52a8\uff0c\u518d\u5173\u95ed\u4e0a\u7ea7\u81ea\u52a8\u8fde\u63a5\u53ef\u80fd\u5bfc\u81f4\u91cd\u542f\u540e\u65e0\u6cd5\u7ba1\u7406\uff1b\u8bf7\u5148\u5728 LAN \u8bbe\u7f6e\u4e2d\u5f00\u542f\u5f00\u673a\u81ea\u52a8\u8fd0\u884c\u3002")
+            if lan.get("proto")!="static" or not lan.get("ipaddr") or pool.get(".type")!="dhcp" or shell_bool(pool.get("ignore"),default=False):
                 raise ValueError("\u5f53\u524d\u5c40\u57df\u7f51\u53ef\u80fd\u4f9d\u8d56\u4e0a\u7ea7\u5206\u914d\u5730\u5740\uff0c\u5173\u95ed\u540e\u5bb9\u6613\u5931\u53bb\u7ba1\u7406\u5165\u53e3\uff1b\u8bf7\u5148\u914d\u597d\u81ea\u5df1\u7684 LAN \u5730\u5740\u548c\u81ea\u52a8\u5206\u914d\u529f\u80fd\u3002")
         if not enabled:self.file("/etc/init.d/luxiaoguan-wifi-policy",BOOT_SCRIPT)
         else:

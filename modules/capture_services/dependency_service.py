@@ -206,6 +206,10 @@ class OpenWrtDependencyService(QObject):
                 verification=tuple(item for item in verification
                     if removal_packages.intersection(("openssh-sftp-server",) if item.key=="sftp"
                         else self.manager.FEATURE_PACKAGES.get(item.key,())))
+            # Common-tool removal is verified against exact package names by the
+            # manager. A different provider may legitimately keep a command usable.
+            if action=="uninstall" and group in TOOL_KEYS:
+                verification=()
             expected=DependencyState.MISSING if action=="uninstall" else DependencyState.READY
             if not error and any(item.state not in {expected,DependencyState.DISABLED} for item in verification):
                 error=("\u5378\u8f7d\u540e\u5de5\u5177\u4ecd\u53ef\u7528\u6216\u72b6\u6001\u65e0\u6cd5\u786e\u8ba4\uff0c\u8bf7\u67e5\u770b\u8be6\u60c5\u5e76\u91cd\u65b0\u68c0\u67e5\u3002"
@@ -241,6 +245,7 @@ class OpenWrtDependencyService(QObject):
 
     def _emit_settings_message(self,text,level):
         self.owner.settingsMessageGenerated.emit(str(text),str(level))
+        if level=="diagnostic":return
         if self.task:
             self.task=replace(self.task,message=str(text))
             self.taskChanged.emit(self.task)

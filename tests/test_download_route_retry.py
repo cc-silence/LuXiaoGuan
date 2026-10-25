@@ -107,7 +107,6 @@ class DownloadRetryTests(unittest.TestCase):
     def test_explicit_server_wait_before_next_route(self):
         for status in (429, 503):
             with self.subTest(status=status):
-                feed._download_state.get()["preferred"] = None
                 self.calls.clear()
                 now = [10.0]
                 def advance(delay):

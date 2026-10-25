@@ -11,6 +11,11 @@ LAN_KEYS = frozenset(("proto","device","auto","ipaddr","netmask","gateway","broa
 SYSTEM_KEYS = frozenset(("hostname","timezone","zonename"))
 
 
+class CommonSaveUncertain(RuntimeError):
+    """The remote commit may still be running; do not treat it as a verified failure."""
+    code="common_save_uncertain"
+
+
 def validate_values(review, values):
     config = review.get("config")
     allowed = LAN_KEYS if config == "network" else SYSTEM_KEYS if config == "system" else ()
@@ -85,6 +90,7 @@ def save_settings(runner,review,values,cancel):
     config=review["config"]
     sid=manager._call("session",cancel,relocation=config=="system")["sid"]
     saved=False
+    uncertain=False
     failed=False
     cleanup_note=""
     try:
@@ -96,18 +102,23 @@ def save_settings(runner,review,values,cancel):
             if result.get("saved") is not True or result.get("applied") is not False:
                 raise SignalError("response", "保存结果不完整。")
         except SignalError as exc:
+            uncertain=exc.code in {"transport","disconnected","timeout","response","save_recovery"}
             if exc.code in {"transport","disconnected","timeout","response"}:
-                raise RuntimeError("配置保存结果未确认，请恢复连接后重新读取核对；不要连续重复保存。") from None
+                raise CommonSaveUncertain("配置保存结果未确认，请恢复连接后重新读取核对；不要连续重复保存。") from None
             raise
+        except Exception as exc:
+            uncertain=True
+            raise CommonSaveUncertain("\u914d\u7f6e\u4fdd\u5b58\u7ed3\u679c\u672a\u786e\u8ba4\uff0c\u8bf7\u6062\u590d\u8fde\u63a5\u540e\u91cd\u65b0\u8bfb\u53d6\u6838\u5bf9\uff1b\u4e0d\u8981\u8fde\u7eed\u91cd\u590d\u4fdd\u5b58\u3002") from exc
         saved=True
     except Exception:
         failed=True
         raise
     finally:
-        try: manager._call("discard_session",Event(),sid=sid,timeout=10)
-        except Exception:
-            if not saved and not failed: raise
-            cleanup_note=" 临时配置会话清理未确认，将由路由器超时回收。"
+        if not uncertain:
+            try: manager._call("discard_session",Event(),sid=sid,timeout=10)
+            except Exception:
+                if not saved and not failed: raise
+                cleanup_note=" 临时配置会话清理未确认，将由路由器超时回收。"
     if config=="network":
         return dict(saved=True,applied=False,note="LAN 配置已保存，尚未生效。重新启动网络或路由器后生效；管理地址改变后请使用新地址登录。"+cleanup_note)
     try:

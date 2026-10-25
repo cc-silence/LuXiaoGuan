@@ -25,7 +25,8 @@ class ShortcutSettingsTests(unittest.TestCase):
             self.window.openSettingsWindow()
             settings=self.window.settings_window
             inspect.assert_not_called()
-            self.assertTrue(all(settings.button_layout.itemAt(i).widget() is None for i in range(settings.button_layout.count())))
+            self.assertIs(self.window.navigation.stack.currentWidget(), settings)
+            self.assertFalse(settings.isWindow())
             settings.desktop_shortcut_section.button.click()
             add.assert_called_once()
             settings.reject()

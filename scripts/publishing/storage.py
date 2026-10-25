@@ -11,11 +11,16 @@ from modules.app_update_services.trust import PUBLIC_KEY
 from modules.capture_services.openwrt.common_bundle_manifest import verify_bundle_manifest
 from .cloudflare import ROOT
 from .storage_api import StorageAPI
+from modules.app_update_services.release_targets import APPLICATION_CHANNELS, release_channel
+
+class StorageQuotaError(ValueError):
+    """Safe ordinary reclamation cannot fit the proposed immutable upload."""
+
 
 LIMIT = 1_000_000_000
-_CHANNELS = {"channel/manifest.json": "app", "channel/stable.json": "app",
+_CHANNELS = {**{key: "app" for key in APPLICATION_CHANNELS},
              "channel/openwrt-common.json": "common", "channel/openwrt-capture.json": "capture"}
-_ARCHIVE = re.compile(r"files/[a-f0-9]{64}/(?:LuXiaoGuan|RouterManager)_v(.+)_[0-9]{8}_[0-9]{6}\.zip")
+_ARCHIVE = re.compile(r"files/(?:(win-x64|linux-x64)/)?([a-f0-9]{64})/(?:LuXiaoGuan|RouterManager)_v(.+)_[0-9]{8}_[0-9]{6}\.zip")
 
 
 def publication_lock(function):
@@ -45,43 +50,76 @@ def publication_lock(function):
     return locked
 
 
-def archive_version(key):
+def archive_identity(key):
     match = _ARCHIVE.fullmatch(key)
     if match:
-        try: return version_key(match[1])
-        except ValueError: pass
+        try:
+            version = version_key(match[3])
+            release_channel(match[3])
+            return (match[1] or "win-x64", version)
+        except ValueError:
+            pass
     return None
 
 
+def archive_version(key):
+    identity = archive_identity(key)
+    return identity[1] if identity else None
+
+
 def protected_releases(api, inventory):
-    protected, raw_channels, currents = set(), {}, []
+    """Keep exactly the signed current ZIP in each platform/channel slot."""
+    protected, raw_channels, ceilings = set(), {}, {}
     for key in inventory:
         if key.startswith("channel/") and key not in _CHANNELS:
             raise ValueError("Unknown release channel; refusing automated cleanup")
     for key, kind in _CHANNELS.items():
-        if key not in inventory: continue
+        if key not in inventory:
+            continue
         raw = api.read(key)
         raw_channels[key] = raw
         if kind == "app":
-            release = verify_manifest(raw, PUBLIC_KEY)
-            currents.append(version_key(release.version))
-            protected.add(urlsplit(release.url).path.lstrip("/"))
+            platform, channel = APPLICATION_CHANNELS[key]
+            try:
+                marker = json.loads(raw)
+            except (ValueError, UnicodeError):
+                marker = {}
+            if isinstance(marker, dict) and marker.get("state") == "publishing":
+                if (channel != "alpha" or marker.get("product") != "RouterManager"
+                        or marker.get("schema") != 1 or marker.get("platform") != platform
+                        or marker.get("channel") != "alpha"
+                        or not re.fullmatch("[a-f0-9]{64}", marker.get("sha256", ""))
+                        or release_channel(marker.get("version")) != "alpha"):
+                    raise ValueError("Invalid alpha maintenance slot; cleanup stopped")
+                # No deletion ceiling for this alpha: preserve all its archives,
+                # including an upload not yet switched into the signed channel.
+                continue
+            release = verify_manifest(raw, PUBLIC_KEY, expected_platform=platform)
+            if release_channel(release.version) != channel:
+                raise ValueError("Application channel/version mismatch; cleanup stopped")
+            archive = urlsplit(release.url).path.lstrip("/")
+            identity = archive_identity(archive)
+            if identity != (platform, version_key(release.version)):
+                raise ValueError("Current archive platform/version mismatch; cleanup stopped")
+            if (archive not in inventory or inventory[archive]["size"] != release.size
+                    or archive.split("/")[-2] != release.sha256):
+                raise ValueError("Current application archive is missing or differs from its signature")
+            protected.add(archive)
+            ceilings[(platform, channel)] = version_key(release.version)
         else:
             payload = verify_bundle_manifest(raw, kind=kind)
             protected.add(urlsplit(payload["url"]).path.lstrip("/"))
-    versions = {key: archive_version(key) for key in inventory}
-    ceilings = {}
-    for current in currents:
-        older = [value for value in versions.values() if value and value[1] == current[1] and value < current]
-        if older:
-            previous = max(older)
-            candidates = [key for key,value in versions.items() if value == previous]
-            # A same-version rebuild must not retain every superseded archive.
-            protected.add(max(candidates,key=lambda key:(inventory[key].get("last_modified", ""),key.rsplit("/",1)[-1],key)))
-        ceilings[current[1]] = max(ceilings.get(current[1], current), current)
-    eligible = [key for key, value in versions.items() if value and key not in protected
-                and value[1] in ceilings and value <= ceilings[value[1]]]
-    eligible.sort(key=lambda key: (versions[key], key))
+    eligible = []
+    for key in inventory:
+        identity = archive_identity(key)
+        if identity is None or key in protected:
+            continue
+        platform, version = identity
+        channel = "stable" if version[1] == 4 else "alpha"
+        ceiling = ceilings.get((platform, channel))
+        if ceiling is not None and version <= ceiling:
+            eligible.append(key)
+    eligible.sort(key=lambda key: (archive_identity(key), key))
     from .retention import offline_candidates
     offline_protected, offline_old = offline_candidates(api, inventory, raw_channels)
     protected.update(offline_protected)
@@ -118,7 +156,7 @@ def ensure_space(objects, archive, manifest, payload, channel_key, *, api=None, 
                 selected.append(key)
                 remaining -= before[key]["size"]
         if remaining + additional > limit:
-            raise ValueError("Release would exceed the 1 GB storage limit after safe cleanup; publication stopped")
+            raise StorageQuotaError("Release would exceed the 1 GB storage limit after safe cleanup; publication stopped")
         # Recheck immutable object metadata and all current channels before the first deletion.
         latest = api.inventory()
         if {k: v["size"] for k, v in latest.items()} != {k: v["size"] for k, v in before.items()}:

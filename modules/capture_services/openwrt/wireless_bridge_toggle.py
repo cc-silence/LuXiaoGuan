@@ -9,13 +9,12 @@ local function stage_toggle()
     not radio or radio[".type"]~="wifi-device" then fail("changed") end
  local managed=old.rm_bridge or old.rm_wds_backup
  local parent=req.enable_parent==true
- if parent and (req.enabled~=true or radio.disabled~="1") then fail("changed") end
- if req.enabled and radio.disabled=="1" and not parent then fail("parent_disabled") end
- for _,value in pairs({old.disabled or "0",radio.disabled or "0"}) do
-  if value~="0" and value~="1" then fail("unsupported") end
- end
+ local d,rd=netifd_bool(old.disabled,false),netifd_bool(radio.disabled,false)
+ if d==nil or rd==nil then fail("unsupported") end
+ if parent and (req.enabled~=true or rd~=true) then fail("changed") end
+ if req.enabled and rd and not parent then fail("parent_disabled") end
  if type(req.enabled)~="boolean" or type(req.token)~="string" or not req.token:match("^%x+$") then fail("session") end
- local switching=(old.disabled~="1")~=req.enabled
+ local switching=(not d)~=req.enabled
  if not switching and not parent then fail("changed") end
  check_dhcp(c)
  local network=type(old.network)=="table" and old.network[1] or old.network
@@ -48,7 +47,7 @@ local function toggle_saved_status()
  local old=c:get_all("wireless",req.section)
  local radio=c:get_all("wireless",req.radio)
  return {saved=old~=nil and old.device==req.radio and old.disabled==(req.enabled and "0" or "1") and
-               (not req.enabled or (radio~=nil and (radio.disabled==nil or radio.disabled=="0")))}
+               (not req.enabled or (radio~=nil and netifd_bool(radio.disabled,false)==false))}
 end
 local function toggle_status()
  local c=uci.cursor()
