@@ -29,7 +29,7 @@ DEPENDENCY_PACKAGE_DIR = "/tmp/winbox-dependency-pkgs"
 
 
 def _removable_packages():
-    """可卸载白名单：4 个具名工具包；依赖库永远不在内。"""
+    """可卸载白名单：具名工具及用户明确选择的组件，不包含传递依赖。"""
     names = set()
     for key, packages in OpenWrtDependencyManager.FEATURE_PACKAGES.items():
         if key not in TOOL_BY_KEY or TOOL_BY_KEY[key].removable:
@@ -262,7 +262,7 @@ class OpenWrtDependencyManager:
         """确认后卸载选中的抓包依赖，卸完复测返回最新清单。
 
         selected 为空表示全卸已装项；非空时只卸其中已装的，未知包名直接拒绝。
-        只卸白名单具名工具包，不碰依赖库，不用 --autoremove/--force。
+        只卸白名单中明确选中的包，不连带清理依赖，不用 --autoremove/--force。
         """
         tell = message or (lambda _text, _level: None)
         tell("正在检查已装依赖…", "info")
@@ -271,8 +271,23 @@ class OpenWrtDependencyManager:
         def checked():
             return tuple(item for item in self.check(enabled_features, sftp_available, cancel_event)
                          if include_sftp or item.key != "sftp")
-        installed = []
+        # Common tools use actual installed package names, not command availability.
+        # A built-in/foreign executable must never select wpad or its provider.
+        common_keys = tuple(key for key, enabled in enabled_features.items()
+                            if enabled and key in TOOL_BY_KEY)
+        package_manager = None
+        common_installed = ()
+        if common_keys:
+            from .tool_uninstall import installed_tool_packages
+            package_manager = self._preflight(0, cancel_event)
+            candidates = tuple(dict.fromkeys(package for key in common_keys
+                               for package in TOOL_BY_KEY[key].package_names))
+            common_installed = installed_tool_packages(
+                self.command_runner, package_manager, candidates, cancel_event)
+        installed = list(common_installed)
         for item in checked():
+            if item.key in common_keys:
+                continue
             if item.key in TOOL_BY_KEY and not TOOL_BY_KEY[item.key].removable:
                 continue
             if item.state.value != "ready":
@@ -297,12 +312,15 @@ class OpenWrtDependencyManager:
             for name in skipped:
                 tell(f"{name} 未安装，跳过。", "info")
         if not targets:
-            tell("没有可卸载的抓包依赖。", "success")
+            tell("未找到本项可卸载的独立软件包。如果命令仍可用，可能由固件或其他包提供；不会删除其他包。" if common_keys else "没有可卸载的抓包依赖。", "info" if common_keys else "success")
             return checked()
+        if "signal" in common_keys:
+            order = tuple(reversed(TOOL_BY_KEY["signal"].package_names))
+            targets.sort(key=lambda name: order.index(name) if name in order else len(order))
         tell("本次卸载：" + "、".join(targets) + "。", "info")
         if "openssh-sftp-server" in targets:
             tell("注意：卸载后文件同步不可用，重装即恢复；SSH 命令通道不受影响。", "warning")
-        package_manager = self._preflight(0, cancel_event)
+        package_manager = package_manager or self._preflight(0, cancel_event)
         total = len(targets)
         for position, package in enumerate(targets, start=1):
             tell(f"正在卸载 {package}（第 {position}/{total} 个）…", "info")
@@ -312,6 +330,11 @@ class OpenWrtDependencyManager:
                 command,
                 120, cancel_event, f"卸载 {package}")
             tell(f"{package} 卸载完成。", "success")
+        if common_keys:
+            remaining = installed_tool_packages(self.command_runner, package_manager,
+                                                targets, cancel_event)
+            if remaining:
+                raise SignalError("environment", "卸载后仍安装：" + "、".join(remaining))
         if include_sftp:
             sftp_available = self._probe_sftp(cancel_event, sftp_available)
         tell("正在复测依赖…", "info")
@@ -517,7 +540,7 @@ class OpenWrtDependencyManager:
         依赖闭包由路由器自身 apk 解析，PC 只按清单下载并对照官方 sha256 校验。
         """
         from .apk_offline import ApkOfflineInstaller
-        upload = uploader or self._apk_uploader(sftp_available, cancel_event, tell)
+        upload = uploader or self._package_uploader(sftp_available, cancel_event, tell)
 
         def stage(command_name, command, timeout, label):
             return self._execute_stage(command_name, command, timeout, cancel_event, label)
@@ -537,12 +560,14 @@ class OpenWrtDependencyManager:
         except RuntimeError as exc:
             raise SignalError("transport", f"本机下载安装包失败：{exc}") from None
 
-    def _apk_uploader(self, sftp_available, cancel_event, tell):
-        """apk 文件上传：优先 SFTP，失败或不可用改命令通道分片传（与 opkg 离线一致）。"""
+    def _package_uploader(self, sftp_available, cancel_event, tell):
+        """依赖包文件上传：优先 SFTP，失败或不可用改命令通道分片传（与 opkg 离线一致）。"""
         sftp_ok = bool(sftp_available) and self._sftp_usable()
 
         def upload(local, remote):
             nonlocal sftp_ok
+            if cancel_event is not None and cancel_event.is_set():
+                raise SignalError("cancelled", "依赖安装已取消。")
             if sftp_ok:
                 try:
                     self._sftp_upload(local, remote)

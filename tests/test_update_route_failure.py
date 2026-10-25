@@ -44,7 +44,8 @@ class RouteFailureTests(unittest.TestCase):
     def test_async_update_tls_route_retries_but_http_denial_stops(self):
         for status,error,retry in [(None,QNetworkReply.SslHandshakeFailedError,True),(403,QNetworkReply.ContentAccessDenied,False)]:
             with self.subTest(status=status):
-                reply=Mock();reply.attribute.return_value=status;reply.error.return_value=error
+                reply=Mock(spec=QNetworkReply);reply.attribute.return_value=status;reply.error.return_value=error
+                reply.rawHeader.return_value=b""
                 checker=SimpleNamespace(_reply=reply,_read=Mock(),_stopped=False,_error="",_stage="manifest",_channels=[object()],_next_channel=Mock(),_finish=Mock())
                 UpdateChecker._received(checker)
                 self.assertEqual(checker._next_channel.called,retry)

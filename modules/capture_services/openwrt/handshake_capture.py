@@ -91,10 +91,7 @@ class DownloadedHandshake:
         bssid = normalize_bssid(targets[0].bssid)
         incomplete_tail = False
         if len(targets) > 1:
-            try:
-                paths, incomplete_tail = split_channel_cap(local_cap, targets, None, with_metadata=True)
-            finally:
-                local_cap.unlink(missing_ok=True)
+            paths, incomplete_tail = split_channel_cap(local_cap, targets, None, with_metadata=True)
         else:
             paths = {bssid: local_cap}
         results = []
@@ -117,8 +114,6 @@ class DownloadedHandshake:
                 analysis.detail, self.deauth_rounds,
                 has_usable_frames=bool(pairs),
                 content_fingerprint=handshake_content_fingerprint(analysis, pairs)))
-        if len(targets) > 1:
-            local_cap.unlink(missing_ok=True)
         return tuple(results) if self.grouped else results[0]
     def release(self):
         """Release only this downloaded group's known disposable files after successful saving."""

@@ -95,3 +95,48 @@ test("renamed LuXiaoGuan packages retain read-only download support",async()=>{
  assert.equal((await get(path,store,{method:"HEAD"})).status,200);
  assert.equal((await get(path,store,{method:"PUT",body:"x"})).status,405);
 });
+
+
+test("Linux manifests use independent slots and reject a Windows payload",async()=>{
+ const store=env();
+ const reads=[];
+ store.UPDATES.get=async key=>{
+  reads.push(key);
+  if(key==="channel/linux-x64/stable.json")return object(JSON.stringify({payload:{platform:"linux-x64",version:"1.0.1"}}));
+  if(key==="channel/linux-x64/alpha.json")return object(JSON.stringify({payload:{platform:"linux-x64",version:"1.0.2_alpha"}}));
+  return null;
+ };
+ let response=await get("/manifest?platform=linux-x64",store);
+ assert.equal(response.status,200);
+ assert.equal(JSON.parse(await response.text()).payload.platform,"linux-x64");
+ response=await get("/manifest?platform=linux-x64",store,{headers:{"X-RouterManager-Test-Code":"fixture-code"}});
+ assert.equal(JSON.parse(await response.text()).payload.version,"1.0.2_alpha");
+ assert.deepEqual(reads,["channel/linux-x64/stable.json","channel/linux-x64/alpha.json"]);
+ store.UPDATES.get=async()=>object(JSON.stringify({payload:{platform:"win-x64",version:"1.0.1"}}));
+ assert.equal((await get("/manifest?platform=linux-x64",store)).status,503);
+ for(const query of ["platform=foreign","platform=win-x64&platform=linux-x64","other=linux"])
+  assert.equal((await get("/manifest?"+query,store)).status,400);
+});
+
+test("alpha maintenance has retry feedback and does not affect stable or another OS",async()=>{
+ const store=env();
+ store.UPDATES.get=async key=>{
+  if(key==="channel/manifest.json")return object(JSON.stringify({schema:1,product:"RouterManager",state:"publishing",platform:"win-x64",channel:"alpha",version:"1.0.19_alpha",sha256:"a".repeat(64)}));
+  if(key==="channel/stable.json")return object(JSON.stringify({payload:{platform:"win-x64",version:"1.0.1"}}));
+  if(key==="channel/linux-x64/stable.json")return object(JSON.stringify({payload:{platform:"linux-x64",version:"1.0.2"}}));
+  return null;
+ };
+ const response=await get("/manifest",store,{headers:{"X-RouterManager-Test-Code":"fixture-code"}});
+ assert.equal(response.status,503);assert.equal(response.headers.get("Retry-After"),"30");
+ assert.equal(response.headers.get("Cache-Control"),"no-store");
+ assert.equal((await get("/manifest",store)).status,200);
+ assert.equal((await get("/manifest?platform=linux-x64",store)).status,200);
+});
+
+test("Linux archives support the existing streaming and range contract",async()=>{
+ const store=env();const path=file.replace("/files/","/files/linux-x64/");
+ assert.equal((await get(path,store)).status,200);
+ assert.equal((await get(path,store,{method:"HEAD"})).status,200);
+ assert.equal((await get(path.replace("linux-x64","linux-other"),store)).status,404);
+ assert.equal((await get(path,store,{method:"DELETE"})).status,405);
+});

@@ -1,5 +1,6 @@
 """Authenticated R2 inventory using only the project's isolated publisher identity."""
 import json
+import os
 import re
 import subprocess
 import time
@@ -33,7 +34,7 @@ class StorageAPI:
         env = cloudflare.environment()
         process = subprocess.run(cloudflare.command("auth", "token", "--json"), cwd=cloudflare.INFRA,
             env=env, capture_output=True, timeout=60,
-            creationflags=subprocess.CREATE_NO_WINDOW)
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
         if process.returncode:
             raise ValueError("Isolated publisher authentication is unavailable; upload stopped")
         try:
@@ -68,7 +69,7 @@ class StorageAPI:
     def _key(key):
         if not isinstance(key, str) or not key or key.startswith("/") or ".." in key.split("/"):
             raise ValueError("Invalid owned release object key")
-        return "/" + quote(key, safe="")
+        return "/" + quote(key, safe="/")
 
     def inventory(self):
         rows, seen, cursor = {}, set(), ""

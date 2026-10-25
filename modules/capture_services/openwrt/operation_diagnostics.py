@@ -3,7 +3,9 @@ from collections import deque
 from copy import deepcopy
 from datetime import datetime, timezone
 from math import isfinite
-from threading import RLock
+from threading import RLock, local
+from contextlib import contextmanager
+from ..management_diagnostic_schema import ACTIONS,KINDS,CODES,SITE_MODULES
 
 # Exact protocol constants may survive text redaction; arbitrary strings may not.
 SAFE_VALUES = {
@@ -16,13 +18,33 @@ SAFE_VALUES = {
         "unexpected_error", "restore_reported_errors", "phase_completed", "native_identity_available",
         "native_identity_unavailable", "configuration_untouched"}),
 }
+SAFE_VALUES["operation"] |= ACTIONS
+SAFE_VALUES["kind"] = KINDS
+SAFE_VALUES["outcome"] = frozenset({"reconnect","uncertain","saved","applied"})
+SAFE_VALUES["reason"] |= CODES
+
+
+def _safe_protocol_value(name,value):
+    if value in SAFE_VALUES.get(name,()):return True
+    if name=="code_site":
+        stem,sep,line=value.partition(":")
+        return bool(sep and stem in SITE_MODULES and line.isascii() and line.isdigit() and len(line)<=6)
+    return False
+
+
 MAX_EVENTS = 64
 MAX_FAILURES = 8
 MAX_WORKFLOWS = 32
+MAX_MANAGEMENT = 128
+MAX_MANAGEMENT_FAILURES = 16
 STRING_FIELDS = frozenset({"timestamp", "event", "operation", "status", "stage", "kind",
-    "exception_type", "reason", "transport", "band", "source", "task_band"})
+    "exception_type", "reason", "code_site", "outcome", "transport", "band", "source", "task_band"})
 NUMBER_FIELDS = frozenset({"id", "operation_id", "elapsed_seconds", "connected_before",
     "connected_after", "exit_code", "timed_out", "cancelled", "request_bytes",
+    "task_id", "saved", "applied", "verified", "changed", "reboot_requested", "boot_state",
+    "selected_count", "operation_count", "skipped_count", "identity_count",
+    "row_count", "target_count", "removed_count", "mac_count",
+    "completed", "total", "uncancellable", "queue_depth", "queue_seconds",
     "channel", "pending_processes", "takeover", "blocked", "primary_failed",
     "wireless_cleanup_confirmed", "monitor_active", "result_rows", "accepted_rows",
     "rejected_rows", "frequency_rows", "band_rows", "legacy_rows", "configured_radios", "identified_radios", "physical_radios"})
@@ -50,27 +72,58 @@ class OperationDiagnostics:
         self._lock = RLock()
         self._identity = None
         self._sequence = 0
+        self._epoch = 0
+        self._context = local()
         self._events = deque(maxlen=MAX_EVENTS)
         self._failures = deque(maxlen=MAX_FAILURES)
         self._workflows = deque(maxlen=MAX_WORKFLOWS)
+        self._management = deque(maxlen=MAX_MANAGEMENT)
+        self._management_failures = deque(maxlen=MAX_MANAGEMENT_FAILURES)
 
     def bind_connection(self, identity):
         with self._lock:
             if identity != self._identity:
+                self._epoch += 1
                 self._events.clear()
                 self._failures.clear()
                 self._workflows.clear()
+                self._management.clear()
+                self._management_failures.clear()
                 self._identity = identity
 
-    def record(self, event, **fields):
+    @property
+    def epoch(self):
         with self._lock:
+            return self._epoch
+
+    @contextmanager
+    def management_scope(self, task_id, epoch):
+        previous=getattr(self._context,"management",None)
+        self._context.management=(task_id,epoch)
+        try:yield
+        finally:self._context.management=previous
+
+    def record(self, event, *, expected_epoch=None, **fields):
+        with self._lock:
+            scope=getattr(self._context,"management",None)
+            if scope is not None:
+                fields.setdefault("task_id",scope[0])
+                if expected_epoch is None:expected_epoch=scope[1]
+            if expected_epoch is not None and expected_epoch!=self._epoch:
+                return None
             self._sequence += 1
+            if event=="management" and fields.get("task_id") is None:
+                fields["task_id"]=self._sequence
             row = _fields(dict(fields, event=event, id=self._sequence,
                 timestamp=datetime.now(timezone.utc).isoformat()))
             self._events.append(row)
+            if event=="management" or (scope is not None and event=="command"):
+                self._management.append(row)
+                if row.get("status") in {"failed","timeout","cancelled","blocked","uncertain"}:
+                    self._management_failures.append(row)
             if event == "workflow":
                 self._workflows.append(row)
-            if row.get("status") in {"failed", "timeout", "cancelled", "blocked"}:
+            if row.get("status") in {"failed", "timeout", "cancelled", "blocked", "uncertain"}:
                 self._failures.append(row)
             return self._sequence
 
@@ -78,7 +131,9 @@ class OperationDiagnostics:
         with self._lock:
             result = {"schema_version": 1, "events": deepcopy(list(self._events)),
                     "failures": deepcopy(list(self._failures)),
-                    "workflows": deepcopy(list(self._workflows))}
+                    "workflows": deepcopy(list(self._workflows)),
+                    "management": deepcopy(list(self._management)),
+                    "management_failures": deepcopy(list(self._management_failures))}
             from .login_diagnostics import LoginDiagnostics
             if isinstance(self._login_diagnostics, LoginDiagnostics):
                 result["login_attempts"] = self._login_diagnostics.snapshot()
@@ -91,11 +146,12 @@ def sanitized_operation_evidence(data, masker):
     if not isinstance(data, dict) or data.get("schema_version") != 1:
         raise ValueError("unsupported operation diagnostic evidence")
     result = {"schema_version": 1}
-    for key, limit in (("events", MAX_EVENTS), ("failures", MAX_FAILURES), ("workflows", MAX_WORKFLOWS)):
+    for key, limit in (("events", MAX_EVENTS), ("failures", MAX_FAILURES), ("workflows", MAX_WORKFLOWS),
+                       ("management", MAX_MANAGEMENT), ("management_failures", MAX_MANAGEMENT_FAILURES)):
         rows = data.get(key, [])
         if not isinstance(rows, list) or len(rows) > limit:
             raise ValueError("operation diagnostic record limit exceeded")
-        result[key] = [{name: (value if value in SAFE_VALUES.get(name, ()) else sanitized_text(value, masker)) if isinstance(value, str) else value
+        result[key] = [{name: (value if _safe_protocol_value(name,value) else sanitized_text(value, masker)) if isinstance(value, str) else value
                         for name, value in _fields(row).items()} for row in rows]
     if "login_attempts" in data:
         from .login_diagnostics import sanitized_login_attempts

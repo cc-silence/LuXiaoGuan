@@ -4,7 +4,7 @@ from modules.release_identity import DISPLAY_NAME
 from PySide6.QtWidgets import QApplication,QHBoxLayout,QLabel,QLineEdit,QTextEdit,QWidget,QVBoxLayout
 from modules.common_widgets.combo_box import CommonComboBox
 from modules.common_widgets.rounded_progress_bar import RoundedProgressBar
-from .settings_widgets import create_hint_label,create_settings_button,create_settings_scroll_page,create_settings_section_title
+from .settings_widgets import create_hint_label,create_settings_button,create_settings_scroll_page,create_settings_section_title,create_tool_button,get_settings_tool_icon
 
 
 def download_size(value):
@@ -36,7 +36,25 @@ class AppUpdatePage(QWidget):
         self.check_button.clicked.connect(self._check);self.download_button.clicked.connect(self._download)
         self.cancel_button.clicked.connect(self._cancel)
         for button in (self.check_button,self.download_button,self.cancel_button):row.addWidget(button)
-        row.addStretch();layout.addLayout(row)
+        row.addStretch()
+        self.export_log_button=create_settings_button("\u5bfc\u51fa\u65e5\u5fd7",container,"secondary")
+        self.export_log_button.clicked.connect(self._export_logs)
+        row.addWidget(self.export_log_button);layout.addLayout(row)
+        self.export_hint=create_hint_label("",container)
+        self.export_hint.setTextFormat(Qt.PlainText);self.export_hint.hide();layout.addWidget(self.export_hint)
+        if presenter is not None:presenter.log_exporter.changed.connect(self._refresh_export)
+        self._refresh_export()
+        self.package_link_area=QWidget(container)
+        package_layout=QVBoxLayout(self.package_link_area);package_layout.setContentsMargins(0,0,0,0)
+        package_layout.addWidget(create_hint_label("\u5b8c\u6574\u5305\u4e0b\u8f7d\u94fe\u63a5\uff1a\u8f6f\u4ef6\u5185\u4e0b\u8f7d\u5931\u8d25\u65f6\uff0c\u53ef\u590d\u5236\u5230\u6d4f\u89c8\u5668\u4e0b\u8f7d\u3002",self.package_link_area))
+        package_row=QHBoxLayout()
+        self.package_link=QLineEdit(self.package_link_area);self.package_link.setObjectName("settingsLineEdit")
+        self.package_link.setReadOnly(True)
+        self.package_link.setAccessibleName("\u5b8c\u6574\u5305\u4e0b\u8f7d\u94fe\u63a5")
+        self.copy_package_link_button=create_settings_button("\u590d\u5236\u94fe\u63a5",self.package_link_area,"secondary")
+        self.copy_package_link_button.clicked.connect(self._copy_package_link)
+        package_row.addWidget(self.package_link,1);package_row.addWidget(self.copy_package_link_button)
+        package_layout.addLayout(package_row);layout.addWidget(self.package_link_area)
         self.view_mode=CommonComboBox(container)
         self.view_mode.addItems(["\u672c\u6b21\u5168\u90e8\u66f4\u65b0\u8bf4\u660e","\u6240\u6709\u5386\u53f2\u7248\u672c"])
         self.view_mode.currentIndexChanged.connect(self.refresh);layout.addWidget(self.view_mode)
@@ -51,18 +69,52 @@ class AppUpdatePage(QWidget):
         self.test_code_input.setEchoMode(QLineEdit.Password);self.test_code_input.setMaxLength(96)
         self.test_code_input.setPlaceholderText("\u8f93\u5165\u5185\u6d4b\u7801\uff0c\u63a5\u6536 alpha / beta \u66f4\u65b0")
         self.test_code_input.setText(presenter.checker.test_code if presenter else "")
+        self.test_code_toggle=create_tool_button(":/icons/images/icons/cil-low-vision.png",container)
+        self.test_code_toggle.setToolTip("\u663e\u793a\u5185\u6d4b\u7801")
+        self.test_code_toggle.setCheckable(True)
+        self.test_code_toggle.setAccessibleName("\u663e\u793a\u6216\u9690\u85cf\u5185\u6d4b\u7801")
+        self.test_code_toggle.toggled.connect(self._toggle_test_code)
         self.test_code_button=create_settings_button("\u4fdd\u5b58\u5e76\u9a8c\u8bc1",container,"secondary")
         self.leave_test_button=create_settings_button("\u9000\u51fa\u5185\u6d4b",container,"secondary")
         self.test_code_button.clicked.connect(lambda:self.presenter and self.presenter.set_test_code(self.test_code_input.text(),self))
         self.test_code_input.returnPressed.connect(self.test_code_button.click)
         self.leave_test_button.clicked.connect(self._leave_testing)
-        access_row.addWidget(self.test_code_input,1);access_row.addWidget(self.test_code_button);access_row.addWidget(self.leave_test_button)
+        access_row.addWidget(self.test_code_input,1);access_row.addWidget(self.test_code_toggle);access_row.addWidget(self.test_code_button);access_row.addWidget(self.leave_test_button)
         layout.addLayout(access_row)
         self.access_hint=create_hint_label("",container);layout.addWidget(self.access_hint)
         if presenter is not None:presenter.stateChanged.connect(self.refresh)
         self.refresh()
 
+    def _copy_package_link(self):
+        if self.presenter is None or self.presenter.release is None:return
+        release=self.presenter.release
+        QApplication.clipboard().setText(release.url)
+        from modules.app_update_services.diagnostics import record,endpoint_host
+        record("full_package_link_copied", host=endpoint_host(release.url), version=release.version)
+
+    def _export_logs(self):
+        if self.presenter is not None:self.presenter.log_exporter.start(self)
+
+    def _refresh_export(self):
+        exporter=self.presenter.log_exporter if self.presenter is not None else None
+        self.export_log_button.setEnabled(exporter is not None and not exporter.active)
+        self.export_hint.setText(exporter.message if exporter else "")
+        self.export_hint.setVisible(bool(exporter and exporter.message))
+
+    def _toggle_test_code(self, visible):
+        self.test_code_input.setEchoMode(QLineEdit.Normal if visible else QLineEdit.Password)
+        from modules.dialog_theme import detect_light_theme
+        icon_path=":/icons/images/icons/cil-lock-locked.png" if visible else ":/icons/images/icons/cil-low-vision.png"
+        self.test_code_toggle.setProperty("iconPath",icon_path)
+        self.test_code_toggle.setIcon(get_settings_tool_icon(icon_path,detect_light_theme(self)))
+        self.test_code_toggle.setToolTip("\u9690\u85cf\u5185\u6d4b\u7801" if visible else "\u663e\u793a\u5185\u6d4b\u7801")
+
+    def hideEvent(self,event):
+        self.test_code_toggle.setChecked(False)
+        super().hideEvent(event)
+
     def _leave_testing(self):
+        self.test_code_toggle.setChecked(False)
         self.test_code_input.clear()
         if self.presenter:self.presenter.set_test_code("",self)
 
@@ -97,6 +149,12 @@ class AppUpdatePage(QWidget):
     def refresh(self):
         """\u9875\u9762\u91cd\u5f00\u6216\u5207\u6362\u5386\u53f2\u89c6\u56fe\u53ea\u8bfb\u5185\u5b58\uff0c\u4e0d\u91cd\u590d\u8054\u7f51\u3002"""
         p=self.presenter;release=p.release if p else None;plan=p.plan if p else None;busy=bool(p and p.active)
+        self.package_link_area.setVisible(release is not None)
+        package_url=release.url if release else ""
+        if self.package_link.text()!=package_url:
+            self.package_link.setText(package_url)
+            self.package_link.setCursorPosition(0)
+        self.copy_package_link_button.setEnabled(release is not None)
         self.test_code_button.setEnabled(p is not None and not busy)
         self.test_code_input.setEnabled(not busy)
         self.leave_test_button.setEnabled(p is not None and not busy and bool(p.checker.test_code))

@@ -13,6 +13,8 @@ class AppUpdatePresenter(QObject):
     def __init__(self, current_version, runtime):
         super().__init__(runtime)
         self.runtime = runtime
+        from .app_update_log_export import UpdateLogExport
+        self.log_exporter = UpdateLogExport(self)
         self.checker = UpdateChecker(current_version, BASE_DIR / "config" / "app_update.json", self)
         self.checker.completed.connect(self._completed)
         self.checker.failed.connect(self._failed)
@@ -93,9 +95,11 @@ class AppUpdatePresenter(QObject):
         if self.runtime._exiting or self._worker is not None:
             return
         from modules.feature_policy import FeaturePolicy, CAPABILITY_NETWORK_DOWNLOAD
+        from modules.app_update_services.diagnostics import record
         self._manual_owner = owner
         self._inline_check = inline
         if not FeaturePolicy.from_config(self.runtime.config).allows(CAPABILITY_NETWORK_DOWNLOAD):
+            record("check_policy_failed", error="network_download_disabled")
             self._failed("\u4e3b\u673a\u6a21\u5f0f\u5df2\u5173\u95ed\u8054\u7f51\u4e0b\u8f7d\uff0c\u8bf7\u5148\u5728\u8bbe\u7f6e\u4e2d\u5207\u6362\u6a21\u5f0f\u3002", True)
             return
         self.checker.check(manual=True)
@@ -128,6 +132,8 @@ class AppUpdatePresenter(QObject):
             value=normalize_code(value)
             if not value:save_code("")
         except (OSError,ValueError) as exc:
+            from modules.app_update_services.diagnostics import record,exception_chain
+            record("testing_code_validation_failed", error_type=type(exc).__name__, chain=exception_chain(exc))
             self.error=str(exc);self.stateChanged.emit();return
         self._release=None;self.plan=None;self.checker.latest=None;self.checker.manifest_data=b""
         self._notified="";self.checker.test_code=value
@@ -138,7 +144,9 @@ class AppUpdatePresenter(QObject):
         if self._pending_test_code is not None:
             from modules.platform_services.app_update_access import save_code
             try:save_code(self._pending_test_code)
-            except (OSError,ValueError):
+            except (OSError,ValueError) as exc:
+                from modules.app_update_services.diagnostics import record,exception_chain
+                record("testing_code_storage_failed", error_type=type(exc).__name__, chain=exception_chain(exc))
                 self._failed("\u5185\u6d4b\u7801\u9a8c\u8bc1\u6210\u529f\uff0c\u4f46\u672c\u673a\u51ed\u636e\u4fdd\u5b58\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5\u3002",manual)
                 return
             self._pending_test_code=None
@@ -246,6 +254,8 @@ class AppUpdatePresenter(QObject):
         dialog = ConfirmDialog("\u91cd\u542f\u5e76\u5b89\u88c5\u66f4\u65b0", "\u5c06\u9000\u51fa RouterManager\uff0c\u66ff\u6362\u5df2\u6838\u5bf9\u7684\u6587\u4ef6\u540e\u81ea\u52a8\u91cd\u65b0\u6253\u5f00\u3002\n\u5df2\u4fdd\u5b58\u7684\u7528\u6237\u914d\u7f6e\u548c\u6570\u636e\u4f1a\u4fdd\u7559\uff1b\u8bf7\u5148\u4fdd\u5b58\u5c1a\u672a\u786e\u8ba4\u7684\u8bbe\u7f6e\u3002", owner)
         if not dialog.exec():
             return
+        from modules.app_update_services.diagnostics import record, exception_chain
+        record("install_launch_started")
         try:
             from modules.platform_services.app_update_install import launch_helper
             from modules.ui_scale_manager import UiScaleManager
@@ -253,9 +263,11 @@ class AppUpdatePresenter(QObject):
                         "scale":UiScaleManager.for_widget(owner).global_scale}
             launch_helper(BASE_DIR, self.plan["stage"], appearance=appearance)
         except Exception as exc:
+            record("install_launch_failed", error_type=type(exc).__name__, chain=exception_chain(exc))
             self.error = str(exc)
             self.stateChanged.emit()
             return
+        record("install_launch_completed")
         self.runtime.exit_application()
 
     def _open_center(self, dialog):
@@ -337,8 +349,11 @@ class AppUpdatePresenter(QObject):
         from PySide6.QtGui import QDesktopServices
         if self._release is None or self.active:
             return False
+        from modules.app_update_services.diagnostics import record,endpoint_host
         if QDesktopServices.openUrl(QUrl(self._release.url)):
+            record("browser_opened", host=endpoint_host(self._release.url), version=self._release.version, result="external_download_not_observed")
             return True
+        record("browser_open_failed", host=endpoint_host(self._release.url), version=self._release.version)
         self.state = "error"
         self.error = "\u65e0\u6cd5\u6253\u5f00\u6d4f\u89c8\u5668\uff0c\u8bf7\u68c0\u67e5\u9ed8\u8ba4\u6d4f\u89c8\u5668\u540e\u91cd\u8bd5\u3002"
         self.stateChanged.emit()

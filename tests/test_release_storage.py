@@ -31,7 +31,7 @@ class StorageTests(unittest.TestCase):
         self.archive = Path(self.temp.name)/"archive.zip"; self.archive.write_bytes(b"x"*70)
         self.manifest = Path(self.temp.name)/"manifest.json"; self.manifest.write_bytes(b"signed")
         self.api = API()
-        self.verify = patch.object(storage, "verify_manifest", return_value=NS(version="1.0.8_alpha",url="https://example.invalid/"+key(8)))
+        self.verify = patch.object(storage, "verify_manifest", return_value=NS(version="1.0.8_alpha",url="https://example.invalid/"+key(8),size=70,sha256="8"*64))
         self.verify.start(); self.addCleanup(self.verify.stop)
     def ensure(self, **kwargs):
         return storage.ensure_space({}, self.archive, self.manifest, {"url":"https://example.invalid/"+key(9)},

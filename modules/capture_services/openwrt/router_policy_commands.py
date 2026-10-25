@@ -63,9 +63,9 @@ local configs=__CONFIGS__
 local fixed_files=__FILES__
 local visible={
  system={"hostname","timezone","zonename","enabled","server","enable_server","log_proto","conloglevel","cronloglevel","log_ip"},
- network={"proto","device","type","ifname","ipaddr","netmask","gateway","broadcast","macaddr","hostname","name","network","rm_owner","ports"},
+ network={"proto","auto","disabled","device","type","ifname","ipaddr","netmask","gateway","broadcast","macaddr","hostname","name","network","rm_owner","ports"},
  wireless={"mode","ssid","device","network","encryption","macaddr","disabled","band","hwmode","channel","htmode","rm_identity_backup","rm_wds_backup","rm_bridge","lxg_boot_disabled"},
- firewall={"name","src","dest","proto","icmp_type","family","target","dest_port","enabled","network","input","output","forward","src_ip","dest_ip","src_port","extra"},
+ firewall={"name","device","subnet","extra_src","extra_dest","src","dest","proto","icmp_type","family","target","dest_port","enabled","network","input","output","forward","src_ip","dest_ip","src_port","extra"},
  dhcp={"interface","quietdhcp","ra","dhcpv6","start","limit","ignore","dhcp_option"},dropbear={"Interface","DirectInterface","Port","enable"},
  uhttpd={"home","listen_http","listen_https","redirect_https"},luci={"lang"},fstab={"auto_mount","anon_swap"}
 }
@@ -103,6 +103,8 @@ local function snapshot()
   end
  end
  out.capabilities.chinese=pending_shell("test -f /usr/lib/lua/luci/i18n/base.zh-cn.lmo -o -f /usr/lib/lua/luci/i18n/base.zh_Hans.lmo")
+ out.capabilities.firewall3=pending_shell("test -x /sbin/fw3 && grep -Eq '(^|[^[:alnum:]_])fw3([^[:alnum:]_]|$)' /etc/init.d/firewall")
+ out.capabilities.firewall4=pending_shell("test -x /sbin/fw4 && grep -Eq '(^|[^[:alnum:]_])fw4([^[:alnum:]_]|$)' /etc/init.d/firewall")
  out.capabilities.time=pending_shell("test -x /etc/init.d/sysntpd")
  out.capabilities.attended=pending_shell("test -x /etc/init.d/attendedsysupgrade")
  out.capabilities.mount=pending_shell("command -v block >/dev/null")

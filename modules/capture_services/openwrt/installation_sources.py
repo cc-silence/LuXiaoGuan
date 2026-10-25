@@ -16,7 +16,7 @@ def install_with_sources(local, online, computer, tell):
         tell("路由器联网路线失败：" + str(exc), "warning")
     tell("安装路线 3/3：改由当前电脑下载和校验缺少的依赖，再传到路由器安装。", "warning")
     computer()
-    return "电脑下载后传到路由器安装（此前路由器联网路线失败）"
+    return "电脑下载后传到路由器安装"
 
 
 def report_verified(source, ready, tell):

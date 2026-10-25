@@ -29,6 +29,9 @@ def main():
     app.add_argument("--notes-file", type=Path, required=True)
     app.add_argument("--previous-manifest", type=Path)
     app.add_argument("--previous-catalog", type=Path)
+    cleanup = actions.add_parser("cleanup-releases")
+    cleanup.add_argument("--apply", action="store_true")
+    cleanup.add_argument("--report", type=Path)
     args = parser.parse_args()
     if args.action == "login":
         from scripts.publishing.cloudflare import command, environment, INFRA, PROFILE
@@ -46,6 +49,11 @@ def main():
     elif args.action == "publish-offline":
         from scripts.publishing.offline import publish
         print(json.dumps(publish(args.kind, args.archive, args.coverage)), flush=True)
+    elif args.action == "cleanup-releases":
+        from scripts.publishing.storage import publication_lock
+        from scripts.publishing.retention import cleanup_retention
+        result = publication_lock(cleanup_retention)(report_path=args.report, apply=args.apply)
+        print(json.dumps(result), flush=True)
     elif args.action == "publish-app":
         from scripts.publishing.application import publish, publish_alpha
         publish = publish_alpha if args.channel == "alpha" else publish

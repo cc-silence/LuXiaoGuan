@@ -7,6 +7,7 @@ POSIX 引用双重隔离；不拼接 SSID、密码或用户提供的命令。
 
 import json
 from .takeover_config import TAKEOVER_LUA
+from .uci_booleans import NETIFD_BOOL_LUA
 from .signal_detail_commands import DETAIL_LUA
 
 from modules.capture_services.openwrt.command_builder import quote_argument
@@ -55,10 +56,9 @@ end
 local function valid_name(value)
     return type(value) == "string" and value:match("^[%w_]+$") ~= nil
 end
+__NETIFD_BOOL__
 local function disabled(value)
-    if value == nil or value == "0" then return false end
-    if value == "1" then return true end
-    return nil
+    return netifd_bool(value, false)
 end
 local function all(c)
     local values = {}
@@ -208,7 +208,7 @@ def signal_command(action, lua_bin="lua", **values):
         raise ValueError("不支持的 lua 解释器。")
     payload = json.dumps(dict(action=action, **values), ensure_ascii=True)
     takeover = action in {"takeover_prepare", "takeover_disable", "takeover_restore"}
-    body = _LUA.replace("-- WINBOX_SIGNAL_DETAILS", DETAIL_LUA) + (TAKEOVER_LUA if takeover else "") + _LUA_RESULT
+    body = _LUA.replace("__NETIFD_BOOL__", NETIFD_BOOL_LUA).replace("-- WINBOX_SIGNAL_DETAILS", DETAIL_LUA) + (TAKEOVER_LUA if takeover else "") + _LUA_RESULT
     script = lua_bin + " - " + quote_argument(payload) + " <<'WINBOX_SIGNAL_LUA'\n" + body + "\nWINBOX_SIGNAL_LUA"
     return (
         "command -v " + lua_bin + " >/dev/null 2>&1 || { printf '%s' '{\"ok\":false,\"code\":\"dependencies\"}'; exit 0; }; "

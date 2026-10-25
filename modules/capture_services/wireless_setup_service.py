@@ -166,7 +166,14 @@ class WirelessSetupService(QObject):
         return accepted
 
     def _start(self, action, operation, *, scan_radio=""):
+        from .management_diagnostics import ManagementTrace
+        if action in {"move_preview","relocate","orphan_preview","orphan_cleanup"}:
+            trace=ManagementTrace(self.owner.openwrt_backend.command_runner,action,{})
+            original_operation=operation
+            operation=lambda cancel,message:trace.execute(original_operation,cancel,message)
+        else:trace=None
         if self.active or self.owner._shutting_down or not self.signals.snapshot.connected or self.owner.task_controller.busy:
+            if trace is not None:trace.cancelled("busy_or_disconnected")
             return False
         self.active = True
         identity = self._connection_identity()
@@ -176,6 +183,7 @@ class WirelessSetupService(QObject):
         event = self.owner.task_controller.begin(kind, session)
         if event is None:
             self.active = False
+            if trace is not None:trace.cancelled("busy")
             return False
         self.signals._auto_refresh_blocked = False
         if action == "inspect":
@@ -279,7 +287,12 @@ class WirelessSetupService(QObject):
             if isinstance(result.value, StoredWirelessPassword):
                 result.value.clear()
 
+        def worker_failed(*_):
+            if trace is not None:
+                trace.failed(RuntimeError())
+            finished(WirelessTaskResult(action, error="无线任务异常结束，请重新检查设备。"))
+
         from .task_completion import start_service_worker
         return start_service_worker(self.owner, session, run, event, finished,
-            lambda *_: finished(WirelessTaskResult(action, error="无线任务异常结束，请重新检查设备。")),
+            worker_failed,
             None, self.signals._forward_worker_message)

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import copy
 
-from PySide6.QtWidgets import QFormLayout, QLineEdit
+from PySide6.QtCore import QSignalBlocker
+from PySide6.QtWidgets import QCheckBox, QFormLayout, QLineEdit
 
 from .settings_widgets import (
     create_hint_label,
@@ -96,12 +97,25 @@ def build_proxy_page(window, *, immediate=False):
 
     section = _build_proxy_section(container, "代理设置", window.scale_manager)
     layout.addWidget(section["section_label"])
+    enabled_check = QCheckBox("开启代理", container)
+    enabled_check.setObjectName("settingsProxyEnabled")
+    enabled_check.setToolTip("关闭后只走直连，不使用已填写的代理或 Windows 系统代理。")
+    window.scale_manager.bind_metrics(enabled_check, min_height=28)
+    layout.addWidget(enabled_check)
     layout.addLayout(section["form"])
+
+    def _fill_all(data):
+        blocker = QSignalBlocker(enabled_check)
+        enabled_check.setChecked(data.get("enabled", True))
+        _fill_section_data(section["inputs"], data)
+        for line_edit in section["inputs"].values():
+            line_edit.setEnabled(enabled_check.isChecked())
+        del blocker
 
     # ── 说明文字 ──────────────────────────────────────────
     hint = create_hint_label(
         '参数输入完成后自动保存。'
-        '地址或端口留空的代理会自动跳过。检测和下载均支持 HTTP 和 SOCKS5；同时填写时优先 HTTP，失败后尝试 SOCKS，再尝试系统代理。',
+        '关闭代理后直接联网，已填写的内容会保留。开启后依次尝试 HTTP、SOCKS、系统代理，均失败后尝试直连。地址或端口留空的代理会跳过。',
         container,
     )
     layout.addWidget(hint)
@@ -120,7 +134,7 @@ def build_proxy_page(window, *, immediate=False):
         副作用：写盘，更新 initial_data 快照。
         """
         nonlocal dirty, initial_data
-        data = _collect_section_data(section["inputs"])
+        data = {"enabled": enabled_check.isChecked(), **_collect_section_data(section["inputs"])}
         if data != mgr.to_dict():
             dirty = True
         if not dirty and not mgr.needs_migration:
@@ -153,7 +167,7 @@ def build_proxy_page(window, *, immediate=False):
         nonlocal dirty
         mgr.from_dict(initial_data)
         dirty = False
-        _fill_section_data(section["inputs"], mgr.to_dict())
+        _fill_all(mgr.to_dict())
 
     def _replace_imported_data(data):
         """将导入的代理配置写入当前编辑会话并立即刷新输入框。
@@ -165,19 +179,28 @@ def build_proxy_page(window, *, immediate=False):
         nonlocal dirty
         mgr.from_dict(data)
         dirty = True
-        _fill_section_data(section["inputs"], mgr.to_dict())
+        _fill_all(mgr.to_dict())
         if immediate:
             _flush()
 
     # 注册回调到 window，供 settings_window 在确定/取消/导入时调用
     window.proxy_inputs = section["inputs"]
+    window.proxy_enabled_check = enabled_check
     window._proxy_flush_fn = _flush
     window._proxy_save_fn = _save_all
     window._proxy_discard_fn = _discard_all
     window._proxy_replace_imported_data = _replace_imported_data
 
     # ── 初始加载 ────────────────────────────────────────
-    _fill_section_data(section["inputs"], mgr.to_dict())
+    _fill_all(mgr.to_dict())
+
+    def _enabled_changed(enabled):
+        for line_edit in section["inputs"].values():
+            line_edit.setEnabled(enabled)
+        if immediate:
+            _flush()
+
+    enabled_check.toggled.connect(_enabled_changed)
     if immediate:
         for line_edit in section["inputs"].values():
             line_edit.editingFinished.connect(_flush)

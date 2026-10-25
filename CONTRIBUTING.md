@@ -47,6 +47,6 @@ GitHub 自动执行源码检查、Python 语法检查和 Windows 离线回归，
 
 代码合入后由负责人拉取 main、核对并统一打包发布。CI 的权限仅用于读取代码和执行测试，不持有发布签名或 Cloudflare 凭证，也不会登录真实路由器。
 
-发布继续执行 [发布规则](docs/release-delivery.md)：软件每个通道保留两版，常用及抓包离线包各保留一版，并检查 1 GB 峰值。完整包及离线包通过现有更新服务交付。
+发布继续执行 [发布规则](docs/release-delivery.md)：Windows/Linux 的正式版和 alpha 各保留一版，共最多四份软件包，常用及抓包离线包各保留一版，并检查 1 GB 峰值。完整包及离线包通过现有更新服务交付。
 
 GitHub 分支规则的配置保存在 .github/rulesets/；修改这些文件后，由负责人核对并同步 GitHub 后台设置，CI 不自动修改仓库权限。

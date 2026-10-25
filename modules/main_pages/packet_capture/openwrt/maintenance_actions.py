@@ -79,6 +79,8 @@ class MaintenanceActions:
                 self.pending[key] = ("preview", identity)
                 page.status_label.setText("正在检查设备能力和备份内容，尚未修改路由器。")
         except Exception as exc:
+            from modules.capture_services.management_diagnostics import record_management_error
+            record_management_error(page.manager.manager.runner,"maintenance_validation",operation,exc)
             page.status_label.setText(str(exc))
         page._sync()
 
@@ -119,6 +121,8 @@ class MaintenanceActions:
             finally:
                 dialog.deleteLater()
         except Exception as exc:
+            from modules.capture_services.management_diagnostics import record_management_error
+            record_management_error(page.manager.manager.runner,"maintenance_validation",result.get("operation","read"),exc)
             page.status_label.setText(str(exc))
         finally:
             page._sync()

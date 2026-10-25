@@ -25,7 +25,10 @@ class CommonConfigActions:
             key=page.manager.submit("common_read",config=config)
             self.pending[key]=(config,ssh._client,ssh.host_fingerprint,"read")
             page.status_label.setText("正在读取路由器当前设置。")
-        except Exception as exc:page.status_label.setText(str(exc))
+        except Exception as exc:
+            from modules.capture_services.management_diagnostics import record_management_error
+            record_management_error(page.manager.manager.runner,"common_validation",config,exc)
+            page.status_label.setText(str(exc))
         page._sync()
 
     def _current(self,item):
@@ -83,7 +86,10 @@ class CommonConfigActions:
                 if apply:self._show_progress(new_key)
                 page.status_label.setText("正在保存并应用设置……" if apply else "正在保存设置，请等待结果。")
             finally:dialog.deleteLater()
-        except Exception as exc:page.status_label.setText(str(exc))
+        except Exception as exc:
+            from modules.capture_services.management_diagnostics import record_management_error
+            record_management_error(page.manager.manager.runner,"common_validation",item[0],exc)
+            page.status_label.setText(str(exc))
         finally:page._sync()
         return True
 

@@ -3,6 +3,7 @@ import json
 from .command_builder import quote_argument
 from .signal_commands import _LUA_BINS
 from .wireless_options import IFACE_KEYS, RADIO_KEYS
+from .uci_booleans import NETIFD_BOOL_LUA
 from .wireless_capabilities import CAPABILITIES_LUA, RADIO_SETTINGS, IFACE_SETTINGS
 from .wireless_bridge_commands import BRIDGE
 from .wireless_bridge_status import STATUS
@@ -455,7 +456,7 @@ if ok then io.write(json.stringify({ok=true,result=result}))
 else io.write(json.stringify({ok=false,code=type(result)=="table" and result.code or "internal"})) end
 '''
 
-BOOT = BOOT.replace("__CAPABILITIES__", CAPABILITIES_LUA).replace("__DEVICE_OPTIONS__", ",".join(json.dumps(k) for k in RADIO_SETTINGS)).replace("__INTERFACE_OPTIONS__", ",".join(json.dumps(k) for k in IFACE_SETTINGS)).replace("__SCAN__", SCAN).replace("__ORPHANS__", ORPHANS).replace("__RELOCATION__", RELOCATION).replace("__PENDING__", PENDING).replace("__SAVE_ONLY__", SAVE_ONLY).replace("__COMMON_SETTINGS__", COMMON_SETTINGS).replace("__IDENTITY__", IDENTITY).replace("__BRIDGE_HELPERS__", BRIDGE).replace("__BRIDGE_STATUS__", STATUS).replace("__BRIDGE_TOGGLE__", TOGGLE).replace("__DELETE__", DELETE).replace("__IFACE_KEYS__", ",".join(json.dumps(k) for k in IFACE_KEYS)).replace("__RADIO_KEYS__", ",".join(json.dumps(k) for k in RADIO_KEYS))
+BOOT = BOOT.replace("__CAPABILITIES__", NETIFD_BOOL_LUA + CAPABILITIES_LUA).replace("__DEVICE_OPTIONS__", ",".join(json.dumps(k) for k in RADIO_SETTINGS)).replace("__INTERFACE_OPTIONS__", ",".join(json.dumps(k) for k in IFACE_SETTINGS)).replace("__SCAN__", SCAN).replace("__ORPHANS__", ORPHANS).replace("__RELOCATION__", RELOCATION).replace("__PENDING__", PENDING).replace("__SAVE_ONLY__", SAVE_ONLY).replace("__COMMON_SETTINGS__", COMMON_SETTINGS).replace("__IDENTITY__", IDENTITY).replace("__BRIDGE_HELPERS__", BRIDGE).replace("__BRIDGE_STATUS__", STATUS).replace("__BRIDGE_TOGGLE__", TOGGLE).replace("__DELETE__", DELETE).replace("__IFACE_KEYS__", ",".join(json.dumps(k) for k in IFACE_KEYS)).replace("__RADIO_KEYS__", ",".join(json.dumps(k) for k in RADIO_KEYS))
 
 PROBE = TOOL_RUNTIME_SH + r'''
 for key in uci ubus iw wpa_cli hostapd wpa_supplicant rpcd; do

@@ -10,6 +10,7 @@ from pathlib import Path
 from tests.test_standalone import APP
 from PySide6.QtCore import Qt,QEvent,QCoreApplication
 from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QPushButton
 from modules.platform_services.local_gpo_firewall import STARTUP_OWNER
 from modules.platform_services.firewall_session_worker import validate_request,serve_connection
 from modules.platform_services.firewall_session import FirewallSession
@@ -70,7 +71,8 @@ class ChromeTests(unittest.TestCase):
         self.assertTrue(self.window.windowFlags() & Qt.FramelessWindowHint)
         self.assertEqual(self.window.windowType(),Qt.Window)
         chrome=self.window.chrome
-        for button in (chrome.privacy_button,chrome.theme_button,chrome.settings_button,chrome.minimize_button,chrome.maximize_button):
+        self.assertIsNone(self.window.title_button_box.findChild(QPushButton, "settingsAppBtn"))
+        for button in (chrome.privacy_button,chrome.theme_button,chrome.minimize_button,chrome.maximize_button):
             self.assertEqual(button.text(),'');self.assertFalse(button.icon().isNull())
             self.assertEqual(button.width(),28);self.assertTrue(button.toolTip())
         initial=chrome.privacy_button.icon().cacheKey()
@@ -78,35 +80,55 @@ class ChromeTests(unittest.TestCase):
         self.assertNotEqual(initial,chrome.privacy_button.icon().cacheKey())
         chrome.privacy_button.click();self.assertFalse(self.runtime.display_privacy.enabled)
         with patch.object(self.window.navigation,'show_settings') as settings:
-            chrome.settings_button.click();settings.assert_called_once_with(update=False)
+            self.window.navigation.settings_button.click();settings.assert_called_once_with(update=False)
 
     def test_left_navigation_and_dialog_settings_immediate_save(self):
         nav=self.window.navigation
         self.assertEqual(nav.sidebar.objectName(),'leftMenuBg')
-        self.assertTrue(nav.sidebar.isHidden())
+        self.assertFalse(nav.sidebar.isHidden())
         self.assertIs(nav.stack.currentWidget(),self.window.packet_capture_page)
         nav.toggle_button.click();self.assertTrue(nav.expanded)
         self.assertTrue(nav.settings_button.text())
         nav.toggle_button.click();self.assertFalse(nav.expanded)
-        self.window.chrome.settings_button.click();APP.processEvents()
+        self.window.navigation.settings_button.click();APP.processEvents()
         controller=self.window.settings_window
         self.assertIsNotNone(controller)
-        self.assertIs(nav.stack.currentWidget(),self.window.packet_capture_page)
-        self.assertTrue(controller.isWindow())
+        self.assertIs(nav.stack.currentWidget(),controller)
+        self.assertFalse(controller.isWindow())
         self.assertTrue(controller.isVisible())
-        self.assertTrue(controller.title_bar.isVisible())
+        self.assertIs(controller.window(), self.window)
+        self.assertEqual(nav.stack.count(), 2)
         self.assertIs(nav.router_page,self.window.packet_capture_page)
         controller.ui_scale_combo.setCurrentIndex(controller.ui_scale_combo.findData(125))
         self.assertEqual(self.window.scale_manager.global_scale,125)
-        self.window.chrome.settings_button.click();APP.processEvents()
+        self.window.navigation.settings_button.click();APP.processEvents()
         self.assertIs(self.window.settings_window,controller)
-        controller.close_btn.click();APP.processEvents()
+        nav.router_button.click();APP.processEvents()
         self.assertEqual(self.window.scale_manager.global_scale,125)
         self.assertIs(nav.stack.currentWidget(),self.window.packet_capture_page)
         self.assertIsNone(self.window.settings_window)
+        self.assertEqual(nav.stack.count(), 1)
         self.window.openSettingsWindow(update=True)
         self.assertEqual(self.window.settings_window.pages.currentIndex(),2)
         QTest.keyClick(self.window.settings_window,Qt.Key_Escape);self.assertIsNone(self.window.settings_window)
+
+    def test_repeated_settings_navigation_releases_pages(self):
+        from shiboken6 import isValid
+        nav = self.window.navigation
+        service = self.runtime.app_updates
+        for _ in range(8):
+            self.window.openSettingsWindow(update=True)
+            page = self.window.settings_window
+            update_page = page.update_page
+            self.assertIs(nav.stack.currentWidget(), page)
+            self.assertEqual(nav.stack.count(), 2)
+            nav.router_button.click()
+            QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+            self.assertFalse(isValid(page))
+            self.assertFalse(isValid(update_page))
+            self.assertEqual(nav.stack.count(), 1)
+            self.assertIs(nav.stack.currentWidget(), nav.router_page)
+            self.assertIs(self.runtime.app_updates, service)
 
     def test_maximize_restore_grips_and_escape_do_not_exit(self):
         self.window.showNormal();APP.processEvents()
@@ -121,7 +143,7 @@ class ChromeTests(unittest.TestCase):
     def test_dark_light_icons_and_preview(self):
         for theme in ('dark.qss','light.qss'):
             self.window.apply_appearance(100,'default',theme);APP.processEvents()
-            for button in (self.window.chrome.privacy_button,self.window.chrome.theme_button,self.window.chrome.settings_button):
+            for button in (self.window.chrome.privacy_button,self.window.chrome.theme_button):
                 image=button.icon().pixmap(20,20).toImage()
                 values=[image.pixelColor(x,y).lightness() for x in range(image.width()) for y in range(image.height()) if image.pixelColor(x,y).alpha()>128]
                 self.assertTrue(values)

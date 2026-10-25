@@ -138,10 +138,10 @@ class CommonToolSection(QObject):
             uninstall=state=='ready'
             verb='卸载' if uninstall else '安装'
             note=verb+' '+tool.package+'。\n'+tool.description
-            note+=('\n仅卸载本项，不自动清理依赖库；若其他软件需要它，包管理器会拒绝卸载。' if uninstall else
+            note+=('\n只卸载本项明确列出且实际安装的包。先检查卸载计划；如果有其他功能依赖，或会连带删除清单外的包，则停止并保留。逐包处理，中途停止时已卸载的包不会自动装回。卸载后本软件的相关功能也可能不可用，重装可恢复。' if uninstall else
                    '\n可能需要联网安装必需依赖；软件源不匹配时停止，不强制替换已有软件。')
             if ConfirmDialog(verb+tool.title,note,self.card,yes_text=verb).exec()!=ConfirmDialog.Accepted:return
-            if uninstall:self.service.uninstall_async({key:True},[tool.package],scope=key)
+            if uninstall:self.service.uninstall_async({key:True},list(tool.package_names),scope=key)
             else:self.service.install_async({key:True},scope=key)
             return
         terminal=key=='terminal'

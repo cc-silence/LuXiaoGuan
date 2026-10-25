@@ -8,6 +8,7 @@ from .catalog import BASELINE, managed_path
 from .planner import make_plan, safe_target, sha256_file
 from .manifest import canonical, version_key
 from .locations import validate_stage
+from .diagnostics import record,exception_chain
 
 
 def atomic_json(path,value):
@@ -60,6 +61,7 @@ def rollback(root,stage,stage_progress=lambda *_:None):
             _replace(backup,target)
         stage_progress("rollback",completed,len(journal["entries"]))
     journal["state"]="rolled_back"; atomic_json(journal_path,journal)
+    record("rollback_completed", received=len(journal["entries"]))
     (stage.parent/"active.json").unlink(missing_ok=True)
 
 
@@ -88,6 +90,11 @@ def migrate_defaults(root,catalog,current):
 def apply(root,stage,catalog,validate=lambda:None,progress=lambda *_:None,stage_progress=lambda *_:None):
     """\u66ff\u6362\u524d\u518d\u6821\u9a8c\u672c\u673a\u72b6\u6001\uff0c\u4efb\u4e00\u9636\u6bb5\u5931\u8d25\u90fd\u56de\u6eda\u3002"""
     root=Path(root); stage=validate_stage(stage,root)
+    current_phase = ['checking']
+    original_progress = stage_progress
+    def stage_progress(phase, completed=0, total=0):
+        current_phase[0] = phase
+        original_progress(phase, completed, total)
     if (stage/"journal.json").is_file():
         previous=json.loads((stage/"journal.json").read_text(encoding="utf-8"))
         if previous["state"] not in {"complete","rolled_back"}: rollback(root,stage,stage_progress)
@@ -133,10 +140,16 @@ def apply(root,stage,catalog,validate=lambda:None,progress=lambda *_:None,stage_
         stage_progress("migrating")
         migrate_defaults(root,catalog,current)
         atomic_json(baseline,{"version":catalog["version"],"resource_revision":catalog.get("resource_revision",0),"files":[{k:i[k] for k in ("path","sha256","size")} for i in catalog["files"]]})
+        stage_progress("validating")
         validate()
         journal["state"]="complete"; atomic_json(stage/"journal.json",journal)
         (stage.parent/"active.json").unlink(missing_ok=True)
-    except BaseException:
-        rollback(root,stage,stage_progress)
+    except BaseException as exc:
+        record("apply_failed", stage=current_phase[0], error_type=type(exc).__name__, chain=exception_chain(exc))
+        try:
+            rollback(root,stage,stage_progress)
+        except BaseException as rollback_error:
+            record("rollback_failed", error_type=type(rollback_error).__name__, chain=exception_chain(rollback_error))
+            raise
         raise
     return plan

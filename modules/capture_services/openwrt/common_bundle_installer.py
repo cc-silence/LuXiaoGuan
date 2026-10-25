@@ -67,7 +67,7 @@ def install_from_local(manager, wanted, device, cache_dir, sftp_available, cance
                 package_manager = manager._preflight(0, cancel)
                 if package_manager.name != "apk":
                     raise ValueError("\u8bbe\u5907\u5305\u7ba1\u7406\u5668\u4e0e\u79bb\u7ebf\u5305\u4e0d\u5339\u914d\u3002")
-                push = uploader or manager._apk_uploader(sftp_available, cancel, tell)
+                push = uploader or manager._package_uploader(sftp_available, cancel, tell)
                 def stage(name, command, timeout, label):
                     return manager._execute_stage(name, command, timeout, cancel, label)
                 def check_space(plan):
@@ -77,6 +77,8 @@ def install_from_local(manager, wanted, device, cache_dir, sftp_available, cance
                 ApkOfflineInstaller(stage, tell=tell, uploader=push, space_check=check_space,
                                     cleanup_execute=manager._execute).install_local(
                     wanted, profile, repository, directory, cancel)
+        from .bundle_archive_cleanup import cleanup_repository_archive
+        cleanup_repository_archive(repository, cancel, tell)
         return True
     except InterruptedError as exc:
         raise SignalError("cancelled", str(exc)) from None

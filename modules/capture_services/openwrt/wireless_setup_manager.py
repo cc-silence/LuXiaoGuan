@@ -11,6 +11,7 @@ from .signal_manager import RouterSignalManager, SignalError
 from .wireless_security import encryption_base
 from .wireless_radio_modes import supported_htmodes, default_htmode
 from .wireless_options import AP_ADVANCED
+from .uci_booleans import netifd_bool
 from .wireless_capabilities import unsupported_settings
 from .wireless_dependencies import WIRELESS_HELPER_PACKAGES
 from .signal_package_feed import default_cache_dir
@@ -488,9 +489,9 @@ exit 1
         if not old or type(enabled) is not bool or old.get("mode") not in ("ap", "sta"):
             raise SignalError("changed", "无线配置已变化，请刷新。")
         radio = self._radio(env, old["device"])
-        if enable_parent and (not enabled or radio.get("disabled") != "1"):
+        if enable_parent and (not enabled or not netifd_bool(radio.get("disabled"), default=False)):
             raise SignalError("changed", "父网卡状态已变化，请刷新。")
-        if enabled and radio.get("disabled") == "1" and not enable_parent:
+        if enabled and netifd_bool(radio.get("disabled"), default=False) and not enable_parent:
             raise SignalError("parent_disabled", "父网卡已关闭，需确认后同时开启。")
         managed = old.get("rm_bridge") or old.get("rm_wds_backup")
         if not managed and not enable_parent:
@@ -566,7 +567,7 @@ exit 1
             request = replace(request, options={**request.options, "htmode": fallback})
         self._require_supported(request, radio)
         others = [r for r in env.data["rows"] if r.get("device") == request.radio and
-                  r.get("section") != request.section and r.get("disabled") != "1"]
+                  r.get("section") != request.section and not netifd_bool(r.get("disabled"), default=False)]
         ap_count = sum(r.get("mode") == "ap" for r in others) + (request.mode == "ap")
         sta_count = 1 if request.mode == "sta" else sum(r.get("mode") == "sta" for r in others)
         if not apply:

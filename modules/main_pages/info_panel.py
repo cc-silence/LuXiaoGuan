@@ -75,7 +75,7 @@ class InfoPanel(QFrame):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # 只读信息文本框，所有 append_info 写入的内容都会显示在这里
+        # 只读信息文本框；diagnostic 层级仅保留在导出日志中
         self.info_box = QPlainTextEdit(self)
         self.info_box.setObjectName("downloadInfoBox")
         self.info_box.setAttribute(Qt.WA_StyledBackground, True)
@@ -340,6 +340,8 @@ class InfoPanel(QFrame):
           "warning" — 需注意的设置（琥珀色）
           "error"   — 失败/错误（红色）
         """
+        if level == "diagnostic":
+            return
         cursor = self.info_box.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
         if self._render_has_entry:

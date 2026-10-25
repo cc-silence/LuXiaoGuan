@@ -65,6 +65,12 @@ class PackageManager:
             safe = (verb in {'Purging', 'Removing'} and name in allowed) if remove else verb == 'Installing'
             if not safe:
                 raise ValueError('操作会更改已有软件或删除清单外的包，已停止：' + name)
+        if remove:
+            removed = {name for verb, name, _version in actions
+                       if verb in {"Purging", "Removing"}}
+            retained = allowed - removed
+            if retained:
+                raise ValueError("卸载预演中以下包仍被保留，未执行卸载：" + "、".join(sorted(retained)))
         if not actions and not re.search(r'(?m)^OK[:\s]', text):
             raise ValueError('apk 未返回可核实的操作计划。')
 

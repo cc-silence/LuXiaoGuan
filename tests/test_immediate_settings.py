@@ -31,9 +31,9 @@ class ImmediateSettingsTests(unittest.TestCase):
         self.window.apply_appearance(100, "default", "dark.qss")
         self.window.openSettingsWindow()
         settings = self.window.settings_window
-        self.assertIsNone(settings.window_frame.findChild(QFrame, "settingsButtonPanel"))
-        self.assertTrue(all(settings.button_layout.itemAt(i).widget() is None
-                            for i in range(settings.button_layout.count())))
+        self.assertIsNone(settings.findChild(QFrame, "settingsButtonPanel"))
+        self.assertFalse(settings.isWindow())
+        self.assertIs(self.window.navigation.stack.currentWidget(), settings)
         settings.ui_scale_combo.setCurrentIndex(settings.ui_scale_combo.findData(125))
         settings.ui_font_combo.setCurrentIndex(settings.ui_font_combo.findData("bold"))
         settings.close_button_action_combo.setCurrentIndex(settings.close_button_action_combo.findData("exit"))
@@ -126,6 +126,6 @@ class ImmediateSettingsTests(unittest.TestCase):
                 for index in (0, 1):
                     settings.pages.setCurrentIndex(index)
                     APP.processEvents()
-                    self.assertIsNone(settings.window_frame.findChild(QFrame, "settingsButtonPanel"))
+                    self.assertIsNone(settings.findChild(QFrame, "settingsButtonPanel"))
                     settings.grab().save(str(folder / (theme+"-"+str(scale)+"-"+str(index)+".png")))
             self.window.navigation.show_router()

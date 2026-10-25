@@ -50,7 +50,7 @@ _REASONS = {
     "mode": "此无线模式不支持启停，仅展示配置。",
     "anonymous": "匿名配置不能稳定定位；请在路由器管理界面处理。",
     "radio": "父 radio 无法唯一识别，请检查无线配置。",
-    "disabled": "disabled 字段不是标准 0/1，拒绝猜测。",
+    "disabled": "disabled 字段不是系统支持的 0/1 或 true/false，拒绝猜测。",
 }
 _ERRORS = {
     "managed_bridge": "此连接需要同时处理中继与地址分配，请刷新后使用新版无线设置。",
@@ -118,11 +118,6 @@ class RouterSignalManager:
             )
         if before["overlay_kb"] < 0:
             raise SignalError("environment", "无法确认可写空间，未执行安装。")
-        if 0 <= before["overlay_kb"] < 1024:
-            raise SignalError(
-                "environment",
-                "路由器剩余空间不足 1MB，无法安装；请清理空间后重试。",
-            )
         return package_manager
 
     def install_dependencies(self, cancel_event, message=None):
@@ -229,8 +224,10 @@ class RouterSignalManager:
         """Transfer PC-downloaded packages, simulate installation, clean up and verify."""
         if not paths:
             return self.probe_dependencies(cancel_event)
-        push = uploader or self._sftp_upload
         tell = message or (lambda _text, _level: None)
+        from .dependency_manager import OpenWrtDependencyManager
+        push = uploader or OpenWrtDependencyManager(self.runner)._package_uploader(
+            True, cancel_event, tell)
         self._execute_stage(
             "router_signal_mkdir", "mkdir -p " + REMOTE_PACKAGE_DIR,
             30, cancel_event, "准备传包目录",
@@ -303,7 +300,10 @@ class RouterSignalManager:
             check_plan_space(OpenWrtDependencyManager(self.runner), PackageManager("apk"), plan,
                              cancel_event, repositories="/tmp/winbox-apk/repos.list")
 
-        installer = ApkOfflineInstaller(stage, tell=tell, uploader=uploader or self._sftp_upload,
+        from .dependency_manager import OpenWrtDependencyManager
+        push = uploader or OpenWrtDependencyManager(self.runner)._package_uploader(
+            True, cancel_event, tell)
+        installer = ApkOfflineInstaller(stage, tell=tell, uploader=push,
                                         space_check=check_space, cleanup_execute=self._execute)
         try:
             installer.install(tuple(SIGNAL_PACKAGES), device, cache_dir or default_cache_dir(),

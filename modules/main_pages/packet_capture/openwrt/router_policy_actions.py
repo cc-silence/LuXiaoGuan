@@ -81,7 +81,10 @@ class RouterPolicyActions:
             self.pending[key]=("read",kind,identity)
             self._show_progress(key,kind)
             page.status_label.setText("\u6b63\u5728\u8bfb\u53d6\u8def\u7531\u5668\u771f\u5b9e\u914d\u7f6e\uff0c\u5c1a\u672a\u4fee\u6539\u3002")
-        except Exception as exc:self._show_error(str(exc))
+        except Exception as exc:
+            from modules.capture_services.management_diagnostics import record_management_error
+            record_management_error(self.page.manager.manager.runner,"policy_validation",kind,exc)
+            self._show_error(str(exc))
         page._sync()
 
     def completed(self,key,result):
@@ -147,7 +150,10 @@ class RouterPolicyActions:
                 self.pending[key]=("apply",kind,identity)
                 self._show_progress(key,kind)
                 page.status_label.setText("正在备份并应用设置……" if backup_requested else "正在应用设置……")
-        except Exception as exc:self._show_error(str(exc))
+        except Exception as exc:
+            from modules.capture_services.management_diagnostics import record_management_error
+            record_management_error(self.page.manager.manager.runner,"policy_validation",kind,exc)
+            self._show_error(str(exc))
         finally:self.modal=False;page._sync()
         return True
 

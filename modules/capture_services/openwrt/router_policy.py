@@ -8,6 +8,7 @@ from threading import Event
 from .command_runner import require_command_completion
 from .router_policy_commands import policy_command, CONFIGS, FILES
 from .router_policy_plan import build_plan, boot_state
+from .uci_booleans import netifd_bool
 from .signal_manager import RouterSignalManager
 from .wireless_setup_manager import WirelessSetupManager
 from .router_backup import RouterBackupManager
@@ -40,6 +41,7 @@ class PolicyDeviceError(RuntimeError):
 
 class PolicyCommitUncertain(RuntimeError):
     """The remote commit may still be finishing; do not destroy its session."""
+    code="policy_commit_uncertain"
 
 
 class RouterPolicyManager:
@@ -133,11 +135,12 @@ class RouterPolicyManager:
 
     def _create_ap(self,plan,snapshot,cancel,report):
         ap=plan["new_ap"]
+        parent_disabled=netifd_bool(snapshot["configs"]["wireless"][ap["radio"]].get("disabled"),default=False)
         report(dict(stage="\u6b63\u5728\u521b\u5efa\u65b0\u7684 2.4G \u70ed\u70b9\uff0c\u539f\u70ed\u70b9\u6682\u65f6\u4fdd\u7559",completed=0,total=0))
         ops=[dict(action="add",config="wireless",section=ap["section"],kind="wifi-iface",
                   values=dict(device=ap["radio"],mode="ap",network="lan",ssid=ap["ssid"],macaddr=ap["mac"],
                               encryption="psk2",key=ap["password"],disabled="0"))]
-        if snapshot["configs"]["wireless"][ap["radio"]].get("disabled")=="1":
+        if parent_disabled:
             ops.insert(0,dict(action="set",config="wireless",section=ap["radio"],values=dict(disabled="0")))
         expected=self._transaction(snapshot,ops,cancel)
         # Only the new AP configuration is saved at this point. Old defaults stay intact.
@@ -160,7 +163,7 @@ class RouterPolicyManager:
         # Validate every unchanged wireless row; do not bless concurrent wireless edits.
         old=dict(snapshot["configs"].get("wireless",{}))
         new=dict(current["configs"].get("wireless",{}));new.pop(ap["section"],None)
-        if old.get(ap["radio"],{}).get("disabled")=="1":
+        if parent_disabled:
             old[ap["radio"]]=dict(old[ap["radio"]],disabled="0")
         if old!=new:raise RuntimeError("\u65e0\u7ebf\u914d\u7f6e\u88ab\u5176\u4ed6\u5de5\u5177\u4fee\u6539\uff0c\u539f\u70ed\u70b9\u672a\u5220\u9664\u3002")
         return current

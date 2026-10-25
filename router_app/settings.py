@@ -1,11 +1,10 @@
-"""\u590d\u7528\u539f\u63a7\u4ef6\u548c\u66f4\u65b0\u9875\u7684\u72ec\u7acb\u8bbe\u7f6e\u7a97\u53e3\u3002"""
+"""Embedded settings page with immediate persistence and scoped appearance."""
 from .identity import DISPLAY_NAME
-from PySide6.QtCore import Qt, QSignalBlocker
-from PySide6.QtWidgets import QStackedWidget, QVBoxLayout, QHBoxLayout, QLabel
+from PySide6.QtCore import Qt, QSignalBlocker, Signal
+from PySide6.QtWidgets import QStackedWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame
 from modules.common_widgets.settings_nav_panel import SettingsNavPanel
 from .close_behavior import normalize_close_action
-from modules.common_widgets.frameless_dialog import FramelessDialog
-from modules.common_widgets.common_dialogs import apply_common_dialog_theme, MessageDialog
+from modules.common_widgets.common_dialogs import MessageDialog
 from modules.common_widgets.combo_box import CommonComboBox
 from modules.config_services.proxy_config_manager import ProxyConfigManager
 from modules.settings_pages.proxy_settings_page import build_proxy_page
@@ -14,22 +13,20 @@ from modules.settings_pages.settings_widgets import create_hint_label, create_se
 from modules.ui_scale_manager import UiScaleManager
 
 
-class RouterSettings(FramelessDialog):
+class RouterSettings(QFrame):
     """Settings apply immediately; update work remains owned by the runtime."""
+    finished = Signal(int)
+
     def __init__(self, owner):
-        super().__init__("\u8bbe\u7f6e", owner, inherit_parent_stylesheet=False)
+        super().__init__(owner)
+        self.setObjectName("settingsWindowFrame")
         self.owner = owner
         self.scale_manager = owner.scale_manager
         initial_scale = self.scale_manager.global_scale
         initial_family = self.scale_manager.font_family
-        self.set_scaled_size((680, 520), (820, 640))
-        apply_common_dialog_theme(self, owner)
-        self.frame_layout.removeItem(self.content_layout)
-        self.frame_layout.removeItem(self.button_layout)
-        self.content_layout = QHBoxLayout()
+        self.content_layout = QHBoxLayout(self)
         self.scale_manager.bind_layout(self.content_layout, margins=(4,4,4,0), spacing=12)
-        self.frame_layout.addLayout(self.content_layout, 1)
-        self.nav_panel = SettingsNavPanel(self.window_frame)
+        self.nav_panel = SettingsNavPanel(self)
         self.scale_manager.bind_metrics(self.nav_panel, min_width=130)
         self.nav_panel.add_title("\u8bbe\u7f6e")
         self.nav_panel.add_section("\u8f6f\u4ef6\u8bbe\u7f6e")
@@ -44,7 +41,7 @@ class RouterSettings(FramelessDialog):
         right.setContentsMargins(0,0,0,0)
         right.setSpacing(0)
         self.content_layout.addLayout(right, 1)
-        self.pages = QStackedWidget(self.window_frame)
+        self.pages = QStackedWidget(self)
         right.addWidget(self.pages, 1)
         for index, button in enumerate(self.nav_panel.buttons):
             button.clicked.connect(lambda _checked=False, index=index: self.pages.setCurrentIndex(index))
@@ -87,6 +84,7 @@ class RouterSettings(FramelessDialog):
         self.pages.addWidget(self.update_page)
         for combo in (self.ui_scale_combo, self.ui_font_combo, self.close_button_action_combo):
             combo.currentIndexChanged.connect(self._apply_settings)
+        self.sync_appearance()
 
     def _add_row(self, layout, parent, text, combo):
         """复用原全局设置的横向表单对齐和缩放尺寸。"""
@@ -125,7 +123,7 @@ class RouterSettings(FramelessDialog):
         self.sync_appearance()
 
     def sync_appearance(self):
-        """Synchronize the dialog through the existing shared theme and metrics."""
+        """Synchronize this page through the existing shared theme and metrics."""
         key=(self.owner.scale_manager.global_scale,self.owner.scale_manager.font_family,self.owner.theme_name)
         if getattr(self,"_appearance_key",None)==key:return
         self.scale_manager=self.owner.scale_manager
@@ -143,4 +141,17 @@ class RouterSettings(FramelessDialog):
         if not self._proxy_flush_fn():
             self.pages.setCurrentIndex(1)
             return
-        super().done(result)
+        self.finished.emit(result)
+
+    def accept(self):
+        self.done(1)
+
+    def reject(self):
+        self.done(0)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            self.reject()
+            event.accept()
+            return
+        super().keyPressEvent(event)

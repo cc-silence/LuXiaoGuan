@@ -18,6 +18,14 @@ export default {
       return new Response(request.method === "HEAD" ? null : body, {headers});
     }
     if (url.pathname === "/manifest") {
+      const platforms=url.searchParams.getAll("platform");
+      if(platforms.length>1 || [...url.searchParams.keys()].some(key=>key!=="platform"))
+        return new Response("Invalid platform selector",{status:400});
+      const platform=platforms[0] || "win-x64";
+      if(!["win-x64","linux-x64"].includes(platform))
+        return new Response("Unsupported platform",{status:400});
+      const alphaKey=platform==="win-x64" ? "channel/manifest.json" : "channel/linux-x64/alpha.json";
+      const stableKey=platform==="win-x64" ? "channel/stable.json" : "channel/linux-x64/stable.json";
       const code=request.headers.get("X-RouterManager-Test-Code") || "";
       if (code) {
         if (!/^[A-Za-z0-9_-]{6,96}$/.test(code)) return new Response("Invalid testing code",{status:403,headers:{"Cache-Control":"no-store"}});
@@ -26,14 +34,27 @@ export default {
         if (code.length>96 || !env.TEST_CODE_SHA256 || hex!==env.TEST_CODE_SHA256)
           return new Response("Invalid testing code",{status:403,headers:{"Cache-Control":"no-store"}});
       }
-      let object=await env.UPDATES.get(code ? "channel/manifest.json" : "channel/stable.json");
-      if (!object && !code) object=await env.UPDATES.get("channel/manifest.json");
+      let object=await env.UPDATES.get(code ? alphaKey : stableKey);
+      if (!object && !code) object=await env.UPDATES.get(alphaKey);
       const headers={"Cache-Control":"no-store","Vary":"X-RouterManager-Test-Code","X-Content-Type-Options":"nosniff"};
       if (!object) return new Response(null,{status:204,headers});
       if (object.size>65536) return new Response("Invalid manifest",{status:503,headers});
       const text=await object.text();
       let version;
-      try {version=JSON.parse(text).payload.version;}catch {return new Response("Invalid manifest",{status:503,headers});}
+      try {
+        const envelope=JSON.parse(text);
+        if(envelope.state==="publishing") {
+          if(envelope.product!=="RouterManager" || envelope.platform!==platform || envelope.channel!=="alpha")
+            throw new Error("Invalid maintenance slot");
+          if(!code)return new Response(null,{status:204,headers});
+          headers["Retry-After"]="30";
+          headers["X-RouterManager-Release-State"]="publishing";
+          return new Response(request.method==="HEAD" ? null : "Alpha publication in progress",{status:503,headers});
+        }
+        const target=envelope.payload.platform || "win-x64";
+        if(target!==platform)throw new Error("Cross-platform manifest");
+        version=envelope.payload.version;
+      }catch {return new Response("Invalid manifest",{status:503,headers});}
       if (!code && !/^\d+(?:\.\d+){1,3}$/.test(version)) return new Response(null,{status:204,headers});
       headers["Content-Type"]="application/json; charset=utf-8";
       return new Response(request.method==="HEAD" ? null : text,{status:200,headers});
@@ -45,7 +66,7 @@ export default {
       key = url.pathname.slice(1);
     else if (/^\/offline\/openwrt-(?:common|capture)\/manifests\/[a-f0-9]{64}\.json$/.test(url.pathname))
       key = url.pathname.slice(1);
-    else if (/^\/files\/[a-f0-9]{64}\/(?:RouterManager|LuXiaoGuan)_v[0-9A-Za-z._-]+\.zip$/.test(url.pathname))
+    else if (/^\/files\/(?:(?:win-x64|linux-x64)\/)?[a-f0-9]{64}\/(?:RouterManager|LuXiaoGuan)_v[0-9A-Za-z._-]+\.zip$/.test(url.pathname))
       key = url.pathname.slice(1);
     else if (/^\/(blobs\/[a-f0-9]{64}\.z|catalog\/[a-f0-9]{64}\.json)$/.test(url.pathname))
       key = url.pathname.slice(1);

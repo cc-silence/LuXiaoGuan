@@ -8,7 +8,7 @@ from ..config_manager import CONFIG_DIR
 from .config_store import ConfigPair, user_config_dir
 
 PROXY_CONFIG_FILE = CONFIG_DIR / 'proxy_config.json'
-DEFAULT_PROXY_DATA = {'http_host': '', 'http_port': '1081', 'socks_host': '', 'socks_port': '1080'}
+DEFAULT_PROXY_DATA = {'enabled': True, 'http_host': '', 'http_port': '1081', 'socks_host': '', 'socks_port': '1080'}
 
 
 def normalize_proxy_data(raw):
@@ -17,18 +17,23 @@ def normalize_proxy_data(raw):
     只转换内存，不写磁盘；不将不同旧代理的字段混合成一套。
     """
     raw = raw if isinstance(raw, dict) else {}
-    if not any(key in raw for key in DEFAULT_PROXY_DATA):
+    # Legacy configurations keep their existing behavior until explicitly disabled.
+    enabled = raw.get('enabled', True) is True
+    if not any(key in raw for key in DEFAULT_PROXY_DATA if key != 'enabled'):
         primary = raw.get('primary')
         secondary = raw.get('secondary')
         primary = primary if isinstance(primary, dict) else {}
         secondary = secondary if isinstance(secondary, dict) else {}
         active = lambda data: any(data.get(kind + '_host') and data.get(kind + '_port') for kind in ('http', 'socks'))
         raw = primary if active(primary) or not active(secondary) else secondary
-    return {key: str(raw.get(key, default) or '').strip() for key, default in DEFAULT_PROXY_DATA.items()}
+    return {'enabled': enabled, **{key: str(raw.get(key, default) or '').strip()
+            for key, default in DEFAULT_PROXY_DATA.items() if key != 'enabled'}}
 
 
 def validate_proxy_data(data):
     """仅校验填写完整的代理；缺地址或端口时保留输入，执行时跳过。"""
+    if data.get('enabled', True) is False:
+        return
     for kind in ('http', 'socks'):
         host, port = data[kind + '_host'], data[kind + '_port']
         label = kind.upper()
@@ -102,6 +107,8 @@ class ProxyConfigManager:
 
     def _url(self, kind, scheme):
         data = self.to_dict()
+        if not data['enabled']:
+            return ''
         host, port = data[kind + '_host'], data[kind + '_port']
         if not host or not port:
             return ''
@@ -109,6 +116,10 @@ class ProxyConfigManager:
         if ':' in host and not host.startswith('['):
             host = '[' + host + ']'
         return f'{scheme}://{host}:{port}'
+
+    def is_enabled(self):
+        """Global application proxy switch, independent of saved endpoint text."""
+        return self.to_dict()['enabled']
 
     def get_http_url(self):
         """返回 HTTP 代理 URL，未配置返回空字符串。"""

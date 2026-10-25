@@ -59,5 +59,7 @@ class AccessPointBatchDialog(FramelessDialog):
     def accept(self):
         try:self.values()
         except ValueError as exc:
+            from modules.capture_services.management_diagnostics import record_dialog_validation
+            record_dialog_validation(self.parentWidget(),"ap",exc)
             self.error.setText(str(exc));self.error.show();return
         super().accept()

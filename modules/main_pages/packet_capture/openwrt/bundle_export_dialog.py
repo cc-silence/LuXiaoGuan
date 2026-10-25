@@ -24,12 +24,12 @@ class BundleExportDialog(FramelessDialog):
         self.checks={}
         self.content_layout.addWidget(hint("按顺序选择，再勾选需要的主依赖；配套依赖会一起提取，并恢复原始包名。",self))
         self.release=choice(self,())
-        self.target=choice(self,())
         self.architecture=choice(self,())
+        self.target=choice(self,())
         for label,control,tooltip in (
             ("系统版本",self.release,"官方 OpenWrt 的准确版本。"),
-            ("固件平台",self.target,"例如 mediatek/filogic，对应固件面向的硬件平台。"),
-            ("处理器架构",self.architecture,"例如 aarch64_cortex-a53，是软件包使用的编译架构。")):
+            ("处理器架构",self.architecture,"例如 aarch64_cortex-a53，是软件包使用的编译架构。"),
+            ("固件平台",self.target,"例如 mediatek/filogic，对应固件面向的硬件平台。")):
             add_field(self.content_layout,self,label,control,tooltip)
         self.format_label=hint("选择完整后显示安装包格式。",self)
         self.content_layout.addWidget(self.format_label)
@@ -72,15 +72,15 @@ class BundleExportDialog(FramelessDialog):
     def _release_changed(self,*_):
         release=self.release.currentData()
         profiles=self._matching(("release",release))
-        self._fill(self.target,sorted({p["target"] for p in profiles}))
-        self._target_changed()
-
-    def _target_changed(self,*_):
-        profiles=self._matching(("release",self.release.currentData()),("target",self.target.currentData()))
         self._fill(self.architecture,sorted({p["architecture"] for p in profiles}))
         self._architecture_changed()
 
     def _architecture_changed(self,*_):
+        profiles=self._matching(("release",self.release.currentData()),("architecture",self.architecture.currentData()))
+        self._fill(self.target,sorted({p["target"] for p in profiles}))
+        self._target_changed()
+
+    def _target_changed(self,*_):
         matches=self._matching(("release",self.release.currentData()),("target",self.target.currentData()),
                                ("architecture",self.architecture.currentData()))
         self.profile=matches[0] if len(matches)==1 else None
@@ -107,7 +107,7 @@ class BundleExportDialog(FramelessDialog):
         count=sum(box.isChecked() for box in self.checks.values())
         self.export_button.setEnabled(self.profile is not None and count>0)
         self.all_button.setEnabled(bool(self.checks));self.none_button.setEnabled(bool(self.checks))
-        self.summary.setText("已选择 "+str(count)+" 个主依赖，导出时自动带齐配套依赖。" if self.profile else "请依次选择系统版本、固件平台和处理器架构。")
+        self.summary.setText("已选择 "+str(count)+" 个主依赖，导出时自动带齐配套依赖。" if self.profile else "请依次选择系统版本、处理器架构和固件平台。")
 
     def _export(self):
         if self.profile is None:

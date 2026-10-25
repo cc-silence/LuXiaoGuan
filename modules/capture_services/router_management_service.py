@@ -27,6 +27,7 @@ class RouterManagementService(QObject):
         self.tools = CompatibleToolInstaller(backend)
         self.queue = deque()
         self.current = None
+        self._diagnostic_tasks = {}
         self.policy_status = None
         self._policy_connection = None
         self._publishing_key = None
@@ -75,6 +76,8 @@ class RouterManagementService(QObject):
         if len(self.queue) >= 32:
             raise RuntimeError('等待队列已满。')
         key = uuid4().hex
+        from .management_diagnostics import ManagementTrace
+        self._diagnostic_tasks[key] = ManagementTrace(self.manager.runner, action, arguments, len(self.queue))
         self.queue.append((key, action, arguments, ssh.host_fingerprint, ssh._client, Event()))
         self.status.emit(key, '已排队')
         self._drain()
@@ -93,6 +96,8 @@ class RouterManagementService(QObject):
         ssh = self.manager.ssh
         if not ssh.connected or ssh.host_fingerprint != fingerprint or ssh._client is not connection:
             self.queue.remove(item)
+            trace=self._diagnostic_tasks.pop(key,None)
+            if trace is not None:trace.cancelled("connection_changed")
             from .router_password_actions import clear_password_request
             clear_password_request(item[2])
             self.failed.emit(key, '连接已变化，已取消旧操作。')
@@ -194,8 +199,15 @@ class RouterManagementService(QObject):
             elif action in {'mkdir','delete','rename','chmod'}:
                 value = self.manager.mutate(action, cancel=event, **args)
             return value
-        self.owner._start_openwrt_worker(key, operation, cancel, self._success,
-            failure_slot=self._failure, progress_slot=self._progress)
+        trace=self._diagnostic_tasks[key]
+        def traced_operation(event,report):
+            return trace.execute(operation,event,report)
+        try:
+            self.owner._start_openwrt_worker(key,traced_operation,cancel,self._success,
+                failure_slot=self._failure,progress_slot=self._progress)
+        except Exception as exc:
+            trace.failed(exc)
+            self._failure("\u540e\u53f0\u4efb\u52a1\u672a\u80fd\u542f\u52a8\uff0c\u8bf7\u91cd\u8bd5\u5e76\u5bfc\u51fa\u65e5\u5fd7\u3002",type(exc).__name__)
         self.owner.activityChanged.emit()
 
     @Slot(object)
@@ -227,6 +239,8 @@ class RouterManagementService(QObject):
     @Slot(str, str)
     def _failure(self, summary, detail):
         key = self.current[0]
+        trace=self._diagnostic_tasks.get(key)
+        if trace is not None and not trace.terminal:trace.failed(RuntimeError("worker_failure"))
         if self.current[1] in {"policy_read", "policy_status"}:
             self.policy_status = None
             self.policyStatusChanged.emit(None)
@@ -242,6 +256,7 @@ class RouterManagementService(QObject):
             self.progress.emit(self.current[0], value)
 
     def _finish(self, failed):
+        self._diagnostic_tasks.pop(self.current[0],None)
         if self.current[1] not in self.READ_ONLY:
             self.owner.task_controller.finish(failed=failed)
         from .router_password_actions import clear_password_request
@@ -256,6 +271,8 @@ class RouterManagementService(QObject):
         for item in tuple(self.queue):
             if item[0] == key:
                 self.queue.remove(item)
+                trace=self._diagnostic_tasks.pop(key,None)
+                if trace is not None:trace.cancelled()
                 from .router_password_actions import clear_password_request
                 clear_password_request(item[2])
                 self.failed.emit(key, '操作已取消。')

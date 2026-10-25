@@ -39,8 +39,8 @@ def offline_candidates(api, inventory, channels):
     return protected, eligible
 
 
-def cleanup_retention(*, api=None, report_path=None):
-    """Keep current/previous app ZIPs and just the active bundle of each kind."""
+def cleanup_retention(*, api=None, report_path=None, apply=True, expected_delete=None):
+    """Keep one current app ZIP per platform/channel and one bundle per kind."""
     from .storage import protected_releases
     from .storage_api import StorageAPI
     from .cloudflare import ROOT
@@ -50,14 +50,20 @@ def cleanup_retention(*, api=None, report_path=None):
         before = api.inventory()
         protected, channels, eligible = protected_releases(api, before)
         selected = [key for key in eligible if key not in protected]
+        if expected_delete is not None and selected != list(expected_delete):
+            raise ValueError("The deletion plan changed; fresh verification is required")
         latest = api.inventory()
         if {k:(v['size'],v.get('etag')) for k,v in latest.items()} != {k:(v['size'],v.get('etag')) for k,v in before.items()}:
             raise ValueError('Storage changed during retention planning; cleanup stopped')
         report = dict(status='cleaning', before_bytes=sum(v['size'] for v in before.values()),
-                      planned_delete=selected, deleted=[], app_versions=2, offline_versions_per_kind=1)
+                      planned_delete=selected, deleted=[], app_versions_per_platform_channel=1, app_slots=4, offline_versions_per_kind=1)
         path = Path(report_path) if report_path else ROOT/'build/publishing/storage'/('retention-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')+'.json')
         path.parent.mkdir(parents=True, exist_ok=True)
         def save(): path.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
+        if not apply:
+            report["status"] = "preview"
+            save()
+            return report
         save()
         for key in selected:
             for channel, raw in channels.items():
