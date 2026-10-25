@@ -120,7 +120,7 @@ class NetworkTests(unittest.TestCase):
         self.urls.stop()
         self.temp.cleanup()
 
-    def run_check(self, path="/manifest", cancel=False):
+    def run_check(self, path="/manifest", cancel=False, timeout_ms=2500):
         self.config.write_text(json.dumps(dict(schema=1, enabled=True,
             manifest_url=f"http://127.0.0.1:{self.server.server_port}" + path)), encoding="utf-8")
         loop = QEventLoop()
@@ -130,7 +130,7 @@ class NetworkTests(unittest.TestCase):
         deadline = QTimer()
         deadline.setSingleShot(True)
         deadline.timeout.connect(loop.quit)
-        deadline.start(2500)
+        deadline.start(timeout_ms)
         self.assertTrue(self.checker.check(manual=True))
         self.assertFalse(self.checker.check(manual=True))
         if cancel:

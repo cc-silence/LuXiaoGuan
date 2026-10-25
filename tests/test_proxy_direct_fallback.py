@@ -128,7 +128,9 @@ class CheckerRealFallbackTests(unittest.TestCase):
         from modules.network_policy import NetworkChannel
         self.set_routes([NetworkChannel('http_proxy', 'bad proxy', 'http://127.0.0.1:1'),
                          NetworkChannel(CHANNEL_DIRECT, 'direct')])
-        self.assertEqual(self.run_check()[0][0], 'ok')
+        # Native TCP refusal may exceed the single-route fixture deadline.
+        timeout_ms = self.checker.TIMEOUT_MS * 3 + 1000
+        self.assertEqual(self.run_check(timeout_ms=timeout_ms)[0][0], 'ok')
 
     def test_stalled_proxy_timeout_leaves_budget_for_direct(self):
         import threading, time
