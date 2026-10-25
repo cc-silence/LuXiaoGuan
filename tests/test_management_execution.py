@@ -5,6 +5,7 @@ from types import SimpleNamespace as NS
 from unittest.mock import Mock, patch
 import unittest
 from PySide6.QtTest import QSignalSpy
+from tests.test_desktop_shortcut import wait_until
 from tests import test_standalone as standalone
 from tests.test_management_link import report, runner
 from modules.capture_services.openwrt.radio_takeover import OpenWrtRadioTakeover
@@ -133,7 +134,8 @@ class ScanPreflightWorkerTests(unittest.TestCase):
                 self.assertTrue(probe_id)
                 self.assertTrue(owner.task_controller.busy)
                 self.assertEqual(service.start({"band":"5G"}),"")
-                self.assertTrue(spy.count() or spy.wait(4000))
+                # QSignalSpy.wait holds the GIL and can starve Python workers.
+                wait_until(lambda: spy.count()>0,4)
                 self.assertEqual(spy.count(),1)
                 self.assertEqual(published[0][:2],(False,False))
                 self.assertEqual(published[0][2].link.status,"wired")
