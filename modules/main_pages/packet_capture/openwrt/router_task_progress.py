@@ -18,7 +18,7 @@ class RouterTaskProgressDialog(TaskProgressDialog):
         return self.phase+"\uff08"+str(min(100,round(completed*100/total)))+"%\uff09"
 
     def update_progress(self,value):
-        if not isinstance(value,dict):return
+        if not self.running or not isinstance(value,dict):return
         if value.get("stage"):self.phase=str(value["stage"])
         if value.get("uncancellable"):
             self._allow_cancel=False

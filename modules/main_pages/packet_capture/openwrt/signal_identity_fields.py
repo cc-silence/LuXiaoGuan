@@ -1,4 +1,5 @@
 """Optional station identity editor; generation never performs device I/O."""
+import json
 import secrets
 from PySide6.QtCore import QSignalBlocker
 from PySide6.QtWidgets import QPushButton
@@ -12,6 +13,7 @@ PROFILE_NAMES = tuple(dict.fromkeys(hostname for _, hostname, _ in PROFILES))
 
 class IdentityFields:
     def __init__(self, parent, layout, bridge_mode):
+        self._shared_identity=False
         self.bridge_mode = bridge_mode
         self.mode = add_field(layout, parent, "身份方式", choice(parent, (
             ("保留当前身份", "keep"), ("随机本地地址", "random"),
@@ -36,6 +38,11 @@ class IdentityFields:
         self.mode.setCurrentIndex(self.mode.findData("profile"))
 
     def configure(self, old, network):
+        try:
+            saved=json.loads(old.get("rm_identity_backup", "{}"))
+            self._shared_identity=isinstance(saved,dict) and saved.get("shared") is True
+        except (ValueError,TypeError):
+            self._shared_identity=False
         if old:
             self.mode.setCurrentIndex(self.mode.findData("keep"))
         if self.mode.currentData() == "keep":
@@ -60,6 +67,8 @@ class IdentityFields:
         self.regenerate.setEnabled(mode in ("random", "profile"))
         self.note.setText("WDS 共用局域网，仅修改无线地址，不修改共享网络的名称。" if self.bridge_mode.currentData() == "wds" else
             "只有点击保存才会应用。地址在重连后保持不变；不会提升信号强度或速度。")
+        if self._shared_identity and self.bridge_mode.currentData()!="wds":
+            self.note.setText("这些上级配置共用上报名称，修改名称会同步到同组恢复记录。恢复单条时只还原自己的 MAC，最后一条再还原原上报名称。")
 
     def randomize(self, *_):
         if self.mode.currentData() == "profile":

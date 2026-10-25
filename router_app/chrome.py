@@ -18,7 +18,7 @@ class RouterChrome(QObject):
         window.title_bar_layout.insertWidget(0, self.logo)
         window.scale_manager.bind_layout(window.title_bar_layout, margins=(0,0,8,0), spacing=10)
         self.settings_button = self._button('settingsAppBtn', self._toggle_settings)
-        self.settings_button.setToolTip('\u8bbe\u7f6e\uff08\u518d\u6b21\u70b9\u51fb\u8fd4\u56de\uff09')
+        self.settings_button.setToolTip('\u8bbe\u7f6e')
         self.settings_button.setAccessibleName('\u8bbe\u7f6e')
         self.privacy_button = self._button('privacyToggleBtn', self._toggle_privacy)
         self.privacy_button.setCheckable(True)
@@ -57,10 +57,7 @@ class RouterChrome(QObject):
         return button
 
     def _toggle_settings(self):
-        if self.window.settings_window is None:
-            self.window.openSettingsWindow()
-        else:
-            self.window.navigation.show_router()
+        self.window.openSettingsWindow()
 
     def _toggle_privacy(self, checked):
         """\u5c06\u9690\u79c1\u72b6\u6001\u4ea4\u7ed9\u539f\u516c\u5171\u63a7\u5236\u5668\u3002"""

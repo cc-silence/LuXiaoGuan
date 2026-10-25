@@ -49,6 +49,11 @@ class RouterManagementService(QObject):
         if action in {'policy_preview','policy_apply','common_read','common_save','maintenance_preview','maintenance_backup','maintenance_apply'}:
             from copy import deepcopy
             arguments = deepcopy(arguments)
+        if action == "common_save":
+            if type(arguments.get("apply", False)) is not bool:
+                raise ValueError("Invalid application mode")
+            if arguments.get("apply") and arguments.get("review", {}).get("config") != "network":
+                raise ValueError("Only LAN settings support save and reboot")
         if action == 'file_batch':
             from copy import deepcopy
             jobs = arguments.get('jobs')
@@ -137,10 +142,15 @@ class RouterManagementService(QObject):
                 value = change_password(self.manager, args['request'], event)
             elif action == 'common_read':
                 from .openwrt.common_settings import read_settings
-                value = read_settings(self.manager.runner, args['config'], event)
+                from .openwrt.connection_bound_runner import ConnectionBoundRunner
+                value = read_settings(ConnectionBoundRunner(self.manager.runner, ssh, connection, fingerprint), args['config'], event)
             elif action == 'common_save':
-                from .openwrt.common_settings import save_settings
-                value = save_settings(self.manager.runner, args['review'], args['values'], event)
+                from .openwrt.common_settings import save_settings, save_and_reboot
+                if args.get("apply", False):
+                    value = save_and_reboot(self.manager, args["review"], args["values"], event, report)
+                else:
+                    from .openwrt.connection_bound_runner import ConnectionBoundRunner
+                    value = save_settings(ConnectionBoundRunner(self.manager.runner, ssh, connection, fingerprint), args['review'], args['values'], event)
             elif action == 'file_batch':
                 from .router_file_batch import run_file_batch
                 value = run_file_batch(self.manager, args['jobs'], event, report,

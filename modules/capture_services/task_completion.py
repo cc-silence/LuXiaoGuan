@@ -11,8 +11,9 @@ class CaptureTaskCompletion(QObject):
     结果处理后才移除任务引用，避免退出时提前关闭共享连接。
     """
 
-    def __init__(self, owner, session_id, success, failure):
+    def __init__(self, owner, session_id, success, failure, thread):
         super().__init__(owner)
+        self._thread = thread
         self._owner = owner
         self._session_id = str(session_id)
         self._success = success
@@ -54,6 +55,10 @@ class CaptureTaskCompletion(QObject):
             try:
                 owner._cleanup_openwrt_worker(self._session_id)
             finally:
+                # Modal result handlers may process deferred deletions before returning.
+                # Keep the finished QThread valid until its registry entry is released.
+                self._thread.deleteLater()
+                self._thread = None
                 self.deleteLater()
 
 
@@ -72,7 +77,7 @@ def start_capture_task(owner, session_id, operation, cancel_event,
             progress_enabled=progress is not None,
             message_enabled=message is not None,
         )
-        completion = CaptureTaskCompletion(owner, session_id, success, failure)
+        completion = CaptureTaskCompletion(owner, session_id, success, failure, thread)
         # 服务保留 thread/worker 强引用；thread 同时持有交接对象直到收尾。
         thread._capture_completion = completion
         worker.moveToThread(thread)
@@ -86,7 +91,6 @@ def start_capture_task(owner, session_id, operation, cancel_event,
         worker.finished.connect(thread.quit)
         worker.finished.connect(worker.deleteLater)
         thread.finished.connect(completion.publish, Qt.QueuedConnection)
-        thread.finished.connect(thread.deleteLater)
         owner._openwrt_workers[session_id] = (thread, worker)
         thread.start()
     except Exception:

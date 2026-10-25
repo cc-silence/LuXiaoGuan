@@ -126,3 +126,41 @@ def save_settings(runner,review,values,cancel):
     except Exception:
         return dict(saved=True,applied=False,note="主机名与时区已保存，但当前生效状态未确认，请重新读取核对或重启路由器。"+cleanup_note)
     return dict(saved=True,applied=True,note="主机名与时区已保存并生效。"+cleanup_note)
+
+
+def save_and_reboot(manager, review, values, cancel, progress=None):
+    """Save verified LAN settings and request one bounded reboot on the same connection."""
+    if review.get("config") != "network":
+        raise ValueError("只有 LAN 设置支持保存后重启。")
+    validate_values(review, values)
+    from .router_reboot import prepare_reboot, request_reboot
+    report = progress or (lambda _value: None)
+    report(dict(stage="正在检查保存与重启条件……"))
+    from .connection_bound_runner import ConnectionBoundRunner
+    runner = ConnectionBoundRunner(manager.runner, manager.ssh)
+    run, ssh, connection = prepare_reboot(manager, cancel)
+    if cancel.is_set():
+        raise InterruptedError("操作已取消，未保存配置。")
+    report(dict(stage="正在保存并核对 LAN 设置……", uncancellable=True))
+    result = save_settings(runner, review, values, cancel)
+    if result.get("saved") is not True:
+        raise RuntimeError("LAN 配置保存未确认，未执行重启。")
+    if cancel.is_set():
+        return dict(result, reboot_requested=False,
+                    note=result["note"]+" 本次重启已取消，请以后手动重启路由器。")
+    if not ssh.connected or ssh._client is not connection:
+        return dict(result, reboot_requested=False, outcome="uncertain",
+                    note=result["note"]+" 登录连接已变化，未执行重启。")
+    report(dict(stage="配置已保存，正在请求重启路由器……", uncancellable=True))
+    accepted = request_reboot(run, ssh, connection)
+    note = ("LAN 配置已保存，重启命令已返回成功。请等待路由器启动后重新登录。"
+            if accepted else "LAN 配置已保存，但重启请求的结果未确认。请等待并核对设备状态，勿连续重复执行。")
+    addresses = values.get("ipaddr", [])
+    if isinstance(addresses, str):
+        addresses = [addresses] if addresses else []
+    if values.get("proto") == "static" and values.get("auto") != "0" and addresses:
+        note += " 重启后请使用以下管理地址登录："+ "、".join(v.split("/",1)[0] for v in addresses)+"。"
+    else:
+        note += " 原管理地址可能无法使用，请通过设备新的管理地址或其他可用连接重新登录。"
+    return dict(saved=True, applied=False, reboot_requested=True,
+                outcome="reconnect" if accepted else "uncertain", note=note)

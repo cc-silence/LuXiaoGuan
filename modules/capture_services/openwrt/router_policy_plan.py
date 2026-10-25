@@ -111,30 +111,14 @@ class Builder:
 
     def batch(self,mode):
         targets=rows(self.s,"wireless","wifi-iface")
-        networks={}
-        for section,row in targets:
-            for n in words(row.get("network")):networks.setdefault(n,[]).append(section)
-        names={r.get("ssid","").casefold() for _,r in targets}
-        for section,row in targets:
-            if row.get("mode")!=mode:continue
-            address=self.mac()
-            if mode=="sta":
-                ns=words(row.get("network"))
-                net=self.s["configs"].get("network",{}).get(ns[0],{}) if len(ns)==1 else {}
-                if len(ns)!=1 or ns[0] in {"lan","loopback"} or len(networks[ns[0]])!=1 or net.get("proto")!="dhcp" or net.get("device") or net.get("ifname") or row.get("rm_bridge") or row.get("rm_wds_backup"):
-                    self.plan["skipped"].append(str(row.get("ssid",section))+"\uff1a\u5171\u7528\u6216\u7279\u6b8a\u6865\u63a5\u7f51\u7edc\uff0c\u672a\u64c5\u81ea\u4fee\u6539\u3002");continue
-                host=generate_relocation_hostname(net.get("hostname","")).replace("_","-")
-                self.plan["operations"].append(dict(action="identity",config="wireless",section=section,network=ns[0],
-                    values=dict(identity_action="set",macaddr=address,hostname=host)))
-                self.plan["identities"].append(dict(section=section,old=row.get("ssid",section),name=host,mac=address))
-            else:
-                for _ in range(32):
-                    ssid=generate_relocation_hostname()
-                    if ssid.casefold() not in names:break
-                else:raise ValueError("\u65e0\u6cd5\u751f\u6210\u4e0d\u91cd\u590d\u7684\u70ed\u70b9\u540d\u79f0\u3002")
-                names.add(ssid.casefold());self.change("wireless",section,dict(ssid=ssid,macaddr=address))
-                self.plan["identities"].append(dict(section=section,old=row.get("ssid",section),name=ssid,mac=address))
-        if not self.plan["operations"]:raise ValueError("\u6ca1\u6709\u7b26\u5408\u5b89\u5168\u4fee\u6539\u6761\u4ef6\u7684\u4fe1\u53f7\uff0c\u5171\u7528\u7f51\u7edc\u8bf7\u5355\u72ec\u7f16\u8f91\u3002")
+        if mode=="sta":
+            from .station_identity_plan import build_station_batch
+            build_station_batch(self,targets)
+            return
+        from .ap_batch_identity import build_access_point_identities
+        for row in build_access_point_identities(self.s,self.plan["options"].get("identities")):
+            self.change("wireless",row["section"],dict(ssid=row["name"],macaddr=row["mac"]))
+            self.plan["identities"].append(row)
 
     def lan(self,options):
         lan=self.s["configs"].get("network",{}).get("lan",{})
@@ -284,10 +268,17 @@ class Builder:
         password=options.get("ap_password",DEFAULT_PASSWORD)
         if not isinstance(password,str) or not 8<=len(password)<=63 or not all(32<=ord(c)<127 for c in password):raise ValueError("\u70ed\u70b9\u5bc6\u7801\u9700\u8981 8 \u81f3 63 \u4e2a\u666e\u901a\u82f1\u6587\u5b57\u7b26\u3002")
         existing={r.get("ssid","").casefold() for _,r in rows(self.s,"wireless","wifi-iface")}
-        for _ in range(32):
-            ssid=generate_relocation_hostname()
-            if ssid.casefold() not in existing:break
-        else:raise ValueError("\u65e0\u6cd5\u751f\u6210\u4e0d\u91cd\u590d\u7684\u70ed\u70b9\u540d\u79f0\u3002")
+        ssid=options.get("ap_ssid")
+        if ssid is not None:
+            if not isinstance(ssid,str) or not ssid or len(ssid.encode("utf-8"))>32 or any(ord(c)<32 or ord(c)==127 for c in ssid):
+                raise ValueError("新热点名称需要 1 至 32 字节，不能包含换行等控制字符。")
+            if ssid.casefold() in existing:
+                raise ValueError("新热点名称已被使用，请换一个名称。")
+        else:
+            for _ in range(32):
+                ssid=generate_relocation_hostname()
+                if ssid.casefold() not in existing:break
+            else:raise ValueError("无法生成不重复的热点名称。")
         self.plan["new_ap"]=dict(section="lxg_initial_"+secrets.token_hex(4),radio=candidates[0]["name"],ssid=ssid,mac=self.mac(),password=password)
         self.plan["delete_defaults"]=defaults
 

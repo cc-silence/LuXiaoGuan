@@ -27,7 +27,7 @@ class OrphanReviewDialog(FramelessDialog):
         scale=UiScaleManager.for_widget(self)
         self.setStyleSheet(build_base_stylesheet(ConfigManager(),light_theme=detect_light_theme(parent),scale_manager=scale))
         self.set_scaled_size((620,340),(850,480))
-        label=QLabel("\u53ea\u6709\u672c\u8f6f\u4ef6\u521b\u5efa\u3001\u5bf9\u5e94\u4fe1\u53f7\u5df2\u4e0d\u5b58\u5728\u4e14\u786e\u8ba4\u65e0\u4eba\u4f7f\u7528\u7684\u63a5\u53e3\u53ef\u52fe\u9009\u3002\u4ec5\u51ed wwan \u540d\u79f0\u4e0d\u4f1a\u5220\u9664\u3002",self)
+        label=QLabel("确认无配置引用、未绑定设备且未运行的遗留接口可勾选。不要求必须由本软件创建；仅在防火墙区域中登记不影响清理。",self)
         label.setObjectName("settingsHint")
         label.setWordWrap(True)
         self.content_layout.addWidget(label)
@@ -43,10 +43,10 @@ class OrphanReviewDialog(FramelessDialog):
         self.tree.header().setSectionResizeMode(0,QHeaderView.ResizeToContents)
         self.tree.header().setSectionResizeMode(1,QHeaderView.ResizeToContents)
         for row in review["rows"]:
-            owner="\u672c\u8f6f\u4ef6" if row["source"]=="owned" else "\u6240\u5c5e\u4e0d\u660e"
+            owner="\u672c\u8f6f\u4ef6" if row["source"]=="owned" else "来源未登记"
             if row["zones"]:owner+=" / "+", ".join(row["zones"])
             reasons="\uff1b".join(REASONS.get(r,"\u5b58\u5728\u672a\u786e\u8ba4\u7684\u5f15\u7528") for r in row["reasons"])
-            result="\u53ef\u6e05\u7406\uff1a\u4fe1\u53f7\u5df2\u5220\u9664\u3001\u65e0\u5f15\u7528\u3001\u672a\u8fd0\u884c" if row["eligible"] else reasons
+            result="可清理：无配置引用、未绑定设备、未运行" if row["eligible"] else reasons
             item=QTreeWidgetItem(self.tree,(row["section"],owner,result))
             item.setFlags(Qt.ItemIsEnabled|Qt.ItemIsSelectable)
             item.setData(0,Qt.UserRole,row["section"])

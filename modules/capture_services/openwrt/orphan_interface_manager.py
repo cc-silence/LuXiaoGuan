@@ -30,7 +30,7 @@ class OrphanInterfaceManager:
             valid = valid and row["section"] not in names and type(row.get("eligible")) is bool
             valid = valid and row.get("source") in ("owned","unknown")
             valid = valid and all(isinstance(row.get(k),list) and len(row[k])<=512 and all(safe(v) for v in row[k]) for k in ("zones","reasons"))
-            valid = valid and (not row["eligible"] or (row["source"]=="owned" and not row["reasons"]))
+            valid = valid and (not row["eligible"] or (not row["reasons"] and (row["source"]=="owned" or bool(re.fullmatch(r"wwan\d*", row["section"])))))
             if not valid:
                 raise SignalError("response", "\u9057\u7559\u63a5\u53e3\u68c0\u67e5\u7ed3\u679c\u4e0d\u5b8c\u6574\u3002")
             names.add(row["section"])

@@ -20,7 +20,8 @@ def request_reboot(run, ssh, connection):
     return accepted
 
 
-def reboot_router(manager, cancel):
+def prepare_reboot(manager, cancel):
+    """Return a connection-bound reboot callback after read-only capability checks."""
     ssh = manager.ssh
     connection, fingerprint = ssh._client, ssh.host_fingerprint
 
@@ -40,6 +41,11 @@ def reboot_router(manager, cancel):
         raise InterruptedError("重启已取消。")
     if not ssh.connected or ssh._client is not connection or ssh.host_fingerprint != fingerprint:
         raise RuntimeError("连接已变化，未执行重启。")
+    return run, ssh, connection
+
+
+def reboot_router(manager, cancel):
+    run, ssh, connection = prepare_reboot(manager, cancel)
     accepted = request_reboot(run, ssh, connection)
     return dict(outcome="reconnect" if accepted else "uncertain",
         note=("重启命令已返回成功，请等待路由器启动后重新登录。"

@@ -4,7 +4,7 @@ from modules.common_widgets.frameless_dialog import FramelessDialog
 from modules.common_widgets.common_dialogs import apply_common_dialog_theme
 from modules.common_widgets.bounce_scroll_area import BounceScrollArea
 from modules.common_widgets.config_fields import ConfigValueList
-from modules.settings_pages.settings_widgets import create_dialog_ok_cancel_buttons
+from modules.settings_pages.settings_widgets import create_dialog_ok_cancel_buttons, create_settings_button
 from modules.ui_scale_manager import UiScaleManager
 from modules.main_pages.page_action_buttons import create_page_text_button
 from modules.capture_services.openwrt.common_settings import validate_values
@@ -14,6 +14,7 @@ from .signal_setup_forms import text_input, choice, add_field, hint
 class RouterConfigDialog(FramelessDialog):
     def __init__(self,review,parent=None):
         self.review=review
+        self.apply_requested=False
         system=review["config"]=="system"
         super().__init__("主机名与时区" if system else "LAN 网络设置",parent,inherit_parent_stylesheet=False)
         apply_common_dialog_theme(self,parent)
@@ -33,10 +34,16 @@ class RouterConfigDialog(FramelessDialog):
         layout.addStretch(1)
         scroll.setWidget(body)
         self.content_layout.addWidget(scroll,1)
-        self.save_button,cancel=create_dialog_ok_cancel_buttons(self,"保存并生效" if system else "保存配置","取消")
+        self.save_button,cancel=create_dialog_ok_cancel_buttons(self,"保存并生效" if system else "保存并应用","取消")
         self.button_layout.addWidget(self.save_button)
+        if not system:
+            self.save_only_button=create_settings_button("仅保存",self,"secondary")
+            UiScaleManager.for_widget(self).bind_metrics(self.save_only_button,min_width=88,min_height=32)
+            self.save_only_button.setAutoDefault(False)
+            self.save_only_button.clicked.connect(self._validate)
+            self.button_layout.addWidget(self.save_only_button)
         self.button_layout.addWidget(cancel)
-        self.save_button.clicked.connect(self._validate)
+        self.save_button.clicked.connect(lambda checked=False:self._validate(apply=not system))
         cancel.clicked.connect(self.reject)
 
     def _system(self,body,layout):
@@ -82,7 +89,7 @@ class RouterConfigDialog(FramelessDialog):
 
     def _lan(self,body,layout):
         old=self.review["values"]
-        layout.addWidget(hint("保存后不会立即重启网络。重启网络或路由器后生效；改变管理地址后，需使用新地址重新登录。",body))
+        layout.addWidget(hint("“保存并应用”将在确认后重启路由器；“仅保存”留待以后手动重启生效。",body))
         protocol=choice(body,[("静态地址","static"),("自动获取地址（DHCP）","dhcp"),("不配置地址","none")])
         index=protocol.findData(old.get("proto","static"))
         if index<0:
@@ -142,9 +149,10 @@ class RouterConfigDialog(FramelessDialog):
             else:values[key]=control.text().strip()
         return values
 
-    def _validate(self):
+    def _validate(self,apply=False):
         try:validate_values(self.review,self.values())
         except ValueError as exc:
             self.error_label.setText(str(exc))
             return
+        self.apply_requested=bool(apply)
         self.accept()

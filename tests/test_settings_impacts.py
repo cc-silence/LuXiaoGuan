@@ -6,7 +6,7 @@ from tests.common_settings_fixture import create_page
 from tests.test_common_settings_ui import NETWORK
 from tests.test_standalone import APP
 from modules.main_pages.packet_capture.openwrt.router_password_dialog import RouterPasswordDialog
-from modules.main_pages.packet_capture.openwrt.settings_impacts import DISCONNECT_WARNING,LAN_SAVE_WARNING,PASSWORD_WARNING
+from modules.main_pages.packet_capture.openwrt.settings_impacts import DISCONNECT_WARNING,LAN_APPLY_WARNING,PASSWORD_WARNING
 from modules.common_widgets.common_dialogs import ConfirmDialog
 
 
@@ -44,9 +44,11 @@ class SettingsImpactTests(unittest.TestCase):
                 "modules.main_pages.packet_capture.openwrt.common_config_actions.ConfirmDialog") as confirm:
             editor.return_value.Accepted=1;editor.return_value.exec.return_value=1
             editor.return_value.values.return_value=NETWORK["values"]
+            editor.return_value.apply_requested=True
+            confirm.return_value.secondary_selected=False
             confirm.return_value.Accepted=1;confirm.return_value.exec.return_value=0
             page._completed("request",NETWORK)
-            self.assertEqual(confirm.call_args.args[1],LAN_SAVE_WARNING)
+            self.assertIn(LAN_APPLY_WARNING,confirm.call_args.args[1])
         self.assertEqual(page.manager.submit.call_count,1)
         self.assertTrue(page.lan_button.isEnabled())
 
@@ -69,7 +71,7 @@ class SettingsImpactTests(unittest.TestCase):
         folder=Path("build/router-reboot-review/ui");folder.mkdir(parents=True,exist_ok=True)
         for light in (False,True):
             page,_=self.create_page(light)
-            for name,message in (("reboot",DISCONNECT_WARNING),("lan",LAN_SAVE_WARNING),("password",PASSWORD_WARNING)):
+            for name,message in (("reboot",DISCONNECT_WARNING),("lan",LAN_APPLY_WARNING),("password",PASSWORD_WARNING)):
                 dialog=ConfirmDialog(name,message,page)
                 self.addCleanup(dialog.deleteLater)
                 dialog.show();APP.processEvents()

@@ -172,14 +172,19 @@ class RouterPolicyManager:
             raise ValueError("\u6ca1\u6709\u9700\u8981\u5e94\u7528\u7684\u53d8\u5316\uff0c\u672a\u6267\u884c\u5907\u4efd\u6216\u91cd\u542f\u3002")
         before=self.read(cancel)
         if before["signature"]!=review.get("signature"):raise RuntimeError("\u914d\u7f6e\u6216\u8bbe\u5907\u80fd\u529b\u5df2\u53d8\u5316\uff0c\u8bf7\u91cd\u65b0\u9884\u89c8\u3002")
-        backup=RouterBackupManager(self.manager).export(backup_path,backup_expected,cancel,report)
-        current=self.read(cancel)
-        if current["signature"]!=review["signature"]:raise RuntimeError("\u5907\u4efd\u671f\u95f4\u914d\u7f6e\u5df2\u53d8\u5316\uff1b\u5907\u4efd\u5df2\u4fdd\u5b58\uff0c\u672a\u6267\u884c\u4fee\u6539\u3002")
-        if cancel.is_set():raise InterruptedError("\u5df2\u53d6\u6d88\uff0c\u5f53\u524d\u914d\u7f6e\u5907\u4efd\u5df2\u4fdd\u5b58\u3002")
+        backup=None
+        if backup_path is not None:
+            backup=RouterBackupManager(self.manager).export(backup_path,backup_expected,cancel,report)
+        elif backup_expected is not None:
+            raise ValueError("未选择备份文件。")
+        backup_note=("\n操作前配置备份："+backup["path"]) if backup else ""
+        current=self.read(cancel) if backup is not None else before
+        if current["signature"]!=review["signature"]:raise RuntimeError("配置已变化，未执行修改，请重新预览。"+backup_note)
+        if cancel.is_set():raise InterruptedError("已取消，尚未执行修改。"+backup_note)
         if review.get("new_ap"):
             try:current=self._create_ap(review,current,cancel,report)
             except Exception as exc:
-                raise RuntimeError(str(exc)+" \u65b0\u70ed\u70b9\u53ef\u80fd\u5df2\u4fdd\u5b58\uff1a"+review["new_ap"]["ssid"]+"\uff1b\u539f\u70ed\u70b9\u4ecd\u4fdd\u7559\u3002\u64cd\u4f5c\u524d\u5907\u4efd\uff1a"+backup["path"]) from exc
+                raise RuntimeError(str(exc)+" \u65b0\u70ed\u70b9\u53ef\u80fd\u5df2\u4fdd\u5b58\uff1a"+review["new_ap"]["ssid"]+'\uff1b\u539f\u70ed\u70b9\u4ecd\u4fdd\u7559\u3002'+backup_note) from exc
         operations=list(review["operations"])
         for section in review.get("delete_defaults",[]):
             operations.append(dict(action="delete_section",config="wireless",section=section))
@@ -192,9 +197,9 @@ class RouterPolicyManager:
         except Exception as exc:
             if file_backup and not isinstance(exc,PolicyCommitUncertain):
                 try:self._call("files_restore",Event(),backup_dir=file_backup)
-                except Exception as recovery:raise RuntimeError("\u6587\u4ef6\u6062\u590d\u672a\u786e\u8ba4\uff0c\u8bf7\u6838\u5bf9 "+file_backup+"\uff1b\u914d\u7f6e\u5907\u4efd\uff1a"+backup["path"]) from recovery
-            raise RuntimeError(str(exc)+" \u64cd\u4f5c\u524d\u914d\u7f6e\u5907\u4efd\uff1a"+backup["path"]) from exc
-        notes=["\u64cd\u4f5c\u524d\u914d\u7f6e\u5907\u4efd\uff1a"+backup["path"]]
+                except Exception as recovery:raise RuntimeError("\u6587\u4ef6\u6062\u590d\u672a\u786e\u8ba4\uff0c\u8bf7\u6838\u5bf9 "+file_backup+backup_note) from recovery
+            raise RuntimeError(str(exc)+backup_note) from exc
+        notes=[backup_note.strip()] if backup_note else []
         if file_backup:notes.append("\u7f51\u9875\u53ca\u6309\u952e\u6587\u4ef6\u6062\u590d\u526f\u672c\uff1a"+file_backup)
         # Runtime changes happen only after saving and validation. Never retry on disconnect.
         try:
@@ -206,6 +211,12 @@ class RouterPolicyManager:
                     self._run("boot_off",command+"enable && "+command+"enabled",Event(),10)
                 elif current["files"]["/etc/init.d/luxiaoguan-wifi-policy"]!="absent":
                     self._run("boot_on",command+"disable && ! "+command+"enabled",Event(),10)
+                from .router_boot_status import read_boot_status
+                self._current()
+                state=read_boot_status(self.manager,Event()).get("boot_state")
+                self._current()
+                if state is not review["boot_enabled"]:
+                    raise RuntimeError("开机连接设置尚未核实。")
         except Exception:
             return dict(outcome="uncertain",note="\u8bbe\u7f6e\u5df2\u4fdd\u5b58\uff0c\u4f46\u542f\u52a8\u7b56\u7565\u7684\u751f\u6548\u7ed3\u679c\u672a\u786e\u8ba4\uff0c\u8bf7\u91cd\u65b0\u8bfb\u53d6\u6838\u5bf9\u3002\n"+"\n".join(notes),review=review)
         if review.get("new_address"):notes.append("\u4ee5\u540e\u5fc5\u987b\u4f7f\u7528 "+review["new_address"]+" \u767b\u5f55\u8def\u7531\u5668\uff0c\u539f\u5730\u5740\u5c06\u5931\u6548\u3002")
@@ -223,5 +234,9 @@ class RouterPolicyManager:
                 return dict(outcome=outcome["outcome"],note="\n".join(notes),review=review)
             except Exception:
                 return dict(outcome="uncertain",note="\u8bbe\u7f6e\u5df2\u4fdd\u5b58\uff0c\u91cd\u542f\u7ed3\u679c\u672a\u786e\u8ba4\uff1b\u8bf7\u6838\u5bf9\u540e\u91cd\u65b0\u8fde\u63a5\uff0c\u52ff\u91cd\u590d\u6267\u884c\u3002\n"+"\n".join(notes),review=review)
+        if "boot_enabled" in review:
+            action="开启" if review["boot_enabled"] else "关闭"
+            notes.insert(0,"已"+action+"开机自动连接上级 Wi-Fi，从下次开机起生效。当前连接和自己的热点不变。")
+            return dict(outcome="saved",boot_state=review["boot_enabled"],note="\n".join(notes),review=review)
         notes.insert(0,"\u8bbe\u7f6e\u5df2\u4fdd\u5b58\uff0c\u5f53\u524d\u65e0\u7ebf\u4e0d\u4e3b\u52a8\u65ad\u5f00\u3002")
         return dict(outcome="saved",note="\n".join(notes),review=review)

@@ -18,7 +18,8 @@ class RelocationManager:
         except SignalError as exc:
             messages = {
                 "move_system": "无法唯一确认系统主机名配置，未执行清理。",
-                "move_shared": "网络接口存在共用或不明确的引用，为保留管理通道已停止清理。",
+                "move_management": "局域网或基础有线网络依赖待清理接口，无法在保留登录配置的同时清理。",
+                "move_shared": "保留接口的 MAC 修改目标无法唯一确认，未执行清理。",
             }
             if exc.code in messages:
                 raise SignalError(exc.code, messages[exc.code]) from None
@@ -34,9 +35,13 @@ class RelocationManager:
         if any(flags.get(k) != "1" for k in ("bus_uci", "bus_session", "rollback")):
             raise SignalError("dependencies", "当前系统不支持完整的配置自动回滚，未执行清理。")
         review = self._call("move_preview", cancel)
-        for key in ("rows", "targets", "removed", "skipped"):
+        for key in ("rows", "targets", "removed", "skipped", "related"):
             if review.get(key) == {}:
                 review[key] = []
+        review.setdefault("skip_reasons", {})
+        # luci.jsonc encodes an empty Lua table as []; this field is a mapping.
+        if review["skip_reasons"] == []:
+            review["skip_reasons"] = {}
         self._validate(review)
         review["plan"] = {"hostname": generate_relocation_hostname(review["hostname"]), "macs": []}
         used = {t["old_mac"].lower() for t in review["targets"]}
@@ -57,7 +62,7 @@ class RelocationManager:
             return isinstance(v, str) and len(v) <= limit and not any(ord(c) < 32 for c in v)
         valid = isinstance(review, dict) and bool(re.fullmatch(r"[a-fA-F0-9]{320}", str(review.get("token", ""))))
         valid = valid and text(review.get("hostname"), 253) and bool(re.fullmatch(r"[A-Za-z0-9_]+", str(review.get("system", ""))))
-        for key in ("rows", "targets", "removed", "skipped"):
+        for key in ("rows", "targets", "removed", "skipped", "related"):
             valid = valid and isinstance(review.get(key), list) and len(review[key]) <= 256
         if not valid:
             raise SignalError("response", "搬家清理预览无效，未执行修改。")
@@ -66,6 +71,12 @@ class RelocationManager:
         for target in review["targets"]:
             valid = valid and isinstance(target, dict) and all(text(target.get(k), limit) for k, limit in (("device", 64), ("section", 128), ("old_mac", 17)))
             valid = valid and bool(re.fullmatch(r"(?:[a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}", str(target.get("old_mac", "")))) and type(target.get("legacy")) is bool
+        valid = valid and isinstance(review.get("skip_reasons", {}), dict)
+        if valid:
+            valid = all(k in review["skipped"] and v in {"protocol", "device_missing", "device_type", "mac_missing", "not_ethernet"}
+                        for k, v in review.get("skip_reasons", {}).items())
+        for entry in review.get("related", []):
+            valid = valid and isinstance(entry, dict) and entry.get("config") in {"network", "dhcp"} and bool(re.fullmatch(r"[A-Za-z0-9_]+", str(entry.get("section", ""))))
         valid = valid and all(text(v, 128) for k in ("removed", "skipped") for v in review[k])
         if not valid:
             raise SignalError("response", "搬家清理预览无效，未执行修改。")

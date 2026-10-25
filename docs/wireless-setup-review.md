@@ -89,3 +89,24 @@ This remains offline verification, not hardware certification. Real upstream WDS
 ## Missing radio-setting defaults
 
 When htmode is absent/empty, AP configuration selects an explicit supported default: 20 MHz first on 2.4 GHz, 80 MHz first on 5/6 GHz, falling back to supported lower widths (40/20 MHz on 5/6 GHz). At each width prefer HE, VHT, HT, EHT, then legacy, subject to the common band/driver/firmware rules. Existing nonempty radio settings remain preserved, including vendor-specific values the editor cannot safely interpret. Defaults appear in the editor and the backend independently fills them if omitted, before either apply or save-only. Unknown capabilities never cause a guessed mode to be written. Offline tests cover empty and whitespace settings, old radios, limited widths, and the actual native config saved from a request without htmode.
+
+
+## Relocation and interface review correction (2026-10-25)
+
+- Relocation removes all old Wi-Fi sections, old `wwan`/`wwanN` interfaces (including disconnected leftovers), relay interfaces and dependent old logical interfaces in one rollback-protected transaction. Matching routes, address pools and firewall zone memberships are cleared together. Shared old uplinks are part of this reset, not a reason to skip it. Base LAN/WAN/loopback interfaces remain outside the removal set.
+- MAC discovery only controls which retained devices receive a new address. It does not decide whether an old uplink can be deleted. Retained-device MAC skips have individual reasons.
+- Orphan review permits an unreferenced, unbound and inactive legacy `wwan` interface even when its creator is unknown. Selection starts empty. A fresh runtime/configuration check is required immediately before cleanup. Orphan cleanup saves configuration without reloading the current network.
+- Batch station identity supports ordinary relay clients with independent DHCP uplinks. A shared DHCP hostname, transparent LAN bridge or explicit device binding is described with the actual interface and peer names instead of a generic skip message. The Lua executor rechecks these conditions.
+- Finished worker threads remain valid throughout modal confirmation callbacks, then leave the service registry and are deleted. No timer or invalid-object exception suppression is used.
+- Official release-pinned netifd status fields and rc.common hooks were checked for 19.07.10, 21.02.1, 22.03.7, 23.05.5, 24.10.0 and 25.12.0. Source URLs and commits are recorded in `build/relocation-boot-fixes-20261025/official-contracts.json`. Offline tests exercise the actual Lua and Qt event loops; live-router validation is still required.
+
+
+## Shared upstream identities (2026-10-25)
+
+Saved STA profiles on one unbound DHCP interface now form one identity group. The preview assigns a unique MAC to each profile and one hostname to the group. The executor verifies complete membership, validates backups before writing, snapshots live MACs once per group and writes the hostname once through the existing transaction. Batch updates preserve SSIDs, credentials, interface membership and enabled states.
+
+Version-1 identity backups remain readable. Group backups add a `shared` flag and retain the original hostname and each profile's original MAC, including absent values. Repeated batches preserve those originals. Individual restoration restores only that MAC while managed peers remain; the last restoration returns the original hostname. Single-profile hostname changes synchronize peer recovery records. External edits, conflicting backups and unexpected group members stop the transaction.
+
+Single-profile editing can restore identity while retaining common protocol, DNS, firewall membership and relay settings. Attempts to change common settings through one member are rejected explicitly. Existing apply/rollback and save-only lifecycles are retained.
+
+Official DHCP hostname fields were checked for 19.07.10, 21.02.1, 22.03.7, 23.05.5, 24.10.0 and 25.12.0; source URLs are in `build/shared-station-identity-20261025/official-dhcp-contracts.json`. Offline tests run the real Lua and Qt paths. Live hardware behavior remains to be verified.

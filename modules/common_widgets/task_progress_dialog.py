@@ -98,7 +98,11 @@ class TaskProgressDialog(FramelessDialog):
         self.cancelRequested.emit()
 
     def finish(self,success,message=''):
+        if not self.running:return
+        previous = self.bar.value() if self.bar.maximum() else 0
         self.running=False
+        self.bar.setRange(0,1000)
+        self.bar.setValue(1000 if success else max(0,previous))
         if success or self.cancelling:
             self.accept()
             self.deleteLater()

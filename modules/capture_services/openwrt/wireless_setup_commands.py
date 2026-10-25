@@ -183,16 +183,17 @@ local function stage()
  if v.section~="" and (not old or old.mode~=v.mode or old.device~=radio) then fail("changed") end
  if v.section=="" and old then fail("changed") end
  local opts=v.options or {}
+ local shared_station=not req.temporary and v.mode=="sta" and old and identity_shared_edit(c,old,section,opts)
  if not req.temporary and old and ((old.rm_bridge and opts.bridge_mode=="wds") or (old.rm_wds_backup and opts.bridge_mode=="relayd")) then fail("bridge_transition") end
 
  if old and old.rm_wds_backup and not req.temporary and opts.bridge_mode~="wds" then
   if old.rm_suspended~="1" then restore_dhcp(c,old.rm_wds_backup) end;remove("wireless",section,"rm_wds_backup")
  end
- if old and old.rm_bridge and not req.temporary and opts.bridge_mode~="relayd" then restore_bridge(c,old,false) end
+ if old and old.rm_bridge and not shared_station and not req.temporary and opts.bridge_mode~="relayd" then restore_bridge(c,old,false) end
  local bridged=v.mode=="sta" and not req.temporary and opts.bridge_mode=="wds"
  local network=(old and old.rm_wds_backup and not bridged and not req.temporary and ("wbnet_"..req.token)) or (bridged and opts.network) or (v.mode=="ap" and opts.network) or (old and old.network) or (v.mode=="ap" and "lan" or ("wbnet_"..req.token))
  if type(network)=="table" and #network==1 then network=network[1] end
- if v.mode=="sta" and old and not bridged then
+ if v.mode=="sta" and old and not bridged and not shared_station then
   if network=="lan" or network=="loopback" then fail("shared_network") end
   c:foreach("wireless","wifi-iface",function(s)
    if s[".name"]~=section then
@@ -238,33 +239,38 @@ local function stage()
   wf.encryption=opts.encryption or (old and old.encryption) or "psk2"
   wf.description=v.label
   if opts.bssid and opts.bssid~="" then wf.bssid=opts.bssid end
-  local nf={proto=req.temporary and "none" or (opts.proto or (old and c:get("network",network,"proto")) or "dhcp")}
-  if not req.temporary then
-   for _,k in ipairs({"ipaddr","netmask","gateway","metric"}) do if opts[k] then nf[k]=opts[k] end end
-   if opts.dns and opts.dns~="" then
-    nf.dns={};for address in opts.dns:gmatch("%S+") do nf.dns[#nf.dns+1]=address end
-   end
-  end
-  if c:get("network",network)=="interface" then set("network",network,nf)
-  else nf.rm_owner=section;add("network","interface",network,nf) end
-  if not req.temporary then
-   if opts.bridge_mode=="relayd" then wf.rm_bridge=stage_relay(c,opts,network,section,req.token,old) end
-   local found=false
-   c:foreach("firewall","zone",function(z)
-    local members=type(z.network)=="table" and z.network or {}
-    if type(z.network)=="string" then for n in z.network:gmatch("%S+") do members[#members+1]=n end end
-    local updated={};for _,n in ipairs(members) do if n~=network then updated[#updated+1]=n end end
-    if z.name==(opts.zone or "wan") then
-     found=true;updated[#updated+1]=network
+  if shared_station then
+   wf.rm_bridge=old.rm_bridge
+  else
+   local nf={proto=req.temporary and "none" or (opts.proto or (old and c:get("network",network,"proto")) or "dhcp")}
+   if not req.temporary then
+    for _,k in ipairs({"ipaddr","netmask","gateway","metric"}) do if opts[k] then nf[k]=opts[k] end end
+    if opts.dns and opts.dns~="" then
+     nf.dns={};for address in opts.dns:gmatch("%S+") do nf.dns[#nf.dns+1]=address end
     end
-    if #updated~=#members or z.name==(opts.zone or "wan") then set("firewall",z[".name"],{network=updated}) end
-   end)
-   if not found then fail("zone") end
+   end
+   if c:get("network",network)=="interface" then set("network",network,nf)
+   else nf.rm_owner=section;add("network","interface",network,nf) end
+   if not req.temporary then
+    if opts.bridge_mode=="relayd" then wf.rm_bridge=stage_relay(c,opts,network,section,req.token,old) end
+    local found=false
+    c:foreach("firewall","zone",function(z)
+     local members=type(z.network)=="table" and z.network or {}
+     if type(z.network)=="string" then for n in z.network:gmatch("%S+") do members[#members+1]=n end end
+     local updated={};for _,n in ipairs(members) do if n~=network then updated[#updated+1]=n end end
+     if z.name==(opts.zone or "wan") then
+      found=true;updated[#updated+1]=network
+     end
+     if #updated~=#members or z.name==(opts.zone or "wan") then set("firewall",z[".name"],{network=updated}) end
+    end)
+    if not found then fail("zone") end
+   end
   end
  end
  if v.password~="" then wf.key=v.password end
  if wf.encryption~="none" and wf.encryption~="owe" and v.password=="" and not (old and type(old.key)=="string" and #old.key>0) then fail("password") end
- if req.save_only==true and (wf.rm_bridge or wf.rm_wds_backup) then wf.rm_suspended="1"
+ if shared_station then wf.rm_suspended=old.rm_suspended
+ elseif req.save_only==true and (wf.rm_bridge or wf.rm_wds_backup) then wf.rm_suspended="1"
  elseif old and old.rm_suspended and not req.temporary then remove("wireless",section,"rm_suspended") end
  if old then set("wireless",section,wf) else add("wireless","wifi-iface",section,wf) end
  local expected_mac=v.mode=="ap" and (opts.macaddr or (old and identity_mac(old.macaddr) and old.macaddr)) or nil
@@ -272,7 +278,7 @@ local function stage()
  if v.mode=="sta" and old and opts.bssid=="" and old.bssid then
   rpc("uci","delete",{ubus_rpc_session=sid(),config="wireless",section=section,option="bssid"})
  end
- if v.mode=="sta" and not req.temporary and not bridged then
+ if v.mode=="sta" and not req.temporary and not bridged and not shared_station then
   local original=c:get_all("network",network) or {}
   for _,key in ipairs({"ipaddr","netmask","gateway","dns"}) do
    local clear=(key=="dns" and opts.dns=="") or (opts.proto=="dhcp" and key~="dns")
@@ -313,6 +319,7 @@ local function saved_status()
   end
  end
  if v.mode=="sta" then
+  local shared_station=identity_shared_edit(c,row,req.section,opts)
   if row.description~=v.label or row.network~=req.network then fail("unconfirmed") end
   if opts.bssid=="" and row.bssid then fail("unconfirmed") end
   if req.expected_mac and row.macaddr~=req.expected_mac then fail("unconfirmed") end
@@ -337,7 +344,7 @@ local function saved_status()
     end
    end)
    if not member or invalid then fail("unconfirmed") end
-   if opts.dns~=nil then
+   if opts.dns~=nil and not shared_station then
     local net=c:get_all("network",req.network) or {}
     if net.peerdns~=(opts.dns=="" and "1" or "0") then fail("unconfirmed") end
     local wanted,actual={},{}

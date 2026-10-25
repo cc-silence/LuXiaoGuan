@@ -1,0 +1,2 @@
+# Preserve the upstream corpus bytes used by its recorded SHA-256.
+tests/fixtures/official_apk_versions.data -text

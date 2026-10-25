@@ -150,14 +150,17 @@ class RelocationTests(unittest.TestCase):
         self.assertNotIn("wwan", self.device.config["network"])
         self.assertEqual(self.device.config["firewall"]["zone_wan"]["network"], ["wan"])
 
-    def test_shared_owned_network_blocks_preview_without_mutation(self):
+    def test_old_network_and_shared_relay_are_removed_together(self):
         self.device.config["network"]["old"] = {".type": "interface", "proto": "dhcp", "rm_owner": "home"}
         self.device.config["network"]["shared"] = {".type": "interface", "proto": "relay", "network": ["lan", "old"]}
         original = copy.deepcopy(self.device.config)
-        with self.assertRaises(SignalError) as error:
-            self.manager.preview(self.cancel)
-        self.assertEqual(error.exception.code, "move_shared")
+        review = self.manager.preview(self.cancel)
         self.assertEqual(self.device.config, original)
+        self.assertEqual(review["removed"], ["old", "shared"])
+        self.manager.apply(review, self.cancel, Mock())
+        self.assertNotIn("old", self.device.config["network"])
+        self.assertNotIn("shared", self.device.config["network"])
+        self.assertEqual(self.device.config["network"]["lan"]["ipaddr"],original["network"]["lan"]["ipaddr"])
 
     def test_existing_interface_mac_override_follows_new_device_identity(self):
         self.device.config["network"]["lan"]["macaddr"] = "00:11:22:33:44:55"
@@ -201,9 +204,8 @@ class RelocationTests(unittest.TestCase):
 
     def test_wrong_owner_metadata_cannot_remove_static_management_network(self):
         self.device.config["network"]["lan"]["rm_owner"] = "home"
-        with self.assertRaises(SignalError) as error:
-            self.manager.preview(self.cancel)
-        self.assertEqual(error.exception.code, "move_shared")
+        review = self.manager.preview(self.cancel)
+        self.assertNotIn("lan",review["removed"])
         self.assertNotIn(("uci", "apply"), self.device.calls)
 
     def test_global_pending_system_changes_block_preview(self):
