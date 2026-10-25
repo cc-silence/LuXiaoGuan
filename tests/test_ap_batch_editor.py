@@ -38,6 +38,23 @@ class BatchPlanTests(unittest.TestCase):
                 self.assertEqual(d.config["wireless"][row["section"]],expected)
             self.assertEqual(d.config["wireless"]["station"],before["station"])
 
+    def test_device_value_validation_is_independent_of_locale(self):
+        import locale
+        original=locale.setlocale(locale.LC_CTYPE)
+        self.addCleanup(locale.setlocale,locale.LC_CTYPE,original)
+        checked=0
+        for language in ("C","English_United States.1252"):
+            try:locale.setlocale(locale.LC_CTYPE,language)
+            except locale.Error:continue
+            checked+=1
+            self.test_manual_values_execute_without_changing_password_or_station()
+            for control in ("\x00","\x1f","\x7f"):
+                d=device();snapshot=d.policy.read(d.cancel)
+                op=dict(action="set",config="wireless",section="guest",values=dict(ssid="bad"+control))
+                with self.assertRaises(RuntimeError):d.policy._transaction(snapshot,[op],d.cancel)
+                self.assertEqual(d.commits,[])
+        self.assertGreater(checked,0)
+
     def test_reject_invalid_or_incomplete_input_before_transaction(self):
         d=device();snapshot=d.policy.read(d.cancel)
         good=[dict(section="default_radio7",name="One",mac="02:12:34:56:78:90"),

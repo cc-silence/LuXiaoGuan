@@ -139,7 +139,12 @@ local function check_values(config,values)
  if type(values)~="table" or not allowed[config] then fail("values") end
  for key,value in pairs(values) do
   if not allowed[config][key] then fail("values") end
-  local function valid(v) return type(v)=="string" and #v<=2048 and not v:find("%c") end
+  local function valid(v)
+   if type(v)~="string" or #v>2048 then return false end
+   -- Check ASCII control bytes explicitly; locale classes can reject UTF-8 bytes.
+   for i=1,#v do local b=v:byte(i); if b<32 or b==127 then return false end end
+   return true
+  end
   if type(value)=="table" then
    if #value>64 then fail("values") end
    for _,v in ipairs(value) do if not valid(v) then fail("values") end end
