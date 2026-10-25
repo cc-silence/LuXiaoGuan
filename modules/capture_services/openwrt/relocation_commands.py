@@ -1,4 +1,6 @@
 """Targeted relocation inside one rpcd rollback session; never reset the system."""
+from .relocation_networks import NETWORK_CLEANUP
+
 RELOCATION = r'''
 local function move_revision(c)
  local hashes={}
@@ -17,6 +19,7 @@ local function move_words(value)
  local words={};for s in tostring(value or ""):gmatch("%S+") do words[#words+1]=s end
  return words
 end
+__NETWORK_CLEANUP__
 local function move_preview()
  local c=clean();local token=move_revision(c)
  local rows,owners,systems,targets,skipped={},{},{},{},{}
@@ -27,41 +30,22 @@ local function move_preview()
   rows[#rows+1]={section=s[".name"],ssid=s.ssid or "",mode=s.mode or ""}
   owners[s[".name"]]=true
  end)
- local removed={}
  local wireless_networks={}
  c:foreach("wireless","wifi-iface",function(w) for _,n in ipairs(move_words(w.network)) do wireless_networks[n]=true end end)
- c:foreach("network","interface",function(n)
-  if owners[n.rm_owner] or (wireless_networks[n[".name"]] and not n.device and not n.ifname and (n.proto=="dhcp" or n.proto=="dhcpv6")) then removed[n[".name"]]=true end
- end)
- -- A shared or externally changed owned interface must be reviewed, never guessed away.
- local shared=false
- c:foreach("network","interface",function(n)
-  if removed[n[".name"]] and n.proto~="relay" and ((n.proto~="dhcp" and n.proto~="dhcpv6") or n.device or n.ifname) then shared=true end
-  if removed[n[".name"]] and n.proto=="relay" then
-   local owner=c:get_all("wireless",n.rm_owner)
-   if not owner or owner.rm_bridge~=n[".name"] then shared=true end
-  end
- end)
- c:foreach("network","interface",function(n)
-  if not removed[n[".name"]] then
-   for _,ref in ipairs(move_words(n.network)) do if removed[ref] then shared=true end end
-   for _,ref in ipairs(move_words(n.ifname)) do if removed[ref] or removed[ref:gsub("^@","")] then shared=true end end
-   if type(n.device)=="string" and removed[n.device:gsub("^@","")] then shared=true end
-  end
- end)
- c:foreach("dhcp","dhcp",function(d) if removed[d.interface] then shared=true end end)
- if shared then fail("move_shared") end
+ local removed,related=move_cleanup_networks(c,owners,wireless_networks)
+ local skip_reasons={}
+ local function skip(section,reason) skipped[#skipped+1]=section;skip_reasons[section]=reason end
  local seen={}
  c:foreach("network","interface",function(n)
   if removed[n[".name"]] or n[".name"]=="loopback" then return end
-  if n.proto~="static" and n.proto~="dhcp" and n.proto~="dhcpv6" then skipped[#skipped+1]=n[".name"];return end
+  if n.proto~="static" and n.proto~="dhcp" and n.proto~="dhcpv6" then skip(n[".name"],"protocol");return end
   local legacy=not n.device
   local dev=n.device
   if legacy then
    local state=optional("network.interface."..n[".name"],"status",{})
    dev=state.device or state.l3_device
   end
-  if type(dev)~="string" or #dev>64 or not dev:match("^[%w_.%-]+$") or dev=="lo" then skipped[#skipped+1]=n[".name"];return end
+  if type(dev)~="string" or #dev>64 or not dev:match("^[%w_.%-]+$") or dev=="lo" then skip(n[".name"],"device_missing");return end
   if seen[dev] then
    if legacy or seen[dev].legacy then fail("move_shared") end
    return
@@ -71,10 +55,11 @@ local function move_preview()
   if #candidates>1 then fail("move_shared") end
   local d=candidates[1]
   -- Explicit device types such as tunnels/VLANs are left intact rather than recast.
-  if d and d.type and d.type~="bridge" then skipped[#skipped+1]=n[".name"];return end
+  if d and d.type and d.type~="bridge" then skip(n[".name"],"device_type");return end
   local state=optional("network.device","status",{name=dev})
-  if not identity_mac(state.macaddr) or read("test ! -e /sys/class/net/"..q(dev).."/phy80211 && cat /sys/class/net/"..q(dev).."/type"):match("^%s*(%d+)")~="1" then
-   skipped[#skipped+1]=n[".name"];return
+  if not identity_mac(state.macaddr) then skip(n[".name"],"mac_missing");return end
+  if read("test ! -e /sys/class/net/"..q(dev).."/phy80211 && cat /sys/class/net/"..q(dev).."/type"):match("^%s*(%d+)")~="1" then
+   skip(n[".name"],"not_ethernet");return
   end
   local target={device=dev,section=legacy and n[".name"] or d and d[".name"] or "",legacy=legacy,old_mac=state.macaddr:lower()}
   if target.section~="" and not name(target.section) then fail("section") end
@@ -84,7 +69,7 @@ local function move_preview()
  table.sort(targets,function(a,b) return a.device<b.device end)
  local networks={};for section in pairs(removed) do networks[#networks+1]=section end;table.sort(networks);table.sort(skipped)
  if token~=move_revision(c) then fail("changed") end
- return {token=token,system=systems[1][".name"],hostname=systems[1].hostname or "",rows=rows,targets=targets,removed=networks,skipped=skipped}
+ return {token=token,system=systems[1][".name"],hostname=systems[1].hostname or "",rows=rows,targets=targets,removed=networks,skipped=skipped,skip_reasons=skip_reasons,related=related}
 end
 local function move_stage()
  local before=move_preview()
@@ -114,9 +99,13 @@ local function move_stage()
  end
  local removed={};for _,section in ipairs(before.removed) do removed[section]=true end
  for _,section in ipairs(before.removed) do
-  local n=c:get_all("network",section)
-  if n.proto~="relay" then remove("network",section) end
+  local old=c:get_all("network",section)
+  if old then
+   if old.proto=="relay" and old.rm_dhcp_backup then restore_dhcp(c,old.rm_dhcp_backup) end
+   remove("network",section)
+  end
  end
+ for _,entry in ipairs(before.related) do remove(entry.config,entry.section) end
  c:foreach("firewall","zone",function(z)
   local keep={};local changed=false
   for _,n in ipairs(move_words(z.network)) do if removed[n] then changed=true else keep[#keep+1]=n end end
@@ -171,4 +160,4 @@ local function move_status()
  end
  return {ready=ready,token=move_revision(c)}
 end
-'''
+'''.replace("__NETWORK_CLEANUP__", NETWORK_CLEANUP)

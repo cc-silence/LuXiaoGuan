@@ -43,6 +43,32 @@ class RelocationUiTests(unittest.TestCase):
             self.assertIn(review["plan"]["hostname"], dialog.call_args.args[1])
         setup.relocate.assert_called_once_with(review)
 
+    def test_failed_preview_shows_reason_and_allows_retry_without_clearing(self):
+        page,_,setup,_=self.setup_page()
+        button=page.relocation_actions.button
+        button.click()
+        with patch("modules.main_pages.packet_capture.openwrt.signal_relocation_actions.MessageDialog") as dialog:
+            setup.completed.emit(WirelessTaskResult("move_preview",error="preview format failed",code="response"))
+        dialog.return_value.exec.assert_called_once_with()
+        dialog.return_value.deleteLater.assert_called_once_with()
+        self.assertEqual(page.status_label.text(),"preview format failed")
+        self.assertTrue(button.isEnabled())
+        setup.relocate.assert_not_called()
+        button.click()
+        self.assertEqual(setup.relocation_preview.call_count,2)
+
+    def test_official_jsonc_empty_result_reaches_confirmation(self):
+        from tests.test_relocation_json_contract import JsoncMovingDevice
+        page,_,setup,_=self.setup_page()
+        review=RelocationManager(WirelessSetupManager(JsoncMovingDevice())).preview(threading.Event())
+        page.relocation_actions.button.click()
+        with patch("modules.main_pages.packet_capture.openwrt.signal_relocation_actions.ConfirmDialog") as dialog:
+            dialog.Accepted=ConfirmDialog.Accepted
+            dialog.return_value.exec.return_value=ConfirmDialog.Rejected
+            setup.completed.emit(WirelessTaskResult("move_preview",review))
+        dialog.return_value.exec.assert_called_once_with()
+        setup.relocate.assert_not_called()
+
     def test_relocation_rejects_switched_or_disconnected_router(self):
         for disconnect in (False, True):
             page, service, setup, review = self.setup_page()

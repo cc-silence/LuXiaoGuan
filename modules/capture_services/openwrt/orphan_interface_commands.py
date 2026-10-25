@@ -37,7 +37,6 @@ local function orphan_preview()
   if not name(section) then fail("section") end
   local reasons,seen={},{}
   local function block(reason) if not seen[reason] then reasons[#reasons+1]=reason;seen[reason]=true end end
-  if not owned then block("unowned") end
   if n.rm_owner and c:get("wireless",n.rm_owner) then block("owner_exists") end
   if n.device or n.ifname or n.type or n.master then block("physical_binding") end
   if n.proto~="dhcp" and n.proto~="dhcpv6" then block("unsupported_protocol") end

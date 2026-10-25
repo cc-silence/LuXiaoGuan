@@ -5,6 +5,15 @@ from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from modules.main_pages.page_action_buttons import create_page_text_button, set_page_action_enabled
 
 
+MAC_SKIP_REASONS = {
+    "protocol": "网络类型不适合更换 MAC",
+    "device_missing": "当前没有可确认的实际网卡",
+    "device_type": "使用了 VLAN 或隧道等特殊设备",
+    "mac_missing": "无法读取有效的当前 MAC",
+    "not_ethernet": "实际网卡不适合按有线网卡更改地址",
+}
+
+
 class RelocationActions(QObject):
     def __init__(self, page, container):
         super().__init__(page)
@@ -49,9 +58,14 @@ class RelocationActions(QObject):
         for target, mac in zip(review["targets"], review["plan"]["macs"]):
             lines.append(target["device"] + "：" + target["old_mac"] + " → " + mac)
         if review["removed"]:
-            lines.append("\n删除配套的旧桥接接口：" + "、".join(review["removed"]))
+            lines.append("\n删除旧上级和中继接口（包括残留）：" + "、".join(review["removed"]))
         if review["skipped"]:
-            lines.append("\n以下接口的 MAC 无法安全确认，保留原样：" + "、".join(review["skipped"]))
+            lines.append("\n以下保留接口不更换 MAC：")
+            for section in review["skipped"]:
+                reason=MAC_SKIP_REASONS.get(review.get("skip_reasons",{}).get(section), "设备状态暂无法确认")
+                lines.append("  "+section+"："+reason)
+        if review.get("related"):
+            lines.append("\n同步清除与旧接口配套的地址分配和路由记录："+"、".join(item["section"] for item in review["related"]))
         lines.append("\n更新外网自动取地址时上报的主机名，清除原有自定义客户端标识。保留管理 IP、登录密码、系统和已安装组件。")
         lines.append("\n请先用网线连接路由器，并停止在网页或脚本中改配置。旧 Wi-Fi 会全部断开，上网连接可能重新取地址。若无法确认成功，设备会在 90 秒内自动回滚，请等待后重连。")
         lines.append("\n本功能只清理当前网络配置，用户自建文件、备份和其他软件的数据需另行处理。")
@@ -63,7 +77,12 @@ class RelocationActions(QObject):
             return
         self._waiting = False
         if result.error:
-            self._sync()
+            self.page.status_label.setText(result.error)
+            dialog=MessageDialog("无法打开搬家清理",result.error,self.page)
+            try:dialog.exec()
+            finally:
+                dialog.deleteLater()
+                self._sync()
             return
         review = result.value
         if not review["targets"]:

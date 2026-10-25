@@ -49,7 +49,7 @@ class RouterCommonSettingsPage(QWidget):
         self.password_button.clicked.connect(self._change_password)
         layout.addWidget(self.password_button)
         self.lan_card, layout = create_capture_card(body, "LAN 网络设置",
-            "修改管理地址、网关和 IPv6；保存后重启网络生效。", icon_path=icon_root / "System Router.png", actions_at_bottom=True)
+            "修改管理地址、网关和 IPv6；可保存并应用或仅保存。", icon_path=icon_root / "System Router.png", actions_at_bottom=True)
         self.lan_button = create_page_text_button(self.lan_card, "打开设置", "读取路由器当前局域网设置后编辑。")
         layout.addWidget(self.lan_button)
         self.system_card, layout = create_capture_card(body, "主机名与时区",

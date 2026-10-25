@@ -15,7 +15,6 @@ class RouterNavigation(QWidget):
         self.owner=owner
         self.router_page=router_page
         self.expanded=False
-        self.settings_frame=None
         self.settings_controller=None
         layout=QHBoxLayout(self);layout.setContentsMargins(0,0,0,0);layout.setSpacing(0)
         self.sidebar=QFrame(self);self.sidebar.setObjectName('leftMenuBg')
@@ -79,7 +78,7 @@ class RouterNavigation(QWidget):
                                 (self.settings_button,self.settings_controller is not None)):
             if button.property('sidebarSelected') != selected:
                 button.setProperty('sidebarSelected',selected);button.style().unpolish(button);button.style().polish(button)
-        if self.settings_controller is not None:self.settings_controller.sync_embedded_style()
+        if self.settings_controller is not None:self.settings_controller.sync_appearance()
 
     def show_router(self):
         """Flush settings before returning to the resident router page."""
@@ -89,23 +88,23 @@ class RouterNavigation(QWidget):
             self.stack.setCurrentWidget(self.router_page);self.refresh()
 
     def show_settings(self, update=False):
-        """\u50cf\u539f\u8bbe\u7f6e\u9875\u5bbf\u4e3b\u4e00\u6837\u5d4c\u5165\u5185\u5bb9\u6846\uff0c\u4e0d\u663e\u793a\u72ec\u7acb\u5f39\u7a97\u3002"""
+        """Open one settings dialog while keeping the router page resident."""
         if self.settings_controller is None:
             from .settings import RouterSettings
             controller=RouterSettings(self.owner)
-            controller.title_bar.hide();controller.size_grip.hide()
-            frame=controller.window_frame;frame.setObjectName("routerEmbeddedSettings");controller.root_layout.removeWidget(frame)
-            frame.setParent(self.stack);controller._embedded_frame=frame
-            self.settings_controller=controller;self.settings_frame=frame
+            self.settings_controller=controller
             self.owner.settings_window=controller
             controller.finished.connect(self._settings_finished)
-            self.stack.addWidget(frame)
-        if update:self.settings_controller.pages.setCurrentIndex(2)
-        self.stack.setCurrentWidget(self.settings_frame);self.settings_frame.show();self.refresh()
+        controller=self.settings_controller
+        if update:controller.pages.setCurrentIndex(2)
+        controller.sync_appearance()
+        controller.show()
+        controller.raise_()
+        controller.activateWindow()
+        self.refresh()
 
     def _settings_finished(self, result):
-        """Release the settings view after a successful close."""
-        controller,frame=self.settings_controller,self.settings_frame
-        self.settings_controller=None;self.settings_frame=None;self.owner.settings_window=None
-        self.stack.setCurrentWidget(self.router_page);self.stack.removeWidget(frame)
-        frame.deleteLater();controller.deleteLater();self.refresh()
+        """Release only the settings dialog after its edits have been flushed."""
+        controller=self.settings_controller
+        self.settings_controller=None;self.owner.settings_window=None
+        controller.deleteLater();self.refresh()

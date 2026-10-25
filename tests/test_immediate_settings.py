@@ -1,4 +1,4 @@
-"""Immediate settings persistence, failure handling and embedded navigation."""
+"""Immediate settings persistence, failure handling and dialog lifecycle."""
 import json
 import tempfile
 import unittest
@@ -127,5 +127,5 @@ class ImmediateSettingsTests(unittest.TestCase):
                     settings.pages.setCurrentIndex(index)
                     APP.processEvents()
                     self.assertIsNone(settings.window_frame.findChild(QFrame, "settingsButtonPanel"))
-                    self.window.grab().save(str(folder / (theme+"-"+str(scale)+"-"+str(index)+".png")))
+                    settings.grab().save(str(folder / (theme+"-"+str(scale)+"-"+str(index)+".png")))
             self.window.navigation.show_router()

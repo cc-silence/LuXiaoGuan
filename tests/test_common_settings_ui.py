@@ -116,3 +116,61 @@ class CommonSettingsUiTests(unittest.TestCase):
         selected=next(i for i in range(zone.count()) if tuple(zone.itemData(i))[0]=="Europe/London")
         zone.setCurrentIndex(selected)
         self.assertEqual(dialog.values()["timezone"],review["timezones"][0][1])
+
+    def test_lan_editor_buttons_select_apply_or_save_without_touching_router(self):
+        for apply in (False,True):
+            page,_=self.create_page()
+            dialog=RouterConfigDialog(NETWORK,page);self.addCleanup(dialog.deleteLater)
+            button=dialog.save_button if apply else dialog.save_only_button
+            self.assertEqual(button.text(),"\u4fdd\u5b58\u5e76\u5e94\u7528" if apply else "\u4ec5\u4fdd\u5b58")
+            button.click()
+            self.assertEqual(dialog.result(),dialog.Accepted)
+            self.assertEqual(dialog.apply_requested,apply)
+            page.manager.submit.assert_not_called()
+
+    def test_lan_confirmation_routes_reboot_save_only_and_cancel(self):
+        for mode in ("reboot","save","cancel","direct-save"):
+            page,_=self.create_page()
+            page.lan_button.click()
+            page.manager.submit.return_value="saved"
+            with patch("modules.main_pages.packet_capture.openwrt.common_config_actions.RouterConfigDialog") as editor,patch(
+                    "modules.main_pages.packet_capture.openwrt.common_config_actions.ConfirmDialog") as confirm:
+                dialog=editor.return_value
+                dialog.Accepted=1;dialog.exec.return_value=1
+                dialog.values.return_value=NETWORK["values"]
+                dialog.apply_requested=mode!="direct-save"
+                confirm.return_value.Accepted=1
+                confirm.return_value.exec.return_value=1 if mode=="reboot" else 0
+                confirm.return_value.secondary_selected=mode=="save"
+                page._completed("request",NETWORK)
+                if mode=="cancel":
+                    self.assertEqual(page.manager.submit.call_count,1)
+                else:
+                    args=dict(review=NETWORK,values=NETWORK["values"])
+                    if mode=="reboot":args["apply"]=True
+                    page.manager.submit.assert_called_with("common_save",**args)
+                if mode=="direct-save":confirm.assert_not_called()
+            self.assertEqual(bool(page.config_actions.progress_dialogs),mode=="reboot")
+            if mode=="reboot":
+                page.manager.manager.ssh._client=None
+                page.manager.manager.ssh.connected=False
+                note="Saved; reconnect at 192.168.11.1"
+                page._completed("saved",dict(saved=True,reboot_requested=True,outcome="reconnect",note=note))
+                self.assertEqual(page.status_label.text(),note)
+                self.assertFalse(page.config_actions.progress_dialogs)
+
+    def test_device_switch_during_lan_reboot_confirmation_never_saves(self):
+        page,_=self.create_page()
+        page.lan_button.click()
+        with patch("modules.main_pages.packet_capture.openwrt.common_config_actions.RouterConfigDialog") as editor,patch(
+                "modules.main_pages.packet_capture.openwrt.common_config_actions.ConfirmDialog") as confirm:
+            editor.return_value.Accepted=1;editor.return_value.exec.return_value=1
+            editor.return_value.values.return_value=NETWORK["values"]
+            editor.return_value.apply_requested=True
+            confirm.return_value.Accepted=1
+            def switched():
+                page.manager.manager.ssh._client=object()
+                return 1
+            confirm.return_value.exec.side_effect=switched
+            page._completed("request",NETWORK)
+        self.assertEqual(page.manager.submit.call_count,1)

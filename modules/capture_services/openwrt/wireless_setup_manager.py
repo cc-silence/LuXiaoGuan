@@ -96,6 +96,7 @@ class WirelessSetupManager:
                             "identity_backup": "没有可用的原身份备份，或备份已损坏。",
                             "identity_duplicate": "MAC 地址与本机其他接口重复，请重新生成。",
                             "identity_changed": "身份配置已被其他工具改动，未覆盖现有配置。",
+                            "identity_shared_settings": "此接口由多条上级共用。修改身份时请保持共用的协议、DNS、区域和桥接参数不变；这些网络参数需统一修改。",
                             "identity_network": "请先恢复原身份并保存，再切换共用网络的桥接方式。",
                             "shared_network": "这条中继共用了局域网或其他无线接口的网络，不能直接改成上级出口；请重新扫描加入独立连接。",
                             "password": "缺少可用密码，请重新输入。",

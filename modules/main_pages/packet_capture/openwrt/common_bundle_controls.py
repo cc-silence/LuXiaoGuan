@@ -32,6 +32,7 @@ class CommonBundleControls(QObject):
         self.service = None
         self.dialog = None
         self.confirmation = None
+        self.export_actions = None
         self._disposed = False
         self._download_speed = 0.0
         row = QHBoxLayout()
@@ -48,6 +49,10 @@ class CommonBundleControls(QObject):
         self.open_button.hide()
         self.open_button.clicked.connect(self._open_location)
         row.addWidget(self.open_button)
+        self.extract_button = create_page_text_button(card, "提取依赖", "按系统、平台、架构提取原名软件包及配套依赖")
+        self.extract_button.setObjectName("captureSecondaryButton")
+        self.extract_button.clicked.connect(self._extract)
+        row.addWidget(self.extract_button)
         row.addWidget(self.label, 1)
         layout.addLayout(row)
         self.status_label = QLabel(card)
@@ -67,6 +72,12 @@ class CommonBundleControls(QObject):
         else:
             self._attach(existing)
         self._sync()
+
+    def _extract(self):
+        if self.export_actions is None:
+            from .bundle_export_actions import BundleExportActions
+            self.export_actions = BundleExportActions(self.card,self.owner,self.spec.kind)
+        self.export_actions.open()
 
     def _open_location(self):
         status = self.service.local_status if self.service is not None else {}
@@ -159,6 +170,7 @@ class CommonBundleControls(QObject):
         phase = self.service.phase if self.service is not None else "idle"
         downloading = phase == "downloading"
         self.button.setEnabled(downloading or (not self.owner.is_busy and phase == "idle"))
+        self.extract_button.setEnabled(not self.owner.is_busy and phase == "idle")
         installed = self.service is not None and self.service.local_status.get("installed")
         self.open_button.setVisible(bool(installed and self.service.local_status.get("path")))
         idle_text = "检测" + self.spec.title + "包更新" if installed else self.idle_text
@@ -189,12 +201,15 @@ class CommonBundleControls(QObject):
     def set_light_theme(self, enabled):
         self.button.set_light_theme(bool(enabled))
         self.open_button.set_light_theme(bool(enabled))
+        self.extract_button.set_light_theme(bool(enabled))
 
     def dispose(self):
         """\u91ca\u653e\u65f6\u53d6\u6d88\u5c1a\u672a\u786e\u8ba4\u7684\u8bf7\u6c42\uff0c\u5df2\u786e\u8ba4\u4e0b\u8f7d\u4ecd\u7531\u5e38\u9a7b\u670d\u52a1\u7ba1\u7406\u3002"""
         if self._disposed:
             return
         self._disposed = True
+        if self.export_actions is not None:
+            self.export_actions.dispose()
         self.owner.activityChanged.disconnect(self._sync)
         if self.service is not None:
             self.service.changed.disconnect(self._sync)

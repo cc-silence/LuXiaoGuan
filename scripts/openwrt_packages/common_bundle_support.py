@@ -19,10 +19,7 @@ TARGETS = (
 from modules.capture_services.openwrt.bundle_specs import COMMON_ROOTS
 ROOTS = tuple(sorted(COMMON_ROOTS))
 # Firmware-owned runtime components are checked on the device, never replaced.
-FIRMWARE_OWNED = {
-    "libc", "libpthread", "librt", "kernel", "base-files", "busybox",
-    "opkg", "apk-mbedtls", "apk-openssl", "apk",
-}
+from modules.capture_services.openwrt.bundle_dependencies import FIRMWARE_OWNED, dependency_name, MissingPackagesError, closure
 SAFE_FILE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.+~%-]*")
 SAFE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9+_.-]*")
 
@@ -102,66 +99,6 @@ def parse_feed(raw, feed, base, apk, sha_map=None):
         row["feed"], row["url"] = feed, base.rstrip("/") + "/" + row["filename"]
     return rows
 
-
-def dependency_name(expr):
-    return re.split(r"[ (<>=~]", expr.strip(), maxsplit=1)[0]
-
-
-class MissingPackagesError(ValueError):
-    """Official indexes do not contain a complete dependency graph."""
-
-    def __init__(self, packages):
-        self.packages = tuple(sorted(packages))
-        super().__init__("Missing required packages: " + ", ".join(self.packages))
-
-
-def closure(rows, roots):
-    """\u6536\u96c6\u5b8c\u6574\u6b63\u5411\u4f9d\u8d56\uff0c\u5e76\u8bb0\u5f55\u5fc5\u987b\u7531\u56fa\u4ef6\u63d0\u4f9b\u7684\u57fa\u7840\u7ec4\u4ef6\u3002"""
-    names, providers = {}, {}
-    for row in rows:
-        names.setdefault(row["name"], row)
-        for expr in row.get("provides", []):
-            name = expr["name"] if isinstance(expr, dict) else dependency_name(expr)
-            providers.setdefault(name, row)
-    selected, required = {}, set()
-    missing = set()
-    def visit(expr):
-        if isinstance(expr, dict):
-            name = expr["name"]
-            # APK_VERSION_CONFLICT = 16: a negative dependency is not installed.
-            if expr.get("match", 0) & 16 or name.startswith("!"):
-                return
-            options = [name]
-        else:
-            options = [dependency_name(part) for part in expr.split("|")]
-            if any(name.startswith("!") for name in options):
-                return
-        name = next((x for x in options if x in names or x in providers or x in FIRMWARE_OWNED),
-                    options[0])
-        if name in FIRMWARE_OWNED:
-            required.add(name)
-            return
-        if name.startswith("kmod-"):
-            raise ValueError("Common tools unexpectedly require kernel module: " + name)
-        row = names.get(name) or providers.get(name)
-        if row is None:
-            missing.add(name)
-            return
-        if row["name"] in selected:
-            return
-        selected[row["name"]] = row
-        if len(selected) > 256:
-            raise ValueError("Dependency closure exceeds limit")
-        for dependency in row["depends"]:
-            visit(dependency)
-    for name in roots:
-        visit(name)
-    if missing:
-        raise MissingPackagesError(missing)
-    for row in selected.values():
-        if not re.fullmatch("[0-9a-f]{64}", row["sha256"]) or row["size"] <= 0:
-            raise ValueError("Missing official size or checksum: " + row["name"])
-    return list(selected.values()), sorted(required)
 
 
 def hash_table(raw):

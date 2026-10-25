@@ -658,35 +658,46 @@ class OpenWrtDependencyManager:
                 size += len(block)
                 digest.update(block)
         digest = digest.hexdigest()
-        remote_tmp = remote_path + ".b64"
+        codec = self._execute(
+            "dependency_push_codec",
+            "if command -v base64 >/dev/null 2>&1; then echo base64; else echo printf; fi",
+            10, cancel_event).strip()
+        use_base64 = codec == "base64"
+        remote_tmp = remote_path + ".b64" if use_base64 else remote_path
         self._execute(
             "dependency_push_init",
-            "rm -f " + quote_argument(remote_tmp) + " " + quote_argument(remote_path),
+            "rm -f " + quote_argument(remote_tmp) + " " + quote_argument(remote_path)
+            + " && : > " + quote_argument(remote_tmp),
             30, cancel_event)
         # Dropbear 的 exec 请求会把整条 shell 命令放进一个 SSH channel request。
         # 48KB 的 base64 参数在部分精简固件上超过服务端接受上限，首片就会被断开；
         # 8KB 留足 shell 转义和请求头余量，牺牲少量轮次换兼容性。
-        step = 6 * 1024  # Base64 expands each full chunk to the existing 8 KiB limit.
+        # POSIX printf is a shell builtin on older OpenWrt without base64.
+        # Five characters per escaped byte keep fallback requests below 8 KiB.
+        step = 6 * 1024 if use_base64 else 1536
         total_parts = max(1, (size + step - 1) // step)
         tell(f"正在命令通道传输 {name}（共 {total_parts} 片）…", "info")
         with path.open("rb") as stream:
             for number, block in enumerate(iter(lambda: stream.read(step), b""), start=1):
                 if cancel_event is not None and cancel_event.is_set():
                     raise SignalError("cancelled", "依赖安装已取消。")
+                encoded = (base64.b64encode(block).decode("ascii") if use_base64 else
+                           "".join("\\0%03o" % value for value in block))
                 self._execute(
                     "dependency_push_part",
-                    "printf '%s' " + quote_argument(base64.b64encode(block).decode("ascii"))
+                    ("printf '%s' " if use_base64 else "printf '%b' ") + quote_argument(encoded)
                     + " >> " + quote_argument(remote_tmp),
                     30, cancel_event)
                 if number == 1 or number == total_parts or number % 10 == 0:
                     tell(f"正在命令通道传输 {name}（{number}/{total_parts} 片）…", "info")
         tell(f"正在合并校验 {name}…", "info")
-        self._execute(
-            "dependency_push_join",
-            "base64 -d " + quote_argument(remote_tmp)
-            + " > " + quote_argument(remote_path)
-            + " && rm -f " + quote_argument(remote_tmp),
-            60, cancel_event)
+        if use_base64:
+            self._execute(
+                "dependency_push_join",
+                "base64 -d " + quote_argument(remote_tmp)
+                + " > " + quote_argument(remote_path)
+                + " && rm -f " + quote_argument(remote_tmp),
+                60, cancel_event)
         out = self._execute(
             "dependency_push_verify",
             "sha256sum " + quote_argument(remote_path),

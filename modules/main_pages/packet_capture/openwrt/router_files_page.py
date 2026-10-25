@@ -154,6 +154,8 @@ class RouterFilesPage(QWidget):
         service.progress.connect(self._progress)
         owner=getattr(service,'owner',None)
         if owner is not None:owner.openwrtSnapshotChanged.connect(self._apply_connection)
+        from .file_dependency_prompt import FileDependencyPrompt
+        self._dependency_prompt=FileDependencyPrompt(self)
         self._apply_connection(None)
 
     def enter(self):
@@ -791,7 +793,7 @@ class RouterFilesPage(QWidget):
                 remote=browse[0]
                 (self.remote_path if remote else self.local_path).setText(self._current_path[remote])
             if not self.service.manager.ssh.connected:self._require_connection()
-            elif browse is not None:MessageDialog("无法打开目录",message,self).exec()
+            elif browse is not None and (not browse[0] or not self._dependency_prompt.handle_failure(message)):MessageDialog("无法打开目录",message,self).exec()
             self._update_controls()
             dialog=self._transfers.pop(key,None)
             if dialog is not None:dialog.finish(False,message)
@@ -821,6 +823,7 @@ class RouterFilesPage(QWidget):
     def dispose(self):
         """释放订阅并取消本页请求，不影响其他任务。"""
         self._cancel()
+        self._dependency_prompt.dispose()
         for signal,slot in ((self.service.completed,self._completed),(self.service.failed,self._failed),(self.service.progress,self._progress)):
             try:signal.disconnect(slot)
             except (TypeError,RuntimeError):pass

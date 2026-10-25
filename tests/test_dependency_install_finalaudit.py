@@ -137,6 +137,7 @@ class CommandUploadMemoryTests(unittest.TestCase):
         sizes=[]
         def execute(name,command,*args):
             sizes.append(len(command))
+            if name=="dependency_push_codec":return "base64"
             if name=="dependency_push_part":
                 transmitted.append(shlex.split(command)[2])
             if name=="dependency_push_verify":

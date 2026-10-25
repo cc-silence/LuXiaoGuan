@@ -162,8 +162,8 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(saved["applied_mac"],row["macaddr"])
         self.assertNotEqual(row["macaddr"],self.d.config["wireless"]["home"].get("macaddr"))
 
-    def test_shared_station_network_is_never_rewritten(self):
-        self.d.config["wireless"]["other"]=dict(self.d.config["wireless"]["station"])
+    def test_shared_network_with_access_point_is_never_rewritten(self):
+        self.d.config["wireless"]["other"]=dict(self.d.config["wireless"]["station"],mode="ap")
         self.d.files["/etc/config/wireless"]=json.dumps(self.d.config["wireless"],sort_keys=True)
         with self.assertRaises(ValueError):build_plan(self.p.read(self.cancel),"station")
         self.assertFalse(self.d.commits)

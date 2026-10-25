@@ -2127,7 +2127,7 @@ class CaptureService(QObject):
         shutdown_event=getattr(self.openwrt_backend,"shutdown_event",None)
         if shutdown_event is not None:
             shutdown_event.set()
-        for attribute in ("common_bundle_download", "capture_bundle_download"):
+        for attribute in ("common_bundle_download", "capture_bundle_download", "common_bundle_export", "capture_bundle_export"):
             bundle = getattr(self, attribute, None)
             if bundle is not None:
                 bundle.cancel()

@@ -79,8 +79,9 @@ class RouterPolicyActions:
             identity=self._identity()
             key=page.manager.submit("policy_read")
             self.pending[key]=("read",kind,identity)
+            self._show_progress(key,kind)
             page.status_label.setText("\u6b63\u5728\u8bfb\u53d6\u8def\u7531\u5668\u771f\u5b9e\u914d\u7f6e\uff0c\u5c1a\u672a\u4fee\u6539\u3002")
-        except Exception as exc:page.status_label.setText(str(exc))
+        except Exception as exc:self._show_error(str(exc))
         page._sync()
 
     def completed(self,key,result):
@@ -93,6 +94,8 @@ class RouterPolicyActions:
         self.modal=True;page._sync()
         try:
             if phase=="apply":
+                if "boot_state" in result and self._current(identity):
+                    page.manager.policy_status=dict(boot_state=result["boot_state"])
                 page.status_label.setText(result["note"])
                 dialog=MessageDialog("\u64cd\u4f5c\u7ed3\u679c",result["note"],page)
                 try:dialog.exec()
@@ -112,6 +115,13 @@ class RouterPolicyActions:
                         if dialog.exec()!=dialog.Accepted:return True
                         options=dialog.values()
                     finally:dialog.deleteLater()
+                elif kind=="ap":
+                    from .ap_batch_dialog import AccessPointBatchDialog
+                    dialog=AccessPointBatchDialog(result,page)
+                    try:
+                        if dialog.exec()!=dialog.Accepted:return True
+                        options=dialog.values()
+                    finally:dialog.deleteLater()
                 elif kind=="boot":
                     state=result.get("boot_state")
                     if state is None:raise RuntimeError("\u5f53\u524d\u7b56\u7565\u672a\u77e5\u6216\u5b58\u5728\u5176\u4ed6\u811a\u672c\u51b2\u7a81\uff0c\u672a\u4fee\u6539\u3002")
@@ -119,24 +129,37 @@ class RouterPolicyActions:
                 if not self._current(identity):return True
                 key=page.manager.submit("policy_preview",kind=kind,options=options)
                 self.pending[key]=("preview",kind,identity)
+                self._show_progress(key,kind)
                 page.status_label.setText("\u6b63\u5728\u6838\u5bf9\u8bbe\u5907\u80fd\u529b\u5e76\u751f\u6210\u9884\u89c8\u3002")
             elif phase=="preview":
                 dialog=PolicyReviewDialog(result,page)
                 try:
                     if dialog.exec()!=dialog.Accepted:return True
+                    backup_requested=dialog.backup_requested
                 finally:dialog.deleteLater()
                 if not self._current(identity):return True
-                picked=page.maintenance_actions._destination(before=True)
-                if picked is None or not self._current(identity):return True
-                path,expected=picked
+                path,expected=None,None
+                if backup_requested:
+                    picked=page.maintenance_actions._destination(before=True)
+                    if picked is None or not self._current(identity):return True
+                    path,expected=picked
                 key=page.manager.submit("policy_apply",review=result,backup_path=path,backup_expected=expected)
                 self.pending[key]=("apply",kind,identity)
-                progress=RouterTaskProgressDialog(TITLES[kind],lambda:page.manager.cancel(key),page)
-                self.dialogs[key]=progress;progress.show()
-                page.status_label.setText("\u6b63\u5728\u5907\u4efd\u5f53\u524d\u914d\u7f6e\uff1b\u6838\u9a8c\u901a\u8fc7\u540e\u6267\u884c\uff0c\u8bf7\u4fdd\u6301\u4f9b\u7535\u3002")
-        except Exception as exc:page.status_label.setText(str(exc))
+                self._show_progress(key,kind)
+                page.status_label.setText("正在备份并应用设置……" if backup_requested else "正在应用设置……")
+        except Exception as exc:self._show_error(str(exc))
         finally:self.modal=False;page._sync()
         return True
+
+    def _show_progress(self,key,kind):
+        progress=RouterTaskProgressDialog(TITLES[kind],lambda:self.page.manager.cancel(key),self.page)
+        self.dialogs[key]=progress;progress.show()
+
+    def _show_error(self,message):
+        self.page.status_label.setText(message)
+        dialog=MessageDialog("未能完成设置",message,self.page)
+        try:dialog.exec()
+        finally:dialog.deleteLater()
 
     def _progress(self,key,value):
         dialog=self.dialogs.get(key)
@@ -149,7 +172,7 @@ class RouterPolicyActions:
     def failed(self,key,message):
         if self.pending.pop(key,None) is None:return False
         self._finish_progress(key)
-        if not self.disposed:self.page.status_label.setText(message);self.page._sync()
+        if not self.disposed:self._show_error(message);self.page._sync()
         return True
 
     def dispose(self):

@@ -46,18 +46,18 @@ class OrphanInterfaceTests(unittest.TestCase):
     def cleanup(self,review=None,selected=None):
         return self.manager.cleanup(review or self.review(),selected or [ORPHAN],self.cancel,Mock())
 
-    def test_preview_is_read_only_and_unknown_wwan_never_selected(self):
+    def test_preview_is_read_only_and_unused_wwan_is_eligible(self):
         before=copy.deepcopy(self.device.files)
         rows={r["section"]:r for r in self.review()["rows"]}
         self.assertTrue(rows[ORPHAN]["eligible"])
-        self.assertFalse(rows["wwan9"]["eligible"])
-        self.assertIn("unowned",rows["wwan9"]["reasons"])
+        self.assertTrue(rows["wwan9"]["eligible"])
+        self.assertEqual(rows["wwan9"]["reasons"],[])
         self.assertEqual(self.device.files,before)
         self.assertFalse(self.device.commits)
         self.assertFalse(self.device.sessions)
         self.assertNotIn("original-password",json.dumps(rows))
-        with self.assertRaises(SignalError):self.cleanup(selected=["wwan9"])
-        self.assertFalse(self.device.commits)
+        self.cleanup(selected=["wwan9"])
+        self.assertNotIn("wwan9",self.device.config["network"])
 
     def test_selected_cleanup_preserves_every_other_configuration_and_never_applies(self):
         before=copy.deepcopy(self.device.config)
@@ -72,13 +72,13 @@ class OrphanInterfaceTests(unittest.TestCase):
         self.assertFalse(self.device.sessions)
         self.assertFalse(any("rouxiaoguan-save" in p for p in self.device.files))
 
-    def test_plain_wwan_is_displayed_but_unknown_ownership_remains_protected(self):
+    def test_plain_wwan_is_eligible_when_unreferenced_and_inactive(self):
         self.device.config["network"]["wwan"]={".type":"interface","proto":"dhcp"}
         self.device.sync_files()
         rows={r["section"]:r for r in self.review()["rows"]}
         self.assertIn("wwan",rows)
-        self.assertFalse(rows["wwan"]["eligible"])
-        self.assertIn("unowned",rows["wwan"]["reasons"])
+        self.assertTrue(rows["wwan"]["eligible"])
+        self.assertEqual(rows["wwan"]["reasons"],[])
 
     def test_empty_runtime_device_fields_do_not_mean_active_but_real_devices_do(self):
         self.device.interface_states=[{"interface":ORPHAN,"up":False,"pending":False,"device":"","l3_device":""}]
@@ -128,6 +128,23 @@ class OrphanInterfaceTests(unittest.TestCase):
         row=next(r for r in self.review()["rows"] if r["section"]==ORPHAN)
         self.assertFalse(row["eligible"])
         self.assertIn("runtime_unknown",row["reasons"])
+
+    def test_wwan10_to_14_are_selectable_but_referenced_or_active_rows_are_not(self):
+        for i in range(15):
+            section="wwan" if i==0 else "wwan"+str(i)
+            self.device.config["network"][section]={".type":"interface","proto":"dhcp"}
+            if i<10:self.device.config["wireless"]["old"+str(i)]={".type":"wifi-iface","network":section}
+        self.device.interface_states=[{"interface":"wwan4","up":True,"pending":False,"device":"wlan0"}]
+        self.device.sync_files()
+        review=self.review();rows={row["section"]:row for row in review["rows"]}
+        for i in range(15):
+            section="wwan" if i==0 else "wwan"+str(i)
+            self.assertEqual(rows[section]["eligible"],i>=10,rows[section])
+        selected=["wwan"+str(i) for i in range(10,15)]
+        self.cleanup(review,selected)
+        for section in selected:self.assertNotIn(section,self.device.config["network"])
+        self.assertIn("wwan4",self.device.config["network"])
+        self.assertNotIn(("uci","apply"),self.device.calls)
 
     def test_partial_commit_failure_rolls_back_and_fingerprint_change_blocks(self):
         review=self.review()

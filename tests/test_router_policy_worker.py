@@ -91,3 +91,46 @@ class PolicyWorkerTests(unittest.TestCase):
             self.assertEqual(done.count(),3);self.assertFalse(owner._openwrt_workers)
             self.assertFalse(owner.task_controller.busy);self.assertIsNone(service.current)
         finally:owner.deleteLater()
+
+    def test_boot_toggle_survives_modal_confirmation_and_releases_threads(self):
+        from PySide6.QtCore import QCoreApplication,QEvent
+        from PySide6.QtWidgets import QDialog
+        from shiboken6 import isValid
+        owner,service,ssh,runner=self.fixture()
+        done=QSignalSpy(service.completed);failed=QSignalSpy(service.failed);phases=[];errors=[];threads=[]
+        class Confirmation(QObject):ready=Signal()
+        confirmation=Confirmation()
+        def completed(key,result):
+            phases.append(result["phase"])
+            thread=owner._openwrt_workers[key][0]
+            threads.append(thread)
+            try:
+                if result["phase"]=="preview":
+                    dialog=QDialog()
+                    def confirm():
+                        QCoreApplication.sendPostedEvents(None,QEvent.DeferredDelete)
+                        dialog.accept()
+                    confirmation.ready.connect(confirm,Qt.QueuedConnection)
+                    confirmation.ready.emit()
+                    dialog.exec()
+                    confirmation.ready.disconnect(confirm)
+                    self.assertTrue(isValid(thread),"publishing thread deleted inside confirmation")
+                    service.submit("policy_apply",review={},backup_path=None)
+                    dialog.deleteLater()
+                elif result["phase"]=="read":
+                    service.submit("policy_preview",kind="boot",options={"enabled":False})
+            except Exception as exc:errors.append(str(exc))
+        service.completed.connect(completed)
+        with patch("modules.capture_services.openwrt.router_policy.RouterPolicyManager") as manager:
+            manager.return_value.read.return_value=dict(phase="read",boot_state=True)
+            manager.return_value.preview.return_value=dict(phase="preview")
+            manager.return_value.apply.return_value=dict(phase="apply",boot_state=False)
+            service.submit("policy_read");wait_for(done,3 if not errors else 2)
+        try:
+            self.assertFalse(errors,errors)
+            self.assertEqual(phases,["read","preview","apply"],str([failed.at(i) for i in range(failed.count())])+str(service.current)+str(list(service.queue)))
+            self.assertFalse(owner._openwrt_workers)
+            self.assertFalse(owner.task_controller.busy)
+            QCoreApplication.sendPostedEvents(None,QEvent.DeferredDelete)
+            self.assertTrue(all(not isValid(thread) for thread in threads))
+        finally:owner.deleteLater()

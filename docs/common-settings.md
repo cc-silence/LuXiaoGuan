@@ -5,7 +5,7 @@ The Common Settings tab follows Router Login. It is created on demand; opening i
 ## Device behavior
 
 - Password: administrator access and BusyBox passwd are required. Two password lines travel through encrypted SSH stdin, never command arguments or application logs. A separate password-only login checks the pinned host fingerprint. The existing session stays connected. Confirmed changes update the current in-memory password and the user's existing Windows credential preference. An unconfirmed result is shown explicitly.
-- LAN: reads and writes only the existing network.lan section. Saves without a network reload. A later network/router restart is required. The confirmation explains management-address changes and that DHCP address-pool settings are not edited. Existing legacy type/ifname bindings are preserved; changing that legacy binding requires the router web interface.
+- LAN: reads and writes only the existing network.lan section. Offers Save and Apply (confirm, verify the saved configuration, then request one reboot) and Save Only (no network reload; apply on a later manual restart). The confirmation explains management-address changes and that DHCP address-pool settings are not edited. Existing legacy type/ifname bindings are preserved; changing that legacy binding requires the router web interface.
 - Hostname/timezone: requires one unambiguous system section. Saves only that configuration, reloads the system service, and checks the runtime hostname and timezone file/link. This does not rename SSIDs.
 - Timezone picker preserves the current rule and offers Beijing, UTC, and whole-hour fixed offsets. Fixed offsets do not implement daylight-saving transitions.
 - Both configuration editors use an isolated rpcd UCI session, file-hash conflict detection, unique backups, readback verification, and conditional recovery. Pending edits in the target configuration block saving.
@@ -64,7 +64,7 @@ Tests are offline archive/command-adapter checks and UI renders. No live router 
 | 重启 | 临时断网并断开登录，启动后重新登录；不清空配置 |
 | 恢复配置、恢复出厂 | 重启并断线；管理地址、密码和 Wi-Fi 可能改变，最终确认正文明确说明 |
 | 搬家清理 | 移除旧 Wi-Fi 并更换网络身份，可能断开登录和上网；预览后最终确认明确说明 |
-| LAN 修改 | 本次只保存，不主动重载；之后重启或重载网络时可能断线，需要记住新管理地址 |
+| LAN 修改 | 可选保存并应用（确认后保存、校验并重启）或仅保存（之后手动重启）；需要记住新管理地址 |
 | 登录密码 | 当前 SSH 通常保留；网页可能要求重新登录，下次登录使用新密码；提交前再确认 |
 | 遗留接口清理 | 本次只保存，不重载；以后重载时所删接口不再可用，最终确认提示可能影响依赖连接 |
 | 主机名与时区 | 使用 system reload，不重启网络，通常不影响登录 |
@@ -93,3 +93,12 @@ See [common-settings-security-audit.md](common-settings-security-audit.md) for n
 - 搬家详情改为 7 项实际操作清单，初始设置详情改为 17 项可选操作；初始化编辑页只显示选项和输入，不再逐项显示说明段落或恢复确认勾选。最终执行预览仍显示实际变更与连接影响。
 - 开机自动连接上级 Wi-Fi 不再显示详情按钮；遗留接口检查移至最后。三个卡片一行、按钮底部对齐保持不变。
 - 本次定向回归 31 项通过，包含设备时区读取、夏令时、未知时区保留、随机输入不直接保存、取消及明暗主题/缩放。未连接真实路由器改配置。
+
+
+## Initial confirmation and editable AP batch identities (2026-10-25)
+
+The initial policy editor starts with an unchecked confirmation that the router is in the initial state of its current OpenWrt firmware. Continue and programmatic acceptance are blocked until checked. Each new dialog requires a fresh confirmation; this is a user declaration, not an automatic factory-state detector or reset operation.
+
+The AP batch workflow now opens an editor after reading the current device. Every saved AP (including disabled APs) is listed by its old SSID and section, with editable new SSID and MAC. Each row has a random action for both values; the global action regenerates every row. Generation is local, bounded, and avoids known configured/device MAC addresses and generated name collisions. Manually identical SSIDs remain allowed for intentional roaming configurations. Input validation rejects invalid unicast MACs, conflicting addresses, control characters, SSIDs outside 1-32 UTF-8 bytes, and missing/duplicate/foreign sections. Preview rebuilds the plan from the freshly read configuration; existing connection checks and transaction hashes still guard execution. Passwords, frequency, network links, and enabled states remain unchanged.
+
+Validation: 53 existing policy/identity tests and 9 new editor/transaction tests passed. Both themes at 100% and 150% were rendered and inspected. New/legacy UCI fixture transactions preserved unrelated fields. Official mac80211 scripts from 19.07.10, 21.02.1, 22.03.7, 23.05.5, 24.10.0 and 25.12.0 were fetched with normal TLS verification and checked for the existing ssid/macaddr options; source URLs and hashes are recorded under build/ap-batch-editor-20261025/official-wireless-contracts.json. The public option reference is https://openwrt.org/docs/guide-user/network/wifi/basic . No new router-side command or dependency was introduced. Driver acceptance of a chosen AP MAC still requires live-device verification; local tests do not certify hardware behavior.

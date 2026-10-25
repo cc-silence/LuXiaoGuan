@@ -65,7 +65,7 @@ class OrphanUiTests(unittest.TestCase):
         review=OrphanInterfaceManager(WirelessSetupManager(OrphanDevice())).preview(threading.Event())
         return page,service,setup,review
 
-    def test_review_default_no_selection_and_unknown_owner_cannot_be_checked(self):
+    def test_review_defaults_unselected_but_unused_unknown_owner_is_checkable(self):
         page,_,_,review=self.setup_page()
         dialog=OrphanReviewDialog(review,page);self.addCleanup(dialog.deleteLater)
         self.assertEqual(dialog.selected(),[])
@@ -74,7 +74,7 @@ class OrphanUiTests(unittest.TestCase):
             item=dialog.tree.topLevelItem(i)
             if item.text(0)==ORPHAN:
                 item.setCheckState(0,Qt.Checked)
-            else:self.assertFalse(item.flags()&Qt.ItemIsUserCheckable)
+            else:self.assertTrue(item.flags()&Qt.ItemIsUserCheckable)
         self.assertEqual(dialog.selected(),[ORPHAN])
         self.assertTrue(dialog.clean_button.isEnabled())
 

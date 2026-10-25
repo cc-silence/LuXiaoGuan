@@ -157,10 +157,13 @@ local function stage()
   if op.action=="order" then
    if op.config~="firewall" or type(op.sections)~="table" or #op.sections>1024 then fail("values") end
    rpc("uci","order",{ubus_rpc_session=sid(),config="firewall",sections=op.sections})
+  elseif op.action=="identity_group" then
+   if op.config~="network" then fail("values") end
+   stage_identity_group(c,op.section,op.members,op.hostname)
   elseif op.action=="identity" then
    if op.config~="wireless" then fail("values") end
    local old=c:get_all("wireless",op.section)
-   if not old or old.mode~="sta" or old.rm_bridge or old.rm_wds_backup then fail("shared") end
+   identity_station_network(c,old,op.section,op.network,true)
    stage_identity(c,old,op.section,op.network,op.values,false)
   elseif op.action=="delete_section" then
    local old=c:get_all(op.config,op.section)

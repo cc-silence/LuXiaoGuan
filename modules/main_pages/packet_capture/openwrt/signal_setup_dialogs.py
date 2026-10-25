@@ -10,6 +10,7 @@ from modules.dialog_theme import build_base_stylesheet, detect_light_theme
 from modules.settings_pages.settings_widgets import create_dialog_ok_cancel_buttons
 from modules.ui_scale_manager import UiScaleManager
 from .signal_identity_fields import IdentityFields
+from .random_name_input import RandomNameInput
 from .signal_setup_forms import PasswordInput, SettingsTabs, add_field, choice, hint, text_input
 
 
@@ -125,8 +126,9 @@ class AccessPointSetupDialog(_SetupDialog):
         if self.summary is not None:
             self.form.addWidget(self.summary)
         group, layout = self._basic("Wi-Fi \u540d\u79f0\u4e0e\u5bc6\u7801" if editing else "")
-        self.name_edit = text_input(group, row.ssid if editing else "", "输入手机和电脑搜索到的 Wi-Fi 名称")
-        add_field(layout, group, "信号名称", self.name_edit, "最多 32 字节，约 10 个汉字或 32 个英文字母。")
+        self.name_input = RandomNameInput(group, row.ssid if editing else "", "输入手机和电脑搜索到的 Wi-Fi 名称")
+        self.name_edit = self.name_input.edit
+        add_field(layout, group, "信号名称", self.name_input, "最多 32 字节，约 10 个汉字或 32 个英文字母。")
         self.password = PasswordInput(group, "留空保留原密码" if editing else "至少 8 位，建议使用字母和数字")
         self.password_fields.append(self.password)
         add_field(layout, group, "连接密码", self.password, "编辑时自动读取已保存的密码，默认隐藏，点眼睛可查看。")

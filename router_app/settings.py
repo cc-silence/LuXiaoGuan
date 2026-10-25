@@ -122,23 +122,21 @@ class RouterSettings(FramelessDialog):
             return
         self.owner.runtime.config = config
         self.owner.apply_appearance(scale, family, self.owner.theme_name)
-        self.scale_manager = self.owner.scale_manager
-        self.scale_manager.publish(self)
-        apply_common_dialog_theme(self, self.owner)
-        self.scale_manager.apply_bound_metrics(self)
-        self.sync_embedded_style()
+        self.sync_appearance()
 
-    def sync_embedded_style(self):
-        """\u540c\u6b65\u5b9e\u9645\u5185\u5d4c\u6846\u7684\u4e3b\u9898\u548c\u7f29\u653e\uff0c\u76f8\u540c\u6837\u5f0f\u4e0d\u91cd\u590d\u5237\u65b0\u3002"""
-        frame=getattr(self,"_embedded_frame",None)
-        if frame is None:return
+    def sync_appearance(self):
+        """Synchronize the dialog through the existing shared theme and metrics."""
+        key=(self.owner.scale_manager.global_scale,self.owner.scale_manager.font_family,self.owner.theme_name)
+        if getattr(self,"_appearance_key",None)==key:return
+        self.scale_manager=self.owner.scale_manager
+        self.scale_manager.publish(self)
+        self.scale_manager.apply_bound_metrics(self)
         self.nav_panel.set_light_theme(self.owner.theme_name == "light.qss")
         from modules.dialog_theme import build_base_stylesheet
-        self.scale_manager=self.owner.scale_manager
         style=build_base_stylesheet(self.owner.config_manager,self.owner.theme_name=="light.qss",self.owner.theme_name,self.scale_manager)
-        if getattr(frame,"_winbox_dialog_stylesheet",None)!=style:
-            frame._winbox_dialog_stylesheet=style
-            frame.setStyleSheet(style)
+        if self.styleSheet()!=style:
+            self.setStyleSheet(style)
+        self._appearance_key=key
 
     def done(self, result):
         """Flush an active proxy edit before leaving; saved settings never roll back."""
