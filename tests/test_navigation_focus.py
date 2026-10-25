@@ -22,7 +22,7 @@ class NavigationFocusTests(unittest.TestCase):
     def assert_no_focus_frame(self,button):
         self.assertIsInstance(button,NavigationButton)
         self.assertNotEqual(button.focusPolicy(),Qt.NoFocus)
-        self.window.activateWindow()
+        button.window().activateWindow()
         button.setFocus(Qt.TabFocusReason)
         APP.processEvents()
         self.assertTrue(button.hasFocus())
