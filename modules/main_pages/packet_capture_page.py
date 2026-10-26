@@ -76,6 +76,9 @@ class PacketCapturePage(QFrame):
         self.file_info_panel = self._create_info_panel(
             saved_font_delta, "\u6587\u4ef6\u7ba1\u7406\u548c\u4f20\u8f93\u4fe1\u606f", "", log_category="\u6587\u4ef6\u7ba1\u7406",
         )
+        self.common_info_panel = self._create_info_panel(
+            saved_font_delta, "\u5e38\u7528\u8bbe\u7f6e\u64cd\u4f5c\u4fe1\u606f", "", log_category="\u5e38\u7528\u8bbe\u7f6e",
+        )
         self.openwrt_tab = OpenWrtPage(
             self.capture_service,
             self.settings["openwrt"],
@@ -84,6 +87,7 @@ class PacketCapturePage(QFrame):
             self,
             signal_info_panel=self.signal_info_panel,
             file_info_panel=self.file_info_panel,
+            common_info_panel=self.common_info_panel,
         )
         self.root_layout.addWidget(self.openwrt_tab, 1)
         self.openwrt_tab.settingsChanged.connect(self._save_openwrt_settings)
@@ -113,7 +117,7 @@ class PacketCapturePage(QFrame):
         self.capture_service.settingsMessageGenerated.connect(
             self.settings_info_panel.append_info
         )
-        self.info_panels = (self.info_panel, self.settings_info_panel, self.signal_info_panel, self.file_info_panel)
+        self.info_panels = (self.info_panel, self.settings_info_panel, self.signal_info_panel, self.file_info_panel, self.common_info_panel)
         for panel in self.info_panels:
             panel.fontDeltaChanged.connect(self._sync_info_font_delta)
         self.style_mgr.set_light_theme(self.light_theme)

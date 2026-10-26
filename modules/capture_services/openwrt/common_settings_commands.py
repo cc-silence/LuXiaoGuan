@@ -75,7 +75,9 @@ local function common_stage()
  if before.token~=review.token or before.section~=review.section then fail("changed") end
  if req.config=="network" and req.values.device and not before.values.device then fail("common_legacy") end
  for key,value in pairs(req.values) do
-  if value=="" or (type(value)=="table" and #value==0) then remove(req.config,review.section,key)
+  if value=="" or (type(value)=="table" and #value==0) then
+   -- Clearing an absent optional field is already satisfied, not a delete failure.
+   if before.values[key]~=nil then remove(req.config,review.section,key) end
   else set(req.config,review.section,{[key]=value}) end
  end
  if pending_hash("/etc/config/"..req.config)~=review.token then fail("changed") end

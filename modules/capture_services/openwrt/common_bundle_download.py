@@ -10,6 +10,7 @@ import tempfile
 import time
 import zipfile
 from pathlib import Path
+from .bundle_storage_lock import locked_bundle
 from .bundle_specs import bundle_spec
 from .common_bundle_manifest import GATEWAY, MAX_CATALOG, verify_bundle_manifest, sha256_file
 from .common_bundle_repository import bundle_root, safe_path, validate_catalog
@@ -100,6 +101,7 @@ def _receive(url, target, limit, cancel, progress, deadline, channels=None, head
         raise RuntimeError("\u79bb\u7ebf\u5305\u4e0b\u8f7d\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u7535\u8111\u7f51\u7edc\u6216\u4ee3\u7406\u3002" + last)
 
 
+@locked_bundle
 def prepare_archive(archive, raw_manifest, root, cancel, stage=lambda *_:None, public_key=None, kind="common"):
     """\u6821\u9a8c\u5e76\u5c55\u5f00\u53ea\u8bfb\u8d44\u6e90\uff0c\u5168\u90e8\u6210\u529f\u624d\u539f\u5b50\u5207\u6362\u5f53\u524d\u7248\u672c\u3002"""
     options = {"public_key": public_key} if public_key else {}
@@ -109,7 +111,8 @@ def prepare_archive(archive, raw_manifest, root, cancel, stage=lambda *_:None, p
     _cancelled(cancel)
     if archive.stat().st_size != payload["size"] or sha256_file(archive, cancel) != payload["sha256"]:
         raise ValueError("\u4e0b\u8f7d\u7684\u79bb\u7ebf\u5305\u6307\u7eb9\u4e0d\u5339\u914d\u3002")
-    version = safe_path(root, "versions/" + payload["sha256"])
+    from .bundle_layout import reserve_version
+    version = reserve_version(root, payload["sha256"], kind, payload=payload)
     version.mkdir(parents=True, exist_ok=True)
     stage("\u6b63\u5728\u6821\u9a8c\u5e76\u51c6\u5907\u79bb\u7ebf\u4f9d\u8d56\u2026", "info")
     with zipfile.ZipFile(archive) as z:
@@ -164,7 +167,9 @@ def prepare_archive(archive, raw_manifest, root, cancel, stage=lambda *_:None, p
     temporary.write_bytes(raw_manifest)
     _cancelled(cancel)
     os.replace(temporary, receipt)
-    return dict(path=str(root), archive=str(archive), profiles=len(catalog["profiles"]), sha256=payload["sha256"], payload=payload)
+    from .bundle_version_cleanup import retire_old_bundles
+    cleanup = retire_old_bundles(root, payload, raw_manifest, cancel, stage, kind)
+    return dict(cleanup=cleanup, directory=version.name, content_path=str(version), path=str(root), archive=str(archive), profiles=len(catalog["profiles"]), sha256=payload["sha256"], payload=payload)
 
 
 def inspect_bundle(cancel, progress, stage, channels=None, kind="common"):
@@ -180,6 +185,7 @@ def inspect_bundle(cancel, progress, stage, channels=None, kind="common"):
     return dict(manifest=raw, payload=payload, local_status=local, comparison=compare_bundle(local, payload))
 
 
+@locked_bundle
 def download_bundle(cancel, progress, stage, root=None, channels=None, kind="common", manifest=None):
     """\u4e0b\u8f7d\u7b7e\u540d\u6e05\u5355\u548c ZIP\uff0c\u51c6\u5907\u6210\u529f\u540e\u624d\u542f\u7528\u65b0\u8d44\u6e90\u3002"""
     root = Path(root) if root is not None else bundle_root(kind)

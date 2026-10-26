@@ -1,5 +1,7 @@
 """Common dependency installation from a verified PC-local repository."""
 import tempfile
+from contextlib import ExitStack
+from .bundle_storage_lock import bundle_lock
 from pathlib import Path
 from .bundle_specs import COMMON_ROOTS, CAPTURE_ROOTS, bundle_spec
 from .common_bundle_repository import CommonBundleRepository
@@ -24,21 +26,39 @@ def install_from_local(manager, wanted, device, cache_dir, sftp_available, cance
     if repository is not None and repository.kind != kind:
         return False
     from .signal_manager import SignalError
+    resources = ExitStack()
+    def retain(repo):
+        resources.enter_context(bundle_lock(repo.root))
+        return repo
     try:
-        repository = repository or CommonBundleRepository(kind=kind)
+        if cancel is not None and cancel.is_set():
+            raise InterruptedError("Local bundle matching cancelled")
+        repository = retain(repository or CommonBundleRepository(kind=kind))
         profile = repository.profile(device)
-        from .snapshot_bundle import is_snapshot, candidate_profiles, select_profile
+        from .snapshot_bundle import is_snapshot, candidate_profiles, select_profile, SnapshotBundleMismatch
         installed = None
         compare = lambda a, op, b: compare_opkg_versions(manager.command_runner, a, op, b, cancel)
         if is_snapshot(device):
             if not candidate_profiles(repository, device) and kind == "common" and set(wanted).issubset(CAPTURE_ROOTS):
-                repository = CommonBundleRepository(kind="capture")
+                repository = retain(CommonBundleRepository(kind="capture"))
+            if not candidate_profiles(repository, device):
+                identity = " / ".join(str(getattr(device, key, "")) for key in
+                                      ("distribution", "version", "target", "package_architecture", "package_manager"))
+                reason = ("官方离线包不用于非官方固件" if getattr(device, "distribution", "") != "OpenWrt"
+                          else "未找到同系列、同平台和架构的候选包")
+                tell("本地离线包未匹配当前设备：" + identity + "。" + reason +
+                     "；继续尝试路由器自身的软件源。", "info")
+                return False
             text = manager._execute_stage("dependency_list_installed", "opkg list-installed",
                                           30, cancel, "\u8bfb\u53d6\u5df2\u88c5\u8f6f\u4ef6\u5305")
             installed = parse_installed(text)
-            profile = select_profile(repository, device, wanted, installed, compare, cancel, tell)
+            try:
+                profile = select_profile(repository, device, wanted, installed, compare, cancel, tell)
+            except SnapshotBundleMismatch as exc:
+                tell(str(exc) + "继续尝试路由器自身的软件源。", "info")
+                return False
         if profile is None and kind == "common" and set(wanted).issubset(CAPTURE_ROOTS):
-            repository = CommonBundleRepository(kind="capture")
+            repository = retain(CommonBundleRepository(kind="capture"))
             profile = repository.profile(device)
         if profile is None:
             tell("本地离线包未匹配当前设备：" +
@@ -84,3 +104,5 @@ def install_from_local(manager, wanted, device, cache_dir, sftp_available, cance
         raise SignalError("cancelled", str(exc)) from None
     except (ValueError, OSError) as exc:
         raise SignalError("environment", "\u672c\u5730\u79bb\u7ebf\u4f9d\u8d56\u65e0\u6cd5\u4f7f\u7528\uff1a" + str(exc)) from None
+    finally:
+        resources.close()

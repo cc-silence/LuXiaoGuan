@@ -28,6 +28,12 @@ class RouterPasswordDialog(FramelessDialog):
         self.button_layout.addWidget(cancel)
         self.save_button.clicked.connect(self._validate)
         cancel.clicked.connect(self.reject)
+        # Keep data entry consecutive; accessory buttons remain keyboard reachable.
+        order = (self.new_password.edit, self.confirm_password.edit,
+                 self.new_password.toggle, self.confirm_password.toggle, self.save_button, cancel)
+        for first, second in zip(order, order[1:]):
+            self.setTabOrder(first, second)
+
 
     def _validate(self):
         password = self.new_password.submitted_text()

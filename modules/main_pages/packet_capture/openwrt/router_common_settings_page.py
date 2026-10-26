@@ -1,5 +1,5 @@
 """Common router maintenance cards; constructors perform no remote work."""
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QEvent
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QGridLayout, QLabel, QFrame
 from modules.common_widgets.bounce_scroll_area import BounceScrollArea
 from modules.main_pages.packet_capture.ui_helpers import create_capture_card
@@ -10,8 +10,9 @@ from modules.capture_services.openwrt.router_password import PasswordChange
 
 
 class RouterCommonSettingsPage(QWidget):
-    def __init__(self, capture_service, connection_settings, parent=None):
+    def __init__(self, capture_service, connection_settings, parent=None, info_panel=None):
         super().__init__(parent)
+        self.info_panel = info_panel
         self.capture_service = capture_service
         self.service = capture_service.router_signals
         self.manager = capture_service.router_management
@@ -104,8 +105,15 @@ class RouterCommonSettingsPage(QWidget):
         self.relocation_actions = RelocationActions(self, self.relocation_container)
         self.orphan_actions = OrphanInterfaceActions(self, self.orphan_container)
         self.policy_actions.add_details(self.relocation_card, self.relocation_container.layout(), "relocation")
+        self._card_columns = 3
+        scroll.viewport().installEventFilter(self)
         scroll.setWidget(body)
-        root.addWidget(scroll, 1)
+        if info_panel is not None:
+            from modules.common_widgets.info_panel_dock import InfoPanelDock
+            self.info_dock = InfoPanelDock(scroll, info_panel, Qt.Horizontal, self)
+            root.addWidget(self.info_dock, 1)
+        else:
+            root.addWidget(scroll, 1)
         self.backup_button.clicked.connect(lambda: self.maintenance_actions.start("backup"))
         self.restore_button.clicked.connect(lambda: self.maintenance_actions.start("restore"))
         self.reset_button.clicked.connect(lambda: self.maintenance_actions.start("reset"))
@@ -120,8 +128,46 @@ class RouterCommonSettingsPage(QWidget):
         self.service.messageGenerated.connect(self._message)
         self._sync()
 
-    def _message(self, text, level):
+    def eventFilter(self, watched, event):
+        if watched is self.scroll.viewport() and event.type() in (QEvent.Resize, QEvent.FontChange):
+            self._layout_cards()
+        return super().eventFilter(watched, event)
+
+    def _layout_cards(self):
+        layout = self.cards_layout
+        margins = layout.contentsMargins()
+        width = self.scroll.viewport().width() - margins.left() - margins.right()
+        spacing = max(0, layout.horizontalSpacing())
+        minimum = max(UiScaleManager.for_widget(self).px(280),
+                      max(card.minimumSizeHint().width() for card in self.cards))
+        columns = max(1, min(3, (width + spacing) // (minimum + spacing)))
+        if columns == self._card_columns:
+            return
+        for row in range(layout.rowCount()):
+            layout.setRowStretch(row, 0)
+        for column in range(3):
+            layout.setColumnStretch(column, 1 if column < columns else 0)
+        for card in self.cards:
+            layout.removeWidget(card)
+        for index, card in enumerate(self.cards):
+            layout.addWidget(card, index // columns, index % columns)
+        layout.setRowStretch((len(self.cards) + columns - 1) // columns, 1)
+        self._card_columns = columns
+
+    def _message(self, text, level="info"):
         self.status_label.setText(text)
+        if self.info_panel is not None:
+            self.info_panel.append_info(text, level)
+
+    def _password_error(self, text):
+        from modules.common_widgets.common_dialogs import MessageDialog
+        self._message(text, "error")
+        display = self.info_panel.display_text(text) if self.info_panel is not None else text
+        dialog = MessageDialog("修改密码未完成", display, self)
+        try:
+            dialog.exec()
+        finally:
+            dialog.deleteLater()
 
     def _sync(self, *_):
         ssh = self.manager.manager.ssh
@@ -165,12 +211,12 @@ class RouterCommonSettingsPage(QWidget):
         except Exception as exc:
             if request is not None:
                 request.clear()
-            self.status_label.setText(str(exc))
+            self._password_error(str(exc))
             return
         finally:
             dialog.clear()
             dialog.deleteLater()
-        self.status_label.setText("正在修改登录密码，请等待结果。")
+        self._message("正在修改登录密码，请等待结果。")
         self._sync()
 
     def _completed(self, key, result):
@@ -183,7 +229,7 @@ class RouterCommonSettingsPage(QWidget):
         if key != self._password_key:
             return
         self._password_key = None
-        self.status_label.setText(result["note"])
+        self._message(result["note"], "success" if result.get("verified") else "warning")
         self._sync()
 
     def _failed(self, key, message):
@@ -196,8 +242,8 @@ class RouterCommonSettingsPage(QWidget):
         if key != self._password_key:
             return
         self._password_key = None
-        self.status_label.setText(message)
         self._sync()
+        self._password_error(message)
 
     def dispose(self):
         self.policy_actions.dispose()

@@ -129,6 +129,7 @@ class RouterSignalPage(QWidget):
         self.rows_layout = QVBoxLayout(self.content)
         scale.bind_layout(self.rows_layout, margins=(10, 8, 10, 14), spacing=4)
         self.setup_panels = SignalSetupPanels(self)
+        left_layout.addWidget(self.setup_panels.component_toolbar)
         from .signal_pending_actions import PendingConfigActions
         self.pending_actions = PendingConfigActions(self)
         self.page_scrolls = []
@@ -171,6 +172,7 @@ class RouterSignalPage(QWidget):
     def _navigation_changed(self, index):
         self.navigation_buttons[index].setChecked(True)
         self.inventory_toolbar.setVisible(index == 0)
+        self.setup_panels.apply_snapshot(self.service.snapshot)
 
     def _on_refresh(self):
         """主线程申请只读刷新；未登录先弹窗指引去登录，不断按钮。

@@ -12,6 +12,7 @@ from unittest.mock import Mock,patch
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from tests.test_common_offline_bundle import fixture,canonical
+from modules.capture_services.openwrt.bundle_layout import version_path
 from modules.capture_services.openwrt.common_bundle_download import prepare_archive
 from modules.capture_services.openwrt.bundle_export import list_export_profiles,export_packages,ExportGuard
 
@@ -93,7 +94,7 @@ class ExportTests(unittest.TestCase):
             event=Event()
             if corrupt:
                 row=next(row for row in profile["packages"] if row["name"] in wanted)
-                (root/"versions"/selection["revision"]/row["blob"]).write_bytes(b"bad")
+                (version_path(root,selection["revision"])/row["blob"]).write_bytes(b"bad")
             def report(value):
                 if not corrupt and value.get("total",0)>0:event.set()
             with self.assertRaises((ValueError,InterruptedError)):
@@ -130,7 +131,7 @@ class ExportTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             list_export_profiles("common",Event(),root=self.folder/"absent")
         root,public,selection,_,_=prepared(self.folder/"valid")
-        (root/"versions"/selection["revision"]/"catalog.json").write_bytes(b"{}")
+        (version_path(root,selection["revision"])/"catalog.json").write_bytes(b"{}")
         with self.assertRaises(ValueError):
             list_export_profiles("common",Event(),root=root,public_key=public)
         with self.assertRaises(TimeoutError):ExportGuard(Event(),seconds=-1).check()

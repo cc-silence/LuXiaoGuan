@@ -246,7 +246,10 @@ class RouterManagementService(QObject):
             self.policyStatusChanged.emit(None)
         observer=getattr(self.owner,"router_connection_state",None)
         if observer is not None:observer.reconcile()
-        self.owner.settingsMessageGenerated.emit(("本机文件操作未完成：" if self.current[1].startswith("local_") else "路由器管理操作未完成：")+summary, "error")
+        # Common-settings failures are presented by the page owning the request key.
+        action = self.current[1]
+        if action not in {"password_change", "common_read", "common_save", "policy_read", "policy_preview", "policy_apply"} and not action.startswith("maintenance_"):
+            self.owner.settingsMessageGenerated.emit(("本机文件操作未完成：" if self.current[1].startswith("local_") else "路由器管理操作未完成：")+summary, "error")
         self._finish(True)
         self.failed.emit(key, summary)
 

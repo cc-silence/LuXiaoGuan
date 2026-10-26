@@ -27,6 +27,68 @@ class CommonSettingsUiTests(unittest.TestCase):
             page._completed("request",SYSTEM)
         self.assertTrue(page.system_button.isEnabled())
 
+    def test_common_info_keeps_operation_history_and_password_failure_popup(self):
+        page,_=self.create_page(with_info=True)
+        page._password_key="password-request"
+        with patch("modules.common_widgets.common_dialogs.MessageDialog") as dialog:
+            page._failed("other-request","unrelated")
+            dialog.assert_not_called()
+            page._failed("password-request","Password tool missing")
+            dialog.return_value.exec.assert_called_once()
+        self.assertIn("Password tool missing",page.info_panel.info_box.toPlainText())
+        self.assertIsNone(page._password_key)
+        self.assertTrue(page.password_button.isEnabled())
+        page.system_button.click()
+        self.assertIn(page.status_label.text(),page.info_panel.info_box.toPlainText())
+        page.info_dock.set_collapsed(True)
+        page.info_dock.set_collapsed(False)
+        self.assertIn("Password tool missing",page.info_panel.info_box.toPlainText())
+
+    def test_common_information_dock_renders_both_themes(self):
+        output=Path("build/common-settings-review");output.mkdir(parents=True,exist_ok=True)
+        for light in (False,True):
+            page,_=self.create_page(light,with_info=True)
+            page._message("Common settings operation completed","success")
+            APP.processEvents()
+            from PySide6.QtCore import Qt
+            self.assertEqual(page.info_dock.orientation,Qt.Horizontal)
+            self.assertAlmostEqual(page.info_dock._expanded_ratio,240/840)
+            self.assertTrue(page.info_panel.isVisible())
+            self.assertGreater(page.scroll.height(),100)
+            self.assertGreater(page.info_panel.height(),50)
+            page.grab().save(str(output/("common-info-"+str(light)+".png")))
+
+    def test_cards_reflow_without_recreating_widgets_at_narrow_width(self):
+        page,_=self.create_page(with_info=True)
+        original=page.cards
+        for width in (720,1400,900):
+            page.resize(width,900)
+            APP.processEvents()
+            page._layout_cards()
+            APP.processEvents()
+            self.assertEqual(page.cards,original)
+            viewport_width=page.scroll.viewport().width()
+            for card in page.cards:
+                self.assertLessEqual(card.geometry().right(),viewport_width)
+        self.assertLess(page._card_columns,3)
+
+    def test_password_tab_moves_between_fields_before_accessory_buttons(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+        page,_=self.create_page()
+        dialog=RouterPasswordDialog("root",page)
+        self.addCleanup(dialog.deleteLater)
+        dialog.show();dialog.activateWindow();APP.processEvents()
+        dialog.new_password.edit.setFocus();APP.processEvents()
+        QTest.keyClick(dialog.new_password.edit,Qt.Key_Tab);APP.processEvents()
+        self.assertIs(APP.focusWidget(),dialog.confirm_password.edit)
+        QTest.keyClick(dialog.confirm_password.edit,Qt.Key_Backtab);APP.processEvents()
+        self.assertIs(APP.focusWidget(),dialog.new_password.edit)
+        QTest.keyClick(dialog.new_password.edit,Qt.Key_Tab)
+        QTest.keyClick(dialog.confirm_password.edit,Qt.Key_Tab);APP.processEvents()
+        self.assertIs(APP.focusWidget(),dialog.new_password.toggle)
+        dialog.reject()
+
     def test_router_switch_during_editor_cannot_save(self):
         page,_=self.create_page()
         page.system_button.click()

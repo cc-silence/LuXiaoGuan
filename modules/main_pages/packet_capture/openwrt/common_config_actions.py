@@ -24,11 +24,11 @@ class CommonConfigActions:
         try:
             key=page.manager.submit("common_read",config=config)
             self.pending[key]=(config,ssh._client,ssh.host_fingerprint,"read")
-            page.status_label.setText("正在读取路由器当前设置。")
+            page._message("正在读取路由器当前设置。")
         except Exception as exc:
             from modules.capture_services.management_diagnostics import record_management_error
             record_management_error(page.manager.manager.runner,"common_validation",config,exc)
-            page.status_label.setText(str(exc))
+            page._message(str(exc), "error")
         page._sync()
 
     def _current(self,item):
@@ -60,16 +60,16 @@ class CommonConfigActions:
             ssh=page.manager.manager.ssh
             expected_disconnect=(item[3]=="save" and result.get("reboot_requested") and ssh._client is None)
             if not self._current(item) and not expected_disconnect:
-                page.status_label.setText("连接已变化，请重新打开设置。")
+                page._message("连接已变化，请重新打开设置。")
                 return True
             if item[3]=="save":
-                page.status_label.setText(result["note"])
+                page._message(result["note"])
                 return True
             dialog=RouterConfigDialog(result,page)
             try:
                 if dialog.exec()!=dialog.Accepted:return True
                 if not self._current(item):
-                    page.status_label.setText("连接已变化，未保存旧路由器的设置。")
+                    page._message("连接已变化，未保存旧路由器的设置。")
                     return True
                 values=dialog.values()
                 apply=False
@@ -77,26 +77,26 @@ class CommonConfigActions:
                     apply=self._confirm_apply(values)
                     if apply is None:return True
                     if not self._current(item):
-                        page.status_label.setText("连接已变化，未执行保存。")
+                        page._message("连接已变化，未执行保存。")
                         return True
                 args=dict(review=result,values=values)
                 if apply:args["apply"]=True
                 new_key=page.manager.submit("common_save",**args)
                 self.pending[new_key]=(*item[:3],"save")
                 if apply:self._show_progress(new_key)
-                page.status_label.setText("正在保存并应用设置……" if apply else "正在保存设置，请等待结果。")
+                page._message("正在保存并应用设置……" if apply else "正在保存设置，请等待结果。")
             finally:dialog.deleteLater()
         except Exception as exc:
             from modules.capture_services.management_diagnostics import record_management_error
             record_management_error(page.manager.manager.runner,"common_validation",item[0],exc)
-            page.status_label.setText(str(exc))
+            page._message(str(exc), "error")
         finally:page._sync()
         return True
 
     def failed(self,key,message):
         if self.pending.pop(key,None) is None:return False
         self._finish_progress(key)
-        if not self.disposed:self.page.status_label.setText(message)
+        if not self.disposed:self.page._message(message, "error")
         self.page._sync()
         return True
 

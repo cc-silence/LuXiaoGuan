@@ -1,4 +1,4 @@
-"""Bounded BusyBox password change over encrypted stdin, never command arguments."""
+"""Bounded system password change over encrypted stdin, never command arguments."""
 from dataclasses import dataclass, field
 import time
 from .command_runner import require_command_completion
@@ -27,11 +27,16 @@ def change_password(manager, request, cancel):
     if not connection or not fingerprint:
         raise RuntimeError("请先登录路由器。")
     check = manager.runner.run("password_change_check",
-        'test "$(id -u)" = 0 && /bin/busybox --list | grep -qx passwd',
+        'uid=$(id -u) || exit 40; [ "$uid" = 0 ] || exit 41; '
+        'command -v passwd >/dev/null 2>&1 || exit 42',
         timeout=10, cancel_event=cancel)
     require_command_completion(check)
+    if check.exit_code == 41:
+        raise RuntimeError("当前 SSH 账号没有管理员权限，请使用 root 登录后修改路由器管理密码。未修改密码。")
+    if check.exit_code == 42:
+        raise RuntimeError("路由器未提供 passwd 改密工具，请检查固件组件。未修改密码。")
     if check.exit_code != 0:
-        raise RuntimeError("需要使用管理员账号登录，且系统需提供 BusyBox passwd；未修改密码。")
+        raise RuntimeError("未能确认路由器改密权限和工具，请检查连接后重试。未修改密码。")
     if cancel.is_set():
         raise InterruptedError("修改已取消，未提交新密码。")
     if ssh._client is not connection or ssh.host_fingerprint != fingerprint:
@@ -41,7 +46,7 @@ def change_password(manager, request, cancel):
     changed = False
     try:
         stdin, stdout, stderr, channel = ssh.exec_command(
-            "LC_ALL=C /bin/busybox passwd", timeout=10, cancel_event=cancel)
+            "LC_ALL=C passwd", timeout=10, cancel_event=cancel)
         streams = (stdin, stdout, stderr, channel)
         deadline = time.monotonic() + 25
         pending = b""
@@ -52,12 +57,13 @@ def change_password(manager, request, cancel):
                 raise InterruptedError("修改已取消，未提交新密码。")
             if channel.recv_ready():
                 pending += channel.recv(4096)
-                if len(pending) > 8192:
-                    raise RuntimeError("密码工具返回异常，已停止。")
             if channel.recv_stderr_ready():
-                channel.recv_stderr(4096)  # Never forward raw password-tool output.
-            prompt = b"New password:" if step == 0 else b"Retype password:" if step == 1 else None
-            if prompt and prompt in pending:
+                pending += channel.recv_stderr(4096)
+            if len(pending) > 8192:
+                raise RuntimeError("密码工具返回异常，已停止。")
+            prompts = ((b"new password:", b"new unix password:") if step == 0 else
+                       (b"retype password:", b"retype new password:", b"retype new unix password:") if step == 1 else ())
+            if any(prompt in pending.lower() for prompt in prompts):
                 if step == 1:
                     submitted = True
                 stdin.write(bytes(request.secret) + b"\n")
@@ -65,7 +71,7 @@ def change_password(manager, request, cancel):
                 step += 1
                 submitted = step == 2
                 pending = b""
-            if channel.exit_status_ready() and not channel.recv_ready():
+            if channel.exit_status_ready() and not channel.recv_ready() and not channel.recv_stderr_ready():
                 changed = submitted and channel.recv_exit_status() == 0
                 break
             cancel.wait(0.02) if not submitted else time.sleep(0.02)
