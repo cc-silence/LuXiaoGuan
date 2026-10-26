@@ -33,6 +33,14 @@ def safe_path(root, relative):
 
 
 def validate_catalog(data, kind="common"):
+    """Convert malformed local catalog shapes into one recoverable data error."""
+    try:
+        return _validate_catalog(data, kind)
+    except (KeyError, TypeError, AttributeError) as exc:
+        raise ValueError("\u79bb\u7ebf\u5305\u6e05\u5355\u683c\u5f0f\u65e0\u6548\u3002") from exc
+
+
+def _validate_catalog(data, kind="common"):
     """\u6821\u9a8c\u9002\u914d\u7ec4\u5408\u548c\u6240\u6709\u5bf9\u8c61\u8fb9\u754c\uff0c\u8fd4\u56de\u53bb\u91cd\u5bf9\u8c61\u8868\u3002"""
     roots = bundle_spec(kind).roots
     if (not isinstance(data, dict) or data.get("schema_version") != 1
@@ -85,6 +93,7 @@ class CommonBundleRepository:
         self.public_key = public_key
         self.catalog = None
         self.content_root = None
+        self.revision = None
 
     def _load(self):
         receipt = safe_path(self.root, "current.json")
@@ -94,7 +103,11 @@ class CommonBundleRepository:
             raise ValueError("\u672c\u5730\u79bb\u7ebf\u5305\u7b7e\u540d\u6e05\u5355\u8fc7\u5927\u3002")
         raw = receipt.read_bytes()
         payload = verify_bundle_manifest(raw, kind=self.kind, **({"public_key": self.public_key} if self.public_key else {}))
-        self.content_root = safe_path(self.root, "versions/" + payload["sha256"])
+        from .bundle_layout import version_path
+        self.content_root = version_path(self.root, payload["sha256"], self.kind, payload=payload)
+        if self.content_root is None:
+            raise ValueError("\u672c\u5730\u79bb\u7ebf\u8d44\u6e90\u7f3a\u5931\uff0c\u8bf7\u91cd\u65b0\u4e0b\u8f7d\u3002")
+        self.revision = payload["sha256"]
         path = safe_path(self.content_root, "catalog.json")
         if not path.is_file() or path.stat().st_size != payload["catalog_size"]:
             raise ValueError("\u79bb\u7ebf\u5305\u9002\u914d\u6e05\u5355\u7f3a\u5931\uff0c\u8bf7\u91cd\u65b0\u4e0b\u8f7d\u3002")

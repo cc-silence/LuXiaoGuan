@@ -172,7 +172,7 @@ class OpenWrtPage(QWidget):
     actionRequested = Signal(str)
     settingsChanged = Signal()
 
-    def __init__(self, service, settings, info_panel=None, settings_info_panel=None, parent=None, signal_info_panel=None, file_info_panel=None):
+    def __init__(self, service, settings, info_panel=None, settings_info_panel=None, parent=None, signal_info_panel=None, file_info_panel=None, common_info_panel=None):
         super().__init__(parent)
         self.service = service
         self.setObjectName("openwrtCapturePage")
@@ -191,7 +191,7 @@ class OpenWrtPage(QWidget):
         pages = (("common", "\u5e38\u7528\u8bbe\u7f6e"), ("signal", "信号管理"), ("files", "文件管理"),
                  ("terminal", "路由器终端"), ("capture", "抓包"), ("settings", "抓包设置"))
         self._page_indices = {name: index for index, (name, _title) in enumerate(pages, 1)}
-        self._panels = {"capture": info_panel, "signal": signal_info_panel, "files": file_info_panel}
+        self._panels = {"common": common_info_panel, "capture": info_panel, "signal": signal_info_panel, "files": file_info_panel}
         for panel in self._panels.values():
             if panel is not None:
                 panel.hide()
@@ -248,7 +248,7 @@ class OpenWrtPage(QWidget):
             page._refresh_history_button()
         elif name == "common":
             from .router_common_settings_page import RouterCommonSettingsPage
-            page = RouterCommonSettingsPage(self.service, self.connection_settings, self.tabs)
+            page = RouterCommonSettingsPage(self.service, self.connection_settings, self.tabs, info_panel=self._panels[name])
         elif name == "signal":
             from .router_signal_page import RouterSignalPage
             page = RouterSignalPage(self.service.router_signals, self._panels[name], self.tabs)

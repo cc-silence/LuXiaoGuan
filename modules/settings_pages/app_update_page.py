@@ -89,6 +89,12 @@ class AppUpdatePage(QWidget):
         if self.presenter is None or self.presenter.release is None:return
         release=self.presenter.release
         QApplication.clipboard().setText(release.url)
+        from modules.common_widgets.floating_feedback import FloatingFeedback
+        from modules.ui_scale_manager import UiScaleManager
+        feedback=getattr(self,"_copy_feedback",None)
+        if feedback is None:
+            feedback=self._copy_feedback=FloatingFeedback(self)
+        feedback.show_feedback("复制成功","success",UiScaleManager.for_widget(self))
         from modules.app_update_services.diagnostics import record,endpoint_host
         record("full_package_link_copied", host=endpoint_host(release.url), version=release.version)
 
@@ -111,6 +117,8 @@ class AppUpdatePage(QWidget):
 
     def hideEvent(self,event):
         self.test_code_toggle.setChecked(False)
+        feedback=getattr(self,"_copy_feedback",None)
+        if feedback is not None:feedback.hide()
         super().hideEvent(event)
 
     def _leave_testing(self):
@@ -174,6 +182,12 @@ class AppUpdatePage(QWidget):
         incremental=bool(release and release.catalog)
         queueable=bool(p and p.state=="planning" and plan and not p._download_requested)
         self.download_button.setEnabled(p is not None and (not busy or queueable) and (not incremental or (plan is not None and not plan["conflicts"])))
+        action_ready=bool(release is not None and self.download_button.isEnabled())
+        if self.download_button.property("updateActionReady") != action_ready:
+            self.download_button.setProperty("updateActionReady",action_ready)
+            self.download_button.style().unpolish(self.download_button)
+            self.download_button.style().polish(self.download_button)
+            self.download_button.update()
         self.download_button.setText("\u91cd\u542f\u5e76\u5b89\u88c5\u66f4\u65b0" if p and p.state=="ready" else "\u4e0b\u8f7d\u66f4\u65b0" if incremental else "\u4e0b\u8f7d\u5b8c\u6574\u5305")
         self.cancel_button.setVisible(bool(p and p._worker is not None))
         self.version_label.setText("\u5f53\u524d\u7248\u672c\uff1a"+(p.checker.current_version if p else "\u672a\u77e5")+(f"  (\u8d44\u6e90\u66f4\u65b0 {p.checker.resource_revision})" if p and p.checker.resource_revision else ""))

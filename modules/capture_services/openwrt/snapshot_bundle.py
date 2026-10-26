@@ -4,6 +4,10 @@ import re
 _CORE = frozenset({"libc", "libgcc1", "libpthread", "librt", "kernel", "busybox", "opkg", "base-files"})
 
 
+class SnapshotBundleMismatch(ValueError):
+    """No compatible local candidate; no packages have been written."""
+
+
 def is_snapshot(device):
     return "SNAPSHOT" in str(getattr(device, "version", "")).upper()
 
@@ -46,4 +50,4 @@ def select_profile(repository, device, wanted, installed, version_check, cancel,
         tell("SNAPSHOT \u672c\u5730\u4f9d\u8d56\u68c0\u67e5\u901a\u8fc7\uff0c\u5019\u9009\u5305\u6765\u81ea " + profile["release"]
              + "\uff1b\u4e0b\u4e00\u6b65\u7531\u8def\u7531\u5668\u9884\u6f14\u6838\u5bf9\uff0c\u4e0d\u4ee3\u8868\u5df2\u901a\u8fc7\u771f\u673a\u529f\u80fd\u9a8c\u8bc1\u3002", "info")
         return profile
-    raise ValueError("SNAPSHOT \u672c\u5730\u517c\u5bb9\u68c0\u67e5\u672a\u901a\u8fc7\uff1a" + last)
+    raise SnapshotBundleMismatch("SNAPSHOT \u672c\u5730\u517c\u5bb9\u68c0\u67e5\u672a\u901a\u8fc7\uff1a" + last)

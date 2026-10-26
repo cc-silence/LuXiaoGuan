@@ -80,7 +80,7 @@ class RouterPolicyActions:
             key=page.manager.submit("policy_read")
             self.pending[key]=("read",kind,identity)
             self._show_progress(key,kind)
-            page.status_label.setText("\u6b63\u5728\u8bfb\u53d6\u8def\u7531\u5668\u771f\u5b9e\u914d\u7f6e\uff0c\u5c1a\u672a\u4fee\u6539\u3002")
+            page._message("\u6b63\u5728\u8bfb\u53d6\u8def\u7531\u5668\u771f\u5b9e\u914d\u7f6e\uff0c\u5c1a\u672a\u4fee\u6539\u3002")
         except Exception as exc:
             from modules.capture_services.management_diagnostics import record_management_error
             record_management_error(self.page.manager.manager.runner,"policy_validation",kind,exc)
@@ -99,7 +99,7 @@ class RouterPolicyActions:
             if phase=="apply":
                 if "boot_state" in result and self._current(identity):
                     page.manager.policy_status=dict(boot_state=result["boot_state"])
-                page.status_label.setText(result["note"])
+                page._message(result["note"])
                 dialog=MessageDialog("\u64cd\u4f5c\u7ed3\u679c",result["note"],page)
                 try:dialog.exec()
                 finally:dialog.deleteLater()
@@ -107,10 +107,10 @@ class RouterPolicyActions:
                     key=page.manager.submit("policy_status");self.pending[key]=("read","read",identity)
                 return True
             if not self._current(identity):
-                page.status_label.setText("\u8fde\u63a5\u5df2\u53d8\u5316\uff0c\u8bf7\u91cd\u65b0\u6253\u5f00\u8bbe\u7f6e\u3002");return True
+                page._message("\u8fde\u63a5\u5df2\u53d8\u5316\uff0c\u8bf7\u91cd\u65b0\u6253\u5f00\u8bbe\u7f6e\u3002");return True
             if phase=="read":
                 if kind=="read":
-                    page.status_label.setText("\u5df2\u8bfb\u53d6\u5f53\u524d\u5f00\u673a\u8fde\u63a5\u7b56\u7565\u3002");return True
+                    page._message("\u5df2\u8bfb\u53d6\u5f53\u524d\u5f00\u673a\u8fde\u63a5\u7b56\u7565\u3002");return True
                 options={}
                 if kind=="initial":
                     dialog=InitialPolicyDialog(result,page)
@@ -133,7 +133,7 @@ class RouterPolicyActions:
                 key=page.manager.submit("policy_preview",kind=kind,options=options)
                 self.pending[key]=("preview",kind,identity)
                 self._show_progress(key,kind)
-                page.status_label.setText("\u6b63\u5728\u6838\u5bf9\u8bbe\u5907\u80fd\u529b\u5e76\u751f\u6210\u9884\u89c8\u3002")
+                page._message("\u6b63\u5728\u6838\u5bf9\u8bbe\u5907\u80fd\u529b\u5e76\u751f\u6210\u9884\u89c8\u3002")
             elif phase=="preview":
                 dialog=PolicyReviewDialog(result,page)
                 try:
@@ -149,7 +149,7 @@ class RouterPolicyActions:
                 key=page.manager.submit("policy_apply",review=result,backup_path=path,backup_expected=expected)
                 self.pending[key]=("apply",kind,identity)
                 self._show_progress(key,kind)
-                page.status_label.setText("正在备份并应用设置……" if backup_requested else "正在应用设置……")
+                page._message("正在备份并应用设置……" if backup_requested else "正在应用设置……")
         except Exception as exc:
             from modules.capture_services.management_diagnostics import record_management_error
             record_management_error(self.page.manager.manager.runner,"policy_validation",kind,exc)
@@ -162,7 +162,7 @@ class RouterPolicyActions:
         self.dialogs[key]=progress;progress.show()
 
     def _show_error(self,message):
-        self.page.status_label.setText(message)
+        self.page._message(message, "error")
         dialog=MessageDialog("未能完成设置",message,self.page)
         try:dialog.exec()
         finally:dialog.deleteLater()

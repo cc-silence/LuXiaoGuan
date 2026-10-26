@@ -5,6 +5,7 @@ from pathlib import Path
 from threading import Event
 from unittest.mock import Mock
 from tests.test_common_offline_bundle import fixture
+from modules.capture_services.openwrt.bundle_layout import version_path
 from modules.capture_services.openwrt.common_bundle_download import prepare_archive
 from modules.capture_services.openwrt.bundle_status import local_bundle_status, compare_bundle
 from modules.capture_services.openwrt.installation_sources import install_with_sources, report_verified
@@ -21,7 +22,7 @@ class BundleUpdateTests(unittest.TestCase):
                 state=local_bundle_status(Event(),kind=kind,root=target,public_key=source.public)
                 self.assertTrue(state['installed'])
                 self.assertEqual(compare_bundle(state,source.payload),'current')
-                path=target/'versions'/source.payload['sha256']/'catalog.json'
+                path=version_path(target,source.payload['sha256'],kind)/'catalog.json'
                 path.write_text('{}',encoding='utf-8')
                 self.assertFalse(local_bundle_status(Event(),kind=kind,root=target,public_key=source.public)['installed'])
 

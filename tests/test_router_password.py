@@ -61,6 +61,46 @@ class RouterPasswordTests(unittest.TestCase):
             with self.assertRaises((InterruptedError,RuntimeError)):change_password(manager,request,event)
             manager.ssh.exec_command.assert_not_called()
             stdin.write.assert_not_called()
+    def test_system_passwd_does_not_require_busybox_listing(self):
+        manager,request,_,_=self.fixture()
+        with patch("modules.capture_services.openwrt.router_password.OpenWrtSshClient"):
+            change_password(manager,request,threading.Event())
+        command=manager.runner.run.call_args.args[1]
+        self.assertIn("command -v passwd",command)
+        self.assertNotIn("busybox",command)
+        self.assertEqual(manager.ssh.exec_command.call_args.args[0],"LC_ALL=C passwd")
+
+    def test_permission_and_missing_tool_have_distinct_errors(self):
+        errors=[]
+        for code in (40,41,42):
+            manager,request,_,stdin=self.fixture()
+            manager.runner.run.return_value=RemoteCommandResult("preflight",code)
+            with self.assertRaises(RuntimeError) as caught:
+                change_password(manager,request,threading.Event())
+            errors.append(str(caught.exception))
+            stdin.write.assert_not_called()
+            manager.ssh.exec_command.assert_not_called()
+        self.assertEqual(len(set(errors)),3)
+        self.assertIn("root",errors[1])
+        self.assertIn("passwd",errors[2])
+        self.assertNotIn("root",errors[2])
+
+    def test_stderr_prompts_and_split_prompt_are_consumed(self):
+        manager,request,channel,stdin=self.fixture()
+        channel.recv_stderr_ready=channel.recv_ready
+        prompts=[b"New pass", b"word: ", b"Retype new password: "]
+        def read_stderr(size):
+            chunk=prompts.pop(0)
+            if chunk.endswith(b": "):channel.read=channel.step
+            return chunk
+        channel.recv_stderr=read_stderr
+        channel.recv_ready=lambda:False
+        with patch("modules.capture_services.openwrt.router_password.OpenWrtSshClient"):
+            result=change_password(manager,request,threading.Event())
+        self.assertTrue(result["verified"])
+        self.assertEqual(stdin.write.call_count,2)
+        self.assertTrue(channel.closed)
+
     def test_invalid_secret_and_clear(self):
         for value in ("short","secret\n123","a"*129):
             with self.assertRaises(ValueError):PasswordChange.create(value,{})
@@ -115,6 +155,28 @@ class RouterPasswordQueueTests(unittest.TestCase):
         owner.task_controller.finish.assert_called_once_with(failed=False)
         self.assertEqual(received[0][0],key)
         owner.set_openwrt_password.assert_called_once_with("secret-123")
+    def test_password_failure_is_owned_by_common_page_not_login_log(self):
+        service,owner=self.service()
+        messages=[];failures=[]
+        owner.settingsMessageGenerated.connect(lambda *args:messages.append(args))
+        service.failed.connect(lambda *args:failures.append(args))
+        request=PasswordChange.create("secret-123",dict(host="router",port=22,user="root"))
+        key=service.submit("password_change",request=request)
+        service._failure("password tool missing","detail")
+        self.assertEqual(messages,[])
+        self.assertEqual(failures,[(key,"password tool missing")])
+        self.assertEqual(request.secret,bytearray())
+        self.assertIsNone(service.current)
+
+    def test_automatic_login_policy_probe_keeps_login_error_reporting(self):
+        service,owner=self.service()
+        messages=[]
+        owner.settingsMessageGenerated.connect(lambda *args:messages.append(args))
+        service.submit("policy_status")
+        service._failure("policy probe unavailable","detail")
+        self.assertEqual(len(messages),1)
+        self.assertIn("policy probe unavailable",messages[0][0])
+
     def test_busy_or_changed_login_target_refuses_password_task(self):
         service,owner=self.service()
         request=PasswordChange.create("secret-123",dict(host="different",port=22,user="root"))

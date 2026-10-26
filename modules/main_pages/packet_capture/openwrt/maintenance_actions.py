@@ -59,7 +59,7 @@ class MaintenanceActions:
                     dialog.deleteLater()
                 key = page.manager.submit("maintenance_reboot")
                 self.pending[key] = ("done", identity)
-                page.status_label.setText("正在发送重启请求；连接断开属于预期情况，请等待后重新登录。")
+                page._message("正在发送重启请求；连接断开属于预期情况，请等待后重新登录。")
             elif operation == "backup":
                 picked = self._destination()
                 if picked is None or not self._current(identity):
@@ -68,7 +68,7 @@ class MaintenanceActions:
                 key = page.manager.submit("maintenance_backup", destination=path, expected=expected)
                 self.pending[key] = ("done", identity)
                 self._show_progress(key)
-                page.status_label.setText("正在生成并校验配置备份，请等待。")
+                page._message("正在生成并校验配置备份，请等待。")
             else:
                 source = ""
                 if operation == "restore":
@@ -77,11 +77,11 @@ class MaintenanceActions:
                         return
                 key = page.manager.submit("maintenance_preview", kind=operation, source=source)
                 self.pending[key] = ("preview", identity)
-                page.status_label.setText("正在检查设备能力和备份内容，尚未修改路由器。")
+                page._message("正在检查设备能力和备份内容，尚未修改路由器。")
         except Exception as exc:
             from modules.capture_services.management_diagnostics import record_management_error
             record_management_error(page.manager.manager.runner,"maintenance_validation",operation,exc)
-            page.status_label.setText(str(exc))
+            page._message(str(exc), "error")
         page._sync()
 
     def completed(self, key, result):
@@ -95,10 +95,10 @@ class MaintenanceActions:
                 return True
             phase, identity = item
             if phase == "done":
-                page.status_label.setText(result["note"])
+                page._message(result["note"])
                 return True
             if not self._current(identity):
-                page.status_label.setText("连接已变化，请重新打开操作。")
+                page._message("连接已变化，请重新打开操作。")
                 return True
             picked = self._destination(before=True)
             if picked is None or not self._current(identity):
@@ -111,19 +111,19 @@ class MaintenanceActions:
                 if dialog.exec() != dialog.Accepted:
                     return True
                 if not self._current(identity):
-                    page.status_label.setText("连接已变化，未执行恢复或重置。")
+                    page._message("连接已变化，未执行恢复或重置。")
                     return True
                 new_key = page.manager.submit("maintenance_apply", review=result,
                                              backup_path=backup_path, backup_expected=expected)
                 self.pending[new_key] = ("done", identity)
                 self._show_progress(new_key)
-                page.status_label.setText("正在备份当前配置；校验通过后执行所确认的操作，请保持供电。")
+                page._message("正在备份当前配置；校验通过后执行所确认的操作，请保持供电。")
             finally:
                 dialog.deleteLater()
         except Exception as exc:
             from modules.capture_services.management_diagnostics import record_management_error
             record_management_error(page.manager.manager.runner,"maintenance_validation",result.get("operation","read"),exc)
-            page.status_label.setText(str(exc))
+            page._message(str(exc), "error")
         finally:
             page._sync()
         return True
@@ -133,7 +133,7 @@ class MaintenanceActions:
             return False
         self._finish_progress(key)
         if not self.disposed:
-            self.page.status_label.setText(message)
+            self.page._message(message, "error")
             self.page._sync()
         return True
 

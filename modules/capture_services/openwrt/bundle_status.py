@@ -1,5 +1,6 @@
 """Local signed resource identity and comparison, without network or package scans."""
 from pathlib import Path
+from .bundle_storage_lock import locked_bundle
 from datetime import datetime
 from .common_bundle_repository import CommonBundleRepository, bundle_root, safe_path
 from .common_bundle_manifest import verify_bundle_manifest
@@ -10,6 +11,7 @@ def revision_label(payload):
     return str(version)[:48] + ' / ' + payload.get('sha256', '')[:12]
 
 
+@locked_bundle
 def local_bundle_status(cancel, progress=None, stage=None, *, kind='common', root=None, public_key=None):
     if cancel.is_set():
         raise InterruptedError('Local resource check cancelled')

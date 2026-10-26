@@ -32,7 +32,8 @@ def cleanup_repository_archive(repository, cancel, tell=None):
             raise ValueError("Resource receipt exceeds limit")
         options = {"public_key": repository.public_key} if repository.public_key else {}
         payload = verify_bundle_manifest(receipt.read_bytes(), kind=repository.kind, **options)
-        expected = safe_path(repository.root, "versions/" + payload["sha256"])
+        from .bundle_layout import version_path
+        expected = version_path(repository.root, payload["sha256"], repository.kind, payload=payload)
         if repository.content_root != expected:
             raise ValueError("Resource changed during installation")
         archive = safe_path(repository.root, "archives/" + payload["sha256"] + "/" + payload["filename"])

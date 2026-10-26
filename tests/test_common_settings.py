@@ -23,6 +23,11 @@ class CommonDevice(PersistenceDevice):
         value=super().cursor_get(*args)
         return self.wrap(value) if isinstance(value,(list,dict)) else value
     def call(self,obj,method,args):
+        if obj=="uci" and method=="delete":
+            values=self.unwrap(args)
+            row=self.sessions[values["ubus_rpc_session"]].get(values["config"],{}).get(values["section"])
+            if row is None or ("option" in values and values["option"] not in row):
+                return None,4
         if obj=="network.device":return self.wrap({"br-lan":{},"eth0":{},"lo":{}}),None
         return super().call(obj,method,args)
     def run(self,name,command,timeout,cancel_event=None):
@@ -49,6 +54,34 @@ class CommonSettingsTests(unittest.TestCase):
         self.assertEqual(self.device.config["wireless"],untouched)
         self.assertFalse(self.device.sessions)
         self.assertFalse(any(method=="apply" for _,method in self.device.calls))
+    def test_absent_optional_lan_fields_are_not_deleted(self):
+        review=read_settings(self.device,"network",self.cancel)
+        values=dict(review["values"],auto="1",gateway="",broadcast="",ip6gw="",ip6addr=[],ip6prefix=[])
+        result=save_settings(self.device,review,values,self.cancel)
+        self.assertTrue(result["saved"])
+        self.assertNotIn(("uci","delete"),self.device.calls)
+        self.assertFalse(self.device.sessions)
+
+    def test_clearing_existing_lan_option_still_deletes_it(self):
+        self.device.config["network"]["lan"]["gateway"]="192.168.8.254"
+        self.device.files["/etc/config/network"]=json.dumps(self.device.config["network"],sort_keys=True)
+        review=read_settings(self.device,"network",self.cancel)
+        save_settings(self.device,review,dict(review["values"],auto="1",gateway=""),self.cancel)
+        self.assertNotIn("gateway",self.device.config["network"]["lan"])
+        self.assertIn(("uci","delete"),self.device.calls)
+
+    def test_real_delete_failure_is_not_ignored_or_committed(self):
+        self.device.config["network"]["lan"]["gateway"]="192.168.8.254"
+        self.device.files["/etc/config/network"]=json.dumps(self.device.config["network"],sort_keys=True)
+        review=read_settings(self.device,"network",self.cancel)
+        self.device.fail=("uci","delete")
+        with self.assertRaises(SignalError) as error:
+            save_settings(self.device,review,dict(review["values"],auto="1",gateway=""),self.cancel)
+        self.assertEqual(error.exception.code,"rpc_uci_delete_2")
+        self.assertEqual(self.device.config["network"]["lan"]["gateway"],"192.168.8.254")
+        self.assertFalse(self.device.commits)
+        self.assertFalse(self.device.sessions)
+
     def test_legacy_binding_preserved(self):
         self.device=CommonDevice(True)
         review=read_settings(self.device,"network",self.cancel)

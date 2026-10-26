@@ -8,6 +8,7 @@ import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
+from .bundle_storage_lock import locked_bundle
 from .bundle_dependencies import closure
 from .bundle_specs import bundle_spec
 from .bundle_dependency_rules import requirements
@@ -34,6 +35,7 @@ def _repository(kind,guard,root=None,public_key=None):
     return repo
 
 
+@locked_bundle
 def list_export_profiles(kind,cancel,progress=None,*,root=None,public_key=None):
     guard=ExportGuard(cancel)
     repo=_repository(kind,guard,root,public_key)
@@ -43,11 +45,11 @@ def list_export_profiles(kind,cancel,progress=None,*,root=None,public_key=None):
         packages={r["name"]:r for r in profile["packages"]}
         profiles.append({**{k:profile[k] for k in ("release","target","architecture","package_manager")},
                          "roots":[dict(name=n,version=packages[n]["version"]) for n in sorted(profile["roots"])]})
-    return dict(kind=kind,revision=repo.content_root.name,profiles=profiles)
+    return dict(kind=kind,revision=repo.revision,profiles=profiles)
 
 
 def _profile(repo,selection):
-    if selection.get("revision")!=repo.content_root.name:
+    if selection.get("revision")!=repo.revision:
         raise ValueError("本地离线包已更新，请重新打开提取窗口选择。")
     keys=("release","target","architecture","package_manager")
     matches=[p for p in repo.catalog["profiles"] if all(p[k]==selection.get(k) for k in keys)]
@@ -92,6 +94,7 @@ def _copy_verified(source,target,row,guard,report,completed,total):
         raise ValueError("软件包校验失败："+row["filename"])
 
 
+@locked_bundle
 def export_packages(kind,selection,wanted,destination,cancel,progress=None,*,root=None,public_key=None):
     guard=ExportGuard(cancel)
     report=progress or (lambda _value:None)

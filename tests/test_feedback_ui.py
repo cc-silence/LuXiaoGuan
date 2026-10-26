@@ -67,9 +67,11 @@ class FolderTests(unittest.TestCase):
     def test_detected_location_is_validated_version_directory(self):
         with TemporaryDirectory() as folder:
             root=Path(folder);f=fixture(root/"source")
-            prepare_archive(f.archive,f.envelope,root/"resources",Event(),public_key=f.public)
+            prepared=prepare_archive(f.archive,f.envelope,root/"resources",Event(),public_key=f.public)
             status=local_bundle_status(Event(),root=root/"resources",public_key=f.public)
-            self.assertEqual(Path(status["path"]), (root/"resources"/"versions"/f.payload["sha256"]).resolve())
+            self.assertEqual(Path(status["path"]), Path(prepared["content_path"]).resolve())
+            self.assertEqual(Path(status["path"]).parent, (root/"resources"/"versions").resolve())
+            self.assertEqual(status["revision"], f.payload["sha256"])
             self.assertTrue(Path(status["path"]).is_dir())
 
 

@@ -112,11 +112,14 @@ class SignalSetupPanels:
         footer.addWidget(self.table.filter_bar, 1)
         self.table.filter_bar.show()
         relay_layout.addLayout(footer)
-        self.environment_hint = hint("登录后自动检测无线设置环境。", self.transmit_page)
-        transmit_layout.addWidget(self.environment_hint)
+        self.component_toolbar = QWidget(page)
+        component_layout = QHBoxLayout(self.component_toolbar)
+        UiScaleManager.for_widget(page).bind_layout(component_layout, margins=(10, 0, 10, 0), spacing=8)
+        self.environment_hint = hint("登录后自动检测无线设置环境。", self.component_toolbar)
+        component_layout.addWidget(self.environment_hint, 1)
         self.check_button = create_page_text_button(page, "检测无线组件", "读取实际组件和无线能力，不替换现有无线软件。")
         self.check_button.clicked.connect(self._check_or_install)
-        transmit_layout.addWidget(self.check_button)
+        component_layout.addWidget(self.check_button)
         if self.setup is not None:
             from .signal_setup_actions import SignalSetupActions
             self.actions = SignalSetupActions(self, self.setup)
@@ -126,11 +129,19 @@ class SignalSetupPanels:
         if self._owner_signal is not None:
             self._owner_signal.connect(self._device_changed)
 
+    def _installing(self):
+        return bool(self.setup and self.setup.active and self.setup.snapshot.action == "install")
+
     def _setup_changed(self, state):
         """常驻状态回放不读设备，不重建已有扫描结果。"""
         self.environment_hint.setText(state.detail)
         env = state.environment
-        self.check_button.setText("安装缺少组件" if env and env.missing else "重新检测无线组件")
+        installing = self._installing()
+        self.check_button.setText("取消安装" if installing else
+                                  "安装缺少组件" if env and env.missing else "重新检测无线组件")
+        self.check_button.setToolTip("请求取消本次无线组件安装。" if installing else
+                                    "安装前会重新检测并确认缺失清单，不替换现有无线软件。" if env and env.missing else
+                                    "读取实际组件和无线能力，不替换现有无线软件。")
         if state.networks != self._networks:
             self._set_networks(state.networks)
         self.empty_hint.setText(state.detail)
@@ -145,6 +156,10 @@ class SignalSetupPanels:
     def _check_or_install(self):
         """安装前展示这次检测的真实缺项，用户确认后才写入设备。"""
         if self.setup is None:
+            return
+        if self.setup.active:
+            if self.setup.snapshot.action == "install":
+                self.setup.cancel()
             return
         env = self.setup.snapshot.environment
         if env and env.missing:
@@ -237,6 +252,10 @@ class SignalSetupPanels:
         for button in self.radio_buttons.values():
             button.setEnabled(ready)
         self.radio_hint.setVisible(snapshot.connected and not choices)
+        env = self.setup.snapshot.environment if self.setup is not None else None
+        installing = self._installing()
+        self.component_toolbar.setVisible(bool(snapshot.connected and
+            (installing or env and env.missing or self.page.stack.currentIndex() == 1)))
         self.environment_hint.setVisible(snapshot.connected)
         for notice in self.connection_hints:
             notice.setVisible(not snapshot.connected)
@@ -249,7 +268,8 @@ class SignalSetupPanels:
         scan_choices = tuple(choice for choice in choices if not actual_names or choice[0] in actual_names)
         self._sync_scan_buttons(scan_choices, snapshot)
         if self.setup is not None:
-            self.check_button.setEnabled(snapshot.connected and not snapshot.busy)
+            self.check_button.setEnabled(snapshot.connected and (installing or
+                not snapshot.busy and not self.setup.active and not self.setup.snapshot.busy))
         if not snapshot.connected:
             self._detected_radios = ()
             self._set_networks(())

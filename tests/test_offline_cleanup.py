@@ -54,7 +54,7 @@ class OfflineCleanupTests(unittest.TestCase):
                             manager._install_offline_apk(("tmux",),device,folder,False,cancel,Mock(),Mock())
                         else:
                             manager._preflight=Mock(return_value=PackageManager("apk"))
-                            repo=NS(kind="common",profile=Mock(return_value={"package_manager":"apk"}))
+                            repo=NS(root=Path(folder)/"resource",kind="common",profile=Mock(return_value={"package_manager":"apk"}))
                             install_from_local(manager,("tmux",),device,folder,False,cancel,Mock(),Mock(),repo)
                 self.assertIs(result.exception,error)
                 name,command,timeout,cleanup_cancel=manager._execute.call_args.args

@@ -30,7 +30,7 @@ class Owner(QObject):
         self.is_busy=False
 
 
-def create_page(self,light=False,setup=None):
+def create_page(self,light=False,setup=None,with_info=False):
     parent=QWidget()
     parent.scale_manager=UiScaleManager(100)
     parent.light_theme=light
@@ -40,7 +40,9 @@ def create_page(self,light=False,setup=None):
     service=Service()
     service.setup=setup or PendingSetup()
     owner=Owner(service)
-    page=RouterCommonSettingsPage(owner,lambda: {},parent)
+    from modules.main_pages.info_panel import InfoPanel
+    panel=InfoPanel(parent,light_theme=light,floating_zoom_controls=True) if with_info else None
+    page=RouterCommonSettingsPage(owner,lambda: {},parent,info_panel=panel)
     page._fixture_owner=owner
     page.setStyleSheet(CapturePageStyleManager(parent)._build_stylesheet())
     page.resize(1100,900)

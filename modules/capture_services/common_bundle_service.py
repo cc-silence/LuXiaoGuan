@@ -128,7 +128,7 @@ class CommonBundleDownloadService(QObject):
         from .openwrt.bundle_status import revision_label
         payload = result.get("payload", {})
         from .openwrt.common_bundle_repository import bundle_root, safe_path
-        location = safe_path(bundle_root(self.spec.kind), "versions/" + result["sha256"])
+        location = safe_path(bundle_root(self.spec.kind), "versions/" + result.get("directory", result["sha256"]))
         self.local_status = dict(installed=True, path=str(location.resolve()), revision=result["sha256"],
                                  published_at=payload.get("published_at", ""), label=revision_label(payload))
         self._finish(True, self.spec.title + "\u5305\u5df2\u4e0b\u8f7d\u5e76\u6821\u9a8c\uff0c\u65ad\u7f51\u540e\u53ef\u5728\u5f53\u524d\u8f6f\u4ef6\u4e2d\u5b89\u88c5\u3002" + "\n当前资源版本：" + self.local_status["label"])

@@ -200,7 +200,8 @@ QPushButton#settingsSecondaryButton:hover {
 	border: 1px solid #b8c3d1;
 }
 
-QPushButton#settingsMergeButton {
+QPushButton#settingsMergeButton,
+QPushButton#settingsSecondaryButton[updateActionReady="true"]:enabled {
 	min-height: 28px;
 	padding: 0px 12px;
 	text-align: center;
@@ -209,18 +210,21 @@ QPushButton#settingsMergeButton {
 	color: #0e5c35;
 }
 
-QPushButton#settingsMergeButton:hover {
+QPushButton#settingsMergeButton:hover,
+QPushButton#settingsSecondaryButton[updateActionReady="true"]:enabled:hover {
 	background-color: #d6f0e1;
 	border: 1px solid #07884d;
 	color: #064c28;
 }
 
-QPushButton#settingsMergeButton:pressed {
+QPushButton#settingsMergeButton:pressed,
+QPushButton#settingsSecondaryButton[updateActionReady="true"]:enabled:pressed {
 	background-color: #c2e8d1;
 	border: 1px solid #06743f;
 }
 
-QPushButton#settingsMergeButton:focus {
+QPushButton#settingsMergeButton:focus,
+QPushButton#settingsSecondaryButton[updateActionReady="true"]:enabled:focus {
 	border: 1px solid #07884d;
 }
 

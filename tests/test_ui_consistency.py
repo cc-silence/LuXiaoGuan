@@ -40,6 +40,24 @@ class SharedUiTests(unittest.TestCase):
                 self.assertEqual(panel.info_box.font(), panel.info_box.document().defaultFont())
                 self.assertEqual(panel.info_box.font().family(), UiScaleManager()._resolved_font())
 
+    def test_common_settings_uses_its_own_exportable_information_panel(self):
+        page=self.window.packet_capture_page
+        tabs=page.openwrt_tab
+        tabs.tabs.setCurrentIndex(tabs._page_indices["common"])
+        common=tabs.common_page
+        self.assertIs(common.info_panel,page.common_info_panel)
+        self.assertIn(page.common_info_panel,page.info_panels)
+        before=page.settings_info_panel.info_box.toPlainText()
+        common._message("Common settings result","success")
+        self.assertIn("Common settings result",page.common_info_panel.info_box.toPlainText())
+        self.assertEqual(page.settings_info_panel.info_box.toPlainText(),before)
+        self.assertTrue(callable(page.common_info_panel._export_context_provider))
+        output=Path("build/common-settings-review");output.mkdir(parents=True,exist_ok=True)
+        for theme in ("dark.qss","light.qss"):
+            self.window.apply_appearance(100,"default",theme)
+            APP.processEvents()
+            common.grab().save(str(output/("integrated-common-"+theme+".png")))
+
     def test_rounds_combo_matches_other_capture_inputs(self):
         tabs = self.window.packet_capture_page.openwrt_tab
         tabs.tabs.setCurrentIndex(tabs._page_indices["settings"])
