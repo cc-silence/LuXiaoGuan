@@ -22,7 +22,7 @@ class SourceFallbackTests(unittest.TestCase):
     tearDown = bundle_tests.CommonOfflineTests.tearDown
 
     def test_no_snapshot_candidate_continues_to_device_owned_feeds(self):
-        for field, value in (("distribution", "Kwrt"), ("version", "22.03-SNAPSHOT"),
+        for field, value in (("distribution", "ImmortalWrt"), ("version", "22.03-SNAPSHOT"),
                              ("target", "ath79/generic"), ("package_architecture", "mips_24kc")):
             with self.subTest(field=field):
                 device = copy.copy(self.f.device)

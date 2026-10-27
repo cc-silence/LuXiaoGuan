@@ -3,7 +3,6 @@ import hashlib
 import json
 import re
 import secrets
-import time
 from threading import Event
 from .command_runner import require_command_completion
 from .router_policy_commands import policy_command, CONFIGS, FILES
@@ -12,7 +11,7 @@ from .uci_booleans import netifd_bool
 from .signal_manager import RouterSignalManager
 from .wireless_setup_manager import WirelessSetupManager
 from .router_backup import RouterBackupManager
-from .router_reboot import reboot_router
+from ..configuration_progress import phase
 
 MESSAGES={
  "pending":"\u8def\u7531\u5668\u6709\u5c1a\u672a\u63d0\u4ea4\u7684\u8bbe\u7f6e\uff0c\u8bf7\u5148\u5904\u7406\u540e\u91cd\u65b0\u9884\u89c8\u3002",
@@ -51,19 +50,28 @@ class RouterPolicyManager:
         self.connection=self.ssh._client
         self.fingerprint=self.ssh.host_fingerprint
         self.lua_bin=None
+        self._apply_channel=None
+        self._apply_host=None
 
     def _current(self):
+        if self._apply_channel is not None:
+            self._apply_channel.connect(self._apply_host,8)
+            return
         if not self.ssh.connected or self.ssh._client is not self.connection or self.ssh.host_fingerprint!=self.fingerprint:
             raise RuntimeError("\u8def\u7531\u5668\u8fde\u63a5\u5df2\u53d8\u5316\uff0c\u5df2\u505c\u6b62\u65e7\u8bbe\u5907\u64cd\u4f5c\u3002")
 
     def _run(self,name,command,cancel,timeout=25):
         self._current()
-        result=self.manager.runner.run("router_policy_"+name,command,timeout=timeout,cancel_event=cancel,output_limit=1048576)
+        runner=self._apply_channel.runner if self._apply_channel is not None else self.manager.runner
+        result=runner.run("router_policy_"+name,command,timeout=timeout,cancel_event=cancel,output_limit=1048576)
         require_command_completion(result)
         if result.exit_code:raise RuntimeError("\u8def\u7531\u5668\u64cd\u4f5c\u672a\u5b8c\u6210\uff0c\u8bf7\u68c0\u67e5\u6743\u9650\u3001\u7ec4\u4ef6\u53ca\u8fde\u63a5\u3002")
         return result.stdout
 
     def _call(self,action,cancel,timeout=30,**values):
+        if self._apply_channel is not None:
+            self._current()
+            return self._apply_channel.call(action,timeout=timeout,**values)
         if self.lua_bin is None:
             probe=RouterSignalManager(self.manager.runner).probe_dependencies(cancel)
             if not all(probe.get(k) for k in ("lua","uci","ubus","jsonc","root","sha256sum")):
@@ -106,6 +114,7 @@ class RouterPolicyManager:
         result=build_plan(before,kind,options,environment)
         result["signature"]=before["signature"]
         result["model"]=str(before.get("board",{}).get("model",""))[:256]
+        if result.get("new_address"):result["lan_before"]=dict(before["configs"].get("network",{}).get("lan",{}))
         return result
 
     def _transaction(self,snapshot,operations,cancel):
@@ -142,24 +151,10 @@ class RouterPolicyManager:
                               encryption="psk2",key=ap["password"],disabled="0"))]
         if parent_disabled:
             ops.insert(0,dict(action="set",config="wireless",section=ap["radio"],values=dict(disabled="0")))
-        expected=self._transaction(snapshot,ops,cancel)
-        # Only the new AP configuration is saved at this point. Old defaults stay intact.
-        try:
-            self._run("wifi_reload","/sbin/wifi reload",Event(),20)
-            deadline=time.monotonic()+20
-            ready=False
-            while time.monotonic()<deadline:
-                state=self._call("ap_ready",Event(),timeout=5,ap=ap)
-                if state.get("ready") is True:
-                    ready=True;break
-                if cancel.is_set():raise InterruptedError("\u5df2\u505c\u6b62\u540e\u7eed\u64cd\u4f5c\uff0c\u539f\u70ed\u70b9\u4ecd\u4fdd\u7559\u3002")
-                time.sleep(.4)
-            if not ready:raise RuntimeError("\u65b0\u70ed\u70b9\u8fd0\u884c\u72b6\u6001\u672a\u786e\u8ba4\u3002")
-        except Exception as exc:
-            raise RuntimeError("\u65b0\u70ed\u70b9\u521b\u5efa\u540e\u672a\u80fd\u786e\u8ba4\u6b63\u5e38\u53d1\u5c04\uff0c\u539f\u70ed\u70b9\u672a\u5220\u9664\uff0c\u5176\u4ed6\u521d\u59cb\u5316\u8bbe\u7f6e\u672a\u6267\u884c\u3002\u8bf7\u91cd\u8fde\u540e\u6838\u5bf9\u4fe1\u53f7\u3002") from exc
-        current=self.read(Event())
-        if current["hashes"]!=expected or current["files"]!=snapshot["files"]:
-            raise RuntimeError("\u521b\u5efa\u70ed\u70b9\u671f\u95f4\u5176\u4ed6\u914d\u7f6e\u53d1\u751f\u53d8\u5316\uff0c\u539f\u70ed\u70b9\u672a\u5220\u9664\uff0c\u5df2\u505c\u6b62\u521d\u59cb\u5316\u3002")
+        from .policy_apply_transaction import apply_operations
+        result,current=apply_operations(self,snapshot,ops,cancel,report)
+        if current["files"]!=snapshot["files"]:
+            raise RuntimeError("\u521b\u5efa\u70ed\u70b9\u671f\u95f4\u6587\u4ef6\u5df2\u53d8\u5316\uff0c\u5df2\u505c\u6b62\u540e\u7eed\u4fee\u6539\u3002")
         # Validate every unchanged wireless row; do not bless concurrent wireless edits.
         old=dict(snapshot["configs"].get("wireless",{}))
         new=dict(current["configs"].get("wireless",{}));new.pop(ap["section"],None)
@@ -168,7 +163,32 @@ class RouterPolicyManager:
         if old!=new:raise RuntimeError("\u65e0\u7ebf\u914d\u7f6e\u88ab\u5176\u4ed6\u5de5\u5177\u4fee\u6539\uff0c\u539f\u70ed\u70b9\u672a\u5220\u9664\u3002")
         return current
 
-    def apply(self,review,backup_path,backup_expected,cancel,report):
+    def apply(self,review,backup_path,backup_expected,cancel,report,connection_settings=None,password="",fingerprint=None):
+        self._current()
+        if not isinstance(review,dict):raise ValueError("Invalid policy review")
+        if review.get("kind")=="boot":
+            return self._apply_review(review,backup_path,backup_expected,cancel,report)
+        from .checked_apply import ApplyChannel
+        settings=dict(connection_settings or {})
+        for key in ("host","port","user"):
+            settings.setdefault(key,getattr(self.ssh,"_"+key,None))
+        factory=getattr(self,"_apply_channel_factory",ApplyChannel)
+        self._apply_channel=factory(settings,password,fingerprint or self.fingerprint,policy=True)
+        self._apply_host=settings["host"]
+        self._client_network=review.get("client_network")
+        generation=getattr(self.ssh,"connection_generation",None)
+        try:
+            result=self._apply_review(review,backup_path,backup_expected,cancel,report)
+            if review.get("kind")=="station" and result.get("applied") and hasattr(self.ssh,"adopt_verified"):
+                result['session_restored']=self.ssh.adopt_verified(self._apply_channel.ssh,self.connection,generation,self.fingerprint)
+            return result
+        finally:
+            self._apply_channel.close()
+            self._apply_channel=None
+            self._apply_host=None
+            self._client_network=None
+
+    def _apply_review(self,review,backup_path,backup_expected,cancel,report):
         if not isinstance(review,dict) or review.get("kind") not in {"initial","station","ap","boot"}:
             raise ValueError("\u8bf7\u91cd\u65b0\u6253\u5f00\u9884\u89c8\u3002")
         if not (review.get("operations") or review.get("files") or review.get("new_ap") or review.get("service") or "boot_enabled" in review):
@@ -184,6 +204,7 @@ class RouterPolicyManager:
         current=self.read(cancel) if backup is not None else before
         if current["signature"]!=review["signature"]:raise RuntimeError("配置已变化，未执行修改，请重新预览。"+backup_note)
         if cancel.is_set():raise InterruptedError("已取消，尚未执行修改。"+backup_note)
+        if review.get("kind")!="boot":cancel=Event()
         if review.get("new_ap"):
             try:current=self._create_ap(review,current,cancel,report)
             except Exception as exc:
@@ -195,10 +216,15 @@ class RouterPolicyManager:
         report(dict(stage="\u6b63\u5728\u4fdd\u5b58\u5df2\u786e\u8ba4\u7684\u8bbe\u7f6e",completed=0,total=0,uncancellable=True))
         try:
             if review["files"]:
+                phase("\u6b63\u5728\u5199\u5165\u5e76\u6838\u5bf9\u9009\u4e2d\u7684\u6587\u4ef6",seconds=30)
                 file_backup=self._call("files_apply",cancel,files=review["files"],token=secrets.token_hex(8))["backup_dir"]
-            self._transaction(current,operations,cancel)
+            if operations and review.get("kind")!="boot":
+                from .policy_apply_transaction import apply_operations
+                applied,current=apply_operations(self,current,operations,cancel,report)
+            else:
+                self._transaction(current,operations,cancel)
         except Exception as exc:
-            if file_backup and not isinstance(exc,PolicyCommitUncertain):
+            if file_backup and not isinstance(exc,PolicyCommitUncertain) and getattr(exc,"code","")!="configuration_apply_uncertain":
                 try:self._call("files_restore",Event(),backup_dir=file_backup)
                 except Exception as recovery:raise RuntimeError("\u6587\u4ef6\u6062\u590d\u672a\u786e\u8ba4\uff0c\u8bf7\u6838\u5bf9 "+file_backup+backup_note) from recovery
             raise RuntimeError(str(exc)+backup_note) from exc
@@ -207,6 +233,7 @@ class RouterPolicyManager:
         # Runtime changes happen only after saving and validation. Never retry on disconnect.
         try:
             if review.get("service"):
+                phase("\u6b63\u5728\u5e94\u7528\u5e76\u6838\u5bf9\u670d\u52a1\u8bbe\u7f6e",seconds=15)
                 self._run("upgrade_disable","/etc/init.d/attendedsysupgrade stop && /etc/init.d/attendedsysupgrade disable && ! /etc/init.d/attendedsysupgrade enabled",Event(),15)
             if "boot_enabled" in review:
                 command="/etc/init.d/luxiaoguan-wifi-policy "
@@ -229,14 +256,9 @@ class RouterPolicyManager:
             notes.append("\u65b0 2.4G Wi-Fi\uff1a"+ap["ssid"]+"\uff1b\u5bc6\u7801\uff1a"+ap["password"]+"\uff1b\u65e0\u7ebf\u5730\u5740\uff1a"+ap["mac"])
         if review.get("identities"): notes.append("\u4ee5\u4e0a\u662f\u5df2\u4fdd\u5b58\u7684\u65b0\u8eab\u4efd\uff0c\u5b9e\u9645\u65e0\u7ebf\u5730\u5740\u8bf7\u91cd\u8fde\u540e\u6838\u5bf9\u3002")
         notes.extend("\u8df3\u8fc7\uff1a"+s for s in review.get("skipped",[]))
-        if review.get("reboot"):
-            report(dict(stage="\u8bbe\u7f6e\u5df2\u4fdd\u5b58\uff0c\u6b63\u5728\u8bf7\u6c42\u91cd\u542f\uff1b\u968f\u540e\u8bf7\u91cd\u65b0\u767b\u5f55",completed=0,total=0))
-            try:
-                outcome=reboot_router(self.manager,Event())
-                notes.insert(0,outcome["note"])
-                return dict(outcome=outcome["outcome"],note="\n".join(notes),review=review)
-            except Exception:
-                return dict(outcome="uncertain",note="\u8bbe\u7f6e\u5df2\u4fdd\u5b58\uff0c\u91cd\u542f\u7ed3\u679c\u672a\u786e\u8ba4\uff1b\u8bf7\u6838\u5bf9\u540e\u91cd\u65b0\u8fde\u63a5\uff0c\u52ff\u91cd\u590d\u6267\u884c\u3002\n"+"\n".join(notes),review=review)
+        if review.get("kind")!="boot":
+            notes.insert(0,"\u914d\u7f6e\u5df2\u5e94\u7528\u5e76\u6838\u9a8c\uff0c\u65e0\u9700\u91cd\u542f\u6574\u53f0\u8def\u7531\u5668\u3002")
+            return dict(outcome="applied",applied=True,note="\n".join(notes),review=review)
         if "boot_enabled" in review:
             action="开启" if review["boot_enabled"] else "关闭"
             notes.insert(0,"已"+action+"开机自动连接上级 Wi-Fi，从下次开机起生效。当前连接和自己的热点不变。")

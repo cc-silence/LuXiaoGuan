@@ -23,37 +23,38 @@ class ApplyModeTests(unittest.TestCase):
 
     def test_direct_apply_writes_without_export_and_reports_no_phantom_backup(self):
         before=copy.deepcopy(self.d.config["wireless"])
-        with patch(BACKEND+"RouterBackupManager") as backups,patch(BACKEND+"reboot_router",return_value=dict(outcome="reconnect",note="Reboot requested")) as reboot:
+        with patch(BACKEND+"RouterBackupManager") as backups:
             result=self.p.apply(self.plan,None,None,self.d.cancel,Mock())
-        backups.assert_not_called();reboot.assert_called_once()
+        backups.assert_not_called()
         self.assertNotEqual(self.d.config["wireless"],before)
-        self.assertTrue(self.d.commits)
-        self.assertNotIn("操作前配置备份",result["note"])
-        self.assertEqual(result["outcome"],"reconnect")
+        self.assertIn(("uci","apply"),self.d.calls);self.assertIn(("uci","confirm"),self.d.calls)
+        self.assertEqual(result["outcome"],"applied")
+        self.assertFalse(any("reboot" in command for _,command in self.d.commands))
 
     def test_backup_is_completed_before_first_write(self):
-        order=[]
-        transaction=self.p._transaction
+        order=[];factory=self.p._apply_channel_factory
         def export(*args):
-            self.assertFalse(self.d.commits)
-            order.append("backup")
+            self.assertNotIn(("uci","apply"),self.d.calls);order.append("backup")
             return dict(path="C:/before.tar.gz")
-        def save(*args):
-            order.append("save")
-            return transaction(*args)
-        with patch(BACKEND+"RouterBackupManager") as backups,patch.object(self.p,"_transaction",side_effect=save),patch(BACKEND+"reboot_router",return_value=dict(outcome="reconnect",note="reboot")):
+        def channel(*args,**kwargs):
+            result=factory(*args,**kwargs);original=result.call
+            def call(action,**values):
+                if action=="checked_apply":order.append("apply")
+                return original(action,**values)
+            result.call=call;return result
+        self.p._apply_channel_factory=channel
+        with patch(BACKEND+"RouterBackupManager") as backups:
             backups.return_value.export.side_effect=export
             result=self.p.apply(self.plan,"C:/before.tar.gz",None,self.d.cancel,Mock())
-        self.assertEqual(order,["backup","save"])
+        self.assertEqual(order,["backup","apply"])
         self.assertIn("C:/before.tar.gz",result["note"])
 
     def test_direct_failure_preserves_original_error_without_backup_lookup(self):
-        self.d.commit_fail="wireless"
-        with patch(BACKEND+"RouterBackupManager") as backups,patch(BACKEND+"reboot_router") as reboot:
-            with self.assertRaises(RuntimeError) as error:
-                self.p.apply(self.plan,None,None,self.d.cancel,Mock())
-        self.assertNotIsInstance(error.exception,KeyError)
-        backups.assert_not_called();reboot.assert_not_called()
+        self.d.fail=("uci","apply");before=copy.deepcopy(self.d.config)
+        with patch(BACKEND+"RouterBackupManager") as backups:
+            with self.assertRaises(RuntimeError) as error:self.p.apply(self.plan,None,None,self.d.cancel,Mock())
+        self.assertNotIsInstance(error.exception,KeyError);backups.assert_not_called()
+        self.assertEqual(before,self.d.config);self.assertNotIn(("uci","confirm"),self.d.calls)
 
     def test_manual_initial_hotspot_name_is_used_and_invalid_names_are_rejected(self):
         snapshot=self.p.read(self.d.cancel)
@@ -67,18 +68,16 @@ class ApplyModeTests(unittest.TestCase):
         snapshot=self.p.read(self.d.cancel)
         plan=build_plan(snapshot,"initial",dict(items=["replace_ap"],ap_ssid="Manual_24G"),environment())
         plan["signature"]=snapshot["signature"]
-        original_call=self.p._call;original_run=self.p._run
-        def call(action,*args,**kwargs):
-            if action=="ap_ready":
-                self.assertIn("default_radio7",self.d.config["wireless"])
-                self.assertEqual(self.d.config["wireless"][plan["new_ap"]["section"]]["ssid"],"Manual_24G")
-                return dict(ready=True)
-            return original_call(action,*args,**kwargs)
-        def run(name,*args,**kwargs):
-            return "" if name=="wifi_reload" else original_run(name,*args,**kwargs)
-        with patch.object(self.p,"_call",side_effect=call),patch.object(self.p,"_run",side_effect=run),patch(BACKEND+"reboot_router",return_value=dict(outcome="reconnect",note="reboot")):
-            result=self.p.apply(plan,None,None,self.d.cancel,Mock())
-        self.assertNotIn("default_radio7",self.d.config["wireless"])
+        factory=self.p._apply_channel_factory;observed=[]
+        def channel(*args,**kwargs):
+            result=factory(*args,**kwargs);original=result.call
+            def call(action,**values):
+                if action=="checked_confirm":observed.append("default_radio7" in self.d.config["wireless"])
+                return original(action,**values)
+            result.call=call;return result
+        self.p._apply_channel_factory=channel
+        result=self.p.apply(plan,None,None,self.d.cancel,Mock())
+        self.assertEqual(observed,[True,False]);self.assertNotIn("default_radio7",self.d.config["wireless"])
         self.assertIn("Manual_24G",result["note"])
 
     def test_boot_write_is_read_back_and_mismatch_is_uncertain(self):

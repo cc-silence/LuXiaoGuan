@@ -28,8 +28,11 @@ Modal editors minimize the visible owner group to retain modal ownership; modele
 
 
 
-- `TaskProgressDialog`: shared task dialog with `RoundedProgressBar`, theme, scale and resource cleanup. Connect `cancelRequested`, send real stage/byte progress and call `finish` on every outcome. Completion stops busy animation; failure keeps the last known progress and late updates are ignored. Router backup/policy tasks use a thin `RouterTaskProgressDialog` adapter; avoid separate progress styles and fake timer percentages.
+- `TaskProgressDialog`: shared task dialog with `RoundedProgressBar`, theme, scale and resource cleanup. Connect `cancelRequested`, send real stage/byte progress and call `finish` on every outcome. Completion stops busy animation; failure keeps the last known progress and late updates are ignored. Router backup/policy tasks use a thin `RouterTaskProgressDialog` adapter; avoid separate progress styles and fake timer percentages. The router adapter can show a worker-supplied monotonic phase deadline and no-power-off notice. Its clock only updates text; completion stops it immediately, and reaching zero never implies success.
 
 - `TableFilterBar(parent)`: always-visible single-line search and filtered/total count. Emits `changed(str)`; the table owns filtering. Put it in the footer beside status text and call `refresh_scale()` after appearance changes. No overlay, position persistence, mouse dragging or timer.
 
 - `InfoPanel.append_info(text, "diagnostic")`: retain bounded detailed evidence in `export_entries()` without rendering it, including after theme/privacy redraws. Visible messages continue to use info/success/warning/error.
+
+
+The OpenWrt RouterTaskProgressDialog adapter can optionally display a bounded, read-only LAN guidance panel using the shared settingsMessageText theme and CommonComboBox. Its networkRenewRequested signal carries only the selected adapter identity; the widget performs no OS networking operations. ConfigurationProgressController routes the request to the task-bound recovery service and owns/disconnects explicit Qt connection handles. The panel supports light/dark themes and UI scaling; static or unsupported interfaces show guidance without a recovery action.

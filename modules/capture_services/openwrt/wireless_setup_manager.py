@@ -6,6 +6,7 @@ import re
 import secrets
 import threading
 import time
+from ..configuration_progress import phase
 
 from .signal_manager import RouterSignalManager, SignalError
 from .wireless_security import encryption_base
@@ -54,6 +55,8 @@ def supports_interfaces(capabilities, access_points, stations):
         if found_ap and found_sta and fits:
             return True
     return False
+
+
 
 
 class WirelessSetupManager:
@@ -357,6 +360,7 @@ exit 1
     def _wait_ready(self, request, section, cancel, bssid="", *, network="", temporary=False, expected_mac=""):
         """认证只看 COMPLETED 和所选接入点，不要求 IPv4 或访问外网。"""
         deadline = time.monotonic() + 45
+        phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u8fd0\u884c\u72b6\u6001", deadline=deadline, rollback=True)
         while time.monotonic() < deadline:
             if cancel.is_set():
                 raise InterruptedError("无线操作已取消。")
@@ -382,6 +386,7 @@ exit 1
 
     def _restore(self, sid, env, radio):
         """取消也给恢复独立期限；断线时由设备端 90 秒回滚保护兜底。"""
+        phase("\u6b63\u5728\u6062\u590d\u539f\u65e0\u7ebf\u914d\u7f6e", seconds=40, rollback=True)
         cleanup = threading.Event()
         self._call("finish", cleanup, sid=sid, confirm=False, unapplied=True, timeout=15)
         wanted = {r["section"] for r in env.data["rows"] if r.get("device") == radio} & set(env.data["active"])
@@ -422,10 +427,12 @@ exit 1
         error = None
         confirmed = False
         try:
+            phase("\u6b63\u5728\u5e94\u7528\u65e0\u7ebf\u914d\u7f6e", seconds=90, rollback=True)
             result = self._call("delete_stage" if delete else "stage" if enabled is None else "stage_toggle", cancel, timeout=30, enabled=enabled, enable_parent=enable_parent, sid=sid, token=secrets.token_hex(8),
                                 revision=env.data["revision"], dhcp_revision=env.data.get("dhcp_revision", ""), values=asdict(request), temporary=temporary)
             if enabled is False or delete:
                 deadline = time.monotonic() + 45
+                phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u505c\u7528\u7ed3\u679c", deadline=deadline, rollback=True)
                 while True:
                     if cancel.is_set(): raise InterruptedError("无线操作已取消。")
                     stopped = self._call("delete_status" if delete else "toggle_status", cancel, radio=request.radio, section=result["section"], timeout=8)
@@ -451,6 +458,7 @@ exit 1
                         raise SignalError("unconfirmed", "无线运行但配置保存未确认，正在恢复。")
                 if cancel.is_set():
                     raise InterruptedError("保存已取消。")
+                phase("\u6b63\u5728\u786e\u8ba4\u4fdd\u7559\u65b0\u914d\u7f6e", seconds=10, rollback=True)
                 self._call("finish", cancel, sid=sid, confirm=True, unapplied=False, timeout=10)
                 confirmed = True
                 return {"section": result["section"], "network": result["network"], "retained_network": result.get("retained_network", False)}

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .package_manager import PackageManager, package_error_reason, compare_opkg_versions
 from .common_tool_dependencies import TOOLS, TOOL_KEYS, TOOL_BY_KEY, check_tools
+from .dependency_groups import CAPTURE_PACKAGES
 
 from modules.capture_services.openwrt.command_builder import quote_argument
 from modules.capture_services.openwrt.models import DependencyInfo, DependencyState
@@ -44,10 +45,7 @@ class OpenWrtDependencyManager:
     FEATURE_PACKAGES = {
         **{tool.key: tool.package_names for tool in TOOLS},
         "terminal": ("tmux",),
-        "scan": ("aircrack-ng",),
-        "handshake": ("aircrack-ng",),
-        "pmkid": ("hcxdumptool", "aircrack-ng"),
-        "wps": ("reaver", "aircrack-ng"),
+        **CAPTURE_PACKAGES,
     }
     FEATURE_COMMANDS = {
         "terminal": ("tmux",),
@@ -277,15 +275,18 @@ class OpenWrtDependencyManager:
                             if enabled and key in TOOL_BY_KEY)
         package_manager = None
         common_installed = ()
-        if common_keys:
+        exact_selection = common_keys or selected is not None
+        if exact_selection:
             from .tool_uninstall import installed_tool_packages
             package_manager = self._preflight(0, cancel_event)
             candidates = tuple(dict.fromkeys(package for key in common_keys
-                               for package in TOOL_BY_KEY[key].package_names))
+                               for package in TOOL_BY_KEY[key].package_names)) if common_keys else tuple(selected)
+            if set(candidates) - _removable_packages():
+                raise ValueError("未知的卸载软件包选择。")
             common_installed = installed_tool_packages(
                 self.command_runner, package_manager, candidates, cancel_event)
         installed = list(common_installed)
-        for item in checked():
+        for item in (() if selected is not None and not common_keys else checked()):
             if item.key in common_keys:
                 continue
             if item.key in TOOL_BY_KEY and not TOOL_BY_KEY[item.key].removable:
@@ -330,7 +331,7 @@ class OpenWrtDependencyManager:
                 command,
                 120, cancel_event, f"卸载 {package}")
             tell(f"{package} 卸载完成。", "success")
-        if common_keys:
+        if exact_selection:
             remaining = installed_tool_packages(self.command_runner, package_manager,
                                                 targets, cancel_event)
             if remaining:
@@ -435,7 +436,7 @@ class OpenWrtDependencyManager:
 
 
     def _install_offline(self, wanted, device, cache_dir, sftp_available,
-                         cancel_event, tell, uploader=None, *, local_paths=None, local_packages=None):
+                         cancel_event, tell, uploader=None, *, local_paths=None, local_packages=None, candidate_trial=False):
         """本机按档案下载闭包→传包→本地逐包安装；SFTP 缺失先用命令通道开路。
 
         核验由上层复测 `check()` 完成，这里只保证传装动作诚实报错。
@@ -450,7 +451,8 @@ class OpenWrtDependencyManager:
                 profile = normalize_profile(
                     getattr(device, "version", ""),
                     getattr(device, "package_architecture", ""),
-                    getattr(device, "package_manager", ""))
+                    getattr(device, "package_manager", ""),
+                    distribution=getattr(device, "distribution", "OpenWrt"))
             except ValueError as exc:
                 raise SignalError("environment", str(exc)) from None
             installed_text = self._execute_stage(
@@ -511,9 +513,14 @@ class OpenWrtDependencyManager:
                                     20, cancel_event, "\u51c6\u5907\u65e0\u8054\u7f51\u79bb\u7ebf\u5b89\u88c5")
             command = lambda simulate=False: (local_command(package_manager, remote_paths, simulate)
                 if local_packages is not None else package_manager.local_install(remote_paths, simulate=simulate))
-            plan = self._execute_stage("dependency_local_plan",
-                command(True),
-                90, cancel_event, "核对离线安装计划")
+            try:
+                plan = self._execute_stage("dependency_local_plan",
+                    command(True), 90, cancel_event, "核对离线安装计划")
+            except SignalError as exc:
+                if candidate_trial and exc.code != "cancelled" and getattr(exc, "package_diagnostic", ""):
+                    from .candidate_policy import CandidatePlanRejected
+                    raise CandidatePlanRejected(exc) from exc
+                raise
             try:
                 package_manager.verify_plan(plan, ())
                 if local_packages is not None:
@@ -521,6 +528,9 @@ class OpenWrtDependencyManager:
             except (ValueError, SignalError) as exc:
                 error = exc if isinstance(exc, SignalError) else SignalError("environment", str(exc))
                 error.package_diagnostic = self._package_diagnostic("dependency_local_plan validation", plan)
+                if candidate_trial:
+                    from .candidate_policy import CandidatePlanRejected
+                    raise CandidatePlanRejected(error) from exc
                 if error is exc:
                     raise
                 raise error from exc

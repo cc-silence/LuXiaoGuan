@@ -22,6 +22,14 @@ class CaptureTaskCompletion(QObject):
         self._published = False
 
     @Slot(object)
+    def configuration_progress(self, value):
+        signal = getattr(self._owner, "configurationProgressChanged", None)
+        if signal is not None and isinstance(value, dict) and value.get("configuration_apply"):
+            recovery=getattr(self._owner,"lan_recovery",None)
+            if recovery is not None:recovery.observe(self._session_id,value)
+            signal.emit(self._session_id, value)
+
+    @Slot(object)
     def succeeded(self, result):
         """仅暂存成功结果，不释放任务槽或创建下一个 worker。"""
         self._outcome = (True, result)
@@ -38,6 +46,10 @@ class CaptureTaskCompletion(QObject):
             return
         self._published = True
         owner, outcome = self._owner, self._outcome
+        recovery=getattr(owner,"lan_recovery",None)
+        if recovery is not None:recovery.release(self._session_id)
+        signal = getattr(owner, "configurationProgressChanged", None)
+        if signal is not None:signal.emit(self._session_id, None)
         try:
             if outcome is None:
                 self._failure(
@@ -82,6 +94,7 @@ def start_capture_task(owner, session_id, operation, cancel_event,
         thread._capture_completion = completion
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
+        worker.progressChanged.connect(completion.configuration_progress, Qt.QueuedConnection)
         worker.succeeded.connect(completion.succeeded, Qt.QueuedConnection)
         worker.failed.connect(completion.failed, Qt.QueuedConnection)
         if progress is not None:

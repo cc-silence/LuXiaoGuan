@@ -2,7 +2,7 @@
 import json
 import unittest
 from unittest.mock import Mock,patch
-from tests.test_router_policy import PolicyDevice,environment,LuaRuntime
+from tests.test_router_policy import PolicyDevice,PolicyChannel,environment,LuaRuntime
 from modules.capture_services.openwrt.router_policy_plan import build_plan
 
 @unittest.skipUnless(LuaRuntime,"Lua test runtime unavailable")
@@ -12,6 +12,7 @@ class PolicyBooleanEdgeTests(unittest.TestCase):
         if value is not None:device.config["wireless"]["radio7"]["disabled"]=value
         device.files["/etc/config/wireless"]=json.dumps(device.config["wireless"],sort_keys=True)
         policy=device.policy;snapshot=policy.read(device.cancel)
+        policy._apply_channel=PolicyChannel(device);policy._apply_host="192.168.8.1"
         plan=build_plan(snapshot,"initial",dict(items=["replace_ap"]),environment())
         call=policy._call;run=policy._run
         def ready(action,*args,**kwargs):

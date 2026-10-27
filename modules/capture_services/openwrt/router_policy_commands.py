@@ -4,6 +4,7 @@ from .command_builder import quote_argument
 from .signal_commands import _LUA_BINS
 from .pending_config_commands import PENDING
 from .save_only_commands import SAVE_ONLY
+from .checked_apply_commands import CHECKED_APPLY, CHECKED_ACTIONS
 from .wireless_identity_commands import IDENTITY
 from .router_policy_files import FILES_LUA
 from .wireless_capabilities import CAPABILITIES_LUA
@@ -67,7 +68,7 @@ local visible={
  wireless={"mode","ssid","device","network","encryption","macaddr","disabled","band","hwmode","channel","htmode","rm_identity_backup","rm_wds_backup","rm_bridge","lxg_boot_disabled"},
  firewall={"name","device","subnet","extra_src","extra_dest","src","dest","proto","icmp_type","family","target","dest_port","enabled","network","input","output","forward","src_ip","dest_ip","src_port","extra"},
  dhcp={"interface","quietdhcp","ra","dhcpv6","start","limit","ignore","dhcp_option"},dropbear={"Interface","DirectInterface","Port","enable"},
- uhttpd={"home","listen_http","listen_https","redirect_https"},luci={"lang"},fstab={"auto_mount","anon_swap"}
+ uhttpd={"home","listen_http","listen_https","redirect_https","enabled"},luci={"lang"},fstab={"auto_mount","anon_swap"}
 }
 local function snapshot()
  local out={configs={},hashes={},files={},pages={},capabilities={},order={}}
@@ -83,7 +84,7 @@ local function snapshot()
    local rows={};out.order[config]={}
    c:foreach(config,nil,function(s)
     count=count+1;if count>2048 or not name(s[".name"]) then fail("large") end
-    local row=fields(s,visible[config]);row[".type"]=s[".type"];out.order[config][#out.order[config]+1]=s[".name"]
+    local row=fields(s,visible[config]);row[".type"]=s[".type"];row[".anonymous"]=s[".anonymous"]==true;out.order[config][#out.order[config]+1]=s[".name"]
     rows[s[".name"]]=row
    end)
    out.configs[config]=rows
@@ -110,7 +111,22 @@ local function snapshot()
  out.capabilities.mount=pending_shell("command -v block >/dev/null")
  out.capabilities.old_watch=pending_shell("sed '/^[[:space:]]*#/d' /etc/rc.local | grep -E 'watch_wifi[.]sh|keep_wifi[.]sh'")
  out.capabilities.boot_hook_enabled=pending_shell("test -L /etc/rc.d/S18luxiaoguan-wifi-policy && test \"$(readlink /etc/rc.d/S18luxiaoguan-wifi-policy)\" = ../init.d/luxiaoguan-wifi-policy")
- out.runtime={interface={}}
+ out.runtime={interface={},active={},associated={},association_known={}}
+ for _,radio in pairs(optional("network.wireless","status",{})) do
+  if radio.up==true and not radio.pending then
+   for _,iface in ipairs(radio.interfaces or {}) do
+    if name(iface.section) and type(iface.ifname)=="string" and optional("network.device","status",{name=iface.ifname}).up==true then
+     out.runtime.active[#out.runtime.active+1]=iface.section
+     if c:get("wireless",iface.section,"mode")=="sta" then
+      local text=read("wpa_cli -i "..q(iface.ifname).." status")
+      local state=text:match("\nwpa_state=([^\r\n]+)") or text:match("^wpa_state=([^\r\n]+)")
+      if state then out.runtime.association_known[#out.runtime.association_known+1]=iface.section end
+      if state=="COMPLETED" then out.runtime.associated[#out.runtime.associated+1]=iface.section end
+     end
+    end
+   end
+  end
+ end
  for _,iface in ipairs(optional("network.interface","dump",{}).interface or {}) do
   local row=fields(iface,{"interface"});row["ipv4-address"]={};row.route={}
   for _,address in ipairs(iface["ipv4-address"] or {}) do
@@ -192,15 +208,33 @@ local function stage()
  end
  return {staged=true}
 end
+
+local function policy_order_matches(c,op)
+ local actual={};c:foreach(op.config,nil,function(row) actual[#actual+1]=row end)
+ if not op.order_refs then
+  local names={};for _,row in ipairs(actual) do names[#names+1]=row[".name"] end
+  return save_equal(names,op.sections,0)
+ end
+ if #actual~=#op.order_refs then return false end
+ for i,ref in ipairs(op.order_refs) do
+  local row=actual[i]
+  if ref.anonymous then
+   if row[".anonymous"]~=true or row[".type"]~=ref.values[".type"] then return false end
+   local expected={};for key,value in pairs(ref.values) do if key:sub(1,1)~="." then expected[key]=value end end
+   if not save_equal(fields(row,visible[op.config]),expected,0) then return false end
+  elseif row[".name"]~=ref.name then return false end
+ end
+ return true
+end
+
 local function commit()
  local c=uci.cursor()
  for _,config in ipairs(configs) do if pending_hash("/etc/config/"..config)~=req.hashes[config] then fail("changed") end end
  local result=save_session_commit(function()
   for _,op in ipairs(req.operations or {}) do
    if op.action=="order" then
-    local actual={};local check=uci.cursor()
-    check:foreach("firewall",nil,function(s) actual[#actual+1]=s[".name"] end)
-    if not save_equal(actual,op.sections,0) then fail("save_commit") end
+    local check=uci.cursor()
+    if not policy_order_matches(check,op) then fail("save_commit") end
    end
   end
  end,configs,req.hashes)
@@ -224,7 +258,58 @@ local function policy_ap_ready()
  end
  return {ready=false}
 end
+
+__CHECKED_APPLY__
+local function policy_applied()
+ local c=uci.cursor()
+ local network_state=nil
+ for _,op in ipairs(req.operations or {}) do
+  if not c:load(op.config) then fail("read") end
+  local section=save_resolve_section(c,op.config,op.section,op.section_ref)
+  if op.action=="identity" then
+   if c:get("wireless",section,"macaddr")~=op.values.macaddr or c:get("network",op.network,"hostname")~=op.values.hostname then return {ready=false} end
+   identity_backup(c:get_all("wireless",section))
+  elseif op.action=="identity_group" then
+   if c:get("network",section,"hostname")~=op.hostname then return {ready=false} end
+   for _,member in ipairs(op.members or {}) do
+    if c:get("wireless",save_resolve_section(c,"wireless",member.section,member.section_ref),"macaddr")~=member.macaddr then return {ready=false} end
+    identity_backup(c:get_all("wireless",save_resolve_section(c,"wireless",member.section,member.section_ref)))
+   end
+  elseif op.action=="delete_section" then
+   if c:get(op.config,section) then return {ready=false} end
+  elseif op.action=="delete" then
+   if c:get(op.config,section,op.option)~=nil then return {ready=false} end
+  elseif op.action=="order" then
+   if not policy_order_matches(c,op) then return {ready=false} end
+  else
+   if not c:get(op.config,section) then return {ready=false} end
+   for key,value in pairs(op.values or {}) do
+    if not save_equal(c:get(op.config,section,key),value,0) then return {ready=false} end
+   end
+   if op.config=="system" and op.values and op.values.hostname then
+    if read("cat /proc/sys/kernel/hostname"):gsub("%s+$","")~=op.values.hostname then return {ready=false} end
+   end
+   if op.config=="system" and op.values and op.values.timezone then
+    local tz=read("cat /tmp/TZ"):gsub("%s+$","")
+    local zone="/usr/share/zoneinfo/"..(c:get("system",section,"zonename") or ""):gsub(" ","_")
+    if tz~=op.values.timezone and read("readlink /tmp/localtime"):gsub("%s+$","")~=zone then return {ready=false} end
+   end
+   if op.config=="network" and section=="lan" and op.values and op.values.ipaddr then
+    local state=optional("network.interface.lan","status",{})
+    local found=false
+    for _,entry in ipairs(state["ipv4-address"] or {}) do if entry.address==op.values.ipaddr then found=true end end
+    if state.up~=true or state.pending==true or not found then return {ready=false} end
+    network_state=fields(state,{"proto","device","ipv4-address","ipv6-address","ipv6-prefix","route"})
+    network_state.up=state.up;network_state.pending=state.pending
+   end
+  end
+ end
+ return {ready=true,network_state=network_state}
+end
 local function run()
+__CHECKED_ACTIONS__
+ if req.action=="policy_applied" then return policy_applied() end
+ if req.action=="discard_session" then rpc("session","destroy",{ubus_rpc_session=sid()});return {discarded=true} end
  if req.action=="ap_ready" then return policy_ap_ready() end
  if req.action=="files_apply" then return policy_file_apply() end
  if req.action=="files_restore" then return policy_file_restore(req.backup_dir,policy_file_journal(req.backup_dir)) end
@@ -248,7 +333,7 @@ local ok,result=pcall(run)
 if bus then bus:close() end
 io.write(json.stringify(ok and {ok=true,result=result} or {ok=false,code=type(result)=="table" and result.code or "internal"}))
 '''
-BOOT = BOOT.replace("__AP_HELPERS__",CAPABILITIES_LUA.replace("__DEVICE_OPTIONS__","").replace("__INTERFACE_OPTIONS__","")).replace("__FILES_LUA__",FILES_LUA).replace("__PENDING__",PENDING).replace("__SAVE__",SAVE_ONLY).replace("__IDENTITY__",IDENTITY).replace("__CONFIGS__", "{" + ",".join(json.dumps(c) for c in CONFIGS) + "}").replace("__FILES__", "{" + ",".join(json.dumps(p) for p in FILES) + "}")
+BOOT = BOOT.replace("__CHECKED_APPLY__",CHECKED_APPLY).replace("__CHECKED_ACTIONS__",CHECKED_ACTIONS).replace("__AP_HELPERS__",CAPABILITIES_LUA.replace("__DEVICE_OPTIONS__","").replace("__INTERFACE_OPTIONS__","")).replace("__FILES_LUA__",FILES_LUA).replace("__PENDING__",PENDING).replace("__SAVE__",SAVE_ONLY).replace("__IDENTITY__",IDENTITY).replace("__CONFIGS__", "{" + ",".join(json.dumps(c) for c in CONFIGS) + "}").replace("__FILES__", "{" + ",".join(json.dumps(p) for p in FILES) + "}")
 
 
 def policy_command(action, lua_bin="lua", **values):

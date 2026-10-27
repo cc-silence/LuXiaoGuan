@@ -109,7 +109,7 @@ class CommonSettingsUiTests(unittest.TestCase):
             dialog.return_value.Accepted=1;dialog.return_value.exec.return_value=1
             dialog.return_value.values.return_value=SYSTEM["values"]
             page._completed("request",SYSTEM)
-        self.assertEqual(page.manager.submit.call_args.kwargs,dict(review=SYSTEM,values=SYSTEM["values"]))
+        self.assertEqual(page.manager.submit.call_args.kwargs,dict(review=SYSTEM,values=SYSTEM["values"],connection_settings={}))
         page._completed("save",dict(note="Saved"))
         self.assertEqual(page.status_label.text(),"Saved")
         self.assertTrue(page.system_button.isEnabled())
@@ -208,7 +208,7 @@ class CommonSettingsUiTests(unittest.TestCase):
                 if mode=="cancel":
                     self.assertEqual(page.manager.submit.call_count,1)
                 else:
-                    args=dict(review=NETWORK,values=NETWORK["values"])
+                    args=dict(review=NETWORK,values=NETWORK["values"],connection_settings={})
                     if mode=="reboot":args["apply"]=True
                     page.manager.submit.assert_called_with("common_save",**args)
                 if mode=="direct-save":confirm.assert_not_called()

@@ -146,7 +146,7 @@ class RouterPolicyActions:
                     picked=page.maintenance_actions._destination(before=True)
                     if picked is None or not self._current(identity):return True
                     path,expected=picked
-                key=page.manager.submit("policy_apply",review=result,backup_path=path,backup_expected=expected)
+                key=page.manager.submit("policy_apply",review=result,backup_path=path,backup_expected=expected,connection_settings=dict(page.connection_settings()))
                 self.pending[key]=("apply",kind,identity)
                 self._show_progress(key,kind)
                 page._message("正在备份并应用设置……" if backup_requested else "正在应用设置……")

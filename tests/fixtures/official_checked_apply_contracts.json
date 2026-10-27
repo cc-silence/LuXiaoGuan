@@ -1,0 +1,218 @@
+{
+  "checked_at": "2026-10-26",
+  "source": "Official OpenWrt branch Makefiles pin these upstream revisions",
+  "rpcd": [
+    {
+      "branch": "openwrt-19.07",
+      "rpcd_pin": "67c8a3fda26e441d3ec4a19f50ac72eca8deb14b",
+      "sources": {
+        "rpcd": {
+          "url": "https://raw.githubusercontent.com/openwrt/rpcd/67c8a3fda26e441d3ec4a19f50ac72eca8deb14b/uci.c",
+          "bytes": 42140
+        },
+        "system": {
+          "url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-19.07/package/base-files/files/etc/init.d/system",
+          "bytes": 996
+        },
+        "network": {
+          "url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-19.07/package/network/config/netifd/files/etc/init.d/network",
+          "bytes": 2794
+        },
+        "luci_ui": {
+          "url": "https://raw.githubusercontent.com/openwrt/luci/openwrt-19.07/modules/luci-base/htdocs/luci-static/resources/ui.js",
+          "bytes": 135404
+        }
+      },
+      "methods": {
+        "apply": true,
+        "confirm": true,
+        "rollback": true
+      },
+      "empty_apply_returns_no_data": true
+    },
+    {
+      "branch": "openwrt-21.02",
+      "rpcd_pin": "8d26a1ba3a175016b342cc5e25d340c08ae20eed",
+      "sources": {
+        "rpcd": {
+          "url": "https://raw.githubusercontent.com/openwrt/rpcd/8d26a1ba3a175016b342cc5e25d340c08ae20eed/uci.c",
+          "bytes": 42202
+        },
+        "system": {
+          "url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-21.02/package/base-files/files/etc/init.d/system",
+          "bytes": 1007
+        },
+        "network": {
+          "url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-21.02/package/network/config/netifd/files/etc/init.d/network",
+          "bytes": 2706
+        },
+        "luci_ui": {
+          "url": "https://raw.githubusercontent.com/openwrt/luci/openwrt-21.02/modules/luci-base/htdocs/luci-static/resources/ui.js",
+          "bytes": 137001
+        }
+      },
+      "methods": {
+        "apply": true,
+        "confirm": true,
+        "rollback": true
+      },
+      "empty_apply_returns_no_data": true
+    },
+    {
+      "branch": "openwrt-22.03",
+      "rpcd_pin": "7de4820c87437033f6b7716018f3bfa60a3f7b12",
+      "sources": {
+        "rpcd": {
+          "url": "https://raw.githubusercontent.com/openwrt/rpcd/7de4820c87437033f6b7716018f3bfa60a3f7b12/uci.c",
+          "bytes": 42205
+        },
+        "system": {
+          "url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-22.03/package/base-files/files/etc/init.d/system",
+          "bytes": 1007
+        },
+        "network": {
+          "url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-22.03/package/network/config/netifd/files/etc/init.d/network",
+          "bytes": 2706
+        },
+        "luci_ui": {
+          "url": "https://raw.githubusercontent.com/openwrt/luci/openwrt-22.03/modules/luci-base/htdocs/luci-static/resources/ui.js",
+          "bytes": 149423
+        }
+      },
+      "methods": {
+        "apply": true,
+        "confirm": true,
+        "rollback": true
+      },
+      "empty_apply_returns_no_data": true
+    },
+    {
+      "branch": "openwrt-23.05",
+      "rpcd_pin": "c07ab2f91061ad64209e9aaa1fb1b77061a1af25",
+      "sources": {
+        "rpcd": {
+          "url": "https://raw.githubusercontent.com/openwrt/rpcd/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/uci.c",
+          "bytes": 42205
+        },
+        "system": {
+          "url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-23.05/package/base-files/files/etc/init.d/system",
+          "bytes": 1007
+        },
+        "network": {
+          "url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-23.05/package/network/config/netifd/files/etc/init.d/network",
+          "bytes": 2706
+        },
+        "luci_ui": {
+          "url": "https://raw.githubusercontent.com/openwrt/luci/openwrt-23.05/modules/luci-base/htdocs/luci-static/resources/ui.js",
+          "bytes": 149522
+        }
+      },
+      "methods": {
+        "apply": true,
+        "confirm": true,
+        "rollback": true
+      },
+      "empty_apply_returns_no_data": true
+    },
+    {
+      "branch": "openwrt-24.10",
+      "rpcd_pin": "bba95191ff2f22c9118a1ba1355b83afaa277ae3",
+      "sources": {
+        "rpcd": {
+          "url": "https://raw.githubusercontent.com/openwrt/rpcd/bba95191ff2f22c9118a1ba1355b83afaa277ae3/uci.c",
+          "bytes": 42205
+        },
+        "system": {
+          "url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-24.10/package/base-files/files/etc/init.d/system",
+          "bytes": 1007
+        },
+        "network": {
+          "url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-24.10/package/network/config/netifd/files/etc/init.d/network",
+          "bytes": 2701
+        },
+        "luci_ui": {
+          "url": "https://raw.githubusercontent.com/openwrt/luci/openwrt-24.10/modules/luci-base/htdocs/luci-static/resources/ui.js",
+          "bytes": 162791
+        }
+      },
+      "methods": {
+        "apply": true,
+        "confirm": true,
+        "rollback": true
+      },
+      "empty_apply_returns_no_data": true
+    },
+    {
+      "branch": "openwrt-25.12",
+      "rpcd_pin": "d99f703e4035d03fbcfbada3cb697db346c2b984",
+      "sources": {
+        "rpcd": {
+          "url": "https://raw.githubusercontent.com/openwrt/rpcd/d99f703e4035d03fbcfbada3cb697db346c2b984/uci.c",
+          "bytes": 43077
+        },
+        "system": {
+          "url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-25.12/package/base-files/files/etc/init.d/system",
+          "bytes": 1012
+        },
+        "network": {
+          "url": "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-25.12/package/network/config/netifd/files/etc/init.d/network",
+          "bytes": 2701
+        },
+        "luci_ui": {
+          "url": "https://raw.githubusercontent.com/openwrt/luci/openwrt-25.12/modules/luci-base/htdocs/luci-static/resources/ui.js",
+          "bytes": 167504
+        }
+      },
+      "methods": {
+        "apply": true,
+        "confirm": true,
+        "rollback": true
+      },
+      "empty_apply_returns_no_data": true
+    }
+  ],
+  "netifd": [
+    {
+      "branch": "openwrt-19.07",
+      "pin": "753c351bc729967a691d99e27693be5aec334028",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/753c351bc729967a691d99e27693be5aec334028/wireless.c",
+      "bytes": 25419
+    },
+    {
+      "branch": "openwrt-21.02",
+      "pin": "8f82742ca4f47f459284f3a07323d04da72ea5f6",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/8f82742ca4f47f459284f3a07323d04da72ea5f6/wireless.c",
+      "bytes": 41623
+    },
+    {
+      "branch": "openwrt-22.03",
+      "pin": "76d2d41b7355e02f95fbfa79affbd232fb090595",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/76d2d41b7355e02f95fbfa79affbd232fb090595/wireless.c",
+      "bytes": 41623
+    },
+    {
+      "branch": "openwrt-23.05",
+      "pin": "c18cc79d50002ab8529c21184aceb016c61ac61c",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/c18cc79d50002ab8529c21184aceb016c61ac61c/wireless.c",
+      "bytes": 44598
+    },
+    {
+      "branch": "openwrt-24.10",
+      "pin": "7901e66c5f273bceee8981bc8a0c8b0e60945f60",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/7901e66c5f273bceee8981bc8a0c8b0e60945f60/wireless.c",
+      "bytes": 45432
+    },
+    {
+      "branch": "openwrt-25.12",
+      "pin": "cbb83a1857407a28a63dc09412a1f209195914ef",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/cbb83a1857407a28a63dc09412a1f209195914ef/wireless.c",
+      "error": "HTTP Error 404: Not Found"
+    }
+  ],
+  "notes": [
+    "RPC apply/confirm/rollback methods checked against each exact pinned rpcd revision.",
+    "netifd loaded wireless config fields and none-protocol behavior checked against pinned 19.07 through 24.10 sources.",
+    "25.12 pinned netifd source was unavailable from GitHub; official source archive retrieval was blocked by expired TLS certificates. TLS verification was not disabled.",
+    "No real router or Debian 12 desktop validation was performed. CPU/driver compatibility is not implied by protocol contracts."
+  ]
+}

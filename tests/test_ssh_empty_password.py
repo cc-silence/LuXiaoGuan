@@ -64,6 +64,18 @@ def router(mode):
 
 
 class EmptyPasswordSshTests(unittest.TestCase):
+    def test_successful_connection_snapshot_excludes_secret_and_is_not_editable(self):
+        with router("normal") as (client,server):
+            self.connect(client,"valid")
+            actual=client.authenticated_settings
+            self.assertEqual(actual["auth_method"],"password")
+            self.assertEqual(actual["host"],"127.0.0.1")
+            self.assertNotIn("valid",str(actual))
+            actual["host"]="unrelated"
+            client.configure("edited.example",2222,"edited-user")
+            self.assertEqual(client.authenticated_settings["host"],"127.0.0.1")
+            client.close();self.assertEqual(client.authenticated_settings,{})
+
     def connect(self,client,password=""):
         return client.connect(password,client.fingerprint_for_key(KEY),timeout=3)
 
@@ -124,6 +136,8 @@ class EmptyPasswordSshTests(unittest.TestCase):
             client.connect("",client.fingerprint_for_key(KEY),timeout=3,auth_method="private_key",private_key_path=str(key_file))
             self.assertTrue(client.connected)
             self.assertEqual(server.attempts,[("publickey","root")])
+            self.assertEqual(client.authenticated_settings["auth_method"],"private_key")
+            self.assertEqual(client.authenticated_settings["private_key_path"],str(key_file))
 
     def test_authentication_timeout_does_not_trigger_an_empty_password_retry(self):
         from unittest.mock import Mock

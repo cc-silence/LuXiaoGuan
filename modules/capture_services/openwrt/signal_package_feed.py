@@ -122,10 +122,11 @@ _SHA256 = re.compile(r"[a-fA-F0-9]{64}")
 
 @dataclass(frozen=True)
 class DeviceProfile:
-    """已校验的设备档案；非法字符、SNAPSHOT、非 opkg 直接拒绝。"""
+    """已校验的设备档案；非法字符与非 opkg 拒绝；带系列的 SNAPSHOT 仅作受保护候选。"""
 
     release: str
     package_arch: str
+    compatibility_trial: str = ""
 
 
 @dataclass(frozen=True)
@@ -154,8 +155,8 @@ def default_cache_dir():
     return str(Path(base) / "RouterManager" / "offline-signal-pkgs")
 
 
-def normalize_profile(version, package_arch, package_manager):
-    """校验设备档案；SNAPSHOT 源天天变，不支持离线装。"""
+def normalize_profile(version, package_arch, package_manager, *, distribution="OpenWrt"):
+    """校验设备档案；带系列的 SNAPSHOT 使用对应分支源及候选保护。"""
     release = str(version or "").strip()
     arch = str(package_arch or "").strip()
     if str(package_manager or "").strip() == "apk":
@@ -164,11 +165,13 @@ def normalize_profile(version, package_arch, package_manager):
         raise ValueError("\u8def\u5c0f\u7ba1 下载安装只支持 opkg 设备。")
     if not release or not arch:
         raise ValueError("设备版本或软件包架构信息不完整。")
-    if "SNAPSHOT" in release.upper():
-        raise ValueError("SNAPSHOT 版本软件源每日变化，不支持 \u8def\u5c0f\u7ba1 下载安装。")
+    snapshot = "SNAPSHOT" in release.upper()
+    if snapshot and not re.fullmatch(r"(19\.07|21\.02|22\.03|23\.05|24\.10|25\.12)-SNAPSHOT", release):
+        raise ValueError("无法确认 SNAPSHOT 所属系统系列，未猜测下载版本。")
+    trial = "kwrt" if str(distribution).strip().casefold() == "kwrt" else "snapshot" if snapshot else ""
     if not _SAFE_SEGMENT.fullmatch(release) or not _SAFE_SEGMENT.fullmatch(arch):
         raise ValueError("设备档案含不安全字符，已拒绝。")
-    return DeviceProfile(release, arch)
+    return DeviceProfile(release, arch, trial)
 
 
 def index_urls(profile):
@@ -568,6 +571,10 @@ def _download_profile_packages(profile, installed, cache_dir, fetch, cancel_even
     missing = resolve_closure(
         index, [package for package in wanted if package not in installed],
         installed, version_check)
+    if profile.compatibility_trial or "SNAPSHOT" in profile.release.upper():
+        from .candidate_policy import verify_candidate_packages
+        verify_candidate_packages(missing, installed, kwrt=profile.compatibility_trial == "kwrt")
+        tell("正在使用官方候选包进行受保护的兼容尝试；不替换已有软件，安装前还将由路由器预演核对。", "info")
     total = sum(package.size for package in missing)
     if total > _MAX_TOTAL_BYTES:
         raise RuntimeError("待下载超过 64MB 上限，已中止。")

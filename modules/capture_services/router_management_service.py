@@ -118,6 +118,11 @@ class RouterManagementService(QObject):
         self.queue.remove(next(entry for entry in self.queue if entry[0] == key))
         self.current = item
         self.status.emit(key, '执行中')
+        reconnect_password=self.owner.openwrt_password() if action in {"common_save","policy_apply"} and hasattr(self.owner,"openwrt_password") else ""
+        connection_settings=dict(args.get("connection_settings",{}),host=getattr(ssh,"_host",None),port=getattr(ssh,"_port",None),user=getattr(ssh,"_user",None)) if action in {"common_save","policy_apply"} else {}
+        if connection_settings:
+            authenticated=getattr(ssh,"authenticated_settings",None)
+            if isinstance(authenticated,dict) and authenticated:connection_settings=dict(authenticated)
         def operation(event, report):
             if ssh._client is not connection or ssh.host_fingerprint != fingerprint:
                 raise RuntimeError('连接已变化，请重新登录并提交操作。')
@@ -128,8 +133,13 @@ class RouterManagementService(QObject):
                     from .openwrt.router_boot_status import read_boot_status
                     value = read_boot_status(self.manager, event)
                 elif action == "policy_read": value = policies.read(event)
-                elif action == "policy_preview": value = policies.preview(args["kind"], args["options"], event)
-                else: value = policies.apply(args["review"], args["backup_path"], args.get("backup_expected"), event, report)
+                elif action == "policy_preview":
+                    value = policies.preview(args["kind"], args["options"], event)
+                    if value.get("new_address") and hasattr(self.owner,"lan_recovery"):
+                        from .lan_client_recovery import attach_inventory
+                        value=attach_inventory(value,ssh)
+                else: value = policies.apply(args["review"], args["backup_path"], args.get("backup_expected"), event, report,
+                    connection_settings=connection_settings,password=reconnect_password,fingerprint=fingerprint)
             elif action.startswith("maintenance_"):
                 from .openwrt.router_backup import RouterBackupManager
                 maintenance = RouterBackupManager(self.manager)
@@ -149,10 +159,15 @@ class RouterManagementService(QObject):
                 from .openwrt.common_settings import read_settings
                 from .openwrt.connection_bound_runner import ConnectionBoundRunner
                 value = read_settings(ConnectionBoundRunner(self.manager.runner, ssh, connection, fingerprint), args['config'], event)
+                if args['config']=='network' and hasattr(self.owner,'lan_recovery'):
+                    from .lan_client_recovery import attach_inventory
+                    value=attach_inventory(value,ssh)
             elif action == 'common_save':
-                from .openwrt.common_settings import save_settings, save_and_reboot
-                if args.get("apply", False):
-                    value = save_and_reboot(self.manager, args["review"], args["values"], event, report)
+                from .openwrt.common_settings import save_settings
+                if args.get("apply", False) or args["review"].get("config")=="system":
+                    from .openwrt.checked_apply import apply_common
+                    value = apply_common(self.manager, args["review"], args["values"], event, report,
+                        connection_settings, reconnect_password, fingerprint)
                 else:
                     from .openwrt.connection_bound_runner import ConnectionBoundRunner
                     value = save_settings(ConnectionBoundRunner(self.manager.runner, ssh, connection, fingerprint), args['review'], args['values'], event)
@@ -213,6 +228,13 @@ class RouterManagementService(QObject):
     @Slot(object)
     def _success(self, value):
         key = self.current[0]
+        if self.current[1]=="policy_apply" and value.get("session_restored"):
+            ssh=self.manager.ssh
+            if ssh.connected and ssh.host_fingerprint==self.current[3] and hasattr(self.owner.openwrt_backend,"snapshot"):
+                from dataclasses import replace
+                from .openwrt.models import OpenWrtConnectionState
+                self.owner.openwrt_backend.snapshot=replace(self.owner.openwrt_backend.snapshot,connection_state=OpenWrtConnectionState.CONNECTED,connection_detail="局域网连接已恢复",host_fingerprint=ssh.host_fingerprint,last_error="")
+                self.owner.openwrtSnapshotChanged.emit(self.owner.openwrt_backend.snapshot)
         if self.current[1] in {"policy_read", "policy_status"}:
             ssh = self.manager.ssh
             self.policy_status = {"boot_state": value.get("boot_state")} if ssh.connected and ssh._client is self.current[4] and ssh.host_fingerprint == self.current[3] else None

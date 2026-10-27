@@ -1,11 +1,11 @@
 """登录页常用工具依赖：文件传输和终端会话保留。"""
 from PySide6.QtCore import QObject,Slot,QEvent,Qt
-from PySide6.QtWidgets import QLabel,QHBoxLayout,QFrame
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from modules.common_widgets.task_progress_dialog import TaskProgressDialog
 from modules.main_pages.page_action_buttons import create_page_text_button
 from modules.main_pages.packet_capture.ui_helpers import create_capture_card
 from modules.capture_services.openwrt.common_tool_dependencies import TOOLS, TOOL_KEYS, TOOL_BY_KEY
+from .dependency_row import create_dependency_row
 
 
 class CommonToolSection(QObject):
@@ -28,31 +28,16 @@ class CommonToolSection(QObject):
         entries=(('sftp','文件传输','openssh-sftp-server'),('terminal','终端会话保留','tmux'))
         entries+=tuple((tool.key,tool.title,tool.package) for tool in TOOLS)
         for position,(key,title,package) in enumerate(entries):
-            container=QFrame(self.card)
-            container.setObjectName("captureDependencyRow")
-            container.setAttribute(Qt.WA_StyledBackground,True)
-            container.setFocusPolicy(Qt.StrongFocus)
-            container.setProperty("alternate",bool(position % 2))
-            container.setProperty("selected",False)
-            container.setProperty("dependencyKey",key)
-            container.installEventFilter(self)
+            container,name,status,button=create_dependency_row(
+                self.card,key,title,package,position,self._clicked,observer=self)
             self.row_widgets[key]=container
-            row=QHBoxLayout(container);row.setContentsMargins(8,2,8,2)
-            name=QLabel(title+'（'+package+'）',container);name.setObjectName('captureStatusValue')
-            name.setWordWrap(True)
-            if key in TOOL_KEYS:name.setToolTip(TOOL_BY_KEY[key].description)
             self.names[key]=name
-            name.setAttribute(Qt.WA_TransparentForMouseEvents,True)
-            status=QLabel('请先登录',container);status.setObjectName('captureStatusValue')
-            status.setAttribute(Qt.WA_TransparentForMouseEvents,True)
-            button=create_page_text_button(container,'安装',title)
-            button.setObjectName('captureSecondaryButton')
-            button.setProperty('compactDependency',True)
-            button.setProperty('dependencyKey',key)
-            button.installEventFilter(self)
-            button.clicked.connect(lambda checked=False,item=key:self._clicked(item))
-            row.addWidget(name,1);row.addWidget(status);row.addWidget(button)
+            if key in TOOL_KEYS:name.setToolTip(TOOL_BY_KEY[key].description)
             self.layout.addWidget(container);self.rows[key]=(status,button)
+        self.install_all_button=create_page_text_button(self.card,"检查并安装全部常用依赖","只补齐本组缺失项，复用统一安装流程。")
+        self.install_all_button.setObjectName("captureSecondaryButton")
+        self.install_all_button.clicked.connect(self._install_all)
+        self.layout.addWidget(self.install_all_button)
         self.status,self.button=self.rows['sftp']
         self.terminal_status,self.terminal_button=self.rows['terminal']
         owner.openwrtSnapshotChanged.connect(self.apply_snapshot)
@@ -62,6 +47,14 @@ class CommonToolSection(QObject):
         self.service.requestRejected.connect(self._request_rejected)
         self.apply_snapshot(owner.openwrt_snapshot)
         self._task_changed(self.service.task)
+
+    def _install_all(self):
+        session=self.install_all_button.property("dependencyStopSession")
+        if session:
+            self.service.cancel(str(session))
+            return
+        from .common_dependency_actions import install_common
+        install_common(self)
 
     def eventFilter(self,watched,event):
         """点击行或按钮时标明所属依赖；行选择不触发安装卸载。"""
@@ -92,6 +85,7 @@ class CommonToolSection(QObject):
     def set_light_theme(self,enabled):
         self.offline_controls.set_light_theme(enabled)
         self.card.light_theme=bool(enabled)
+        self.install_all_button.set_light_theme(bool(enabled))
         for status,button in self.rows.values():button.set_light_theme(bool(enabled))
 
     @Slot()
@@ -102,8 +96,12 @@ class CommonToolSection(QObject):
     def apply_snapshot(self,snapshot):
         connected=snapshot.connection_state.value=='connected'
         task=self.service.task
+        bulk=task is not None and task.group=="common_all"
+        self.install_all_button.setProperty("dependencyStopSession",task.session_id if bulk else None)
+        self.install_all_button.setText("停止安装" if bulk else "检查并安装全部常用依赖")
+        self.install_all_button.setEnabled(connected and (bulk or not self.owner.is_busy))
         for key,(status,button) in self.rows.items():
-            own=task is not None and key in task.items and task.group in {'common','terminal'} | TOOL_KEYS
+            own=task is not None and key in task.items and task.group in {'common','common_all','terminal'} | TOOL_KEYS
             item=next((item for item in snapshot.dependencies if item.key==key),None)
             state=item.state.value if item is not None else 'unknown'
             if own and connected:
@@ -169,11 +167,11 @@ class CommonToolSection(QObject):
     @Slot(object)
     def _task_changed(self,task):
         self.apply_snapshot(self.owner.openwrt_snapshot)
-        if task is None or task.group not in {"common","terminal"} | TOOL_KEYS:return
+        if task is None or task.group not in {"common","common_all","terminal"} | TOOL_KEYS:return
         if self.dialog is None and not self.card.isVisible():return
         if self.dialog is None:
             self.dialog_session=task.session_id
-            title=TOOL_BY_KEY[task.group].title if task.group in TOOL_KEYS else '终端会话保留支持' if task.group=='terminal' else '文件传输支持'
+            title=TOOL_BY_KEY[task.group].title if task.group in TOOL_KEYS else '全部常用依赖' if task.group=='common_all' else '终端会话保留支持' if task.group=='terminal' else '文件传输支持'
             self.dialog=TaskProgressDialog({'install':'安装','uninstall':'卸载'}.get(task.action,'检查')+title,
                 parent=self.card,cancel_text="取消任务")
             self.dialog.cancelRequested.connect(lambda key=task.session_id:self.service.cancel(key))

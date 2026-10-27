@@ -38,64 +38,52 @@ class PolicyAuditTests(unittest.TestCase):
         self.assertFalse(self.d.commits)
 
     def test_hotspot_failure_retains_old_default_and_does_not_apply_other_settings(self):
+        from tests.test_checked_apply import fast_deadlines
         snapshot=self.p.read(self.cancel)
         plan=build_plan(snapshot,"initial",dict(items=["replace_ap","lan"]),environment())
-        original=self.p._call
-        def call(action,*args,**kwargs):
-            if action=="ap_ready":raise OSError("lost wireless connection")
-            return original(action,*args,**kwargs)
-        original_run=self.p._run
-        with patch.object(self.p,"_call",side_effect=call),patch.object(self.p,"_run",wraps=self.p._run) as run:
-            def wrapped(name,command,*args,**kwargs):
-                if name=="wifi_reload":return ""
-                return original_run(name,command,*args,**kwargs)
-            run.side_effect=wrapped
-            with self.assertRaises(RuntimeError):self.p._create_ap(plan,snapshot,self.cancel,Mock())
+        plan["signature"]=snapshot["signature"]
+        with fast_deadlines(),patch("modules.capture_services.openwrt.policy_apply_transaction.WirelessSetupManager") as wireless:
+            wireless.return_value._call.side_effect=OSError("lost wireless connection")
+            with self.assertRaises(RuntimeError):self.p.apply(plan,None,None,self.cancel,Mock())
         self.assertIn("default_radio7",self.d.config["wireless"])
         self.assertEqual(self.d.config["network"]["lan"]["ipaddr"],"192.168.8.1")
-        self.assertIn(plan["new_ap"]["section"],self.d.config["wireless"])
+        self.assertNotIn(plan["new_ap"]["section"],self.d.config["wireless"])
 
     def test_full_two_phase_apply_only_removes_default_after_ready_and_keeps_credentials(self):
         snapshot=self.p.read(self.cancel)
         plan=build_plan(snapshot,"initial",dict(items=["replace_ap","lan","timezone"]),environment())
         plan["signature"]=snapshot["signature"]
-        original_call=self.p._call;original_run=self.p._run
-        observed=[]
-        def call(action,*args,**kwargs):
-            if action=="ap_ready":
-                observed.append("default_radio7" in self.d.config["wireless"])
-                return dict(ready=True)
-            return original_call(action,*args,**kwargs)
-        def run(name,command,*args,**kwargs):
-            if name=="wifi_reload":return ""
-            return original_run(name,command,*args,**kwargs)
-        with patch.object(self.p,"_call",side_effect=call),patch.object(self.p,"_run",side_effect=run),patch(
-                "modules.capture_services.openwrt.router_policy.RouterBackupManager") as backups,patch(
-                "modules.capture_services.openwrt.router_policy.reboot_router",return_value=dict(outcome="reconnect",note="Reboot requested")):
+        factory=self.p._apply_channel_factory;observed=[]
+        def channel(*args,**kwargs):
+            result=factory(*args,**kwargs);original=result.call
+            def call(action,**values):
+                if action=="checked_confirm":observed.append("default_radio7" in self.d.config["wireless"])
+                return original(action,**values)
+            result.call=call;return result
+        self.p._apply_channel_factory=channel
+        with patch("modules.capture_services.openwrt.router_policy.RouterBackupManager") as backups:
             backups.return_value.export.return_value=dict(path="C:/before.tar.gz")
             result=self.p.apply(plan,"C:/before.tar.gz",None,self.cancel,Mock())
-        self.assertEqual(observed,[True]);self.assertNotIn("default_radio7",self.d.config["wireless"])
+        self.assertEqual(observed,[True,False]);self.assertNotIn("default_radio7",self.d.config["wireless"])
         self.assertEqual(self.d.config["network"]["lan"]["ipaddr"],"192.168.11.1")
         self.assertEqual(self.d.config["wireless"]["home"]["key"],"original-password")
-        self.assertEqual(result["outcome"],"reconnect");self.assertIn("192.168.11.1",result["note"])
+        self.assertEqual(result["outcome"],"applied");self.assertIn("192.168.11.1",result["note"])
         self.assertIn(plan["new_ap"]["ssid"],result["note"])
 
     def test_external_password_edit_during_hotspot_verification_is_not_blessed(self):
-        s=self.p.read(self.cancel)
-        plan=build_plan(s,"initial",dict(items=["replace_ap"]),environment())
-        original_call=self.p._call;original_run=self.p._run
-        def call(action,*args,**kwargs):
-            if action=="ap_ready":
-                self.d.config["wireless"]["home"]["key"]="external-change"
-                self.d.files["/etc/config/wireless"]=json.dumps(self.d.config["wireless"],sort_keys=True)
-                return dict(ready=True)
-            return original_call(action,*args,**kwargs)
-        def run(name,command,*args,**kwargs):
-            return "" if name=="wifi_reload" else original_run(name,command,*args,**kwargs)
-        with patch.object(self.p,"_call",side_effect=call),patch.object(self.p,"_run",side_effect=run):
-            with self.assertRaises(RuntimeError):self.p._create_ap(plan,s,self.cancel,Mock())
+        snapshot=self.p.read(self.cancel)
+        plan=build_plan(snapshot,"initial",dict(items=["replace_ap"]),environment())
+        plan["signature"]=snapshot["signature"]
+        def status(*args,**kwargs):
+            self.d.config["wireless"]["home"]["key"]="external-change"
+            self.d.files["/etc/config/wireless"]=json.dumps(self.d.config["wireless"],sort_keys=True)
+            return dict(ready=True)
+        with patch("modules.capture_services.openwrt.policy_apply_transaction.WirelessSetupManager") as wireless:
+            wireless.return_value._call.side_effect=status
+            with self.assertRaises(RuntimeError):self.p.apply(plan,None,None,self.cancel,Mock())
         self.assertIn("default_radio7",self.d.config["wireless"])
         self.assertEqual(self.d.config["wireless"]["home"]["key"],"external-change")
+        self.assertNotIn(("uci","rollback"),self.d.calls)
 
     def test_uncertain_commit_does_not_destroy_a_possibly_running_session_or_retry(self):
         snapshot=self.p.read(self.cancel);plan=build_plan(snapshot,"ap")
