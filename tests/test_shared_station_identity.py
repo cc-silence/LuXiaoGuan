@@ -35,7 +35,8 @@ class SharedStationIdentityTests(unittest.TestCase):
                 original=d.call
                 def call(obj,method,args):
                     value=d.unwrap(args)
-                    if obj=="network.wireless" and method=="status":runtime_queries.append(True)
+                    if obj=="network.wireless" and method=="status":
+                        runtime_queries.append(json.loads(d.lua.globals().arg[1])["action"])
                     if obj=="uci" and method=="set" and value.get("config")=="network" and "hostname" in value.get("values",{}):
                         writes.append(value["values"]["hostname"])
                     return original(obj,method,args)
@@ -46,7 +47,9 @@ class SharedStationIdentityTests(unittest.TestCase):
                 self.assertEqual(len(plan["operations"]),1)
                 self.assertEqual(plan["operations"][0]["action"],"identity_group")
                 self.assertEqual(len(writes),1)
-                self.assertEqual(len(runtime_queries),1)
+                # The read and stage snapshots each inspect apply readiness.
+                # The entire identity group adds one MAC collision query.
+                self.assertEqual(runtime_queries,["snapshot","stage","stage"])
                 macs=[]
                 for entry in plan["identities"]:
                     section=entry["section"];row=d.config["wireless"][section]
