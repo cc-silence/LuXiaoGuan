@@ -28,6 +28,8 @@ def run(version):
     from modules.platform_services.application_identity import set_app_id
     set_app_id()
     app = QApplication(sys.argv)
+    from modules.common_widgets.button_focus_style import install_button_focus_style
+    install_button_focus_style(app)
     app.setApplicationName("RouterManager")
     app.setApplicationVersion(version)
     app.setApplicationDisplayName(DISPLAY_NAME)

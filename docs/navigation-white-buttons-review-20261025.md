@@ -9,3 +9,5 @@ The settings dialog loads an independent fallback stylesheet, explaining how set
 The exact user's old version/configuration has not yet been provided; the reproduced code path is confirmed, but attribution of that particular device's screenshot remains pending. No theme fallback or normal visual style was changed during this investigation.
 
 Evidence: build/navigation-win11-review/styles.json, missing-theme.json, current-widgets.json and summary.json. Reference: https://doc.qt.io/qt-6/stylesheet.html (QSS wraps the native style; unspecified rendering falls through to the platform style).
+
+2026-10-27 follow-up: the user authorized the main-theme fallback repair. See [theme/file deletion fixes](theme-file-deletion-fixes-20261027.md). The reproduced default/missing/empty-theme path now receives the complete built-in main theme; actual affected-device validation remains pending.

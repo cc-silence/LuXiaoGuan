@@ -14,6 +14,7 @@ from .router_backup import RouterBackupManager
 from ..configuration_progress import phase
 
 MESSAGES={
+ "file_cleanup":"恢复副本自动清理未完成，请核对残留目录。",
  "pending":"\u8def\u7531\u5668\u6709\u5c1a\u672a\u63d0\u4ea4\u7684\u8bbe\u7f6e\uff0c\u8bf7\u5148\u5904\u7406\u540e\u91cd\u65b0\u9884\u89c8\u3002",
  "changed":"\u914d\u7f6e\u5df2\u53d8\u5316\uff0c\u8bf7\u91cd\u65b0\u9884\u89c8\uff1b\u6ca1\u6709\u8986\u76d6\u5176\u4ed6\u5de5\u5177\u7684\u6539\u52a8\u3002",
  "official":"\u672a\u786e\u8ba4\u5b98\u65b9 OpenWrt \u7cfb\u7edf\uff0c\u5df2\u5b89\u5168\u505c\u6b62\u3002",
@@ -33,9 +34,10 @@ def signature(snapshot):
 
 
 class PolicyDeviceError(RuntimeError):
-    def __init__(self,code,message):
+    def __init__(self,code,message,backup_dir=None):
         super().__init__(message)
         self.code=code
+        self.backup_dir=backup_dir
 
 
 class PolicyCommitUncertain(RuntimeError):
@@ -82,7 +84,14 @@ class RouterPolicyManager:
             data=json.loads(text)
             if not isinstance(data,dict) or data.get("ok") is not True:
                 code=data.get("code","internal") if isinstance(data,dict) else "internal"
-                raise PolicyDeviceError(code,MESSAGES.get(code,"\u8bbe\u5907\u4e0d\u652f\u6301\u672c\u6b21\u64cd\u4f5c\u6216\u8fd4\u56de\u4e0d\u5b8c\u6574\uff0c\u5df2\u505c\u6b62\uff08"+re.sub(r"[^a-zA-Z0-9_]","",str(code))[:60]+"\uff09\u3002"))
+                message=MESSAGES.get(code,"\u8bbe\u5907\u4e0d\u652f\u6301\u672c\u6b21\u64cd\u4f5c\u6216\u8fd4\u56de\u4e0d\u5b8c\u6574\uff0c\u5df2\u505c\u6b62\uff08"+re.sub(r"[^a-zA-Z0-9_]","",str(code))[:60]+"\uff09\u3002")
+                backup_dir=data.get("backup_dir") if isinstance(data,dict) else None
+                if not isinstance(backup_dir,str) or not re.fullmatch(r"/root/luxiaoguan-policy\.[A-Za-z0-9]+",backup_dir):
+                    backup_dir=None
+                if backup_dir:
+                    message+="\n本次恢复目录："+backup_dir
+                    if data.get("cleanup_failed") is True:message+="\n自动清理未完成，请检查残留目录。"
+                raise PolicyDeviceError(code,message,backup_dir)
             if not isinstance(data.get("result"),dict):raise ValueError()
             return data["result"]
         except (ValueError,TypeError):raise RuntimeError("\u8def\u7531\u5668\u8fd4\u56de\u4e0d\u5b8c\u6574\uff0c\u8bf7\u91cd\u65b0\u8bfb\u53d6\u3002") from None
@@ -188,6 +197,15 @@ class RouterPolicyManager:
             self._apply_host=None
             self._client_network=None
 
+    def _cleanup_file_backup(self,directory,token,state):
+        """Cleanup failure must not undo or misreport a verified configuration."""
+        try:
+            result=self._call("files_cleanup",Event(),timeout=10,backup_dir=directory,token=token,state=state)
+            if result.get("cleaned") is not True:raise RuntimeError("Incomplete cleanup result")
+        except Exception:
+            return "未能确认恢复副本已自动清理，请核对："+directory
+        return ""
+
     def _apply_review(self,review,backup_path,backup_expected,cancel,report):
         if not isinstance(review,dict) or review.get("kind") not in {"initial","station","ap","boot"}:
             raise ValueError("\u8bf7\u91cd\u65b0\u6253\u5f00\u9884\u89c8\u3002")
@@ -213,11 +231,13 @@ class RouterPolicyManager:
         for section in review.get("delete_defaults",[]):
             operations.append(dict(action="delete_section",config="wireless",section=section))
         file_backup=None
+        file_token=None
         report(dict(stage="\u6b63\u5728\u4fdd\u5b58\u5df2\u786e\u8ba4\u7684\u8bbe\u7f6e",completed=0,total=0,uncancellable=True))
         try:
             if review["files"]:
                 phase("\u6b63\u5728\u5199\u5165\u5e76\u6838\u5bf9\u9009\u4e2d\u7684\u6587\u4ef6",seconds=30)
-                file_backup=self._call("files_apply",cancel,files=review["files"],token=secrets.token_hex(8))["backup_dir"]
+                file_token=secrets.token_hex(8)
+                file_backup=self._call("files_apply",cancel,files=review["files"],token=file_token)["backup_dir"]
             if operations and review.get("kind")!="boot":
                 from .policy_apply_transaction import apply_operations
                 applied,current=apply_operations(self,current,operations,cancel,report)
@@ -225,11 +245,24 @@ class RouterPolicyManager:
                 self._transaction(current,operations,cancel)
         except Exception as exc:
             if file_backup and not isinstance(exc,PolicyCommitUncertain) and getattr(exc,"code","")!="configuration_apply_uncertain":
-                try:self._call("files_restore",Event(),backup_dir=file_backup)
-                except Exception as recovery:raise RuntimeError("\u6587\u4ef6\u6062\u590d\u672a\u786e\u8ba4\uff0c\u8bf7\u6838\u5bf9 "+file_backup+backup_note) from recovery
+                try:
+                    restored=self._call("files_restore",Event(),backup_dir=file_backup)
+                    if restored.get("restored") is not True:raise RuntimeError("Incomplete recovery result")
+                except Exception as recovery:
+                    raise RuntimeError("文件恢复未确认，请核对 "+file_backup+backup_note) from recovery
+                try:
+                    recovered=self.read(Event())["hashes"]==current["hashes"]
+                except Exception:
+                    recovered=False
+                if recovered:
+                    cleanup_note=self._cleanup_file_backup(file_backup,file_token,"restored")
+                    if cleanup_note:backup_note+="\n"+cleanup_note
+                else:
+                    backup_note+="\n原配置恢复未核实，恢复副本已保留："+file_backup
+            elif file_backup:
+                backup_note+="\n结果未确认，恢复副本已保留："+file_backup
             raise RuntimeError(str(exc)+backup_note) from exc
         notes=[backup_note.strip()] if backup_note else []
-        if file_backup:notes.append("\u7f51\u9875\u53ca\u6309\u952e\u6587\u4ef6\u6062\u590d\u526f\u672c\uff1a"+file_backup)
         # Runtime changes happen only after saving and validation. Never retry on disconnect.
         try:
             if review.get("service"):
@@ -248,7 +281,11 @@ class RouterPolicyManager:
                 if state is not review["boot_enabled"]:
                     raise RuntimeError("开机连接设置尚未核实。")
         except Exception:
+            if file_backup:notes.append("恢复副本已保留："+file_backup)
             return dict(outcome="uncertain",note="\u8bbe\u7f6e\u5df2\u4fdd\u5b58\uff0c\u4f46\u542f\u52a8\u7b56\u7565\u7684\u751f\u6548\u7ed3\u679c\u672a\u786e\u8ba4\uff0c\u8bf7\u91cd\u65b0\u8bfb\u53d6\u6838\u5bf9\u3002\n"+"\n".join(notes),review=review)
+        if file_backup:
+            cleanup_note=self._cleanup_file_backup(file_backup,file_token,"applied")
+            if cleanup_note:notes.append(cleanup_note)
         if review.get("new_address"):notes.append("\u4ee5\u540e\u5fc5\u987b\u4f7f\u7528 "+review["new_address"]+" \u767b\u5f55\u8def\u7531\u5668\uff0c\u539f\u5730\u5740\u5c06\u5931\u6548\u3002")
         for row in review.get("identities",[]):notes.append(row["old"]+" \u2192 "+row["name"]+"\uff1b\u65b0\u5730\u5740 "+row["mac"])
         if review.get("new_ap"):

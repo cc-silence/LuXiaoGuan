@@ -44,7 +44,7 @@ def run_file_batch(manager, jobs, cancel, report, connection_valid):
             elif operation == "local_delete":
                 value = recycle_local_entry(cancel=cancel, **args)
             elif operation == "delete":
-                value = manager.mutate("delete", cancel=cancel, **args)
+                value = manager.mutate("delete", cancel=cancel, progress=progress, **args)
             else:
                 raise ValueError("Unsupported batch operation")
         except InterruptedError:

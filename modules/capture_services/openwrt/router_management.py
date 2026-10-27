@@ -21,7 +21,8 @@ class RouterManagement:
         value = str(value)
         if not value.startswith('/') or '\x00' in value or any(ord(c) < 32 for c in value):
             raise ValueError('路径必须是有效的绝对路径。')
-        return posixpath.normpath(value)
+        # Canonical Linux roots before checking destructive-operation boundaries.
+        return posixpath.normpath("/" + value.lstrip("/"))
 
     @staticmethod
     def identity(info):
@@ -55,8 +56,11 @@ class RouterManagement:
                     identity=self.identity(item)))
             return dict(path=path, entries=entries)
 
-    def mutate(self, action, path, cancel, expected=None, value=None):
+    def mutate(self, action, path, cancel, expected=None, value=None, progress=None):
         """执行单个已确认修改，拒绝排队期间已变更的目标。"""
+        if action == 'delete':
+            from .router_file_delete import delete_remote_entry
+            return delete_remote_entry(self, path, cancel, expected, progress)
         path = self.path(path)
         if path == '/':
             raise ValueError('不能修改根目录本身。')
@@ -70,12 +74,7 @@ class RouterManagement:
             info = sftp.lstat(path)
             if expected is None or self.identity(info) != tuple(expected):
                 raise ValueError('文件已变化，请刷新后重新确认。')
-            if action == 'delete':
-                if stat.S_ISDIR(info.st_mode):
-                    sftp.rmdir(path)
-                else:
-                    sftp.remove(path)
-            elif action == 'rename':
+            if action == 'rename':
                 destination = self.path(value)
                 if posixpath.dirname(destination) != posixpath.dirname(path):
                     raise ValueError('重命名不能移动到其他目录。')

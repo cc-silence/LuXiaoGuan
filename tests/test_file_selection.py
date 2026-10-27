@@ -147,6 +147,88 @@ class FileSelectionTests(unittest.TestCase):
             self.assertTrue(all(job["operation"] == "download" for job in jobs))
             self.assertEqual({job["arguments"]["remote"] for job in jobs}, {"/root/a.txt", "/root/b.txt"})
 
+    def test_delete_toolbar_submits_all_selected_entries_after_explicit_confirmation(self):
+        self.click_row(0)
+        self.click_row(1, Qt.ControlModifier)
+        item = self.page.remote_tree.selectedItems()[0]
+        entry = dict(item.data(0, Qt.UserRole))
+        entry['mode'] = stat.S_IFDIR | 0o755
+        item.setData(0, Qt.UserRole, entry)
+        self.page._update_controls()
+        button = self.page._delete_buttons[True]
+        self.assertIn('2', button.toolTip())
+        self.assertTrue(button.property('iconPath').endswith('file-browser-delete.svg'))
+        with patch.object(self.page, '_confirm', return_value=True) as confirm, \
+             patch.object(self.page, '_submit_batch') as submit:
+            button.click()
+            jobs, remote, title = submit.call_args.args
+            self.assertEqual(len(jobs), 2)
+            self.assertTrue(remote)
+            self.assertTrue(all(job['operation'] == 'delete' for job in jobs))
+            for job in jobs:
+                self.assertIn(job['arguments']['path'], confirm.call_args.args[0])
+            self.assertIn('全部子文件夹和文件', confirm.call_args.args[0])
+
+    def test_single_remote_folder_uses_cancellable_batch_and_cancelled_confirmation_does_nothing(self):
+        self.click_row(0)
+        with patch.object(self.page, '_confirm', return_value=False), \
+             patch.object(self.page, '_submit_batch') as submit:
+            self.page._delete_buttons[True].click()
+            submit.assert_not_called()
+        with patch.object(self.page, '_confirm', return_value=True), \
+             patch.object(self.page, '_submit_batch') as submit:
+            self.page._delete_buttons[True].click()
+            self.assertEqual(len(submit.call_args.args[0]), 1)
+
+    def test_cancelled_delete_reports_partial_state_and_refreshes_directory(self):
+        self.click_row(0)
+        with patch.object(self.page, '_confirm', return_value=True):
+            self.page._delete_buttons[True].click()
+        key = self.service.calls[-1][0]
+        dialog = self.page._transfers[key]
+        with patch.object(dialog, 'finish') as finish, \
+             patch.object(self.page, '_navigate') as refresh, \
+             patch.object(self.page, '_notify') as notify:
+            self.service.completed.emit(key, dict(results=[], count=1, error='', cancelled=True))
+            self.assertFalse(finish.call_args.args[0])
+            self.assertIn('部分删除', notify.call_args.args[0])
+            self.assertEqual(notify.call_args.args[1], 'warning')
+            refresh.assert_called_once()
+        dialog.finish(True)
+
+    def test_cancelled_local_batch_keeps_recycle_bin_recovery_message(self):
+        self.page._submit_batch([dict(operation='local_delete', size=1, name='local', arguments={})], False, 'Delete')
+        key = self.service.calls[-1][0]
+        dialog = self.page._transfers[key]
+        with patch.object(dialog, 'finish'), patch.object(self.page, '_navigate'), patch.object(self.page, '_notify') as notify:
+            self.service.completed.emit(key, dict(results=[], count=1, error='', cancelled=True))
+            self.assertIn('回收站恢复', notify.call_args.args[0])
+            self.assertNotIn('不会恢复', notify.call_args.args[0])
+        dialog.finish(True)
+
+    def test_delete_confirmation_refuses_changed_connection_fingerprint_or_disconnect(self):
+        self.click_row(0)
+        ssh=self.service.manager.ssh
+        old_client=ssh._client
+        for attribute,new_value in (('_client',object()),('host_fingerprint','new-device'),('connected',False)):
+            with self.subTest(attribute=attribute):
+                ssh._client=old_client
+                ssh.connected=True
+                ssh.host_fingerprint='original-device'
+                def confirm():
+                    setattr(ssh,attribute,new_value)
+                    return 1
+                with patch('modules.main_pages.packet_capture.openwrt.router_files_page.ConfirmDialog') as dialog, \
+                     patch.object(self.page,'_submit_batch') as submit, \
+                     patch.object(self.page,'_notify') as notify:
+                    dialog.Accepted=1
+                    dialog.return_value.exec.side_effect=confirm
+                    self.page._delete_entries(True)
+                    submit.assert_not_called()
+                    self.assertEqual(notify.call_args.args[1],'warning')
+        ssh.connected=True
+        ssh._client=old_client
+
     def test_name_column_still_fills_available_width_before_manual_resize(self):
         for light in (True, False):
             self.theme(light)

@@ -13,10 +13,23 @@ def _chrome_stylesheet(light):
     return (THEMES_DIR / ("router_chrome_" + kind + ".qss")).read_text(encoding="utf-8")
 
 
+@lru_cache(maxsize=2)
+def _builtin_main_stylesheet(light):
+    """A default or unavailable theme must still supply the full shell theme."""
+    name = "light.qss" if light else "dark.qss"
+    text = (THEMES_DIR / name).read_text(encoding="utf-8")
+    if not text.strip():
+        raise ValueError("The built-in application theme is empty: " + name)
+    return text
+
+
 def build_main_stylesheet(config_manager, theme, scale_manager):
     """组合主题、公共控件和窗口外框；不加载设置页通用规则。"""
     light = theme == "light.qss"
-    stylesheet = "\n".join((theme_stylesheet_text(config_manager, theme),
+    main_theme = theme_stylesheet_text(config_manager, theme)
+    if not main_theme.strip():
+        main_theme = _builtin_main_stylesheet(light)
+    stylesheet = "\n".join((main_theme,
                              combo_popup_stylesheet(light), _chrome_stylesheet(light)))
     if light:
         stylesheet = replace_light_theme_qss_icons(stylesheet)

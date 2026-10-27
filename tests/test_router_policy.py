@@ -45,6 +45,11 @@ class PolicyDevice(CommonDevice):
         self.policy=RouterPolicyManager(self.manager)
         self.policy._apply_channel_factory=lambda *args,**kwargs:PolicyChannel(self)
         self.cancel=threading.Event()
+        self.policy_directories=set()
+        self.policy_serial=0
+        self.policy_removed=[]
+        self.lua.globals().policy_remove=self.remove_policy_file
+        self.lua.execute("os.remove=function(path) return policy_remove(path) end")
         self.lua.globals().file_read=lambda path:self.files.get(path)
         self.lua.globals().file_write=lambda path,data:self.files.__setitem__(path,data) or True
         self.lua.globals().file_rename=self.rename
@@ -60,6 +65,16 @@ end
 os.rename=function(a,b) return file_rename(a,b) end
 ''')
 
+    def remove_policy_file(self,path):
+        if path in self.files:
+            del self.files[path]
+        elif path in self.policy_directories and not any(p.startswith(path+'/') for p in self.files):
+            self.policy_directories.remove(path)
+        else:
+            return False
+        self.policy_removed.append(path)
+        return True
+
     def rename(self,a,b):
         if a not in self.files:return None
         self.files[b]=self.files.pop(a);return True
@@ -71,8 +86,21 @@ os.rename=function(a,b) return file_rename(a,b) end
         if command.startswith("test ! -e"):
             paths=re.findall("\'([^\']+)\'",command)
             return "" if paths and paths[0] in self.files else "ok"
-        if command.startswith("find /root"):return "0"
-        if command.startswith("umask 077; mktemp -d /root/"):return "/root/luxiaoguan-policy.TEST01\n"
+        if command.startswith("find '"):
+            directory=re.findall("'([^']*)'",command)[0]
+            children={path for path in (*self.files,*self.policy_directories)
+                      if path.startswith(directory+'/') and '/' not in path[len(directory)+1:]}
+            return str(1+len(children))
+        if command.startswith("find /root"):return str(len(self.policy_directories))
+        if command.startswith("umask 077; mktemp -d /root/"):
+            self.policy_serial+=1
+            directory=f"/root/luxiaoguan-policy.TEST{self.policy_serial:04d}"
+            self.policy_directories.add(directory)
+            return directory+"\n"
+        if command.startswith("test -d "):
+            paths=re.findall("'([^']*)'",command)
+            directory=paths[0] if paths else ''
+            return "ok" if directory in self.policy_directories and directory not in self.symlinks and '/root' not in self.symlinks else ""
         if command.startswith("("):
             if "grep -E" in command and "/etc/rc.local" in command:return "ok" if self.flags["old_watch"] else ""
             if "test -f /usr/lib/lua/luci/i18n" in command:return "ok" if self.flags["chinese"] else ""
