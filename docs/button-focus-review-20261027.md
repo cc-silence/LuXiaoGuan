@@ -1,0 +1,13 @@
+# Button focus and sidebar report (2026-10-27)
+
+The user requested removal of dotted button focus outlines. Previous NavigationButton painting only covered navigation, leaving ordinary QPushButton and QToolButton instances on the native platform focus path. Application startup now installs ButtonFocusStyle once before constructing widgets. The proxy suppresses PE_FrameFocusRect for these two button types only, forwarding all other painting to the original platform style. No widget scan, timer, per-widget cache, focus clearing or Qt.NoFocus is used. Checkbox, input and table focus painting is outside this policy.
+
+Validation: three focused tests cover explicit Windows/WindowsVista keyboard-focus painting (the old focus outline must reproduce, normal pixels must remain identical), available native styles, themed buttons, Tab traversal, Space activation and repeated installation. Before/after native drawing images are in build/review/button-focus. The first offscreen window-only comparison did not reproduce native focus pixels; explicit QStyle keyboard-focus state does, and is used as the non-vacuous comparison. This is local Qt 6.3.0 rendering, not acceptance on the affected Win11 desktop. Windows and Debian share this Qt policy; Debian desktop execution remains unverified. No OpenWrt commands, compatibility rules or router settings are involved.
+
+The separate sidebar white-block report remains under diagnosis. docs/navigation-white-buttons-review-20261025.md already reproduced missing main-theme styles exposing the light native button background. ConfigManager.DEFAULT_THEME_LABEL maps to no theme file; theme_stylesheet_text returns empty for that label and unavailable files, while build_main_stylesheet still adds a dark chrome fragment. Toggling to a named built-in theme reapplies the full stylesheet, consistent with recovery reported by the user. This confirms a possible code path, not the affected run's actual configuration or binary. No sidebar palette, layout or theme fallback has been changed in this task.
+
+Qt reference: https://doc.qt.io/qt-6/qstyle.html (QProxyStyle custom drawing and PE_FrameFocusRect).
+
+Follow-up: the user subsequently authorized sidebar/scrollbar and recursive deletion fixes. See [theme/file deletion fixes](theme-file-deletion-fixes-20261027.md) for the implemented main-theme fallback and verification; the earlier diagnosis-only paragraph records the previous task state.
+
+Audit follow-up (2026-10-27): Batch audit found and fixed a real startup interaction between the independent focus proxy and WidgetFilterStyle. They now share the existing application proxy; all startup installers are tested together across native styles. See feedback-batch-audit-20261027.md.

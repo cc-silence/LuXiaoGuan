@@ -207,7 +207,6 @@ class RouterFilesPage(QWidget):
         # 文字操作同样使用已有图标按钮工厂，仅改变本页工具栏样式。
         action_icon={'上传到路由器':'upload','下载到本机':'download','新建文件夹':'new-folder'}.get(text)
         path=str(BASE_DIR/'images/icons'/('file-browser-'+(icon or action_icon)+'.svg')) if icon or action_icon else ':/icons/images/icons/cil-folder-open.png'
-        if icon == 'delete':path=str(BASE_DIR/'images/icons/cil-remove.png')
         if icon == 'terminal':path=str(BASE_DIR/'images/icons/cil-terminal.png')
         button=create_themed_icon_button(self,path,text)
         button.setObjectName('routerFileToolButton')
@@ -411,6 +410,8 @@ class RouterFilesPage(QWidget):
             entries=self._selected_entries(remote)
             self._transfer_buttons[remote].setEnabled(connected and bool(entries) and all(stat.S_ISREG(entry['mode']) or stat.S_ISDIR(entry['mode']) for entry in entries))
             self._delete_buttons[remote].setEnabled(connected and bool(entries))
+            delete_hint = ('永久删除所选（含文件夹全部内容，不可恢复）' if remote else '将所选项目移到回收站')
+            self._delete_buttons[remote].setToolTip(delete_hint + f'\n已选 {len(entries)} 项；Ctrl 多选，Shift 连选，Delete 删除')
             back,forward,up=self._nav[remote]
             index=self._history_index[remote]
             back.setEnabled(connected and index>0)
@@ -527,7 +528,17 @@ class RouterFilesPage(QWidget):
         return [item.data(0,Qt.UserRole) for item in tree.selectedItems() if not item.isHidden()]
 
     def _confirm(self,text):
-        return ConfirmDialog('确认文件操作',self._display(text),self).exec()==ConfirmDialog.Accepted
+        ssh=self.service.manager.ssh
+        connection=ssh._client
+        fingerprint=getattr(ssh,'host_fingerprint',None)
+        accepted=ConfirmDialog('确认文件操作',self._display(text),self).exec()==ConfirmDialog.Accepted
+        if accepted:
+            current=self.service.manager.ssh
+            if (current is not ssh or not current.connected or current._client is not connection
+                    or getattr(current,'host_fingerprint',None)!=fingerprint):
+                self._notify('路由器连接已变化，本次文件操作未提交，请刷新并重新选择。','warning')
+                return False
+        return accepted
 
     def _transfer(self,download,entry=None,destination=None):
         entries=entry if isinstance(entry,(list,tuple)) else self._selected_entries(download) if entry is None else [entry]
@@ -610,7 +621,8 @@ class RouterFilesPage(QWidget):
         self._submit_batch(jobs,not download,title,destination)
 
     def _submit_batch(self,jobs,remote,title,destination=None):
-        key=self._submit('file_batch',('batch',remote),jobs=jobs)
+        deleting=all(job['operation'] in {'delete','local_delete'} for job in jobs)
+        key=self._submit('file_batch',('batch',remote,'delete' if deleting else 'transfer'),jobs=jobs)
         if key:
             if jobs[0]['operation'] in {'delete','local_delete','local_move','remote_move'}:
                 from modules.common_widgets.task_progress_dialog import TaskProgressDialog
@@ -628,15 +640,15 @@ class RouterFilesPage(QWidget):
     def _delete_entries(self,remote):
         entries=self._selected_entries(remote)
         if not entries:return
-        text=('永久删除路由器所选项目（文件夹须为空）：' if remote else '将本地所选项目移到回收站（含文件夹内容）：')
+        text=('永久删除路由器所选项目（含文件夹内全部子文件夹和文件）：' if remote else '将本地所选项目移到回收站（含文件夹内容）：')
         text+='\n'+'\n'.join(entry['path'] for entry in entries[:20])
         if len(entries)>20:text+=f'\n……共 {len(entries)} 项'
+        if remote:text+='\n\n删除后无法恢复。符号链接只删除链接本身，不删除链接指向的内容。'
         if not self._confirm(text):return
-        if len(entries)==1:
+        if len(entries)==1 and not remote:
             entry=entries[0]
-            args=dict(path=entry['path'],expected=entry['identity'])
-            if not remote:args['parent']=self._current_path[False]
-            self._submit('delete' if remote else 'local_delete','mutation' if remote else 'local_mutation',**args)
+            args=dict(path=entry['path'],expected=entry['identity'],parent=self._current_path[False])
+            self._submit('local_delete','local_mutation',**args)
             return
         jobs=[]
         for entry in entries:
@@ -689,12 +701,23 @@ class RouterFilesPage(QWidget):
         if isinstance(purpose,tuple) and purpose[0]=='batch':
             dialog=self._transfers.pop(key,None)
             completed=len(result['results'])
-            message=f"已完成 {completed}/{result['count']} 项。"
-            if result['cancelled']:message+='任务已取消，已完成的文件保留。'
+            deleting=len(purpose)>2 and purpose[2]=='delete'
+            if deleting:
+                action='已完整删除' if purpose[1] else '已移到回收站'
+                message=f"{action} {completed}/{result['count']} 个所选项目。"
+            else:
+                message=f"已完成 {completed}/{result['count']} 项。"
+            if result['cancelled']:
+                if deleting and purpose[1]:
+                    message+='任务已取消，当前文件夹可能已部分删除；已删除内容不会恢复。'
+                elif deleting:
+                    message+='任务已取消，已移到回收站的项目可从回收站恢复。'
+                else:
+                    message+='任务已取消，已完成的文件保留。'
             if result['error']:message+='未完成：'+result['error']
             level='error' if result['error'] else 'warning' if result['cancelled'] else 'success'
             self._notify(message,level)
-            if dialog is not None:dialog.finish(not result['error'],message)
+            if dialog is not None:dialog.finish(not result['error'] and not result['cancelled'],message)
             remote,folder,connection=destination
             if self.service.manager.ssh.connected and self.service.manager.ssh._client is connection:
                 transfer=isinstance(dialog,FileTransferDialog)

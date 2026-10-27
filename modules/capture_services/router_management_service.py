@@ -212,7 +212,7 @@ class RouterManagementService(QObject):
             elif action in {'upload','download'}:
                 value = self.manager.transfer_file(action=='upload', cancel=event, progress=report, **args)
             elif action in {'mkdir','delete','rename','chmod'}:
-                value = self.manager.mutate(action, cancel=event, **args)
+                value = self.manager.mutate(action, cancel=event, progress=report, **args)
             return value
         trace=self._diagnostic_tasks[key]
         def traced_operation(event,report):

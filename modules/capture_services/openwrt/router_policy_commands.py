@@ -313,6 +313,7 @@ __CHECKED_ACTIONS__
  if req.action=="ap_ready" then return policy_ap_ready() end
  if req.action=="files_apply" then return policy_file_apply() end
  if req.action=="files_restore" then return policy_file_restore(req.backup_dir,policy_file_journal(req.backup_dir)) end
+ if req.action=="files_cleanup" then return policy_file_cleanup(req.backup_dir,req.token,req.state) end
  if req.action=="snapshot" then return snapshot() end
  if req.action=="session" then
   local id=rpc("session","create",{timeout=300}).ubus_rpc_session
@@ -331,7 +332,7 @@ __CHECKED_ACTIONS__
 end
 local ok,result=pcall(run)
 if bus then bus:close() end
-io.write(json.stringify(ok and {ok=true,result=result} or {ok=false,code=type(result)=="table" and result.code or "internal"}))
+io.write(json.stringify(ok and {ok=true,result=result} or {ok=false,code=type(result)=="table" and result.code or "internal",backup_dir=type(result)=="table" and result.backup_dir or nil,cleanup_failed=type(result)=="table" and result.cleanup_failed or nil}))
 '''
 BOOT = BOOT.replace("__CHECKED_APPLY__",CHECKED_APPLY).replace("__CHECKED_ACTIONS__",CHECKED_ACTIONS).replace("__AP_HELPERS__",CAPABILITIES_LUA.replace("__DEVICE_OPTIONS__","").replace("__INTERFACE_OPTIONS__","")).replace("__FILES_LUA__",FILES_LUA).replace("__PENDING__",PENDING).replace("__SAVE__",SAVE_ONLY).replace("__IDENTITY__",IDENTITY).replace("__CONFIGS__", "{" + ",".join(json.dumps(c) for c in CONFIGS) + "}").replace("__FILES__", "{" + ",".join(json.dumps(p) for p in FILES) + "}")
 

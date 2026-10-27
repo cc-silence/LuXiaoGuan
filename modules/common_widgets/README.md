@@ -36,3 +36,5 @@ Modal editors minimize the visible owner group to retain modal ownership; modele
 
 
 The OpenWrt RouterTaskProgressDialog adapter can optionally display a bounded, read-only LAN guidance panel using the shared settingsMessageText theme and CommonComboBox. Its networkRenewRequested signal carries only the selected adapter identity; the widget performs no OS networking operations. ConfigurationProgressController routes the request to the task-bound recovery service and owns/disconnects explicit Qt connection handles. The panel supports light/dark themes and UI scaling; static or unsupported interfaces show guidance without a recovery action.
+
+- `button_focus_style.install_button_focus_style(app)`: install once before widget creation; shares the existing WidgetFilterStyle application proxy and wraps the current platform style to hide native focus rectangles on push/tool buttons, preserving Tab/Space, input focus and existing theme drawing.
