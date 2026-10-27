@@ -35,15 +35,19 @@ class CommonConfigActions:
         ssh=self.page.manager.manager.ssh
         return ssh.connected and ssh._client is item[1] and ssh.host_fingerprint==item[2]
 
-    def _confirm_apply(self,values):
+    def _confirm_apply(self,values,review=None):
         addresses=values.get("ipaddr",[])
         if isinstance(addresses,str):addresses=[addresses] if addresses else []
         text=LAN_APPLY_WARNING
         if values.get("proto")=="static" and values.get("auto")!="0" and addresses:
-            text+="\n\n重启后的管理地址："+"、".join(v.split("/",1)[0] for v in addresses)
+            text+="\n\n应用后的管理地址："+"、".join(v.split("/",1)[0] for v in addresses)
         else:
             text+="\n\n当前设置可能使原管理地址无法使用，请确认还有其他可用的管理连接。"
-        dialog=ConfirmDialog("保存并应用 LAN 设置",text,self.page,yes_text="确认并重启",no_text="仅保存")
+        if review:
+            from modules.capture_services.lan_client_recovery import client_plan
+            guide=client_plan(review,values)["guide"]
+            if guide:text+="\n\n"+guide
+        dialog=ConfirmDialog("保存并应用 LAN 设置",text,self.page,yes_text="确认并应用",no_text="仅保存")
         try:
             if dialog.exec()==dialog.Accepted:return True
             if dialog.secondary_selected:return False
@@ -58,7 +62,7 @@ class CommonConfigActions:
         try:
             if self.disposed:return True
             ssh=page.manager.manager.ssh
-            expected_disconnect=(item[3]=="save" and result.get("reboot_requested") and ssh._client is None)
+            expected_disconnect=(item[3]=="save" and ((result.get("checked_apply") and result.get("applied")) or (result.get("reboot_requested") and ssh._client is None)))
             if not self._current(item) and not expected_disconnect:
                 page._message("连接已变化，请重新打开设置。")
                 return True
@@ -74,13 +78,14 @@ class CommonConfigActions:
                 values=dialog.values()
                 apply=False
                 if result["config"]=="network" and dialog.apply_requested:
-                    apply=self._confirm_apply(values)
+                    apply=self._confirm_apply(values,result)
                     if apply is None:return True
                     if not self._current(item):
                         page._message("连接已变化，未执行保存。")
                         return True
                 args=dict(review=result,values=values)
                 if apply:args["apply"]=True
+                args["connection_settings"]=dict(page.connection_settings())
                 new_key=page.manager.submit("common_save",**args)
                 self.pending[new_key]=(*item[:3],"save")
                 if apply:self._show_progress(new_key)

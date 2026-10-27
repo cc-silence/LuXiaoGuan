@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from PySide6.QtWidgets import QFileDialog
 from .maintenance_review_dialog import MaintenanceReviewDialog
-from modules.common_widgets.common_dialogs import ConfirmDialog
+from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from .settings_impacts import DISCONNECT_WARNING
 
 
@@ -96,6 +96,9 @@ class MaintenanceActions:
             phase, identity = item
             if phase == "done":
                 page._message(result["note"])
+                dialog=MessageDialog("操作结果",result["note"],page)
+                try:dialog.exec()
+                finally:dialog.deleteLater()
                 return True
             if not self._current(identity):
                 page._message("连接已变化，请重新打开操作。")

@@ -40,9 +40,10 @@ class PolicyDevice(CommonDevice):
         self.interfaces=[dict(interface="lan",**{"ipv4-address":[dict(address="192.168.8.1",mask=24)]}),
                          dict(interface="wwan",**{"ipv4-address":[dict(address="10.2.3.4",mask=24)]})]
         self.board=dict(model="Fixture",release=dict(distribution="OpenWrt",version="19.07" if legacy else "25.12"))
-        self.ssh=SimpleNamespace(_client=object(),host_fingerprint="pinned",connected=True)
+        self.ssh=SimpleNamespace(_client=object(),host_fingerprint="pinned",connected=True,_host="192.168.8.1",_port=22,_user="root")
         self.manager=SimpleNamespace(ssh=self.ssh,runner=self)
         self.policy=RouterPolicyManager(self.manager)
+        self.policy._apply_channel_factory=lambda *args,**kwargs:PolicyChannel(self)
         self.cancel=threading.Event()
         self.lua.globals().file_read=lambda path:self.files.get(path)
         self.lua.globals().file_write=lambda path,data:self.files.__setitem__(path,data) or True
@@ -64,6 +65,9 @@ os.rename=function(a,b) return file_rename(a,b) end
         self.files[b]=self.files.pop(a);return True
 
     def read(self,command):
+        if command.startswith("cat /tmp/TZ"):return self.config["system"]["cfg01"]["timezone"]
+        if command.startswith("cat /proc/sys/kernel/hostname"):return self.config["system"]["cfg01"]["hostname"]
+        if command.startswith("ubus -v list uci"):return '"apply" "confirm" "rollback"'
         if command.startswith("test ! -e"):
             paths=re.findall("\'([^\']+)\'",command)
             return "" if paths and paths[0] in self.files else "ok"
@@ -87,13 +91,23 @@ os.rename=function(a,b) return file_rename(a,b) end
 
     def call(self,obj,method,arguments):
         args=self.unwrap(arguments)
+        if obj=="network" and method=="reload":
+            self.calls.append((obj,method));return self.wrap({}),None
+        if obj=="network.device" and "name" in args:
+            section=args["name"].removeprefix("iface-")
+            return self.wrap(dict(up=True,macaddr=self.config["wireless"].get(section,{}).get("macaddr","02:00:00:00:00:01"))),None
+        if obj=="network.interface.lan":
+            return self.wrap(dict(up=True,pending=False,proto=self.config["network"]["lan"].get("proto"),device=self.config["network"]["lan"].get("device"),**{"ipv4-address":[dict(address=self.config["network"]["lan"]["ipaddr"],mask=24)]})),None
         if obj=="system" and method=="board":return self.wrap(self.board),None
         if obj=="network.interface" and method=="dump":return self.wrap(dict(interface=self.interfaces)),None
         if obj=="uci" and method=="order":
             cfg=self.sessions[args["ubus_rpc_session"]][args["config"]]
             self.sessions[args["ubus_rpc_session"]][args["config"]]={s:cfg[s] for s in args["sections"]}
             return None,None
-        return super().call(obj,method,arguments)
+        result=super().call(obj,method,arguments)
+        if obj=="uci" and method in {"apply","rollback"} and result[1] is None:
+            self.files.update({"/etc/config/"+k:json.dumps(v,sort_keys=True) for k,v in self.config.items()})
+        return result
 
     def execute_policy(self,payload):
         self._output=[]
@@ -106,6 +120,20 @@ os.rename=function(a,b) return file_rename(a,b) end
             payload=json.loads(shlex.split(command.split(" <<",1)[0])[2])
             return RemoteCommandResult(name,0,self.execute_policy(payload))
         return super().run(name,command,timeout,cancel_event)
+
+
+class PolicyChannel:
+    def __init__(self,device):
+        self.runner=device
+        self.manager=RouterPolicyManager(device.manager)
+        self.manager.lua_bin="lua"
+        self.ssh=Mock()
+        self.calls=[]
+    def connect(self,host,timeout):pass
+    def call(self,action,timeout=8,**values):
+        self.calls.append(action)
+        return self.manager._call(action,threading.Event(),timeout=timeout,**values)
+    def close(self):pass
 
 
 def environment():

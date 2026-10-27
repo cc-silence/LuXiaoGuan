@@ -12,7 +12,9 @@ from .wireless_delete_commands import DELETE
 from .wireless_identity_commands import IDENTITY
 from .pending_config_commands import PENDING
 from .save_only_commands import SAVE_ONLY
+from .wireless_runtime_commands import WIRELESS_RUNTIME
 from .common_settings_commands import COMMON_SETTINGS
+from .checked_apply_commands import CHECKED_APPLY, CHECKED_ACTIONS
 from .orphan_interface_commands import ORPHANS
 from .relocation_commands import RELOCATION
 from .wireless_scan_commands import SCAN
@@ -171,6 +173,7 @@ end
 __IDENTITY__
 __PENDING__
 __SAVE_ONLY__
+__WIRELESS_RUNTIME__
 __COMMON_SETTINGS__
 local function stage()
  local c=clean()
@@ -372,6 +375,8 @@ local function status()
  local iface=nil
  for _,v in ipairs(rs.interfaces or {}) do if v.section==req.section then iface=v.ifname end end
  if type(iface)~="string" or not iface:match("^[%w_.:%-]+$") or rs.pending or rs.up~=true then return {ready=false} end
+ local loaded=uci.cursor()
+ if not loaded:load("wireless") or not wireless_loaded(loaded,rs,req.section) then return {ready=false,configuration_pending=true} end
  if req.mode=="ap" then
   local c=uci.cursor()
   if not c:load("wireless") then return {ready=false} end
@@ -386,6 +391,7 @@ local function status()
   local actual=optional("network.device","status",{name=iface}).macaddr
   if type(actual)~="string" or actual:lower()~=req.expected_mac:lower() then return {ready=false,identity_pending=true} end
  end
+ if req.require_connection==false then return {ready=true,association_not_required=true} end
  local text=read("wpa_cli -i "..q(iface).." status")
  local state=text:match("\nwpa_state=([^\r\n]+)") or text:match("^wpa_state=([^\r\n]+)")
  local bssid=text:match("\nbssid=([^\r\n]+)") or text:match("^bssid=([^\r\n]+)")
@@ -396,7 +402,10 @@ __DELETE__
 __RELOCATION__
 __ORPHANS__
 __SCAN__
+__CHECKED_APPLY__
 local function run()
+__CHECKED_ACTIONS__
+ if req.action=="common_applied" then return common_applied() end
  if req.action=="common_read" then return common_read() end
  if req.action=="common_stage" then return common_stage() end
  if req.action=="common_commit" then return common_commit() end
@@ -456,7 +465,7 @@ if ok then io.write(json.stringify({ok=true,result=result}))
 else io.write(json.stringify({ok=false,code=type(result)=="table" and result.code or "internal"})) end
 '''
 
-BOOT = BOOT.replace("__CAPABILITIES__", NETIFD_BOOL_LUA + CAPABILITIES_LUA).replace("__DEVICE_OPTIONS__", ",".join(json.dumps(k) for k in RADIO_SETTINGS)).replace("__INTERFACE_OPTIONS__", ",".join(json.dumps(k) for k in IFACE_SETTINGS)).replace("__SCAN__", SCAN).replace("__ORPHANS__", ORPHANS).replace("__RELOCATION__", RELOCATION).replace("__PENDING__", PENDING).replace("__SAVE_ONLY__", SAVE_ONLY).replace("__COMMON_SETTINGS__", COMMON_SETTINGS).replace("__IDENTITY__", IDENTITY).replace("__BRIDGE_HELPERS__", BRIDGE).replace("__BRIDGE_STATUS__", STATUS).replace("__BRIDGE_TOGGLE__", TOGGLE).replace("__DELETE__", DELETE).replace("__IFACE_KEYS__", ",".join(json.dumps(k) for k in IFACE_KEYS)).replace("__RADIO_KEYS__", ",".join(json.dumps(k) for k in RADIO_KEYS))
+BOOT = BOOT.replace("__CHECKED_APPLY__", CHECKED_APPLY).replace("__CHECKED_ACTIONS__", CHECKED_ACTIONS).replace("__CAPABILITIES__", NETIFD_BOOL_LUA + CAPABILITIES_LUA).replace("__DEVICE_OPTIONS__", ",".join(json.dumps(k) for k in RADIO_SETTINGS)).replace("__INTERFACE_OPTIONS__", ",".join(json.dumps(k) for k in IFACE_SETTINGS)).replace("__SCAN__", SCAN).replace("__ORPHANS__", ORPHANS).replace("__RELOCATION__", RELOCATION).replace("__PENDING__", PENDING).replace("__WIRELESS_RUNTIME__", WIRELESS_RUNTIME).replace("__SAVE_ONLY__", SAVE_ONLY).replace("__COMMON_SETTINGS__", COMMON_SETTINGS).replace("__IDENTITY__", IDENTITY).replace("__BRIDGE_HELPERS__", BRIDGE).replace("__BRIDGE_STATUS__", STATUS).replace("__BRIDGE_TOGGLE__", TOGGLE).replace("__DELETE__", DELETE).replace("__IFACE_KEYS__", ",".join(json.dumps(k) for k in IFACE_KEYS)).replace("__RADIO_KEYS__", ",".join(json.dumps(k) for k in RADIO_KEYS))
 
 PROBE = TOOL_RUNTIME_SH + r'''
 for key in uci ubus iw wpa_cli hostapd wpa_supplicant rpcd; do

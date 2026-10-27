@@ -15,7 +15,8 @@ local function save_snapshot(c,config)
    end
   end
   if size>1048576 then fail("save_large") end
-  out[row[".name"]]=values
+  local identity=row[".name"];if row[".anonymous"] then identity=false end
+  out[#out+1]={name=identity,values=values}
  end)
  return out
 end
@@ -27,6 +28,19 @@ local function save_equal(a,b,depth)
  for k in pairs(b) do if a[k]==nil then return false end end
  return true
 end
+
+local function save_resolve_section(c,config,section,ref)
+ if ref==nil then return section end
+ if type(ref)~="table" or type(ref.index)~="number" or ref.index%1~=0 or ref.index<1 or ref.index>2048 or type(ref.kind)~="string" then fail("values") end
+ local index,found=0,nil
+ c:foreach(config,nil,function(row)
+  index=index+1
+  if index==ref.index and row[".anonymous"]==true and row[".type"]==ref.kind then found=row[".name"] end
+ end)
+ if not found then fail("changed") end
+ return found
+end
+
 local function save_session_commit(verify,selected_configs,expected_hashes)
  if not selected_configs then clean() end
  if req.revision and req.revision~=revision() then fail("changed") end

@@ -42,7 +42,11 @@ local function common_read()
    end
   end
  end
- return {config=req.config,section=section,token=token,values=fields(row,keys),devices=devices,timezones=timezones}
+ local ref=nil
+ if row[".anonymous"]==true then
+  local index=0;c:foreach(req.config,nil,function(s) index=index+1;if s[".name"]==section then ref={index=index,kind=s[".type"]} end end)
+ end
+ return {section_ref=ref,config=req.config,section=section,token=token,values=fields(row,keys),devices=devices,timezones=timezones}
 end
 local function common_validate()
  local review=req.review
@@ -88,11 +92,56 @@ local function common_commit()
  if pending_hash("/etc/config/"..req.config)~=review.token then fail("changed") end
  return save_session_commit(function()
   local c=uci.cursor();if not c:load(req.config) then fail("read") end
+  local section=save_resolve_section(c,req.config,review.section,review.section_ref)
   for key,value in pairs(req.values) do
    local expected=value
    if value=="" or (type(value)=="table" and #value==0) then expected=nil end
-   if not save_equal(c:get(req.config,review.section,key),expected,0) then fail("save_commit") end
+   if not save_equal(c:get(req.config,section,key),expected,0) then fail("save_commit") end
   end
  end,{req.config},{[req.config]=review.token})
+end
+
+local function common_applied()
+ common_validate()
+ local runtime=nil
+ local c=uci.cursor();if not c:load(req.config) then fail("read") end
+ local section=save_resolve_section(c,req.config,req.review.section,req.review.section_ref)
+ for key,value in pairs(req.values) do
+  local expected=value
+  if value=="" or (type(value)=="table" and #value==0) then expected=nil end
+  if not save_equal(c:get(req.config,section,key),expected,0) then return {ready=false} end
+ end
+ if req.config=="network" then
+  local state,err=bus:call("network.interface."..req.review.section,"status",{})
+  if err or type(state)~="table" then return {ready=false} end
+  runtime=fields(state,{"up","pending","proto","device","ipv4-address","ipv6-address","ipv6-prefix","route"})
+  runtime.up=state.up;runtime.pending=state.pending
+  if req.values.auto=="0" then return {ready=state.up==false and state.pending~=true,state=runtime} end
+  if req.values.proto=="none" then return {ready=state.proto=="none" and state.pending~=true and #(state["ipv4-address"] or {})==0,state=runtime} end
+  if state.up~=true or state.pending==true then return {ready=false} end
+  if req.values.proto=="static" then
+   local addresses={}
+   for _,entry in ipairs(state["ipv4-address"] or {}) do addresses[entry.address]=entry end
+   local wanted=req.values.ipaddr
+   if type(wanted)=="string" then wanted={wanted} end
+   local bits={["0"]=0,["128"]=1,["192"]=2,["224"]=3,["240"]=4,["248"]=5,["252"]=6,["254"]=7,["255"]=8}
+   local netmask=nil
+   if type(req.values.netmask)=="string" and req.values.netmask~="" then
+    netmask=0
+    for byte in req.values.netmask:gmatch("%d+") do netmask=netmask+(bits[byte] or 0) end
+   end
+   for _,address in ipairs(wanted or {}) do
+    local entry=addresses[address:match("^[^/]+") or address]
+    local prefix=tonumber(address:match("/(%d+)$")) or netmask
+    if not entry or (prefix and entry.mask~=prefix) then return {ready=false} end
+   end
+  end
+ else
+  if read("cat /proc/sys/kernel/hostname"):gsub("%s+$","")~=req.values.hostname then return {ready=false} end
+  local tz=read("cat /tmp/TZ"):gsub("%s+$","")
+  local zone="/usr/share/zoneinfo/"..(req.values.zonename or ""):gsub(" ","_")
+  if tz~=req.values.timezone and read("readlink /tmp/localtime"):gsub("%s+$","")~=zone then return {ready=false} end
+ end
+ return {ready=true,state=runtime}
 end
 '''

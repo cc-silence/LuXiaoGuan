@@ -167,6 +167,7 @@ io.popen=function(command) return {read=function() return bridge_read(command) e
                 self.config = self.backup
                 self.applied = self.backup = None
             elif method == "confirm":
+                if not self.applied:return None,5
                 if self.applied != sid:
                     return None, 6
                 self.applied = self.backup = None
@@ -179,8 +180,8 @@ io.popen=function(command) return {read=function() return bridge_read(command) e
             interfaces = []
             for name, row in self.config["wireless"].items():
                 if row.get(".type") == "wifi-iface" and row.get("disabled") != "1":
-                    interfaces.append({"section": name, "ifname": "iface-" + name})
-            return self.wrap({"radio7": {"up": True, "pending": False, "interfaces": interfaces}}), None
+                    interfaces.append({"section": name, "ifname": "iface-" + name,"config":copy.deepcopy(row)})
+            return self.wrap({"radio7": {"up": True, "pending": False, "interfaces": interfaces,"config":copy.deepcopy(self.config["wireless"]["radio7"])}}), None
         if obj == "network.device":
             return self.wrap({"up": True}), None
         if obj.startswith("hostapd."):

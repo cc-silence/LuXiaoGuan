@@ -4,6 +4,7 @@ import secrets
 import threading
 import time
 from .signal_manager import SignalError
+from ..configuration_progress import phase
 from .wireless_setup_commands import PROBE
 from .relocation_identity import generate_relocation_hostname
 
@@ -94,10 +95,12 @@ class RelocationManager:
         failure = None
         try:
             message("正在准备搬家清理，将通过系统回滚保护应用配置。", "info")
+            phase("\u6b63\u5728\u5e94\u7528\u642c\u5bb6\u6e05\u7406\u914d\u7f6e",seconds=90,rollback=True)
             stage_attempted = True
             applied = self._call("move_stage", cancel, timeout=30, sid=sid, review_token=review["token"],
                                  review_targets=review["targets"], dhcp_revision=review["token"][192:256], token=secrets.token_hex(8), plan=review["plan"])
             deadline = time.monotonic() + 40
+            phase("\u6b63\u5728\u6838\u5bf9\u6e05\u7406\u548c\u65b0\u8eab\u4efd",deadline=deadline,rollback=True)
             while True:
                 if cancel.is_set():
                     raise InterruptedError("清理已取消，正在恢复。")
@@ -109,6 +112,7 @@ class RelocationManager:
                 if time.monotonic() >= deadline:
                     raise SignalError("unconfirmed", "新身份或无线停止状态未确认，正在恢复。")
                 cancel.wait(min(1, max(0, deadline-time.monotonic())))
+            phase("\u6b63\u5728\u786e\u8ba4\u4fdd\u7559\u65b0\u914d\u7f6e",seconds=10,rollback=True)
             self._call("finish", cancel, timeout=10, sid=sid, confirm=True, unapplied=False)
             confirmed = True
             return {"hostname": review["plan"]["hostname"], "removed": len(review["rows"]), "macs": len(review["targets"]), "skipped": review["skipped"]}
@@ -117,6 +121,7 @@ class RelocationManager:
             raise
         finally:
             if not confirmed:
+                phase("\u6b63\u5728\u6062\u590d\u6e05\u7406\u524d\u914d\u7f6e",seconds=25,rollback=True)
                 cleanup = threading.Event()
                 try:
                     self._call("finish", cleanup, timeout=15, sid=sid, confirm=False, unapplied=True)

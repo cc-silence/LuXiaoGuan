@@ -20,13 +20,6 @@ from modules.main_pages.packet_capture.openwrt.confirmation_helpers import confi
 from modules.common_widgets.common_dialogs import ConfirmDialog
 
 
-_PACKAGE_PURPOSES = {
-    "aircrack-ng": "信号扫描、常规抓包",
-    "hcxdumptool": "PMKID 抓包" if PMKID_UI_VISIBLE else "无线采集辅助工具",
-    "reaver": "WPS 秒 Pin",
-    "openssh-sftp-server": "文件同步",
-}
-
 
 class PacketCapturePage(QFrame):
     """主窗口堆栈中的抓包页面，直接装配路由器四个标签和信息面板。
@@ -90,6 +83,8 @@ class PacketCapturePage(QFrame):
             common_info_panel=self.common_info_panel,
         )
         self.root_layout.addWidget(self.openwrt_tab, 1)
+        from .packet_capture.openwrt.configuration_progress_controller import ConfigurationProgressController
+        self.configuration_progress = ConfigurationProgressController(self, self.capture_service)
         self.openwrt_tab.settingsChanged.connect(self._save_openwrt_settings)
         self.openwrt_tab.actionRequested.connect(self._handle_openwrt_action)
         # 已抓名单进常驻服务内存；记/清后由服务信号触发同一套配置保存链落盘。
@@ -259,6 +254,10 @@ class PacketCapturePage(QFrame):
             self._start_openwrt_wps(
                 {"normal": "normal", "quick": "second", "offline": "offline"}.get(dialog_mode, "normal")
             )
+            return
+        if action.startswith("capture_dependency:"):
+            from .packet_capture.openwrt.dependency_actions import operate_capture
+            operate_capture(self, action.split(":",1)[1])
             return
         if action == "install_dependencies":
             self._install_openwrt_dependencies()
@@ -800,81 +799,13 @@ class PacketCapturePage(QFrame):
             self.info_panel.append_info("当前任务条件不满足或已有任务运行，不能开始 WPS。", "warning")
 
     def _install_openwrt_dependencies(self):
-        """主线程列出缺失包并确认后启动后台安装；播报进设置信息窗。"""
-
-        snapshot = self.capture_service.openwrt_snapshot
-        if snapshot.connection_state.value != "connected":
-            message = "安装抓包依赖前，请先在“路由器登录”中登录 OpenWrt 路由器。"
-            self.settings_info_panel.append_info(message, "warning")
-            MessageDialog("请先登录路由器", message, self).exec()
-            return
-        settings = self.openwrt_tab.connection_settings()
-        missing = []
-        for item in snapshot.dependencies:
-            if item.key=="sftp":continue
-            for package in item.missing_packages or ():
-                if package not in missing:
-                    missing.append(str(package))
-        if not missing:
-            self.settings_info_panel.append_info("抓包依赖齐全，无需安装。", "success")
-            return
-        settings = self.openwrt_tab.connection_settings()
-        if ConfirmDialog(
-            "安装抓包依赖",
-            "将检查以下路由器软件，仅安装缺失项：" + "、".join(missing) + "。\n\n"
-            "抓包包体积较大，逐包安装耗时较长（数分钟）；安装中不要断电或重启路由器，"
-            "也不要在其他界面操作路由器。只装列表中的包，不升级已有软件、不改任何配置。\n\n"
-            "路由器能上网时直接安装；上不了网时自动改用本机下载安装"
-            "（需要这台电脑能联网）。",
-            self,
-            yes_text="确认安装",
-            no_text="取消",
-        ).exec() != ConfirmDialog.Accepted:
-            return
-        features = dict(settings.get("enabled_features", {}))
-        if not self.capture_service.dependency_service.install_async(features,scope="capture"):
-            self.settings_info_panel.append_info(
-                "当前已有任务运行或连接已断开，不能开始安装。", "warning")
+        from .packet_capture.openwrt.dependency_actions import install_capture
+        install_capture(self)
 
     def _uninstall_openwrt_dependencies(self):
-        """主线程列出已装包并确认后启动后台卸载；播报进设置信息窗。"""
+        from .packet_capture.openwrt.dependency_actions import uninstall_capture
+        uninstall_capture(self)
 
-        snapshot = self.capture_service.openwrt_snapshot
-        if snapshot.connection_state.value != "connected":
-            message = "卸载抓包依赖前，请先在“路由器登录”中登录 OpenWrt 路由器。"
-            self.settings_info_panel.append_info(message, "warning")
-            MessageDialog("请先登录路由器", message, self).exec()
-            return
-        installed = self.capture_service.dependency_service.installed_packages(
-            snapshot.dependencies,include_sftp=False)
-        if not installed:
-            self.settings_info_panel.append_info("路由器上没有可卸载的抓包依赖。", "success")
-            return
-        from modules.main_pages.packet_capture.openwrt.package_select_dialog import (
-            PackageSelectDialog,
-        )
-        extra = ""
-        if "openssh-sftp-server" in installed:
-            extra = "\n\n注意：卸掉文件同步后它不可用，重装即恢复；SSH 命令通道不受影响。"
-        items = [(name, _PACKAGE_PURPOSES.get(name, "")) for name in installed]
-        dialog = PackageSelectDialog(
-            "卸载抓包依赖",
-            "勾选要卸载的软件包，只卸这几个具名工具包，不碰依赖库、不升级其他软件、"
-            "不改任何配置；卸载中不要断电或重启路由器。" + extra,
-            items,
-            self,
-        )
-        if dialog.exec() != PackageSelectDialog.Accepted:
-            return
-        selected = dialog.selected_packages()
-        if not selected:
-            self.settings_info_panel.append_info("未选择任何软件包。", "info")
-            return
-        settings = self.openwrt_tab.connection_settings()
-        features = settings.get("enabled_features", {})
-        if not self.capture_service.dependency_service.uninstall_async(features, selected,scope="capture"):
-            self.settings_info_panel.append_info(
-                "当前已有任务运行或连接已断开，不能开始卸载。", "warning")
     def _report_unhandled_action(self, action):
         """未接入动作的防御性反馈，发到动作所在的页面信息窗。"""
 
@@ -1020,6 +951,7 @@ class PacketCapturePage(QFrame):
         """页面级空闲释放前断开长期服务信号，不停止后台抓包会话。"""
 
 
+        self.configuration_progress.dispose()
         self.openwrt_tab.dispose()
         self.capture_service.verifiedHistoryChanged.disconnect(self._on_verified_history_changed)
         self.capture_service.taskFinishedNotice.disconnect(self._show_task_result_notice)

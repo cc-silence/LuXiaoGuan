@@ -7,6 +7,7 @@ from .bundle_specs import COMMON_ROOTS, CAPTURE_ROOTS, bundle_spec
 from .common_bundle_repository import CommonBundleRepository
 from .signal_package_feed import default_cache_dir, parse_installed
 from .package_manager import compare_opkg_versions
+from .candidate_policy import CandidatePlanRejected
 
 
 def install_from_local(manager, wanted, device, cache_dir, sftp_available, cancel, tell,
@@ -35,16 +36,17 @@ def install_from_local(manager, wanted, device, cache_dir, sftp_available, cance
             raise InterruptedError("Local bundle matching cancelled")
         repository = retain(repository or CommonBundleRepository(kind=kind))
         profile = repository.profile(device)
-        from .snapshot_bundle import is_snapshot, candidate_profiles, select_profile, SnapshotBundleMismatch
+        from .snapshot_bundle import candidate_profiles, select_profile, SnapshotBundleMismatch
+        from .candidate_policy import requires_candidate
         installed = None
         compare = lambda a, op, b: compare_opkg_versions(manager.command_runner, a, op, b, cancel)
-        if is_snapshot(device):
+        if requires_candidate(device):
             if not candidate_profiles(repository, device) and kind == "common" and set(wanted).issubset(CAPTURE_ROOTS):
                 repository = retain(CommonBundleRepository(kind="capture"))
             if not candidate_profiles(repository, device):
                 identity = " / ".join(str(getattr(device, key, "")) for key in
                                       ("distribution", "version", "target", "package_architecture", "package_manager"))
-                reason = ("官方离线包不用于非官方固件" if getattr(device, "distribution", "") != "OpenWrt"
+                reason = ("未开放此衍生固件的候选安装" if getattr(device, "distribution", "") not in {"OpenWrt", "Kwrt"}
                           else "未找到同系列、同平台和架构的候选包")
                 tell("本地离线包未匹配当前设备：" + identity + "。" + reason +
                      "；继续尝试路由器自身的软件源。", "info")
@@ -81,7 +83,8 @@ def install_from_local(manager, wanted, device, cache_dir, sftp_available, cance
                 if paths:
                     manager._install_offline(wanted, device, cache_dir, sftp_available, cancel, tell,
                                              uploader, local_paths=paths,
-                                             local_packages={p.name: p.version for p in selected})
+                                             local_packages={p.name: p.version for p in selected},
+                                             candidate_trial=requires_candidate(device))
             else:
                 from .apk_offline import ApkOfflineInstaller
                 package_manager = manager._preflight(0, cancel)
@@ -100,6 +103,11 @@ def install_from_local(manager, wanted, device, cache_dir, sftp_available, cance
         from .bundle_archive_cleanup import cleanup_repository_archive
         cleanup_repository_archive(repository, cancel, tell)
         return True
+    except CandidatePlanRejected as exc:
+        tell("本地候选安装预演未通过，尚未执行安装；跳过此候选，继续尝试路由器自身的软件源：" + str(exc), "info")
+        if exc.package_diagnostic:
+            tell("本地候选预演详情：\n" + exc.package_diagnostic, "warning")
+        return False
     except InterruptedError as exc:
         raise SignalError("cancelled", str(exc)) from None
     except (ValueError, OSError) as exc:

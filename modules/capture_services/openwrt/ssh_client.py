@@ -113,6 +113,8 @@ class OpenWrtSshClient:
 
     def __init__(self):
         self._client = None
+        self._authenticated_settings = {}
+        self._generation = 0
         self._connecting_client = None
         self._sftp = None
         self._host = ""
@@ -158,6 +160,33 @@ class OpenWrtSshClient:
                 return ""
             return self.fingerprint_for_key(self._client.get_transport().get_remote_server_key())
 
+    @property
+    def authenticated_settings(self):
+        """Return a copy of the successful connection parameters, excluding secrets."""
+        with self._lock:return dict(self._authenticated_settings)
+
+    @property
+    def connection_generation(self):
+        with self._lock:return self._generation
+
+    def adopt_verified(self, source, expected_client, generation, fingerprint):
+        """Move a verified LAN transport after loss; never replace a live/new login."""
+        if source is self:return False
+        with self._lock,source._lock:
+            if self._generation!=generation or self.connected or self._connecting_client is not None:return False
+            if self._client is not None and self._client is not expected_client:return False
+            if not source.connected or source.host_fingerprint!=fingerprint:return False
+            if (self._host,self._port,self._user)!=(source._host,source._port,source._user):return False
+            old_sftp,old_client=self._sftp,self._client
+            self._client,self._sftp=source._client,None
+            self._authenticated_settings=dict(source._authenticated_settings)
+            self._failure_detail=''
+            source._client=None;source._authenticated_settings={}
+            client=self._client
+            self._watch_transport(client,client.get_transport())
+        _close_resource(old_sftp);_close_resource(old_client)
+        return True
+
     @staticmethod
     def fingerprint_for_key(key):
         """返回 OpenSSH 常用 SHA256 指纹，不包含可逆的密码或会话数据。"""
@@ -169,6 +198,7 @@ class OpenWrtSshClient:
         """保存已标准化的非敏感连接参数，不联网、不保存密码。"""
 
         with self._lock:
+            self._generation += 1
             self._host = str(host).strip()
             self._port = int(port)
             self._user = str(user).strip()
@@ -268,6 +298,9 @@ class OpenWrtSshClient:
                     self._connecting_client = None
         with self._lock:
             self._client = client
+            self._authenticated_settings = dict(host=connect_kwargs["hostname"],port=connect_kwargs["port"],
+                user=connect_kwargs["username"],auth_method=method,
+                private_key_path=connect_kwargs.get("key_filename",""))
             self._failure_detail = ""
             transport = client.get_transport()
             try:
@@ -504,9 +537,11 @@ class OpenWrtSshClient:
         """幂等关闭 SFTP 和 SSH；底层对象不存在时不做任何操作。"""
 
         with self._lock:
+            self._generation += 1
             connecting = self._connecting_client
             self._connecting_client = None
             sftp, client = self._sftp, self._client
             self._sftp = self._client = None
+            self._authenticated_settings = {}
         for resource in (connecting, sftp, client):
             _close_resource(resource)

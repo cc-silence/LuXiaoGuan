@@ -11,7 +11,7 @@ ITEMS = {
  "time": ("\u81ea\u52a8\u6821\u51c6\u65f6\u95f4", "\u8054\u7f51\u540e\u6821\u51c6\u65f6\u949f\u3002"),
  "timezone": ("\u5317\u4eac\u65f6\u95f4", "\u4f7f\u7528\u5317\u4eac\u65f6\u95f4\u3002"),
  "language": ("\u7ba1\u7406\u7f51\u9875\u4f7f\u7528\u4e2d\u6587", "\u53ea\u4f7f\u7528\u5df2\u5b89\u88c5\u7684\u7ffb\u8bd1\uff0c\u4e0d\u81ea\u52a8\u5b89\u88c5\u8f6f\u4ef6\u3002"),
- "ssh": ("\u53ea\u5141\u8bb8\u81ea\u5bb6\u7f51\u7edc\u7ba1\u7406", "\u4ece\u4e0a\u7ea7\u7f51\u7edc\u767b\u5f55\u4f1a\u65ad\u5f00\uff1b\u8bf7\u5148\u7528\u81ea\u5df1\u7684\u7f51\u7ebf\u6216\u70ed\u70b9\u8fde\u63a5\u3002"),
+ "ssh": ("\u53ea\u5141\u8bb8\u81ea\u5bb6\u7f51\u7edc\u7ba1\u7406", "\u5c06 SSH \u7ba1\u7406\u7ed1\u5b9a\u5230 LAN\uff0c\u4fdd\u7559\u5c40\u57df\u7f51\u7ba1\u7406\u5165\u53e3\u3002"),
  "web": ("\u963b\u6b62\u4e0a\u7ea7\u6253\u5f00\u7ba1\u7406\u7f51\u9875", "\u81ea\u5df1\u7684\u5c40\u57df\u7f51\u4ecd\u80fd\u7ba1\u7406\u3002"),
  "ping": ("\u4e0d\u56de\u5e94\u4e0a\u7ea7\u5728\u7ebf\u63a2\u6d4b", "\u4e0d\u80fd\u9690\u85cf\u8bbe\u5907\uff0c\u53ef\u80fd\u5f71\u54cd\u6392\u67e5\u3002"),
  "igmp": ("\u963b\u6b62\u4e0a\u7ea7\u7ec4\u64ad\u8bf7\u6c42", "\u53ef\u80fd\u5f71\u54cd\u7f51\u7edc\u7535\u89c6\u7b49\u7ec4\u64ad\u4e1a\u52a1\u3002"),
@@ -87,7 +87,7 @@ class Builder:
         self.s=s
         self.plan=dict(kind=kind,options=options,hashes=dict(s["hashes"]),file_hashes=dict(s["files"]),
                        operations=[],files=[],steps=[],skipped=[],identities=[],new_ap=None,delete_defaults=[],
-                       reboot=kind in {"initial","station","ap"},service=None)
+                       reboot=False,service=None)
         self.used={str(r.get("macaddr","")).upper() for cfg in ("wireless","network") for _,r in rows(s,cfg)}
         self.used.update(str(r.get("macaddr","")).upper() for r in s.get("devices",{}).values() if isinstance(r,dict))
 
@@ -196,9 +196,16 @@ class Builder:
                 for section,_ in found:
                     self.change("dropbear",section,dict(Interface="lan"))
                     self.delete_option("dropbear",section,"DirectInterface")
-            elif item in {"web","ping","igmp"}:self.firewall(item)
+            elif item in {"web","ping","igmp"}:
+                if item=="web":
+                    from .router_web_config import management_server
+                    try:management_server(self.s)
+                    except ValueError as exc:self.skip(item,str(exc));continue
+                self.firewall(item)
             elif item=="http":
-                section,server=single(self.s,"uhttpd","uhttpd")
+                from .router_web_config import management_server
+                try:section,server=management_server(self.s)
+                except ValueError as exc:self.skip(item,str(exc));continue
                 if not server.get("listen_http"):raise ValueError("\u6ca1\u6709\u73b0\u6210 HTTP \u7ba1\u7406\u5165\u53e3\uff0c\u672a\u5173\u95ed HTTPS\u3002")
                 self.delete_option("uhttpd",section,"listen_https");self.change("uhttpd",section,dict(redirect_https="0"))
             elif item=="rescue":
@@ -221,7 +228,9 @@ class Builder:
             elif item=="homepage":
                 page=options.get("homepage","wireless")
                 if page not in PAGES or page not in self.s.get("pages",[]):raise ValueError("\u6240\u9009\u9875\u9762\u5728\u672c\u8bbe\u5907\u4e0d\u53ef\u7528\u3002")
-                _,server=single(self.s,"uhttpd","uhttpd")
+                from .router_web_config import management_server
+                try:_,server=management_server(self.s)
+                except ValueError as exc:self.skip(item,str(exc));continue
                 if server.get("home","/www")!="/www":raise ValueError("\u7ba1\u7406\u7f51\u9875\u4f7f\u7528\u81ea\u5b9a\u4e49\u76ee\u5f55\uff0c\u672a\u8986\u76d6\u9996\u9875\u3002")
                 path="/cgi-bin/luci/"+PAGES[page][1]
                 self.file("/www/index.html",'<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url='+path+'"></head><body><a href="'+path+'">Open router settings</a></body></html>\n')
@@ -237,7 +246,8 @@ class Builder:
         elif item=="igmp":rules=[("igmp",dict(proto="igmp",family="ipv4"))]
         else:
             ports=set()
-            for _,server in rows(self.s,"uhttpd","uhttpd"):
+            from .router_web_config import management_server
+            for _,server in [management_server(self.s)]:
                 for key in ("listen_http","listen_https"):
                     for listen in words(server.get(key)):
                         match=re.search(r":(\d+)$",listen)
@@ -327,5 +337,6 @@ def build_plan(snapshot,kind,options=None,environment=None):
     elif kind=="boot":b.boot(options)
     else:
         b.batch("sta" if kind=="station" else "ap")
-        b.plan["steps"].append("\u5bc6\u7801\u53ca\u5176\u4ed6\u8bbe\u7f6e\u4fdd\u7559\uff1b\u5e94\u7528\u65f6\u4f1a\u65ad\u7f51\u5e76\u91cd\u65b0\u542f\u52a8\u8def\u7531\u5668\u3002")
-    return b.plan
+        b.plan["steps"].append("\u5bc6\u7801\u53ca\u5176\u4ed6\u8bbe\u7f6e\u4fdd\u7559\uff1b\u5e94\u7528\u65f6\u4f1a\u663e\u793a\u5012\u8ba1\u65f6\u5e76\u6838\u9a8c\u8fd0\u884c\u72b6\u6001\uff0c\u901a\u5e38\u65e0\u9700\u91cd\u542f\u6574\u673a\u3002")
+    from .uci_sections import annotate
+    return annotate(snapshot,b.plan)

@@ -1,13 +1,14 @@
 """OpenWrt 抓包依赖展示分组。"""
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QCheckBox, QLabel, QWidget
 
 from modules.common_widgets.sweep_button import SweepButton
 from modules.main_pages.packet_capture.ui_helpers import create_capture_card
 
 
 from .ui_features import PMKID_UI_VISIBLE
+from .dependency_row import create_dependency_row
+from modules.capture_services.openwrt.dependency_groups import CAPTURE_PACKAGES
 
 
 class DependencySection:
@@ -29,6 +30,9 @@ class DependencySection:
         self.checks = {}
         self.statuses = {}
         self._busy = False
+        self._connected = False
+        self._states = {}
+        self.tool_buttons = {}
         # 各功能总开关：关掉后常规页对应入口停用（下次检查依赖后生效）。
         # 悬停提示只讲人话：这个开关管哪个按钮、关掉有啥影响。
         features = (
@@ -39,44 +43,48 @@ class DependencySection:
             ("password", "猜密码", "管“开始猜密码”入口。高风险：会改路由器无线和网络配置（动前先备份），只能测自己的网络。"),
         )
         enabled = settings.get("enabled_features", {})
-        for key, title, tip in features:
-            checkbox = QCheckBox(title, self.card)
-            checkbox.setObjectName("captureCheckBox")
-            checkbox.setToolTip(tip)
+        for position, (key, title, tip) in enumerate(features):
+            packages=", ".join(CAPTURE_PACKAGES[key]) or "系统自带：uci、wifi、ip"
+            container,checkbox,status,button=create_dependency_row(
+                self.card,key,title,packages,position,self._row_clicked,toggle=True)
+            checkbox.setToolTip(tip+"\n扫描、抓包还共用 iw、ip；缺失时通过统一安装流程补装 iw、ip-tiny。")
             checkbox.setChecked(bool(enabled.get(key, True)))
-            status = QLabel("未检测", self.card)
-            status.setObjectName("captureStatusValue")
-            self.checks[key] = checkbox
-            self.statuses[key] = status
-            # 使用卡片布局的横向行，保持标签和状态在同一基线。
-            from PySide6.QtWidgets import QHBoxLayout
-            line = QHBoxLayout()
-            line.setContentsMargins(0, 0, 0, 0)
-            line.addWidget(checkbox)
-            line.addStretch(1)
-            line.addWidget(status)
+            self.checks[key]=checkbox
+            self.statuses[key]=status
+            self.tool_buttons[key]=button
             if key=="pmkid":
-                self.pmkid_row=QWidget(self.card)
-                self.pmkid_row.setLayout(line)
-                self.layout.addWidget(self.pmkid_row)
-                self.pmkid_row.setVisible(PMKID_UI_VISIBLE)
-            else:
-                self.layout.addLayout(line)
+                self.pmkid_row=container
+                container.setVisible(PMKID_UI_VISIBLE)
+            self.layout.addWidget(container)
             checkbox.toggled.connect(lambda _checked, feature=key: action_callback(f"feature:{feature}"))
+            checkbox.toggled.connect(lambda _checked:self._sync_rows())
         self.install_button = self._make_button(
             "检查并安装抓包依赖", "install_dependencies",
             "检查路由器上缺哪些抓包软件，安装前会列出清单让你确认。\n"
             "装的是路由器端软件，不动 Windows；连不上路由器时点不了。",
         )
         self.layout.addWidget(self.install_button)
-        self.uninstall_button = self._make_button(
-            "卸载抓包依赖", "uninstall_dependencies",
-            "不再使用这些功能时才卸载。会先让你选择要删除的软件；卸载后对应的抓包功能将不可用，需要重新安装才能使用。",
-        )
-        self.uninstall_button.setProperty("riskAction", True)
-        self.layout.addWidget(self.uninstall_button)
         self.install_button.setEnabled(False)
-        self.uninstall_button.setEnabled(False)
+
+    def _row_clicked(self,key):
+        session=self.tool_buttons[key].property("dependencyStopSession")
+        if session:
+            self.dependency_service.cancel(str(session))
+            return
+        self._action_callback("capture_dependency:"+key)
+
+    def _sync_rows(self):
+        task=getattr(self.dependency_service,"task",None)
+        for key,button in self.tool_buttons.items():
+            own=task is not None and task.group=="capture" and key in task.items
+            button.setProperty("dependencyStopSession",task.session_id if own else None)
+            state=self._states.get(key,"unknown")
+            text=("停止" if own else "检查" if not CAPTURE_PACKAGES[key]
+                  else "卸载" if state=="ready" else "安装" if state=="missing" else "检查")
+            button.setText(text)
+            button.setEnabled(self._connected and (own or not self._busy and self.checks[key].isChecked()))
+            button.setToolTip("只检查系统自带命令，不删除系统组件。" if not CAPTURE_PACKAGES[key] else
+                "复用统一安装与安全卸载流程；共用软件包卸载后会影响其他抓包功能。")
 
     def dispose(self):
         """\u91ca\u653e\u9875\u9762\u8ba2\u9605\uff0c\u5e38\u9a7b\u4e0b\u8f7d\u4efb\u52a1\u7ee7\u7eed\u3002"""
@@ -105,18 +113,19 @@ class DependencySection:
     def set_connected(self, connected):
         """只有 SSH 连接建立后允许修改依赖开关或安装/卸载。"""
 
+        self._connected = bool(connected)
         for control in self.checks.values():
             control.setEnabled(connected)
+        self._sync_rows()
         self.install_button.setEnabled(connected and not self._busy)
-        self.uninstall_button.setEnabled(connected and not self._busy)
 
     def set_busy(self, busy):
         """任务执行中禁用安装/卸载按钮；结束后恢复。"""
 
         self._busy = bool(busy)
+        self._sync_rows()
         enabled_controls = all(control.isEnabled() for control in self.checks.values())
         self.install_button.setEnabled(enabled_controls and not self._busy)
-        self.uninstall_button.setEnabled(enabled_controls and not self._busy)
 
     def apply_snapshot(self, snapshot):
         """刷新依赖状态标签，不改变用户功能开关。
@@ -124,6 +133,9 @@ class DependencySection:
         依赖任务执行中对应按钮变“停止…”并扫光，点即停止；结束自动恢复。
         """
 
+        self._states={item.key:item.state.value for item in snapshot.dependencies}
+        self._connected=snapshot.connection_state.value=="connected"
+        self._sync_rows()
         for item in snapshot.dependencies:
             status = self.statuses.get(item.key)
             if status is None:
@@ -133,6 +145,7 @@ class DependencySection:
                 "missing": "缺少依赖",
                 "unsupported": "不支持",
                 "checking": "检测中",
+                "disabled": "已关闭",
             }.get(item.state.value, "未检测")
             status.setText(text)
             # 版本与缺失详情进悬停提示，状态列只放四个短词。
@@ -146,10 +159,6 @@ class DependencySection:
             self.install_button, "install_dependencies",
             "检查并安装抓包依赖", "停止安装",
             connected and busy and belongs and task_type == "dependency_install")
-        self._sync_task_button(
-            self.uninstall_button, "uninstall_dependencies",
-            "卸载抓包依赖", "停止卸载",
-            connected and busy and belongs and task_type == "dependency_uninstall")
 
     @staticmethod
     def _sync_task_button(button, idle_action, idle_text, running_text, running):

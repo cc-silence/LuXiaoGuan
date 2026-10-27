@@ -32,17 +32,19 @@ class CaptureTaskWorker(QObject):
     def run(self):
         """执行任务并保证任何路径都会发出 finished。"""
 
+        from .configuration_progress import reporting
         try:
-            if self.progress_enabled and self.message_enabled:
-                result = self.operation(
-                    self.cancel_event, self.progressChanged.emit, self.messageChannel.emit
-                )
-            elif self.progress_enabled:
-                result = self.operation(self.cancel_event, self.progressChanged.emit)
-            elif self.message_enabled:
-                result = self.operation(self.cancel_event, self.messageChannel.emit)
-            else:
-                result = self.operation(self.cancel_event)
+            with reporting(self.progressChanged.emit):
+                if self.progress_enabled and self.message_enabled:
+                    result = self.operation(
+                        self.cancel_event, self.progressChanged.emit, self.messageChannel.emit
+                    )
+                elif self.progress_enabled:
+                    result = self.operation(self.cancel_event, self.progressChanged.emit)
+                elif self.message_enabled:
+                    result = self.operation(self.cancel_event, self.messageChannel.emit)
+                else:
+                    result = self.operation(self.cancel_event)
             self.succeeded.emit(result)
         except Exception as exc:
             self.failed.emit(str(exc) or type(exc).__name__, repr(exc))

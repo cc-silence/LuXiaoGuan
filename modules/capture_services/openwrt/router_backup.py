@@ -224,5 +224,5 @@ class RouterBackupManager:
             return dict(outcome="uncertain", note=label + "请求的执行结果未确认。请保持供电、重新连接核对，勿连续重试。操作前备份：" + backup_path)
         from .router_reboot import request_reboot
         if not request_reboot(self._run, self.manager.ssh, self._connection):
-            return dict(outcome="reconnect", note=label + "命令已完成，重启请求后连接可能已断开，请等待并重新登录核对。操作前备份：" + backup_path)
-        return dict(outcome="reconnect", note=label + "命令已完成并已请求重启。请等待后使用恢复后的管理地址和密码重新登录。操作前备份：" + backup_path)
+            return dict(outcome="reconnect", note=label + "命令已完成，重启请求后连接可能已断开，请保持供电并等待几分钟，待设备启动后重新登录核对。操作前备份：" + backup_path)
+        return dict(outcome="reconnect", note=label + "命令已完成并已请求重启。请保持供电，等待几分钟让路由器完成重启，再使用恢复后的管理地址和密码重新登录；具体时间以设备启动情况为准。操作前备份：" + backup_path)

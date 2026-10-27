@@ -39,6 +39,7 @@ class CaptureService(QObject):
     activityChanged 通知运行时重算待机释放。
     副作用：能力检测会在守护线程读取 Windows 驱动和安装路径，不修改系统。
     """
+    configurationProgressChanged = Signal(str, object)
 
     capabilitiesChanged = Signal(object)
     stateChanged = Signal(str)
@@ -103,6 +104,8 @@ class CaptureService(QObject):
         self.dependency_service = OpenWrtDependencyService(self)
         from .router_management_service import RouterManagementService
         self.router_management = RouterManagementService(self)
+        from .lan_recovery_service import LanRecoveryService
+        self.lan_recovery = LanRecoveryService(self)
         from .router_terminal_service import RouterTerminalService
         self.router_terminal = RouterTerminalService(self)
         self.router_terminal.activityChanged.connect(self._terminal_activity_changed)

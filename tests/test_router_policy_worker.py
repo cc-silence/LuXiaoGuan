@@ -41,6 +41,20 @@ class PolicyWorkerTests(unittest.TestCase):
         runner=Mock();owner=Owner(ssh,runner)
         return owner,RouterManagementService(owner),ssh,runner
 
+    def test_apply_reconnect_uses_actual_authenticated_settings_instead_of_edited_fields(self):
+        owner,service,ssh,runner=self.fixture()
+        actual=dict(host="actual-router",port=2222,user="root",auth_method="private_key",private_key_path="selected-key")
+        ssh.authenticated_settings=actual
+        done=QSignalSpy(service.completed)
+        try:
+            with patch("modules.capture_services.openwrt.router_policy.RouterPolicyManager") as manager:
+                manager.return_value.apply.return_value=dict(phase="apply")
+                service.submit("policy_apply",review={},backup_path=None,connection_settings=dict(host="edited-router",auth_method="password"))
+                wait_for(done,1)
+            self.assertEqual(done.count(),1)
+            self.assertEqual(manager.return_value.apply.call_args.kwargs["connection_settings"],actual)
+        finally:owner.deleteLater()
+
     def test_login_probe_is_worker_only_once_per_connection_and_gui_remains_live(self):
         owner,service,ssh,runner=self.fixture()
         gate=threading.Event();threads=[]

@@ -8,6 +8,7 @@ from .openwrt.dependency_manager import OpenWrtDependencyManager
 from .openwrt.common_tool_dependencies import TOOL_BY_KEY, TOOL_KEYS, check_tools
 from .openwrt.models import CaptureProgress, CaptureTaskType, DependencyInfo, DependencyState
 from .openwrt.signal_package_feed import default_cache_dir
+from .openwrt.dependency_groups import CAPTURE_KEYS, CAPTURE_PACKAGES, COMMON_ITEMS, COMMON_KEYS
 
 
 @dataclass(frozen=True)
@@ -50,12 +51,12 @@ class OpenWrtDependencyService(QObject):
                 if package not in names:names.append(package)
         return names
 
-    def install_async(self,enabled_features,*,sftp_only=False,scope="all"):
+    def install_async(self,enabled_features,*,sftp_only=False,scope="all",items=None):
         """保留旧调用兼容；抓包入口显式使用 capture，文件传输使用 sftp_only。"""
-        return self._start("install","common" if sftp_only else scope,enabled_features)
+        return self._start("install","common" if sftp_only else scope,enabled_features,items=items)
 
-    def uninstall_async(self,enabled_features,packages=None,*,scope="all"):
-        return self._start("uninstall",scope,enabled_features,packages)
+    def uninstall_async(self,enabled_features,packages=None,*,scope="all",items=None):
+        return self._start("uninstall",scope,enabled_features,packages,items=items)
 
     def diagnostic_references(self):
         return tuple(self._diagnostics)
@@ -84,6 +85,9 @@ class OpenWrtDependencyService(QObject):
         """按目录中的常用工具项只读复测。"""
         if key not in TOOL_KEYS:raise ValueError("未知常用工具。")
         return self._start('check', key, {})
+
+    def check_capture_async(self, features, key):
+        return self._start("check", "capture", features, items=(key,))
 
     def cancel(self,session_id):
         """只取消所属任务，旧页面不能取消后来启动的任务。"""
@@ -115,8 +119,15 @@ class OpenWrtDependencyService(QObject):
             return reject("\u65e0\u6cd5\u786e\u8ba4\u5f53\u524d\u8bbe\u5907\u8eab\u4efd\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55\u540e\u518d\u64cd\u4f5c\u3002")
         return True
 
-    def _start(self,action,group,enabled_features,packages=None):
-        if group not in {"all","capture","common","terminal"} | TOOL_KEYS:raise ValueError("未知依赖分组。")
+    def _start(self,action,group,enabled_features,packages=None,*,items=None):
+        if group not in {"all","capture","common","common_all","terminal"} | TOOL_KEYS:raise ValueError("未知依赖分组。")
+        selection = tuple(items) if items is not None else None
+        if selection is not None and (group != "capture" or not selection or set(selection) - CAPTURE_KEYS):
+            raise ValueError("抓包依赖选择无效。")
+        if group == "common_all" and action != "install":
+            raise ValueError("常用依赖批量入口仅支持检查并安装。")
+        if group == "capture" and packages and set(packages) - {p for key in (selection or CAPTURE_KEYS) for p in CAPTURE_PACKAGES[key]}:
+            raise ValueError("卸载包超出了选中抓包功能的范围。")
         if group in TOOL_KEYS and action=="uninstall":
             if not TOOL_BY_KEY[group].removable:raise ValueError('信号管理组件与系统共用，不提供一键卸载。')
             allowed=TOOL_BY_KEY[group].package_names
@@ -137,7 +148,11 @@ class OpenWrtDependencyService(QObject):
         ssh=backend.ssh_client
         binding=(ssh._client,ssh.host_fingerprint)
         features={group:True} if group in TOOL_KEYS else {"terminal":True} if group=="terminal" else {} if group=="common" else {k:v for k,v in dict(enabled_features or {}).items() if k!="terminal" and k not in TOOL_KEYS}
-        items=("sftp",) if group=="common" else tuple(features)
+        if group == "common_all":features = {key: True for key in COMMON_ITEMS if key != "sftp"}
+        if group == "capture":features = {key: bool(value) for key, value in features.items() if key in CAPTURE_KEYS}
+        refresh_features = dict(features)
+        if selection is not None:features = {key: True for key in selection}
+        items=COMMON_ITEMS if group=="common_all" else ("sftp",) if group=="common" else selection or tuple(key for key,value in features.items() if value)
         session=uuid4().hex
         kind={"install":CaptureTaskType.DEPENDENCY_INSTALL,"uninstall":CaptureTaskType.DEPENDENCY_UNINSTALL,"check":CaptureTaskType.DEPENDENCY_CHECK}[action]
         event=self.owner.task_controller.begin(kind.value,session)
@@ -146,15 +161,15 @@ class OpenWrtDependencyService(QObject):
         record_workflow(self.owner, "dependency_request", "started", stage=action, kind=group)
         self._active=True
         self._binding=binding
-        label="终端会话保留支持" if group=="terminal" else "文件传输支持" if group=="common" else "抓包依赖" if group=="capture" else "路由器依赖"
+        label="终端会话保留支持" if group=="terminal" else "文件传输支持" if group=="common" else "抓包依赖" if group=="capture" else "全部常用依赖" if group=="common_all" else "路由器依赖"
         if group in TOOL_KEYS:label=TOOL_BY_KEY[group].title
-        managed=group in {"common","terminal"} or group in TOOL_KEYS
+        managed=group in {"common","common_all","terminal"} or group in TOOL_KEYS or selection is not None
         verb={"install":"安装","uninstall":"卸载","check":"检查"}[action]
         self.task=DependencyTask(session,group,items,action,"正在"+verb+label+"…")
         self.taskChanged.emit(self.task)
         device=backend.snapshot.device
         removal_packages=set(packages if packages is not None else
-            self.installed_packages(backend.snapshot.dependencies,include_sftp=group in {"all","common"}))
+            self.installed_packages(backend.snapshot.dependencies,include_sftp=group in {"all","common","common_all"}))
         backend.snapshot=replace(backend.snapshot,progress=CaptureProgress(self.task.message,0,0,"",True))
         if group=="common":self._merge((DependencyInfo("sftp","文件传输",DependencyState.CHECKING),),group,binding)
         elif group=="terminal":self._merge((DependencyInfo("terminal","终端会话保留",DependencyState.CHECKING),),group,binding)
@@ -167,14 +182,18 @@ class OpenWrtDependencyService(QObject):
             diagnostic_path=""
             checked=()
             try:
-                if action=="check" and group in TOOL_KEYS:checked=check_tools(self.manager.command_runner,TOOL_KEYS,cancel)
+                if action=="check" and group=="capture":checked=self.manager.check(features, device.sftp_available, cancel)
+                elif action=="check" and group in TOOL_KEYS:checked=check_tools(self.manager.command_runner,TOOL_KEYS,cancel)
                 elif action=="check":checked=(self.manager.check_terminal(cancel),) if group=="terminal" else (self.manager.check_sftp(cancel,fresh=True),)
                 elif action=="install":
                     checked=self.manager.install_all(features,device.sftp_available,device,
-                        default_cache_dir(),cancel,message,include_sftp=group in {"all","common"})
+                        default_cache_dir(),cancel,message,include_sftp=group in {"all","common","common_all"})
                 else:
                     checked=self.manager.uninstall_packages(features,device.sftp_available,
-                        cancel,message,packages,include_sftp=group in {"all","common"})
+                        cancel,message,packages,include_sftp=group in {"all","common","common_all"})
+                if group=="capture" and selection is not None:
+                    if action=="check":checked=tuple(item for item in checked if item.key in selection)
+                    else:checked=self.manager.check(refresh_features, device.sftp_available, cancel)
                 if group in TOOL_KEYS and action!="check":
                     checked=check_tools(self.manager.command_runner,TOOL_KEYS,cancel)
             except Exception as exc:
@@ -186,7 +205,9 @@ class OpenWrtDependencyService(QObject):
                 # 取消安装后允许一次只读复测；不继续安装、不忽略安装首错。
                 if managed and self._same_connection(binding) and not self.owner._shutting_down:
                     try:
-                        if group in TOOL_KEYS:checked=check_tools(self.manager.command_runner,TOOL_KEYS,Event())
+                        if group=="capture":checked=self.manager.check(refresh_features,device.sftp_available,Event())
+                        elif group=="common_all":checked=self.manager.check(features,self.manager._probe_sftp(Event(),device.sftp_available),Event())
+                        elif group in TOOL_KEYS:checked=check_tools(self.manager.command_runner,TOOL_KEYS,Event())
                         else:checked=(self.manager.check_terminal(Event()),) if group=="terminal" else (self.manager.check_sftp(Event(),fresh=True),)
                     except Exception as probe_error:
                         checked=(DependencyInfo(items[0],label,DependencyState.UNKNOWN,detail=str(probe_error)),)
@@ -200,7 +221,13 @@ class OpenWrtDependencyService(QObject):
                 if not checked:error=error or "未获取文件传输检测结果，请重新检查。"
             if group in TOOL_KEYS and not any(item.key==group for item in checked):
                 error=error or "未获取本项检测结果，请重新检查。"
+            if group=="common_all":
+                checked=tuple(item for item in checked if item.key in COMMON_KEYS)
+                if set(COMMON_ITEMS)-{item.key for item in checked}:error=error or "未获取全部常用依赖检测结果，请重新检查。"
+            if group=="capture" and selection is not None and set(selection) - {item.key for item in checked}:
+                error=error or "未获取选中抓包依赖的检测结果，请重新检查。"
             verification=tuple(item for item in checked if item.key!="converter"
+                and (group!="capture" or selection is None or item.key in selection)
                 and (group not in TOOL_KEYS or item.key==group))
             if action=="uninstall":
                 verification=tuple(item for item in verification
@@ -208,7 +235,7 @@ class OpenWrtDependencyService(QObject):
                         else self.manager.FEATURE_PACKAGES.get(item.key,())))
             # Common-tool removal is verified against exact package names by the
             # manager. A different provider may legitimately keep a command usable.
-            if action=="uninstall" and group in TOOL_KEYS:
+            if action=="uninstall" and (group in TOOL_KEYS or group=="capture" and packages is not None):
                 verification=()
             expected=DependencyState.MISSING if action=="uninstall" else DependencyState.READY
             if not error and any(item.state not in {expected,DependencyState.DISABLED} for item in verification):
@@ -234,6 +261,7 @@ class OpenWrtDependencyService(QObject):
         if group=="common":checked=tuple(item for item in checked if item.key=="sftp")
         elif group=="terminal":checked=tuple(item for item in checked if item.key=="terminal")
         elif group in TOOL_KEYS:checked=tuple(item for item in checked if item.key in TOOL_KEYS)
+        elif group=="common_all":checked=tuple(item for item in checked if item.key in COMMON_KEYS)
         elif group=="capture":checked=tuple(item for item in checked if item.key not in {"sftp","terminal"} | TOOL_KEYS)
         keys={item.key for item in checked}
         merged=tuple(item for item in backend.snapshot.dependencies if item.key not in keys)+checked
@@ -263,6 +291,10 @@ class OpenWrtDependencyService(QObject):
             checked=result.get("checked",())
             if (task.group in {"common","terminal"} or task.group in TOOL_KEYS) and not checked:
                 checked=(DependencyInfo(task.items[0],TOOL_BY_KEY[task.group].title if task.group in TOOL_KEYS else "终端会话保留" if task.group=="terminal" else "文件传输",DependencyState.UNKNOWN,detail=error),)
+            if task.group=="common_all":
+                seen={item.key for item in checked}
+                checked=tuple(checked)+tuple(DependencyInfo(key,key,DependencyState.UNKNOWN,detail=error)
+                    for key in task.items if key not in seen)
             if task.group in TOOL_KEYS and not any(item.key==task.group for item in checked):
                 checked=tuple(checked)+(DependencyInfo(task.group,TOOL_BY_KEY[task.group].title,DependencyState.UNKNOWN,detail=error),)
             self._merge(checked,task.group,self._binding)

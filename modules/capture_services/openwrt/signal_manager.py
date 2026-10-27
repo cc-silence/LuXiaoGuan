@@ -4,6 +4,7 @@ import json
 
 import re
 import time
+from ..configuration_progress import phase
 from uuid import uuid4
 from modules.capture_services.capture_logging import LOGGER
 
@@ -68,6 +69,8 @@ _ERRORS = {
     "locked": "设备上仍有信号管理任务锁；请等待任务结束，遗留锁须由管理员确认无任务后清理。",
     "internal": "设备返回不支持的结构或内部错误；请在路由器管理界面检查，不继续修改。",
 }
+
+
 
 
 class RouterSignalManager:
@@ -201,6 +204,7 @@ class RouterSignalManager:
                 getattr(device, "version", ""),
                 getattr(device, "package_architecture", ""),
                 getattr(device, "package_manager", ""),
+                distribution=getattr(device, "distribution", "OpenWrt"),
             )
         except ValueError as exc:
             raise SignalError("environment", str(exc)) from None
@@ -447,8 +451,10 @@ class RouterSignalManager:
         token = uuid4().hex
         backup = f"/etc/winbox-wireless-backups/{token}/wireless"
         try:
+            phase("\u6b63\u5728\u5e94\u7528\u65e0\u7ebf\u542f\u505c\u8bbe\u7f6e",seconds=20)
             self._run("change", cancel_event, revision=inventory.revision,
                       section=section, enabled=enabled, token=token)
+            phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u542f\u505c\u7ed3\u679c",seconds=125)
             for attempt in range(6):
                 current = self.read(cancel_event)
                 actual = next((r for r in current.rows if r.section == section), None)
@@ -492,6 +498,7 @@ class RouterSignalManager:
             raise SignalError("unsupported", "该信号运行正常，无需修复。")
         if not valid_radio_name(row.radio):
             raise SignalError("unsupported", "父 radio 无法唯一识别，请检查无线配置。")
+        phase("\u6b63\u5728\u91cd\u65b0\u542f\u7528\u65e0\u7ebf\u7f51\u5361",seconds=60)
         result = self._run_command(
             "repair_wifi_up", f"wifi up {quote_argument(row.radio)}", timeout=60, cancel_event=cancel_event)
         if result.cancelled:
@@ -499,6 +506,7 @@ class RouterSignalManager:
         if result.timed_out or result.exit_code != 0:
             raise SignalError(
                 "transport", "重新启用无线网卡超时或失败，状态未确认；请检查连接后刷新核对。")
+        phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u6062\u590d\u7ed3\u679c",seconds=328)
         for attempt in range(15):
             if cancel_event is not None and cancel_event.is_set():
                 raise SignalError("cancelled", "信号修复已取消；请刷新核对设备状态。")
