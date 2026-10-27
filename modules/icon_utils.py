@@ -32,6 +32,9 @@ _SMALL_ICON_PATHS = {
     "cil-folder-open.png": '<path d="M3 19V5h7l2 3h8v3M3 19l3-8h16l-3 8Z"/>',
     "cil-low-vision.png": '<path d="M3 12s3-6 9-6 9 6 9 6-3 6-9 6-9-6-9-6ZM3 21 21 3"/><circle cx="12" cy="12" r="3"/>',
     "cil-lock-locked.png": '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
+    "cil-lock-unlocked.png": '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2M12 14v3"/>',
+    "cil-sun.png": '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
+    "cil-moon.png": '<path d="M20.5 14a9 9 0 0 1-10.5-10.5A9 9 0 1 0 20.5 14Z"/>',
     "cil-file.png": '<path d="M5 3h9l5 5v13H5ZM14 3v6h5"/>',
     "cil-data-transfer-down.png": '<path d="M12 3v14m-5-5 5 5 5-5M4 21h16"/>',
     "cil-x-circle.png": '<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/>',
@@ -56,7 +59,7 @@ class _VectorIconEngine(QIconEngine):
 
     def paint(self, painter, rect, mode, state):
         dpr = painter.device().devicePixelRatioF()
-        pixmap = self.pixmap(QSize(round(rect.width() * dpr), round(rect.height() * dpr)), mode, state)
+        pixmap = self.pixmap(rect.size() * dpr, mode, state)
         pixmap.setDevicePixelRatio(dpr)
         painter.drawPixmap(rect, pixmap)
 
@@ -64,6 +67,7 @@ class _VectorIconEngine(QIconEngine):
         pixmap = QPixmap(size)
         pixmap.fill(Qt.transparent)
         painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.Antialiasing)
         self._renderer.render(painter, QRectF(pixmap.rect()))
         if self._color is not None:
             painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
