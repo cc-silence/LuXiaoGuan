@@ -1,5 +1,6 @@
 """Relocation preview and explicit confirmation, sharing the standard dialog and task service."""
 from PySide6.QtCore import QObject
+from .page_feedback import publish_page_message
 from .settings_impacts import DISCONNECT_WARNING
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from modules.main_pages.page_action_buttons import create_page_text_button, set_page_action_enabled
@@ -39,15 +40,19 @@ class RelocationActions(QObject):
             self._waiting = False
         set_page_action_enabled(self.button, bool(supported and snapshot.connected and not snapshot.busy
                                    and not self.service.active and not self._waiting))
+        if getattr(self.page,'prompt_for_router_login',False) and not snapshot.connected:
+            set_page_action_enabled(self.button,not snapshot.busy and not self._waiting)
 
     def review(self):
+        from .router_login_prompt import require_router_login
+        if not require_router_login(self.page,self.page.service.snapshot.connected):return
         if not self.button.isEnabled():
             return
         self._identity = self.service._connection_identity()
         self._waiting = True
         if not self.service.relocation_preview():
             self._waiting = False
-            self.page.status_label.setText("请等待当前任务结束后重试。")
+            publish_page_message(self.page,"请等待当前任务结束后重试。")
         self._sync()
 
     @staticmethod
@@ -77,7 +82,7 @@ class RelocationActions(QObject):
             return
         self._waiting = False
         if result.error:
-            self.page.status_label.setText(result.error)
+            publish_page_message(self.page,result.error)
             dialog=MessageDialog("无法打开搬家清理",result.error,self.page)
             try:dialog.exec()
             finally:
@@ -86,16 +91,20 @@ class RelocationActions(QObject):
             return
         review = result.value
         if not review["targets"]:
-            MessageDialog("搬家清理", "未找到可安全更换 MAC 的网络接口，未执行清理。", self.page).exec()
+            dialog=MessageDialog("搬家清理", "未找到可安全更换 MAC 的网络接口，未执行清理。", self.page)
+            try:dialog.exec()
+            finally:dialog.deleteLater()
         else:
             dialog = ConfirmDialog("确认搬家清理", self.summary(review), self.page,
                                    yes_text="清理并更换身份", no_text="取消")
-            dialog.yes_button.setProperty("riskAction", True)
-            if dialog.exec() == ConfirmDialog.Accepted:
-                if self.service._connection_identity() is not self._identity or not self.page.service.snapshot.connected:
-                    self.page.status_label.setText("连接已变化，请重新预览。")
-                elif not self.service.relocate(review):
-                    self.page.status_label.setText("清理未开始，请等待任务结束后重新预览。")
+            try:
+                dialog.yes_button.setProperty("riskAction", True)
+                if dialog.exec() == ConfirmDialog.Accepted:
+                    if self.service._connection_identity() is not self._identity or not self.page.service.snapshot.connected:
+                        publish_page_message(self.page,"连接已变化，请重新预览。")
+                    elif not self.service.relocate(review):
+                        publish_page_message(self.page,"清理未开始，请等待任务结束后重新预览。")
+            finally:dialog.deleteLater()
         self._sync()
 
     def dispose(self):

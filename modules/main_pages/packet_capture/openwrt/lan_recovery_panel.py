@@ -33,7 +33,7 @@ class LanRecoveryPanel(QWidget):
             self.signature=signature;self.adapters.clear()
             if len(rows)!=1 or value.get("selection_required"):self.adapters.addItem('\u8bf7\u9009\u62e9\u8981\u66f4\u65b0\u7684\u7f51\u5361',None)
             for row in rows:self.adapters.addItem(str(row.get('name') or row['id'])+'  '+', '.join(row.get('addresses',[])),row['id'])
-        self.adapters.setVisible(bool(rows));self.button.setVisible(bool(rows))
+        self.adapters.setVisible(bool(rows));self.button.setVisible(bool(rows) and not value.get('closed',False))
         self.status.setText(str(value.get('message','')))
         self._sync();self.show()
     def _sync(self,*_):

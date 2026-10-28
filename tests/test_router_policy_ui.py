@@ -29,7 +29,7 @@ class PolicyUiTests(unittest.TestCase):
         page,_=self.create_page()
         buttons=[page.password_button,page.lan_button,page.system_button,page.relocation_actions.button,
                  page.backup_button,page.restore_button,page.reset_button,page.reboot_button,
-                 *[page.policy_actions.buttons[k] for k in ("initial","boot","station","ap")],page.orphan_actions.button]
+                 *[page.policy_actions.buttons[k] for k in ("initial","boot","station","ap","homepage")],page.orphan_actions.button]
         for start in range(0,len(buttons),3):
             edges=[b.mapTo(page,QPoint(0,b.height())).y() for b in buttons[start:start+3]]
             self.assertLessEqual(max(edges)-min(edges),2,edges)

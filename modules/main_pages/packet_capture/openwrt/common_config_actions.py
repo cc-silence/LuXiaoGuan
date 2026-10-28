@@ -20,7 +20,9 @@ class CommonConfigActions:
     def read(self,config):
         page=self.page
         ssh=page.manager.manager.ssh
-        if self.active or not ssh.connected or page.capture_service.is_busy:return
+        from .router_login_prompt import require_router_login
+        if not require_router_login(page,ssh.connected):return
+        if self.active or page.capture_service.is_busy:return
         try:
             key=page.manager.submit("common_read",config=config)
             self.pending[key]=(config,ssh._client,ssh.host_fingerprint,"read")
@@ -62,12 +64,16 @@ class CommonConfigActions:
         try:
             if self.disposed:return True
             ssh=page.manager.manager.ssh
-            expected_disconnect=(item[3]=="save" and ((result.get("checked_apply") and result.get("applied")) or (result.get("reboot_requested") and ssh._client is None)))
+            if result.get("session_restored") and result.get("restored_connection") is ssh._client and ssh.connected and ssh.host_fingerprint==item[2]:
+                item=(item[0],ssh._client,*item[2:])
+            expected_disconnect=(item[3] in {"save","force"} and ((result.get("checked_apply") and result.get("applied")) or result.get("force_apply") or (result.get("reboot_requested") and ssh._client is None)))
             if not self._current(item) and not expected_disconnect:
                 page._message("连接已变化，请重新打开设置。")
                 return True
-            if item[3]=="save":
-                page._message(result["note"])
+            if item[3] in {"save","force"}:
+                outcome=result.get("outcome")
+                page._message(result["note"],"error" if outcome=="restored" else "warning" if outcome=="uncertain" else "info")
+                if item[3]=="save" and result.get("force_retry") and self._current(item):self._offer_force(result,item)
                 return True
             dialog=RouterConfigDialog(result,page)
             try:
@@ -98,6 +104,27 @@ class CommonConfigActions:
         finally:page._sync()
         return True
 
+    def _offer_force(self,result,item):
+        values=result.get("force_values",{})
+        addresses=values.get("ipaddr",[]);addresses=[addresses] if isinstance(addresses,str) else addresses
+        text="普通应用未能确认连接，已恢复原设置。\n\n如果确认新设置无误，可以选择强制应用。强制应用后，即使连接中断，也不会自动恢复旧地址；如果无法重新登录，需要手动恢复网络设置。"
+        if values.get("proto")=="static" and values.get("auto")!="0" and addresses:
+            text+="\n\n强制应用后的登录地址："+"、".join(v.split("/",1)[0] for v in addresses)
+        else:text+="\n\n本次设置可能停用原管理地址，请确认还有其他管理连接。"
+        dialog=ConfirmDialog("是否强制应用 LAN 设置",text,self.page,yes_text="强制应用",no_text="取消")
+        try:
+            # Closing or pressing Enter must not silently choose the irreversible option.
+            dialog.yes_button.setAutoDefault(False);dialog.yes_button.setDefault(False)
+            dialog.no_button.setAutoDefault(True);dialog.no_button.setDefault(True);dialog.no_button.setFocus()
+            if dialog.exec()!=dialog.Accepted:return
+        finally:dialog.deleteLater()
+        if self.disposed or not self._current(item):
+            self.page._message("连接已变化，未强制应用。","warning");return
+        key=self.page.manager.submit("common_save",apply=True,force=True,force_token=result["force_retry"],connection_settings=dict(self.page.connection_settings()))
+        self.pending[key]=(*item[:3],"force")
+        self._show_progress(key,force=True)
+        self.page._message("正在强制应用 LAN 设置，请勿断电。")
+
     def failed(self,key,message):
         if self.pending.pop(key,None) is None:return False
         self._finish_progress(key)
@@ -105,9 +132,9 @@ class CommonConfigActions:
         self.page._sync()
         return True
 
-    def _show_progress(self,key):
+    def _show_progress(self,key,force=False):
         from .router_task_progress import RouterTaskProgressDialog
-        dialog=RouterTaskProgressDialog("保存并应用 LAN 设置",lambda:self.page.manager.cancel(key),self.page)
+        dialog=RouterTaskProgressDialog("强制应用 LAN 设置" if force else "保存并应用 LAN 设置",lambda:self.page.manager.cancel(key),self.page)
         self.progress_dialogs[key]=dialog
         dialog.show()
 

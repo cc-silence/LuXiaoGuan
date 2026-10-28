@@ -31,6 +31,8 @@ class RouterManagementService(QObject):
         self.policy_status = None
         self._policy_connection = None
         self._publishing_key = None
+        from .lan_force_retry import LanForceRetry
+        self._force_retry = LanForceRetry()
         owner.activityChanged.connect(self._drain, Qt.QueuedConnection)
         owner.openwrtSnapshotChanged.connect(self._connection_changed)
 
@@ -51,10 +53,14 @@ class RouterManagementService(QObject):
             from copy import deepcopy
             arguments = deepcopy(arguments)
         if action == "common_save":
-            if type(arguments.get("apply", False)) is not bool:
+            if type(arguments.get("apply",False)) is not bool or type(arguments.get("force",False)) is not bool:
                 raise ValueError("Invalid application mode")
-            if arguments.get("apply") and arguments.get("review", {}).get("config") != "network":
-                raise ValueError("Only LAN settings support save and reboot")
+            if arguments.get("force"):
+                if not arguments.get("apply"):raise ValueError("Force requires application")
+                arguments=self._force_retry.consume(arguments,self.manager.ssh)
+            else:self._force_retry.clear()
+            if arguments.get("apply") and arguments.get("review",{}).get("config")!="network":
+                raise ValueError("Only LAN settings support this application mode")
         if action == 'file_batch':
             from copy import deepcopy
             jobs = arguments.get('jobs')
@@ -148,6 +154,9 @@ class RouterManagementService(QObject):
                     value = reboot_router(self.manager, event)
                 elif action == "maintenance_preview":
                     value = maintenance.preview(args["kind"], args["source"], event)
+                    if args["kind"]=="reset" and hasattr(self.owner,"lan_recovery"):
+                        from .lan_client_recovery import attach_inventory
+                        value=attach_inventory(value,ssh)
                 elif action == "maintenance_backup":
                     value = maintenance.export(args["destination"], args.get("expected"), event, report)
                 else:
@@ -166,7 +175,9 @@ class RouterManagementService(QObject):
                 from .openwrt.common_settings import save_settings
                 if args.get("apply", False) or args["review"].get("config")=="system":
                     from .openwrt.checked_apply import apply_common
-                    value = apply_common(self.manager, args["review"], args["values"], event, report,
+                    from .openwrt.force_apply import apply_forced
+                    apply_action=apply_forced if args.get("force") else apply_common
+                    value = apply_action(self.manager, args["review"], args["values"], event, report,
                         connection_settings, reconnect_password, fingerprint)
                 else:
                     from .openwrt.connection_bound_runner import ConnectionBoundRunner
@@ -228,13 +239,19 @@ class RouterManagementService(QObject):
     @Slot(object)
     def _success(self, value):
         key = self.current[0]
-        if self.current[1]=="policy_apply" and value.get("session_restored"):
+        offer_item=self.current
+        if self.current[1]=="common_save" and value.get("session_restored"):
             ssh=self.manager.ssh
-            if ssh.connected and ssh.host_fingerprint==self.current[3] and hasattr(self.owner.openwrt_backend,"snapshot"):
-                from dataclasses import replace
-                from .openwrt.models import OpenWrtConnectionState
-                self.owner.openwrt_backend.snapshot=replace(self.owner.openwrt_backend.snapshot,connection_state=OpenWrtConnectionState.CONNECTED,connection_detail="局域网连接已恢复",host_fingerprint=ssh.host_fingerprint,last_error="")
-                self.owner.openwrtSnapshotChanged.emit(self.owner.openwrt_backend.snapshot)
+            if ssh.connected and ssh.host_fingerprint==self.current[3] and ssh._client is value.get('restored_connection'):
+                offer_item=(*self.current[:4],ssh._client,self.current[5])
+            else:
+                value['session_restored']=False
+                value.pop('retry_eligible',None)
+        if self.current[1]=="common_save":self._force_retry.publish(offer_item,value)
+        if self.current[1] in {"policy_apply","common_save"} and value.get("session_restored"):
+            ssh=self.manager.ssh
+            from .reconnected_session import publish_verified_connection
+            publish_verified_connection(self.owner,ssh,value.get("restored_connection",ssh._client),self.current[3])
         if self.current[1] in {"policy_read", "policy_status"}:
             ssh = self.manager.ssh
             self.policy_status = {"boot_state": value.get("boot_state")} if ssh.connected and ssh._client is self.current[4] and ssh.host_fingerprint == self.current[3] else None
@@ -244,7 +261,7 @@ class RouterManagementService(QObject):
             accept_password_result(self, value)
         if self.current[1] in {"tool_check", "tool_install", "tool_reset"}:
             self.owner.settingsMessageGenerated.emit(str(value.get("note", "兼容工具检查完成")), "success")
-        self._finish(bool((self.current[1] == 'file_batch' and value.get('error')) or (isinstance(value, dict) and value.get('outcome') == 'uncertain')))
+        self._finish(bool((self.current[1] == 'file_batch' and value.get('error')) or (isinstance(value, dict) and value.get('outcome') in {'uncertain','restored'})))
         self._publishing_key = key
         try:
             self.completed.emit(key, value)
@@ -321,6 +338,7 @@ class RouterManagementService(QObject):
 
     def shutdown(self):
         """退出时取消队列和在途任务，由公共 worker 回收线程。"""
+        self._force_retry.clear()
         for item in tuple(self.queue):
             self.cancel(item[0])
         if self.current:

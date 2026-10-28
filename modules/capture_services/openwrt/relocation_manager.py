@@ -12,9 +12,11 @@ from .relocation_identity import generate_relocation_hostname
 class RelocationManager:
     def __init__(self, wireless):
         self.wireless = wireless
+        self._reconnect = None
 
     def _call(self, action, cancel, **values):
         try:
+            if self._reconnect is not None:return self._reconnect.call(action,**values)
             return self.wireless._call(action, cancel, **values)
         except SignalError as exc:
             messages = {
@@ -82,7 +84,34 @@ class RelocationManager:
         if not valid:
             raise SignalError("response", "搬家清理预览无效，未执行修改。")
 
-    def apply(self, review, cancel, message):
+    def apply(self,review,cancel,message,*,connection_settings=None,password="",fingerprint=None,
+              expected_client=None,connection_generation=None):
+        if connection_settings is None:return self._apply(review,cancel,message)
+        from .relocation_connection import RelocationConnection
+        ssh=getattr(self.wireless.runner,"ssh_client",None)
+        if connection_generation is not None and getattr(ssh,"connection_generation",None)!=connection_generation:
+            raise SignalError("changed", "连接已变化，未执行搬家清理，请重新预览。")
+        original=expected_client if connection_generation is not None else getattr(ssh,"_client",None)
+        generation=connection_generation if connection_generation is not None else getattr(ssh,"connection_generation",None)
+        remote=RelocationConnection(self.wireless.runner,connection_settings,password,fingerprint)
+        remote.channel.lua_bin=getattr(self.wireless.signal,"_lua_bin",None)
+        self._reconnect=remote
+        try:
+            remote.evidence.emit('stage',kind='relocation')
+            result=self._apply(review,cancel,message)
+        except Exception as exc:
+            remote.evidence.finish('uncertain' if isinstance(exc,SignalError) and exc.code=='recovery' else 'failed',error=exc)
+            raise
+        else:
+            if generation is not None and hasattr(ssh,'adopt_verified'):
+                verified=getattr(remote.channel.ssh,'_client',None)
+                if ssh.adopt_verified(remote.channel.ssh,original,generation,fingerprint):
+                    result.update(session_restored=True,restored_connection=verified)
+            remote.evidence.finish('completed');return result
+        finally:
+            remote.close();self._reconnect=None
+
+    def _apply(self, review, cancel, message):
         self._validate(review)
         if cancel.is_set():
             raise InterruptedError("清理已取消。")
@@ -97,16 +126,30 @@ class RelocationManager:
             message("正在准备搬家清理，将通过系统回滚保护应用配置。", "info")
             phase("\u6b63\u5728\u5e94\u7528\u642c\u5bb6\u6e05\u7406\u914d\u7f6e",seconds=90,rollback=True)
             stage_attempted = True
+            if self._reconnect:self._reconnect.deadline=time.monotonic()+82
             applied = self._call("move_stage", cancel, timeout=30, sid=sid, review_token=review["token"],
                                  review_targets=review["targets"], dhcp_revision=review["token"][192:256], token=secrets.token_hex(8), plan=review["plan"])
-            deadline = time.monotonic() + 40
+            if self._reconnect:self._reconnect.fresh()
+            deadline = self._reconnect.deadline if self._reconnect else time.monotonic()+40
             phase("\u6b63\u5728\u6838\u5bf9\u6e05\u7406\u548c\u65b0\u8eab\u4efd",deadline=deadline,rollback=True)
             while True:
                 if cancel.is_set():
                     raise InterruptedError("清理已取消，正在恢复。")
-                status = self._call("move_status", cancel, timeout=8, applied=applied)
+                try:
+                    if self._reconnect:
+                        self._reconnect.evidence.counts['verify_attempts']+=1
+                        self._reconnect.evidence.emit('verify',kind='relocation')
+                    status = self._call("move_status", cancel, timeout=8, applied=applied)
+                except Exception as exc:
+                    from .force_apply import connection_error
+                    if not self._reconnect or not connection_error(exc):raise
+                    self._reconnect.evidence.emit('verify','retry',error=exc,kind='relocation')
+                    self._reconnect.fresh()
+                    if time.monotonic()>=deadline:raise
+                    cancel.wait(min(1,max(0,deadline-time.monotonic())));continue
                 if status.get("token") != applied.get("token"):
                     raise SignalError("changed", "应用期间配置再次变化，未确认保存。")
+                if self._reconnect and status.get("ready") is not True:self._reconnect.evidence.emit("verify","retry","verification_false",kind="relocation")
                 if status.get("ready") is True:
                     break
                 if time.monotonic() >= deadline:
@@ -124,11 +167,38 @@ class RelocationManager:
                 phase("\u6b63\u5728\u6062\u590d\u6e05\u7406\u524d\u914d\u7f6e",seconds=25,rollback=True)
                 cleanup = threading.Event()
                 try:
-                    self._call("finish", cleanup, timeout=15, sid=sid, confirm=False, unapplied=True)
-                    uncertain = not isinstance(failure, SignalError) or failure.code in ("transport", "timeout", "disconnected", "response")
-                    if applied is not None or (stage_attempted and uncertain):
-                        restored = self._call("move_preview", cleanup, timeout=10)
-                        if restored.get("token") != review["token"]:
-                            raise ValueError("Recovery revision differs")
+                    deadline=time.monotonic()+25
+                    if self._reconnect:
+                        self._reconnect.deadline=deadline
+                        self._reconnect.fresh()
+                    while True:
+                        try:
+                            if self._reconnect:
+                                self._reconnect.evidence.counts['restore_attempts']+=1
+                                self._reconnect.evidence.emit('rollback',kind='relocation')
+                            finish_error=None
+                            try:self._call("finish",cleanup,timeout=10,sid=sid,confirm=False,unapplied=True)
+                            except Exception as exc:
+                                from .force_apply import connection_error
+                                if not self._reconnect or not (connection_error(exc,prior=failure) or isinstance(exc,SignalError) and (exc.code=="recovery" or exc.code.startswith("rpc_"))):raise
+                                finish_error=exc
+                                self._reconnect.evidence.emit('rollback','retry',error=exc,kind='relocation')
+                                self._reconnect.fresh()
+                            uncertain=not isinstance(failure,SignalError) or failure.code in ("transport","timeout","disconnected","response")
+                            if applied is not None or (stage_attempted and uncertain):
+                                restored=self._call("move_preview",cleanup,timeout=8)
+                                if restored.get("token")!=review["token"]:
+                                    if finish_error is not None:raise finish_error
+                                    raise ValueError("Recovery revision differs")
+                            elif finish_error is not None:raise finish_error
+                            if self._reconnect:
+                                self._reconnect.evidence.restored=True
+                                self._reconnect.evidence.emit('restore_verify','progress','restored',kind='relocation')
+                            break
+                        except Exception as recovery_error:
+                            from .force_apply import connection_error
+                            if not self._reconnect or not connection_error(recovery_error,prior=failure) or time.monotonic()>=deadline:raise
+                            self._reconnect.evidence.emit('rollback','retry',error=recovery_error,kind='relocation')
+                            self._reconnect.fresh();cleanup.wait(min(1,max(0,deadline-time.monotonic())))
                 except Exception as exc:
                     raise SignalError("recovery", "清理结果或恢复未确认，请等待 90 秒让路由器自动回滚，再重新登录核对，勿连续重试。") from exc

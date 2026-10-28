@@ -8,7 +8,7 @@ from ..config_manager import CONFIG_DIR
 from .config_store import ConfigPair, user_config_dir
 
 PROXY_CONFIG_FILE = CONFIG_DIR / 'proxy_config.json'
-DEFAULT_PROXY_DATA = {'enabled': True, 'http_host': '', 'http_port': '1081', 'socks_host': '', 'socks_port': '1080'}
+DEFAULT_PROXY_DATA = {'enabled': True, 'http_host': '127.0.0.1', 'http_port': '1081', 'socks_host': '127.0.0.1', 'socks_port': '1080'}
 
 
 def normalize_proxy_data(raw):
@@ -17,6 +17,8 @@ def normalize_proxy_data(raw):
     只转换内存，不写磁盘；不将不同旧代理的字段混合成一套。
     """
     raw = raw if isinstance(raw, dict) else {}
+    fresh = not any(key in raw for key in (*DEFAULT_PROXY_DATA.keys(), 'primary', 'secondary') if key != 'enabled')
+    defaults = DEFAULT_PROXY_DATA if fresh else dict(DEFAULT_PROXY_DATA, http_host='', socks_host='')
     # Legacy configurations keep their existing behavior until explicitly disabled.
     enabled = raw.get('enabled', True) is True
     if not any(key in raw for key in DEFAULT_PROXY_DATA if key != 'enabled'):
@@ -27,7 +29,7 @@ def normalize_proxy_data(raw):
         active = lambda data: any(data.get(kind + '_host') and data.get(kind + '_port') for kind in ('http', 'socks'))
         raw = primary if active(primary) or not active(secondary) else secondary
     return {'enabled': enabled, **{key: str(raw.get(key, default) or '').strip()
-            for key, default in DEFAULT_PROXY_DATA.items() if key != 'enabled'}}
+            for key, default in defaults.items() if key != 'enabled'}}
 
 
 def validate_proxy_data(data):

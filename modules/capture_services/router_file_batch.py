@@ -5,6 +5,8 @@ from .router_file_move import move_local,move_remote
 
 def run_file_batch(manager, jobs, cancel, report, connection_valid):
     """遇到取消、连接变化或失败停止；不撤销已完成文件，不跳过错误。"""
+    from .management_diagnostics import failure_metadata
+    failure = {}
     results = []
     error = ""
     cancelled = False
@@ -47,14 +49,16 @@ def run_file_batch(manager, jobs, cancel, report, connection_valid):
                 value = manager.mutate("delete", cancel=cancel, progress=progress, **args)
             else:
                 raise ValueError("Unsupported batch operation")
-        except InterruptedError:
+        except InterruptedError as exc:
+            failure = failure_metadata(exc)
             cancelled = True
             break
         except Exception as exc:
+            failure = failure_metadata(exc)
             error = f'{job["name"]}：{exc}'
             break
         results.append(value)
         done += actual_size
         report(dict(completed=done, total=total, index=index+1,
                     count=len(jobs), name=job["name"]))
-    return dict(results=results, count=len(jobs), error=error, cancelled=cancelled)
+    return dict(results=results, count=len(jobs), error=error, cancelled=cancelled, diagnostic_failure=failure)

@@ -22,9 +22,11 @@ class MaintenanceReviewDialog(FramelessDialog):
         self.warning_text.setObjectName("settingsMessageText")
         self.warning_text.setProperty("connectionWarning", True)
         self.warning_text.setReadOnly(True)
-        self.warning_text.setPlainText(DISCONNECT_WARNING + "\n\n" + message + "\n\n"
-            + "开始前会先生成当前配置备份并保存到电脑：" + backup_path
-            + "。保存或校验失败就不会继续。配置备份不能找回被重置删除的软件或全部自建文件。")
+        backup_note=("开始前会先生成当前配置备份并保存到电脑："+str(backup_path)+"。保存或校验失败就不会继续。" if backup_path else "本次不生成当前配置的备份，将直接恢复你选择的备份。")
+        warning=(DISCONNECT_WARNING+"\n\n"+message+"\n\n"+backup_note+
+            "配置备份不能找回被重置删除的软件或全部自建文件。")
+        if not backup_path:warning=backup_note+"\n\n"+DISCONNECT_WARNING+"\n\n"+message
+        self.warning_text.setPlainText(warning)
         self.content_layout.addWidget(self.warning_text, 2)
         if reset:
             self.input = QLineEdit(self)
@@ -43,7 +45,7 @@ class MaintenanceReviewDialog(FramelessDialog):
             self.content_layout.addWidget(listing, 1)
             self.trusted = QCheckBox("我确认备份来自本路由器、适用于当前固件，并理解重启后需重新登录。", self)
             self.content_layout.addWidget(self.trusted)
-        self.go, cancel = create_dialog_ok_cancel_buttons(self, "备份后执行重置" if reset else "备份后恢复并重启", "取消")
+        self.go, cancel = create_dialog_ok_cancel_buttons(self, "备份后执行重置" if reset else ("备份后恢复并重启" if backup_path else "恢复并重启"), "取消")
         self.go.setEnabled(False)
         self.go.setProperty("dangerAction", True)
         self.button_layout.addWidget(self.go)

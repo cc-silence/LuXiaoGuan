@@ -85,7 +85,7 @@ class RelocationUiTests(unittest.TestCase):
                 setup.completed.emit(WirelessTaskResult("move_preview", review))
             setup.relocate.assert_not_called()
 
-    def test_relocation_both_theme_geometry_and_offline_disabled(self):
+    def test_relocation_both_theme_geometry_and_offline_login_prompt(self):
         output = Path(__file__).parent / "signal-actions-preview"
         output.mkdir(exist_ok=True)
         for light in (False, True):
@@ -102,9 +102,13 @@ class RelocationUiTests(unittest.TestCase):
             page.grab().save(str(output / ("relocation-light.png" if light else "relocation-dark.png")))
             service.snapshot = replace(service.snapshot, connected=False)
             service.snapshotChanged.emit(service.snapshot)
-            self.assertFalse(button.isEnabled())
-            button.click()
+            self.assertTrue(button.isEnabled())
+            page.manager.manager.ssh.connected=False
+            with patch("modules.common_widgets.common_dialogs.MessageDialog") as prompt:
+                button.click()
+                prompt.return_value.exec.assert_called_once()
             setup.relocation_preview.assert_not_called()
+            page.manager.manager.ssh.connected=True
             service.snapshot = replace(service.snapshot, connected=True)
             service.snapshotChanged.emit(service.snapshot)
             setup.active = True

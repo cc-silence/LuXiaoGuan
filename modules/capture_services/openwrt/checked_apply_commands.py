@@ -36,7 +36,10 @@ local function checked_rollback()
 end
 """
 CHECKED_ACTIONS = r"""
- if req.action=="checked_network_load" then rpc("network","reload",{});return {loaded=true} end
+ if req.action=="force_capabilities" then
+  local methods=read("ubus -v list uci")
+  return {supported=methods:find('"commit"',1,true)~=nil and methods:find('"apply"',1,true)~=nil}
+ end
  if req.action=="apply_capabilities" then return apply_capabilities() end
  if req.action=="checked_apply" then return checked_apply() end
  if req.action=="checked_confirm" then return checked_confirm() end

@@ -8,6 +8,8 @@ from .wireless_setup_manager import WirelessSetupManager
 from .common_settings import validate_values
 from .configuration_runtime import network_ready
 from ..configuration_progress import phase
+from .apply_evidence import ApplyEvidence
+from .force_apply import ApplyRestored,connection_error
 
 
 class ApplyConflict(RuntimeError):
@@ -83,7 +85,19 @@ class ApplyChannel:
         self.ssh.close()
 
 
-def run_checked(channel, stage, verify, cancel, *, candidates, original_host, progress=None, close_channel=True, restore_verify=None, reload_network=False, client_recovery=None):
+def run_checked(channel, stage, verify, cancel, *, evidence=None, **options):
+    trace=evidence if evidence is not None else ApplyEvidence()
+    trace.attach(channel)
+    try:result=_run_checked(channel,stage,verify,cancel,evidence=trace,**options)
+    except Exception as exc:
+        trace.finish('uncertain' if isinstance(exc,ApplyUncertain) else 'failed',error=exc)
+        raise
+    else:
+        trace.finish('completed')
+        return result
+
+
+def _run_checked(channel, stage, verify, cancel, *, candidates, original_host, progress=None, close_channel=True, restore_verify=None, client_recovery=None, evidence=None, allow_force_retry=False):
     """Never retry apply. Lost replies are reconciled under the original SID."""
     sid=None
     attempted=False
@@ -91,14 +105,20 @@ def run_checked(channel, stage, verify, cancel, *, candidates, original_host, pr
     preserve_concurrent=False
     deadline=None
     baseline={}
-    network_loaded=False
+    retry_blocked=False;last_observed_ready=None
+    last_issue="未能重新连接路由器的管理地址。"
     try:
+        evidence.emit("connect")
+        evidence.counts["connect_attempts"]+=1
         channel.connect(original_host,8)
+        evidence.emit("capabilities")
         capabilities=channel.call("apply_capabilities")
         if capabilities.get("supported") is not True:
             raise RuntimeError("路由器缺少原生应用或回滚能力，未修改配置。可选择“仅保存”。")
         if cancel.is_set():raise InterruptedError("已取消，未应用配置。")
+        evidence.emit("session")
         sid=channel.call("session",relocation=True)["sid"]
+        evidence.emit("stage")
         baseline=stage(channel,sid)
         if cancel.is_set():raise InterruptedError("已取消，未应用配置。")
         deadline=time.monotonic()+90
@@ -106,8 +126,10 @@ def run_checked(channel, stage, verify, cancel, *, candidates, original_host, pr
         phase("正在应用配置，等待网络恢复",deadline=deadline,rollback=True,**extra)
         if progress:progress(dict(uncancellable=True))
         attempted=True
+        evidence.emit("apply")
         try:
-            outcome=channel.call("checked_apply",sid=sid,hashes=baseline,network_reload=reload_network,timeout=15)
+            outcome=channel.call("checked_apply",sid=sid,hashes=baseline,timeout=15)
+            evidence.emit("apply","progress","unchanged" if outcome.get("unchanged") is True else "accepted")
             if outcome.get("unchanged") is True:
                 attempted=False
                 if not verify(channel,sid):
@@ -115,12 +137,15 @@ def run_checked(channel, stage, verify, cancel, *, candidates, original_host, pr
                 return dict(saved=True,applied=True,target_host=original_host,checked_apply=True,
                             note="\u6ca1\u6709\u9700\u8981\u5e94\u7528\u7684\u65b0\u4fee\u6539\uff0c\u5f53\u524d\u914d\u7f6e\u4e0e\u8fd0\u884c\u72b6\u6001\u5df2\u6838\u9a8c\u3002")
         except Exception as exc:
+            evidence.emit("apply","retry",error=exc)
             if not attempted:raise
             if str(getattr(exc,"code","")).startswith("rpc_uci_apply_") or getattr(exc,"code","")=="apply_changed":
                 attempted=False
                 raise
             # The remote write may have succeeded. A second apply would be unsafe.
             channel.ssh.close()
+        # rpcd already emits config.change for each applied package; procd
+        # reloads its registered services. Reloading after reconnect can sever it again.
         channel.ssh.close()
         extra=dict(network_recovery=client_recovery.arm()) if client_recovery else {}
         phase("正在重连并核对配置",deadline=deadline,rollback=True,**extra)
@@ -129,18 +154,24 @@ def run_checked(channel, stage, verify, cancel, *, candidates, original_host, pr
                 remaining=deadline-time.monotonic()-8
                 if remaining<=0:break
                 try:
+                    last_issue="未能重新连接路由器的管理地址。"
+                    evidence.counts["connect_attempts"]+=1
+                    evidence.emit("connect",candidate_index=candidates.index(host),original_target=host==original_host,remaining_seconds=max(0,int(remaining)))
                     channel.connect(host,min(4,remaining))
-                    if reload_network and not network_loaded:
-                        channel.call("checked_network_load",timeout=min(8,remaining))
-                        network_loaded=True
-                    if verify(channel,sid):
-                        if client_recovery and not client_recovery.ready():
-                            phase("\u7b49\u5f85\u672c\u673a\u7f51\u5361\u66f4\u65b0\u5730\u5740",deadline=deadline,rollback=True,network_recovery=client_recovery.payload())
+                    evidence.counts["verify_attempts"]+=1
+                    evidence.emit("verify")
+                    last_issue="路由器的配置或网络运行状态未通过检查。"
+                    evidence.runtime_reason=""
+                    last_observed_ready=verify(channel,sid)
+                    if last_observed_ready:
+                        if client_recovery and not client_recovery.seal():
+                            evidence.emit("verify","retry","renewal_busy")
                             continue
-                        if client_recovery and not client_recovery.seal():continue
                         phase("正在确认保留新配置",deadline=deadline,rollback=True)
                         remaining=deadline-time.monotonic()
                         if remaining<=0:break
+                        last_issue="未收到路由器保留新配置的确认。"
+                        evidence.emit("confirm")
                         confirmation=channel.call("checked_confirm",sid=sid,timeout=min(8,remaining))
                         if confirmation.get("confirmed") is not True:
                             if confirmation.get("inactive") is not True or not verify(channel,sid):
@@ -148,6 +179,7 @@ def run_checked(channel, stage, verify, cancel, *, candidates, original_host, pr
                         confirmed=True
                         return dict(saved=True,applied=True,target_host=host,checked_apply=True,
                             note="配置已应用，已通过原设备身份和运行状态核验。")
+                    else:evidence.emit("verify","retry",evidence.runtime_reason or "verification_false")
                 except ApplyConflict:
                     # Do not manually restore a snapshot over an external edit.
                     preserve_concurrent=True
@@ -156,7 +188,9 @@ def run_checked(channel, stage, verify, cancel, *, candidates, original_host, pr
                         raise ApplyUncertain("\u914d\u7f6e\u88ab\u5176\u4ed6\u5de5\u5177\u4fee\u6539\uff0c\u4e14\u4fdd\u7559\u7ed3\u679c\u672a\u786e\u8ba4\u3002\u5df2\u505c\u6b62\u540e\u7eed\u64cd\u4f5c\uff0c\u8bf7\u52ff\u65ad\u7535\uff0c\u91cd\u65b0\u767b\u5f55\u6838\u5bf9\u3002") from exc
                     confirmed=True
                     raise
-                except Exception:
+                except Exception as exc:
+                    if not connection_error(exc):retry_blocked=True
+                    evidence.emit(evidence.signature[0] if evidence.signature else "connect","retry",error=exc)
                     channel.ssh.close()
             Event().wait(min(1,max(0,deadline-time.monotonic()-8)))
         raise ApplyUncertain("未在时限内确认新配置，正在等待恢复。")
@@ -170,17 +204,24 @@ def run_checked(channel, stage, verify, cancel, *, candidates, original_host, pr
                 while time.monotonic()<recovery_deadline:
                     for host in tuple(dict.fromkeys((original_host,*candidates))):
                         try:
+                            evidence.counts["restore_attempts"]+=1
+                            evidence.emit("rollback",original_target=host==original_host)
                             channel.connect(host,min(4,max(.1,recovery_deadline-time.monotonic())))
                             result=channel.call("checked_rollback",sid=sid,hashes=baseline,timeout=5)
-                            if result.get("restored") is True and (restore_verify is None or restore_verify(channel)) and (client_recovery is None or client_recovery.ready()):
+                            if result.get("restored") is True and (restore_verify is None or restore_verify(channel)):
+                                evidence.restored=True
+                                evidence.emit("restore_verify","progress","restored")
                                 restored=True;break
-                        except Exception:channel.ssh.close()
+                            evidence.emit("restore_verify","retry","restore_unconfirmed")
+                        except Exception as exc:
+                            evidence.emit("rollback","retry",error=exc)
+                            channel.ssh.close()
                     if restored:break
                     Event().wait(min(1,max(0,recovery_deadline-time.monotonic())))
                 if restored:
                     if client_recovery:client_recovery.close()
                     if close_channel:channel.close()
-                    raise RuntimeError("\u65b0\u914d\u7f6e\u672a\u80fd\u786e\u8ba4\u751f\u6548\uff0c\u5df2\u6062\u590d\u5e76\u6838\u9a8c\u539f\u914d\u7f6e\u3002\u8bf7\u91cd\u65b0\u8bfb\u53d6\u540e\u68c0\u67e5\u8bbe\u7f6e\u3002")
+                    raise ApplyRestored(last_issue+"已恢复并核验原配置，请重新读取后检查。",force_retry_eligible=allow_force_retry and not retry_blocked and last_observed_ready is not False and evidence.primary is not None and evidence.primary[0] in {"connect","confirm"})
                 if not restored:
                     if client_recovery:client_recovery.close()
                     channel.close()
@@ -200,19 +241,35 @@ def apply_common(manager, review, values, cancel, progress, settings, password, 
     settings=dict(settings)
     for key,value in (("host",manager.ssh._host),("port",manager.ssh._port),("user",manager.ssh._user)):
         settings.setdefault(key,value)
-    channel=ApplyChannel(settings,password,fingerprint or manager.ssh.host_fingerprint)
+    original_connection=manager.ssh._client
+    generation=getattr(manager.ssh,"connection_generation",None)
+    expected_fingerprint=fingerprint or manager.ssh.host_fingerprint
+    channel=ApplyChannel(settings,password,expected_fingerprint)
+    evidence=ApplyEvidence(getattr(manager.runner,"operation_diagnostics",None))
     config=review["config"]
     def stage(remote,sid):
         remote.call("common_stage",sid=sid,config=config,review=review,values=values,timeout=15)
         return {config:review["token"]}
     def verify(remote,sid):
         state=remote.call("common_applied",sid=sid,config=config,review=review,values=values)
-        return state.get("ready") is True and (config!="network" or network_ready(state.get("state"),values,review["values"]))
+        runtime_ok=config!="network" or network_ready(state.get("state"),values,review["values"],evidence=evidence)
+        mismatch=state.get("mismatch")
+        if mismatch in {"saved_values","runtime_missing","runtime_up","runtime_pending","runtime_ipv4","runtime_ipv4_mask"}:evidence.mismatch(mismatch)
+        return state.get("ready") is True and runtime_ok
     def restore_verify(remote):
         state=remote.call("common_applied",config=config,review=review,values=review["values"])
-        return state.get("ready") is True and (config!="network" or network_ready(state.get("state"),review["values"],values))
+        return state.get("ready") is True and (config!="network" or network_ready(state.get("state"),review["values"],values,evidence=evidence))
     targets=address_candidates(settings,values,review) if config=="network" else (settings["host"],)
-    result=run_checked(channel,stage,verify,cancel,candidates=targets,original_host=settings["host"],progress=progress,restore_verify=restore_verify,reload_network=config=="network",client_recovery=recovery)
+    try:
+        result=run_checked(channel,stage,verify,cancel,candidates=targets,original_host=settings["host"],progress=progress,restore_verify=restore_verify,client_recovery=recovery,evidence=evidence,allow_force_retry=config=="network",close_channel=False)
+    except ApplyRestored as exc:
+        if not exc.force_retry_eligible:raise
+        restored=False
+        verified_connection=getattr(channel.ssh,"_client",None)
+        if generation is not None and hasattr(manager.ssh,'adopt_verified'):
+            restored=manager.ssh.adopt_verified(channel.ssh,original_connection,generation,expected_fingerprint)
+        return dict(saved=False,applied=False,outcome='restored',retry_eligible=True,session_restored=restored,restored_connection=verified_connection if restored else None,note=str(exc))
+    finally:channel.close()
     if result["target_host"]!=settings["host"]:
         result["note"]+=" 请使用 "+result["target_host"]+" 重新登录路由器。"
     return result

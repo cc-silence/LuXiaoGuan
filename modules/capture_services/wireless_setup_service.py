@@ -104,7 +104,13 @@ class WirelessSetupService(QObject):
         from copy import deepcopy
         from .openwrt.relocation_manager import RelocationManager
         approved = deepcopy(review)
-        return self._start("relocate", lambda cancel, message: RelocationManager(self.manager).apply(approved, cancel, message))
+        ssh=self.owner.openwrt_backend.ssh_client
+        settings=dict(getattr(ssh,'authenticated_settings',{}) or {})
+        for key in ('host','port','user'):settings.setdefault(key,getattr(ssh,'_'+key,None))
+        fingerprint=ssh.host_fingerprint
+        original=getattr(ssh,'_client',None);generation=getattr(ssh,'connection_generation',None)
+        password=self.owner.openwrt_password() if hasattr(self.owner,'openwrt_password') else ''
+        return self._start("relocate", lambda cancel,message:RelocationManager(self.manager).apply(approved,cancel,message,connection_settings=settings,password=password,fingerprint=fingerprint,expected_client=original,connection_generation=generation),relocation_fingerprint=fingerprint)
 
     def orphan_preview(self):
         from .openwrt.orphan_interface_manager import OrphanInterfaceManager
@@ -165,13 +171,14 @@ class WirelessSetupService(QObject):
             record_workflow(self.owner, "wireless_setup", "cancelled", stage=self.snapshot.action, reason="user_request")
         return accepted
 
-    def _start(self, action, operation, *, scan_radio=""):
+    def _start(self, action, operation, *, scan_radio="", relocation_fingerprint=None):
         from .management_diagnostics import ManagementTrace
-        if action in {"move_preview","relocate","orphan_preview","orphan_cleanup"}:
-            trace=ManagementTrace(self.owner.openwrt_backend.command_runner,action,{})
-            original_operation=operation
-            operation=lambda cancel,message:trace.execute(original_operation,cancel,message)
-        else:trace=None
+        diagnostic_action = action if action in {"move_preview","relocate","orphan_preview","orphan_cleanup"} else "wireless_"+action
+        runner=getattr(getattr(self.owner,"openwrt_backend",None),"command_runner",None)
+        trace=ManagementTrace(runner,diagnostic_action,{})
+        original_operation=operation
+        def operation(cancel,message,*callbacks):
+            return trace.execute(lambda event,report:original_operation(event,report,*callbacks),cancel,message)
         if self.active or self.owner._shutting_down or not self.signals.snapshot.connected or self.owner.task_controller.busy:
             if trace is not None:trace.cancelled("busy_or_disconnected")
             return False
@@ -218,6 +225,12 @@ class WirelessSetupService(QObject):
             if action == "apply_check" and event.is_set() and not result.error:
                 result = WirelessTaskResult(action, error="管理连接检查已取消，未应用设置。", code="cancelled")
             valid = self._connection_identity() is identity and self.signals.snapshot.connected
+            if action=="relocate" and isinstance(result.value,dict) and result.value.get("session_restored"):
+                from .reconnected_session import publish_verified_connection
+                ssh=self.owner.openwrt_backend.ssh_client
+                adopted=result.value.pop("restored_connection",None)
+                expected=relocation_fingerprint
+                valid=publish_verified_connection(self.owner,ssh,adopted,expected) or valid
             self.owner.task_controller.finish(failed=bool(result.error))
             self.active = False
             self.snapshot = replace(self.snapshot, busy=False, action="")

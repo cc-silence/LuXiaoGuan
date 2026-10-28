@@ -30,3 +30,20 @@ CODES |= frozenset({
 })
 
 CODES |= frozenset({"common_save_uncertain","policy_commit_uncertain","unconfirmed"})
+
+CODES |= frozenset({"configuration_apply_restored","configuration_apply_uncertain","force_verify"})
+
+# Metadata-only workflows; no filenames, request values or output are retained.
+ACTIONS |= frozenset({"list","upload","download","mkdir","delete","rename","chmod",
+    "upload_directory","download_directory","file_batch","local_list","local_upload_selection",
+    "local_delete","local_mkdir","tool_reset","tool_check","tool_install",
+    "wireless_inspect","wireless_password","wireless_pending_review","wireless_pending_commit",
+    "wireless_install","wireless_scan","wireless_apply_check","wireless_save","wireless_save_only","wireless_delete"})
+SITE_MODULES |= frozenset({"force_apply","checked_apply","relocation_connection","router_management",
+    "file_operations","wireless_setup_manager","ssh_client","configuration_runtime"})
+
+ACTIONS |= {"client_network_renew"}
+SITE_MODULES |= {"lan_recovery_service","lan_network","lan_network_windows","lan_network_linux","factory_reset_guidance"}
+
+KINDS |= {"homepage"}
+SITE_MODULES |= {"router_homepage_dialog"}

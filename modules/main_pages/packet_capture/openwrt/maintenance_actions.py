@@ -13,6 +13,7 @@ class MaintenanceActions:
         self.pending = {}
         self.disposed = False
         self.progress_dialogs = {}
+        self.reset_inventories = {}
         progress_signal = getattr(page.manager, "progress", None)
         if progress_signal is not None: progress_signal.connect(self._progress)
 
@@ -44,7 +45,9 @@ class MaintenanceActions:
 
     def start(self, operation):
         page = self.page
-        if self.active or page.capture_service.is_busy or not page.manager.manager.ssh.connected:
+        from .router_login_prompt import require_router_login
+        if not require_router_login(page,page.manager.manager.ssh.connected):return
+        if self.active or page.capture_service.is_busy:
             return
         identity = self._identity()
         try:
@@ -92,11 +95,18 @@ class MaintenanceActions:
         page = self.page
         try:
             if self.disposed:
+                self.reset_inventories.pop(key,None)
                 return True
             phase, identity = item
             if phase == "done":
-                page._message(result["note"])
-                dialog=MessageDialog("操作结果",result["note"],page)
+                page._message(result["note"],"warning" if result.get("outcome")=="uncertain" else "info")
+                if result.get("operation")=="restore":return True
+                if result.get("operation")=="reset":
+                    from .factory_reset_result_dialog import FactoryResetResultDialog
+                    inventory=self.reset_inventories.pop(key,{})
+                    dialog=FactoryResetResultDialog(result,inventory,page.capture_service,page)
+                else:
+                    dialog=MessageDialog("操作结果",result["note"],page)
                 try:dialog.exec()
                 finally:dialog.deleteLater()
                 return True
@@ -104,10 +114,10 @@ class MaintenanceActions:
                 page._message("连接已变化，请重新打开操作。")
                 return True
             picked = self._destination(before=True)
-            if picked is None or not self._current(identity):
+            if not self._current(identity) or picked is None and result["operation"]!="restore":
                 return True
-            backup_path, expected = picked
-            if result["operation"] == "restore" and Path(backup_path).resolve() == Path(result["source"]).resolve():
+            backup_path, expected = picked if picked is not None else (None,None)
+            if result["operation"] == "restore" and backup_path is not None and Path(backup_path).resolve() == Path(result["source"]).resolve():
                 raise ValueError("操作前备份不能覆盖即将恢复的源文件，请选择另一个路径。")
             dialog = MaintenanceReviewDialog(result, backup_path, page)
             try:
@@ -118,9 +128,10 @@ class MaintenanceActions:
                     return True
                 new_key = page.manager.submit("maintenance_apply", review=result,
                                              backup_path=backup_path, backup_expected=expected)
+                if result["operation"]=="reset":self.reset_inventories[new_key]=result.get("client_network",{})
                 self.pending[new_key] = ("done", identity)
                 self._show_progress(new_key)
-                page._message("正在备份当前配置；校验通过后执行所确认的操作，请保持供电。")
+                page._message("正在备份当前配置；校验通过后执行所确认的操作，请保持供电。" if backup_path else "本次不生成当前配置备份，正在恢复所选备份，请保持供电。")
             finally:
                 dialog.deleteLater()
         except Exception as exc:
@@ -134,6 +145,7 @@ class MaintenanceActions:
     def failed(self, key, message):
         if self.pending.pop(key, None) is None:
             return False
+        self.reset_inventories.pop(key,None)
         self._finish_progress(key)
         if not self.disposed:
             self.page._message(message, "error")
@@ -159,6 +171,7 @@ class MaintenanceActions:
         for key in tuple(self.pending):
             self.page.manager.cancel(key)
         self.pending.clear()
+        self.reset_inventories.clear()
         for key in tuple(self.progress_dialogs): self._finish_progress(key)
         signal = getattr(self.page.manager, "progress", None)
         if signal is not None: signal.disconnect(self._progress)

@@ -40,9 +40,11 @@ def write_version(path,version):
 
 @locked_build
 def main():
+    from scripts.qt_runtime_contract import require_qt_runtime
+    qt_runtime=require_qt_runtime()
     version=app_version();stamp=datetime.now(timezone(timedelta(hours=8))).strftime("%Y%m%d_%H%M%S")
     stage=ROOT/"build/releases"/(version+"_"+stamp);stage.mkdir(parents=True)
-    report={"version":version,"stage":str(stage),"status":"building"}
+    report={"version":version,"stage":str(stage),"status":"building","qt_runtime":qt_runtime}
     report_path=stage/"report.json"
     try:
         from scripts.build_native_updater import ensure_native_updater

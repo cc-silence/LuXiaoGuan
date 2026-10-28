@@ -21,15 +21,16 @@ class RouterPolicyActions:
 
     def create_cards(self,body,icon_root):
         descriptions={
+            "homepage":"\u9009\u62e9\u6253\u5f00\u8def\u7531\u5668\u7f51\u9875\u540e\u9ed8\u8ba4\u8fdb\u5165\u7684\u9875\u9762\u3002",
             "initial":"\u9996\u6b21\u4f7f\u7528\u65f6\u7edf\u4e00\u8bbe\u7f6e\uff1b\u6267\u884c\u524d\u9009\u62e9\u9879\u76ee\u5e76\u9884\u89c8\u5f71\u54cd\u3002",
             "boot":"\u51b3\u5b9a\u4ee5\u540e\u5f00\u673a\u662f\u5426\u81ea\u52a8\u8fde\u63a5\u4fdd\u5b58\u7684\u4e0a\u7ea7 Wi-Fi\u3002",
             "station":"\u4e00\u6b21\u66f4\u6362\u4e0a\u7ea7\u8fde\u63a5\u7684\u540d\u79f0\u548c\u65e0\u7ebf\u5730\u5740\uff0c\u4fdd\u7559\u5bc6\u7801\u3002",
             "ap":"\u4e00\u6b21\u66f4\u6362\u81ea\u5efa\u70ed\u70b9\u540d\u79f0\u548c\u65e0\u7ebf\u5730\u5740\uff0c\u4fdd\u7559\u5bc6\u7801\u3002"}
-        icons={"initial":"System Shield.png","boot":"System Start.png","station":"System WiFi.png","ap":"System Router.png"}
+        icons={"homepage":"System Router.png","initial":"System Shield.png","boot":"System Start.png","station":"System WiFi.png","ap":"System Router.png"}
         cards=[]
-        for kind in ("initial","boot","station","ap"):
+        for kind in ("initial","boot","station","ap","homepage"):
             card,layout=create_capture_card(body,TITLES[kind],descriptions[kind],icon_path=icon_root/icons[kind],actions_at_bottom=True)
-            button=create_page_text_button(card,"\u6253\u5f00\u8bbe\u7f6e" if kind=="initial" else "\u5207\u6362\u7b56\u7565" if kind=="boot" else "\u66f4\u6362",descriptions[kind])
+            button=create_page_text_button(card,"\u6253\u5f00\u8bbe\u7f6e" if kind in {"initial","homepage"} else "\u5207\u6362\u7b56\u7565" if kind=="boot" else "\u66f4\u6362",descriptions[kind])
             button.clicked.connect(lambda checked=False,k=kind:self.start(k))
             self.buttons[kind]=button;layout.addWidget(button)
             if kind!="boot":self.add_details(card,layout,kind)
@@ -74,7 +75,9 @@ class RouterPolicyActions:
 
     def start(self,kind):
         page=self.page
-        if self.active or page.capture_service.is_busy or not page.manager.manager.ssh.connected:return
+        from .router_login_prompt import require_router_login
+        if not require_router_login(page,page.manager.manager.ssh.connected):return
+        if self.active or page.capture_service.is_busy:return
         try:
             identity=self._identity()
             key=page.manager.submit("policy_read")
@@ -114,6 +117,13 @@ class RouterPolicyActions:
                 options={}
                 if kind=="initial":
                     dialog=InitialPolicyDialog(result,page)
+                    try:
+                        if dialog.exec()!=dialog.Accepted:return True
+                        options=dialog.values()
+                    finally:dialog.deleteLater()
+                elif kind=="homepage":
+                    from .router_homepage_dialog import RouterHomepageDialog
+                    dialog=RouterHomepageDialog(result,page)
                     try:
                         if dialog.exec()!=dialog.Accepted:return True
                         options=dialog.values()

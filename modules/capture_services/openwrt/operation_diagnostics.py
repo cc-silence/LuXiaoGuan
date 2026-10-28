@@ -18,15 +18,21 @@ SAFE_VALUES = {
         "unexpected_error", "restore_reported_errors", "phase_completed", "native_identity_available",
         "native_identity_unavailable", "configuration_untouched"}),
 }
-SAFE_VALUES["operation"] |= ACTIONS
+SAFE_VALUES["operation"] |= ACTIONS | {"configuration_apply"}
+SAFE_VALUES["stage"] |= {"queue","progress","preflight","commit","download","publish","reboot","validation","connect","capabilities","session","stage","apply","verify","confirm","rollback","restore_verify","discard","finish"}
+SAFE_VALUES["reason"] |= {"accepted","unchanged","reply_lost","verified","verification_false","native_rpc_error","exception","restored","restore_unconfirmed","renewal_busy",
+    "saved_values","runtime_missing","runtime_pending","runtime_up","runtime_proto","runtime_device","runtime_ipv4","runtime_ipv4_mask","runtime_gateway4","runtime_gateway6","runtime_ipv6","runtime_old_ipv6","runtime_prefix6","runtime_invalid"}
 SAFE_VALUES["kind"] = KINDS
-SAFE_VALUES["outcome"] = frozenset({"reconnect","uncertain","saved","applied"})
+SAFE_VALUES["outcome"] = frozenset({"reconnect","uncertain","saved","applied","restored"})
 SAFE_VALUES["reason"] |= CODES
 
 
 def _safe_protocol_value(name,value):
     if value in SAFE_VALUES.get(name,()):return True
-    if name=="code_site":
+    if name=="last_stage" and value in SAFE_VALUES["stage"]:return True
+    if name=="cause_reason" and value in SAFE_VALUES["reason"]:return True
+    if name=="last_reason" and value in SAFE_VALUES["reason"]:return True
+    if name in {"code_site","cause_site"}:
         stem,sep,line=value.partition(":")
         return bool(sep and stem in SITE_MODULES and line.isascii() and line.isdigit() and len(line)<=6)
     return False
@@ -37,13 +43,16 @@ MAX_FAILURES = 8
 MAX_WORKFLOWS = 32
 MAX_MANAGEMENT = 128
 MAX_MANAGEMENT_FAILURES = 16
+MAX_CONFIGURATION = 128
+MAX_CONFIGURATION_FAILURES = 16
 STRING_FIELDS = frozenset({"timestamp", "event", "operation", "status", "stage", "kind",
-    "exception_type", "reason", "code_site", "outcome", "transport", "band", "source", "task_band"})
-NUMBER_FIELDS = frozenset({"id", "operation_id", "elapsed_seconds", "connected_before",
+    "exception_type", "cause_reason", "cause_type", "cause_site", "reason", "code_site", "last_stage", "last_reason", "outcome", "transport", "band", "source", "task_band"})
+NUMBER_FIELDS = frozenset({"id", "errno", "winerror", "operation_id", "elapsed_seconds", "connected_before",
     "connected_after", "exit_code", "timed_out", "cancelled", "request_bytes",
+    "force_apply", "rollback", "trace_id", "connect_attempts", "verify_attempts", "restore_attempts", "native_error", "candidate_index", "original_target", "remaining_seconds", "restored",
     "task_id", "saved", "applied", "verified", "changed", "reboot_requested", "boot_state",
     "selected_count", "operation_count", "skipped_count", "identity_count",
-    "row_count", "target_count", "removed_count", "mac_count",
+    "completed_count", "row_count", "target_count", "removed_count", "mac_count",
     "completed", "total", "uncancellable", "queue_depth", "queue_seconds",
     "channel", "pending_processes", "takeover", "blocked", "primary_failed",
     "wireless_cleanup_confirmed", "monitor_active", "result_rows", "accepted_rows",
@@ -79,6 +88,9 @@ class OperationDiagnostics:
         self._workflows = deque(maxlen=MAX_WORKFLOWS)
         self._management = deque(maxlen=MAX_MANAGEMENT)
         self._management_failures = deque(maxlen=MAX_MANAGEMENT_FAILURES)
+        self._action_failures = {}
+        self._configuration = deque(maxlen=MAX_CONFIGURATION)
+        self._configuration_failures = deque(maxlen=MAX_CONFIGURATION_FAILURES)
 
     def bind_connection(self, identity):
         with self._lock:
@@ -89,6 +101,9 @@ class OperationDiagnostics:
                 self._workflows.clear()
                 self._management.clear()
                 self._management_failures.clear()
+                self._action_failures.clear()
+                self._configuration.clear()
+                self._configuration_failures.clear()
                 self._identity = identity
 
     @property
@@ -121,6 +136,12 @@ class OperationDiagnostics:
                 self._management.append(row)
                 if row.get("status") in {"failed","timeout","cancelled","blocked","uncertain"}:
                     self._management_failures.append(row)
+                    if event=="management" and row.get("operation") in ACTIONS:
+                        self._action_failures[row["operation"]]=row
+            if event == "configuration":
+                self._configuration.append(row)
+                if row.get("stage")=="finish" and row.get("status") in {"failed","uncertain"}:
+                    self._configuration_failures.append(row)
             if event == "workflow":
                 self._workflows.append(row)
             if row.get("status") in {"failed", "timeout", "cancelled", "blocked", "uncertain"}:
@@ -133,7 +154,10 @@ class OperationDiagnostics:
                     "failures": deepcopy(list(self._failures)),
                     "workflows": deepcopy(list(self._workflows)),
                     "management": deepcopy(list(self._management)),
-                    "management_failures": deepcopy(list(self._management_failures))}
+                    "management_failures": deepcopy(list(self._management_failures)),
+                    "action_failures": deepcopy(list(self._action_failures.values())),
+                    "configuration": deepcopy(list(self._configuration)),
+                    "configuration_failures": deepcopy(list(self._configuration_failures))}
             from .login_diagnostics import LoginDiagnostics
             if isinstance(self._login_diagnostics, LoginDiagnostics):
                 result["login_attempts"] = self._login_diagnostics.snapshot()
@@ -147,7 +171,8 @@ def sanitized_operation_evidence(data, masker):
         raise ValueError("unsupported operation diagnostic evidence")
     result = {"schema_version": 1}
     for key, limit in (("events", MAX_EVENTS), ("failures", MAX_FAILURES), ("workflows", MAX_WORKFLOWS),
-                       ("management", MAX_MANAGEMENT), ("management_failures", MAX_MANAGEMENT_FAILURES)):
+                       ("action_failures", len(ACTIONS)), ("management", MAX_MANAGEMENT), ("management_failures", MAX_MANAGEMENT_FAILURES),
+                       ("configuration", MAX_CONFIGURATION), ("configuration_failures", MAX_CONFIGURATION_FAILURES)):
         rows = data.get(key, [])
         if not isinstance(rows, list) or len(rows) > limit:
             raise ValueError("operation diagnostic record limit exceeded")
