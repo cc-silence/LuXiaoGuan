@@ -18,7 +18,7 @@ class UploadTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/'upload.zip';path.write_bytes(b'complete-data')
             routes=[NS(proxy_url='http://127.0.0.1:1081'),NS(proxy_url='socks5h://127.0.0.1:1080')]
-            with patch('modules.network_policy.allowed_channels',return_value=routes):
+            with patch('modules.network_policy.configured_proxy_channels',return_value=routes):
                 if isinstance(first_error,StorageTransportError) and not key.startswith('channel/'):
                     self.assertEqual(api.put(path,key,'application/zip'),b'ok')
                     self.assertEqual(len(calls),2)
@@ -42,3 +42,28 @@ class UploadTests(unittest.TestCase):
         self.assertEqual(len(stream.read()),65536)
         stream.deadline=0
         with self.assertRaises(requests.Timeout):stream.read(1)
+
+    def test_upload_stops_without_configured_proxies_even_if_environment_has_one(self):
+        api=StorageAPI.__new__(StorageAPI);api.session=NS(proxies={'https':'http://unexpected'})
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'upload.zip';path.write_bytes(b'data')
+            with patch('modules.network_policy.configured_proxy_channels',return_value=[]),patch.object(api,'_request') as send:
+                with self.assertRaises(ValueError):api.put(path,'files/hash/package.zip','application/zip')
+                send.assert_not_called()
+
+    def test_all_proxy_failures_never_attempt_a_direct_upload(self):
+        api=StorageAPI.__new__(StorageAPI);api.session=NS(proxies={'https':'original'})
+        calls=[]
+        def send(*args,**kwargs):
+            calls.append(dict(api.session.proxies));raise StorageTransportError('network')
+        api._request=send
+        routes=[NS(proxy_url='http://127.0.0.1:1081'),NS(proxy_url='socks5h://127.0.0.1:1080')]
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'upload.zip';path.write_bytes(b'data')
+            with patch('modules.network_policy.configured_proxy_channels',return_value=routes),patch(
+                    'modules.network_policy.allowed_channels',return_value=[*routes,NS(proxy_url='')]) as generic:
+                with self.assertRaises(StorageTransportError):api.put(path,'files/hash/package.zip','application/zip')
+                generic.assert_not_called()
+        self.assertEqual(len(calls),2)
+        self.assertTrue(all(row.get('https') for row in calls))
+        self.assertEqual(api.session.proxies,{'https':'original'})
