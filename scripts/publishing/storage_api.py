@@ -113,11 +113,12 @@ class StorageAPI:
     def put(self, path, key, content_type):
         """Stream files with project auth and the configured HTTP/SOCKS routes."""
         from pathlib import Path
-        from modules.network_policy import allowed_channels
+        from modules.network_policy import configured_proxy_channels
         path=Path(path).resolve()
         if not path.is_file(): raise ValueError("Publication input is missing")
-        routes=allowed_channels(None, "proxy")
-        proxies=[{"http":r.proxy_url,"https":r.proxy_url} for r in routes] if routes else [dict(self.session.proxies)]
+        routes=configured_proxy_channels()
+        if not routes:raise ValueError("Configure a publisher proxy before uploading")
+        proxies=[{"http":r.proxy_url,"https":r.proxy_url} for r in routes]
         original=dict(self.session.proxies)
         deadline=time.monotonic()+900
         try:
