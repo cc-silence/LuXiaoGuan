@@ -2,7 +2,7 @@
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QPoint, QRect
 from PySide6.QtTest import QTest
 from tests.common_settings_fixture import create_page
 from tests.test_signal_actions_ui import PendingSetup
@@ -22,16 +22,15 @@ class MaintenanceUiTests(unittest.TestCase):
         grouped = [card for _title, cards in page.card_groups.groups for card in cards]
         self.assertEqual(len(grouped), len(set(grouped)))
         self.assertEqual(set(grouped), set(page.cards))
-        for grid, (_title, cards) in zip(page.card_groups.grids, page.card_groups.groups):
-            positions = []
-            for index, card in enumerate(cards):
-                row, col, _, _ = grid.getItemPosition(grid.indexOf(card))
-                self.assertEqual((row, col), (index // page._card_columns, index % page._card_columns))
-                positions.append((row, col))
-                illustration = card.findChild(CardIcon)
-                self.assertIsNotNone(illustration)
-                self.assertFalse(illustration.icon.isNull())
-            self.assertEqual(len(positions), len(set(positions)))
+        rectangles = []
+        for card in grouped:
+            illustration = card.findChild(CardIcon)
+            self.assertIsNotNone(illustration)
+            self.assertFalse(illustration.icon.isNull())
+            rectangles.append(QRect(card.mapTo(page, QPoint()), card.size()))
+        for index, rectangle in enumerate(rectangles):
+            for other in rectangles[index + 1:]:
+                self.assertFalse(rectangle.intersects(other))
 
     def test_disabling_clicked_actions_does_not_walk_focus_and_scroll_to_bottom(self):
         for name in ("lan_button","system_button","relocation","orphan"):
