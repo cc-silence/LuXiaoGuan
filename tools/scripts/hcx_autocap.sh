@@ -970,7 +970,7 @@ sweep_stale_ifaces() {
     for d in $(ls /sys/class/net 2>/dev/null)
     do
         case "${d}" in
-            hcxmon*)
+            hcxmon*|hcxstub*)
                 iw dev "${d}" del >/dev/null 2>&1 \
                     && log "${yellow}已清理残留的监听接口: ${d}${none}"
                 ;;
@@ -993,6 +993,14 @@ create_raw_monitor() {
     [ -z "${band}" ] && band=$(uci get wireless.${r}.hwmode 2>/dev/null)
     mac_name
     name="hcxmon${idx}"
+    # 清理该空闲射频上残留的旧接口(防止 AP 接口锁定信道导致 hcxdumptool 报 failed to arm interface)
+    for _stale in $(iw dev 2>/dev/null | grep -E "phy#${idx}\b" -A 10 | grep 'Interface ' | awk '{print $2}')
+    do
+        case "${_stale}" in
+            hcxmon*|hcxstub*|${name}) : ;;
+            *) iw dev "${_stale}" del >/dev/null 2>&1 ;;
+        esac
+    done
     # [日志加固] 捕获真实报错打进会话日志
     _err=$( { iw ${_use_phy} interface add ${name} type monitor addr ${wlan_mac} \
         && ip link set ${name} up; } 2>&1 )
@@ -1252,17 +1260,23 @@ purge_empty_captures() {
 # 脚本可能被设成开机自启、无人值守 —— 没人在旁边看清楚后手动重跑,
 # 所以宁可多试两档(每档都留完整命令行与工具原文)也不要一次就放弃。
 next_attempt() {
-    _other=new
-    [ "${HCX_PRIMARY}" = "new" ] && _other=legacy
     while :
     do
         HCX_ATTEMPT=$((HCX_ATTEMPT + 1))
-        case "${HCX_ATTEMPT}" in
-            1) HCX_MODE="${HCX_PRIMARY}" ; HCX_VARIANT="full" ;;
-            2) HCX_MODE="${_other}"      ; HCX_VARIANT="full" ;;
-            3) HCX_MODE="${HCX_PRIMARY}" ; HCX_VARIANT="reduced" ;;
-            *) return 1 ;;
-        esac
+        if [ "${HCX_PRIMARY}" = "new" ]
+        then
+            case "${HCX_ATTEMPT}" in
+                1) HCX_MODE="new" ; HCX_VARIANT="full" ;;
+                2) HCX_MODE="new" ; HCX_VARIANT="reduced" ;;
+                *) return 1 ;;
+            esac
+        else
+            case "${HCX_ATTEMPT}" in
+                1) HCX_MODE="legacy" ; HCX_VARIANT="full" ;;
+                2) HCX_MODE="legacy" ; HCX_VARIANT="reduced" ;;
+                *) return 1 ;;
+            esac
+        fi
         _tag="${HCX_MODE}-${HCX_VARIANT}"
         case " ${HCX_TRIED} " in
             *" ${_tag} "*) continue ;;

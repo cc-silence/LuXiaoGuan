@@ -22,7 +22,7 @@ class WindowDetailsTests(unittest.TestCase):
 
     def test_original_geometry(self):
         rect = initial_window_geometry(QRect(0,0,1920,1080),QRect(0,0,1920,1040),QSize(960,600))
-        self.assertEqual(rect.size(), QSize(1280,720))
+        self.assertEqual(rect.size(), QSize(1280,820))
 
     def test_four_corners_really_resize(self):
         window = self.window

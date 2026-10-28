@@ -108,6 +108,9 @@ class CaptureService(QObject):
         self.router_terminal.activityChanged.connect(self._terminal_activity_changed)
         from .router_connection_state import RouterConnectionState
         self.router_connection_state = RouterConnectionState(self)
+        from .openwrt.auto_capture_service import AutoCaptureService
+        self.auto_capture = AutoCaptureService(self)
+        self.auto_capture.messageGenerated.connect(self.messageGenerated)
         from modules.cache_maintenance import CacheMaintenance
         self._shutdown_maintenance = CacheMaintenance(self)
         self._shutdown_maintenance.warning.connect(self.messageGenerated)
@@ -119,7 +122,7 @@ class CaptureService(QObject):
         """返回探测、启动、抓包或停止是否正在进行，无副作用。"""
 
         return ((self._shutting_down and self.router_terminal.active) or self._shutdown_maintenance.active or bool(self._openwrt_workers)
-                or bool(self._probe_thread and self._probe_thread.is_alive())) or self.state in {
+                or bool(self._probe_thread and self._probe_thread.is_alive()) or (hasattr(self, "auto_capture") and self.auto_capture.is_busy)) or self.state in {
             CaptureSessionState.CHECKING,
             CaptureSessionState.STARTING,
             CaptureSessionState.CAPTURING,

@@ -11,7 +11,7 @@
 
 from functools import lru_cache
 
-from PySide6.QtCore import QEvent, QEasingCurve, QPropertyAnimation, Qt, QTimer
+from PySide6.QtCore import QEvent, QEasingCurve, QPropertyAnimation, Qt, QTimer, Slot
 from PySide6.QtWidgets import QAbstractScrollArea, QGraphicsOpacityEffect, QScrollBar
 
 
@@ -27,6 +27,8 @@ class AutoHideScrollBar(QScrollBar):
 
     def __init__(self, *args, **kwargs):
         # 表格和网格需要稳定宽度，列表和文本输入框则可在隐藏时释放轨道区域。
+        self._scroll_viewport = None
+        self._scroll_area = None
         self._reserve_space = bool(kwargs.pop("reserve_space", True))
         inset_track = bool(kwargs.pop("inset_track", False))
         super().__init__(*args, **kwargs)
@@ -58,7 +60,9 @@ class AutoHideScrollBar(QScrollBar):
             self._scroll_area.destroyed.connect(self._clear_scroll_area)
             self._set_scrollbar_slot_visible(self._reserve_space)
 
-    def _clear_scroll_area(self):
+    @Slot()
+    @Slot(object)
+    def _clear_scroll_area(self, *_args):
         """宿主销毁后清空引用，避免页面切换时事件过滤器访问失效 QObject。"""
         self._scroll_area = None
         self._scroll_viewport = None
@@ -141,6 +145,7 @@ class AutoHideScrollBar(QScrollBar):
 
     def eventFilter(self, watched, event):
         """监听宿主内容区操作，解决滚动条隐藏后无法再次触发显示的问题。"""
-        if watched is self._scroll_viewport and event.type() in (QEvent.Enter, QEvent.MouseMove, QEvent.Wheel):
+        viewport = getattr(self, "_scroll_viewport", None)
+        if viewport is not None and watched is viewport and event.type() in (QEvent.Enter, QEvent.MouseMove, QEvent.Wheel):
             self._reveal_temporarily()
         return super().eventFilter(watched, event)
