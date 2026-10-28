@@ -106,13 +106,13 @@ class ImmediateSettingsTests(unittest.TestCase):
                 self.window.openSettingsWindow()
             settings = self.window.settings_window
             before = manager.to_dict()
-            settings.proxy_inputs["http_host"].setText("127.0.0.1")
+            settings.proxy_inputs["http_port"].setText("8126")
             with patch.object(manager, "save", side_effect=OSError("fixture")):
                 self.assertFalse(settings._proxy_flush_fn())
             self.assertEqual(manager.to_dict(), before)
-            self.assertEqual(settings.proxy_inputs["http_host"].text(), "127.0.0.1")
+            self.assertEqual(settings.proxy_inputs["http_port"].text(), "8126")
             self.assertTrue(settings._proxy_flush_fn())
-            self.assertEqual(manager.get_http_url(), "http://127.0.0.1:1081")
+            self.assertEqual(manager.get_http_url(), "http://127.0.0.1:8126")
 
     def test_render_without_footer_in_both_themes_and_scales(self):
         folder = BASE_DIR / "build" / "immediate-settings-preview"
