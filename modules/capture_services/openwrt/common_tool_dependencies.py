@@ -15,6 +15,7 @@ class CommonTool:
     command: str = ''
     packages: tuple = ()
     removable: bool = True
+    required: bool = False
 
     @property
     def package_names(self):
@@ -22,16 +23,20 @@ class CommonTool:
 
 
 TOOLS = (
-    CommonTool('iw', '无线管理工具', 'iw', '查看与管理无线接口、信道及驱动能力。卸载可能影响其他无线管理功能。', 'iw'),
-    CommonTool('wpa_cli', '无线连接验证', 'wpa-cli', '用于检查上级 Wi-Fi 的认证和连接状态，发射与中继功能会使用。安装不会替换无线驱动或认证服务。', 'wpa_cli'),
-    CommonTool('iwinfo', '无线信息查询', 'iwinfo', '查看无线名称、信号强度与加密信息。卸载可能影响网页无线信息显示。', 'iwinfo'),
-    CommonTool('luci_commands', '网页自定义命令', 'luci-app-commands', '在路由器网页中保存并执行命令，不是交互式终端。命令权限较高，请仅保存可信命令。'),
-    CommonTool('luci_base_zh', '网页简体中文', 'luci-i18n-base-zh-cn', '路由器网页基础功能的简体中文翻译，不改变 \u8def\u5c0f\u7ba1 的语言。'),
-    CommonTool('luci_commands_zh', '自定义命令简体中文', 'luci-i18n-commands-zh-cn', '路由器网页“自定义命令”的简体中文翻译；安装时可能连带安装该功能。'),
-    CommonTool('signal', '信号管理', ', '.join(SIGNAL_PACKAGES), '用于读取路由器无线配置与运行状态。Lua 组件可能被网页管理等其他功能共用，卸载前由包管理器核对依赖，不强制删除共用组件。', packages=SIGNAL_PACKAGES),
+    CommonTool('iw', '无线管理工具', 'iw', '查看与管理无线接口、信道及驱动能力。卸载可能影响其他无线管理功能。', 'iw', required=True),
+    CommonTool('wpa_cli', '无线连接验证', 'wpa-cli', '用于检查上级 Wi-Fi 的认证和连接状态，发射与中继功能会使用。安装不会替换无线驱动或认证服务。', 'wpa_cli', required=True),
+    CommonTool('iwinfo', '无线信息查询', 'iwinfo', '查看无线名称、信号强度与加密信息。卸载可能影响网页无线信息显示。', 'iwinfo', required=False),
+    CommonTool('luci_commands', '网页自定义命令', 'luci-app-commands', '在路由器网页中保存并执行命令，不是交互式终端。命令权限较高，请仅保存可信命令。', required=False),
+    CommonTool('luci_base_zh', '网页简体中文', 'luci-i18n-base-zh-cn', '路由器网页基础功能的简体中文翻译，不改变 \u8def\u5c0f\u7ba1 的语言。', required=False),
+    CommonTool('luci_commands_zh', '自定义命令简体中文', 'luci-i18n-commands-zh-cn', '路由器网页“自定义命令”的简体中文翻译；安装时可能连带安装该功能。', required=False),
+    CommonTool('curl', '\u4e0a\u7ea7\u901a\u7f51\u68c0\u6d4b', 'curl', '\u4ece\u6307\u5b9a\u4e0a\u7ea7 Wi-Fi \u51fa\u53e3\u68c0\u6d4b HTTPS \u8fde\u901a\u6027\uff0c\u4e0d\u5173\u95ed\u8bc1\u4e66\u6821\u9a8c\u3002', 'curl', required=True),
+    CommonTool('wireless_rpc', '\u65e0\u7ebf\u72b6\u6001\u4e0e\u8bbe\u7f6e\u63a5\u53e3', 'rpcd, rpcd-mod-iwinfo', '\u4fe1\u53f7\u72b6\u6001\u3001\u65e0\u7ebf\u626b\u63cf\u548c\u5b89\u5168\u5e94\u7528\u8bbe\u7f6e\u6240\u9700\u3002\u6309\u5b9e\u9645\u63a5\u53e3\u80fd\u529b\u68c0\u6d4b\uff0c\u4e0d\u5f3a\u5236\u66ff\u6362\u5df2\u6709\u670d\u52a1\u3002', packages=('rpcd', 'rpcd-mod-iwinfo'), removable=False, required=True),
+    CommonTool('signal', '信号管理', ', '.join(SIGNAL_PACKAGES), '用于读取路由器无线配置与运行状态。Lua 组件可能被网页管理等其他功能共用，卸载前由包管理器核对依赖，不强制删除共用组件。', packages=SIGNAL_PACKAGES, required=True),
 )
 TOOL_BY_KEY = {tool.key: tool for tool in TOOLS}
 TOOL_KEYS = frozenset(TOOL_BY_KEY)
+REQUIRED_TOOL_KEYS = frozenset(tool.key for tool in TOOLS if tool.required)
+OPTIONAL_TOOL_KEYS = TOOL_KEYS - REQUIRED_TOOL_KEYS
 
 
 def check_tools(runner, keys, cancel_event=None):
@@ -39,7 +44,7 @@ def check_tools(runner, keys, cancel_event=None):
     tools = tuple(tool for tool in TOOLS if tool.key in keys)
     packages = None
     package_error = ''
-    if any(not tool.command and tool.key != 'signal' for tool in tools):
+    if any(not tool.command and tool.key not in {'signal', 'wireless_rpc'} for tool in tools):
         try:
             result = runner.run('dependency_common_packages',
                 "if command -v opkg >/dev/null 2>&1; then printf '__OPKG__\\n'; opkg list-installed && printf '__PACKAGES_END__\\n'; "
@@ -63,6 +68,10 @@ def check_tools(runner, keys, cancel_event=None):
             package_error = '软件包检测失败：' + type(exc).__name__
     rows = []
     for tool in tools:
+        if tool.key == 'wireless_rpc':
+            from .runtime_helper_dependencies import check_wireless_rpc
+            rows.append(check_wireless_rpc(runner, cancel_event))
+            continue
         if tool.key == 'signal':
             rows.append(check_signal_support(runner, cancel_event))
             continue

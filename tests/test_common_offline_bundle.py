@@ -90,7 +90,7 @@ class CommonOfflineTests(unittest.TestCase):
         self.assertEqual(paths[0].read_bytes(),b"package:tmux")
 
     def test_corrupted_object_fails_closed_and_repair_uses_local_archive(self):
-        p=self.repo.profile(self.f.device);row=p["packages"][0];path=self.repo.content_root/row["blob"]
+        p=self.repo.profile(self.f.device);row=p["packages"][0];path=self.repo.object_source(row)
         path.write_bytes(b"corrupt")
         with self.assertRaises(ValueError):self.repo.object_path(row)
         prepare_archive(self.f.archive,self.f.envelope,self.resource,Event(),public_key=self.f.public)

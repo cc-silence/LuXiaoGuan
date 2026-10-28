@@ -36,6 +36,9 @@ def verify_files(package,version):
         "config/app_update.json","config/settings.ini",APPLICATION_ICON]
     for relative in required:
         if not (package/relative).is_file():raise ValueError("Missing release file: "+relative)
+    from scripts.qt_runtime_contract import require_qt_runtime
+    from scripts.native_terminal_assets import verify_native_terminal
+    terminal=verify_native_terminal(package, ROOT, require_qt_runtime()['qt'])
     cfg=json.loads((package/"config/app_update.json").read_text(encoding="utf-8"))
     if cfg.get("enabled") is not True or cfg["manifest_url"]!=GATEWAY+"/manifest":raise ValueError("Wrong online update service")
     for name in [APPLICATION_EXECUTABLE,"resources/RouterManagerUpdater.exe","resources/RouterManagerUpdateWorker.exe"]:
@@ -50,7 +53,7 @@ def verify_files(package,version):
         if any(part in blocked for part in relative.parts):raise ValueError("Runtime or build data included: "+str(relative))
         if path.is_symlink():raise ValueError("Linked release resource")
         if path.suffix.lower() in {".enc",".key",".log"} or (path.suffix.lower()==".pem" and relative.as_posix()!="resources/certifi/cacert.pem"):raise ValueError("Private or runtime file included: "+str(relative))
-    return {"required_files":len(required),"version_consistency":True,"private_data_excluded":True,"update_gateway":GATEWAY}
+    return {"native_terminal":terminal,"required_files":len(required),"version_consistency":True,"private_data_excluded":True,"update_gateway":GATEWAY}
 
 
 def make_zip(package,target):

@@ -92,7 +92,7 @@ class RouterTerminalPage(QWidget):
         self.light_theme=False
         self._font_size=14
         self._has_selection=False
-        self._failure_detail=""
+        self._failure_detail=getattr(service,'failure_reason','')
         self._export_service=None
         self._applied_terminal_theme=None
         layout=QVBoxLayout(self);layout.setContentsMargins(0,0,0,0);layout.setSpacing(8)
@@ -162,8 +162,8 @@ class RouterTerminalPage(QWidget):
         self._failure_detail=""
         try:
             self._load_view()
-        except (ImportError, OSError):
-            self.status.setText("终端组件不可用，请检查 \u8def\u5c0f\u7ba1 安装文件或运行依赖。")
+        except (ImportError, OSError, AttributeError) as exc:
+            self.service.report_component_failure(exc)
             return
         self._start_requested=True
         if self.ready:self.service.start();self.control(action="focus")

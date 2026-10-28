@@ -1,0 +1,26 @@
+# Native terminal Qt upgrade repair
+
+The supplied 1.0.22_alpha diagnostic archive identifies Qt/PySide6 6.3.2, a connected TP-Link TL-XDR6088 reporting OpenWrt 23.05.5, tmux 3.3a ready, and an idle terminal. The exported diagnosis did not retain local component loading failures.
+
+The bundled DLL exported 6.3.0. The real loader reproduced TerminalVersionError under the project-local Qt 6.3.2 runtime. The original 502 source files were recovered byte-for-byte against the old build manifest, without changing WinBox. No vendor, bridge, rendering, terminal buffer limit or router command was changed. The component was rebuilt using official Qt 6.3.2 MSVC2019 x64 SDK archives and MSVC Build Tools, with candidate smoke validation before installation. The prior component remains under the corresponding build/native-terminal stage's previous directory.
+
+Qt documents binary compatibility conditions, including toolchain and build configuration: https://doc.qt.io/qt-6/qt-releases.html . This repair preserves this application's stricter exact-version contract; it does not assert that every Qt patch-version difference is inherently binary incompatible.
+
+The Windows builder is scripts/build_native_terminal.py --qt-sdk <matching-sdk>. Use the pinned Python environment, currently build/qt632-env/Scripts/python.exe. Candidate validation checks segmented Chinese UTF-8 output, byte acknowledgments, alternate screen restoration, Delete input and disposal without starting a local process or router session. Packaging now validates the terminal's manifest, actual exported Qt version, binary hash, source provenance and licenses before building, and repeats validation for staged assets. Frozen releases must run --smoke-test-terminal before ZIP creation.
+
+Local component failures now use the normal failed-session state and appear in exported diagnostics, including compiled/runtime versions or safe error type and Windows error code. Arbitrary exception text and paths are excluded. Page recreation retains the reason; failed loader retries create no parent-owned hidden widgets. No timers, automatic command replay or runtime downloading were introduced.
+
+Compatibility scope: the failure and repair are on the desktop, before a router terminal channel opens. There are no remote protocol, firmware version, architecture, driver or tmux changes. Therefore no new OpenWrt version/model selection is introduced across the existing supported series or hardware list. The Windows binary is not a Debian artifact. The separate Debian runtime worktree was left intact; Debian desktop and affected-router live acceptance remain pending. No installed application, full release package or published update was changed by this source/component repair.
+
+Validation: 12 targeted tests passed with Qt/PySide6 6.3.2, including the native smoke, old-version refusal, changed binary/source/license refusal, misleading-manifest refusal, failed-build preservation, diagnostic page recreation, safe errors and existing shared input behavior. Python syntax and UTF-8 checks passed for touched source. Full release/frozen-executable testing remains for the next requested package build.
+
+
+## Follow-up: ordinary source launch still selected global Qt 6.3.0
+
+The follow-up screenshot showed the inverse mismatch: the rebuilt terminal was 6.3.2 but the running application was 6.3.0. Read-only process inspection identified the global Python310/pythonw.exe running launch.pyw. The prior dedicated build/qt632-env tests did not validate that ordinary source launch path.
+
+A stable project-local .venv now contains PySide6, Essentials, Addons and shiboken6 6.3.2, with the remaining existing dependencies inherited from the base environment. Global Qt remains 6.3.0 to avoid changing other applications. Source main() delegates runtime selection to modules/platform_services/source_runtime.py before multiprocessing or Qt imports. Ordinary global launches hand off to the checkout's .venv while preserving application arguments and python/pythonw mode. Explicit virtual environments and frozen applications retain their current interpreter, preventing re-execution loops or interference with packaged workers. There is no shell command, timer, runtime download or router action during handoff. Source launch continues unchanged on a fresh checkout without .venv; create it from requirements when setting up development.
+
+Python's virtual environment identity contract is documented at https://docs.python.org/3.10/library/venv.html . Windows selects Scripts/python.exe or pythonw.exe; the same selector supports bin/python on Linux. Linux runtime execution remains unverified, and no changes were made to the separate Debian worktree.
+
+Validation: 18 targeted tests pass in the stable environment, including actual global python main.py, global python launch.pyw and global pythonw launch.pyw launching from a different working directory and successfully completing the real terminal smoke. Existing terminal and input regressions also pass. A currently open process must be exited and relaunched; an already loaded Qt runtime cannot be replaced in place. The existing user session was left running to preserve connections and tasks.

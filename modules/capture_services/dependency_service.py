@@ -8,7 +8,7 @@ from .openwrt.dependency_manager import OpenWrtDependencyManager
 from .openwrt.common_tool_dependencies import TOOL_BY_KEY, TOOL_KEYS, check_tools
 from .openwrt.models import CaptureProgress, CaptureTaskType, DependencyInfo, DependencyState
 from .openwrt.signal_package_feed import default_cache_dir
-from .openwrt.dependency_groups import CAPTURE_KEYS, CAPTURE_PACKAGES, COMMON_ITEMS, COMMON_KEYS
+from .openwrt.dependency_groups import CAPTURE_KEYS, CAPTURE_PACKAGES, COMMON_ITEMS, COMMON_KEYS, REQUIRED_COMMON_ITEMS, REQUIRED_COMMON_KEYS
 
 
 @dataclass(frozen=True)
@@ -34,7 +34,13 @@ class OpenWrtDependencyService(QObject):
         self._active=False
         self.task=None
         self._binding=None
+        self._login_prompt_binding=None
         self._diagnostics=deque(maxlen=32)
+        owner.openwrtSnapshotChanged.connect(self._reset_login_prompt)
+
+    def _reset_login_prompt(self, snapshot):
+        if snapshot.connection_state.value != 'connected':
+            self._login_prompt_binding = None
 
     @property
     def active(self):
@@ -120,10 +126,12 @@ class OpenWrtDependencyService(QObject):
         return True
 
     def _start(self,action,group,enabled_features,packages=None,*,items=None):
-        if group not in {"all","capture","common","common_all","terminal"} | TOOL_KEYS:raise ValueError("未知依赖分组。")
+        if group not in {"all","capture","common","common_all","login_all","terminal"} | TOOL_KEYS:raise ValueError("未知依赖分组。")
         selection = tuple(items) if items is not None else None
         if selection is not None and (group != "capture" or not selection or set(selection) - CAPTURE_KEYS):
             raise ValueError("抓包依赖选择无效。")
+        if group == "login_all" and (action != "install" or selection is not None or packages is not None):
+            raise ValueError("Login dependency scope only supports installing missing dependencies.")
         if group == "common_all" and action != "install":
             raise ValueError("常用依赖批量入口仅支持检查并安装。")
         if group == "capture" and packages and set(packages) - {p for key in (selection or CAPTURE_KEYS) for p in CAPTURE_PACKAGES[key]}:
@@ -148,11 +156,15 @@ class OpenWrtDependencyService(QObject):
         ssh=backend.ssh_client
         binding=(ssh._client,ssh.host_fingerprint)
         features={group:True} if group in TOOL_KEYS else {"terminal":True} if group=="terminal" else {} if group=="common" else {k:v for k,v in dict(enabled_features or {}).items() if k!="terminal" and k not in TOOL_KEYS}
-        if group == "common_all":features = {key: True for key in COMMON_ITEMS if key != "sftp"}
+        if group == "common_all":features = {key: True for key in REQUIRED_COMMON_ITEMS if key != "sftp"}
+        if group == "login_all":
+            features = {key: bool(dict(enabled_features or {}).get(key, False)) for key in CAPTURE_KEYS}
+            features.update({key: True for key in REQUIRED_COMMON_ITEMS if key != "sftp"})
         if group == "capture":features = {key: bool(value) for key, value in features.items() if key in CAPTURE_KEYS}
         refresh_features = dict(features)
         if selection is not None:features = {key: True for key in selection}
-        items=COMMON_ITEMS if group=="common_all" else ("sftp",) if group=="common" else selection or tuple(key for key,value in features.items() if value)
+        items=REQUIRED_COMMON_ITEMS if group=="common_all" else ("sftp",) if group=="common" else selection or tuple(key for key,value in features.items() if value)
+        if group == "login_all":items = REQUIRED_COMMON_ITEMS + tuple(key for key in CAPTURE_KEYS if features.get(key))
         session=uuid4().hex
         kind={"install":CaptureTaskType.DEPENDENCY_INSTALL,"uninstall":CaptureTaskType.DEPENDENCY_UNINSTALL,"check":CaptureTaskType.DEPENDENCY_CHECK}[action]
         event=self.owner.task_controller.begin(kind.value,session)
@@ -163,13 +175,14 @@ class OpenWrtDependencyService(QObject):
         self._binding=binding
         label="终端会话保留支持" if group=="terminal" else "文件传输支持" if group=="common" else "抓包依赖" if group=="capture" else "全部常用依赖" if group=="common_all" else "路由器依赖"
         if group in TOOL_KEYS:label=TOOL_BY_KEY[group].title
-        managed=group in {"common","common_all","terminal"} or group in TOOL_KEYS or selection is not None
+        if group == "login_all":label="\u767b\u5f55\u540e\u7f3a\u5931\u4f9d\u8d56"
+        managed=group in {"common","common_all","login_all","terminal"} or group in TOOL_KEYS or selection is not None
         verb={"install":"安装","uninstall":"卸载","check":"检查"}[action]
         self.task=DependencyTask(session,group,items,action,"正在"+verb+label+"…")
         self.taskChanged.emit(self.task)
         device=backend.snapshot.device
         removal_packages=set(packages if packages is not None else
-            self.installed_packages(backend.snapshot.dependencies,include_sftp=group in {"all","common","common_all"}))
+            self.installed_packages(backend.snapshot.dependencies,include_sftp=group in {"all","common","common_all","login_all"}))
         backend.snapshot=replace(backend.snapshot,progress=CaptureProgress(self.task.message,0,0,"",True))
         if group=="common":self._merge((DependencyInfo("sftp","文件传输",DependencyState.CHECKING),),group,binding)
         elif group=="terminal":self._merge((DependencyInfo("terminal","终端会话保留",DependencyState.CHECKING),),group,binding)
@@ -187,10 +200,10 @@ class OpenWrtDependencyService(QObject):
                 elif action=="check":checked=(self.manager.check_terminal(cancel),) if group=="terminal" else (self.manager.check_sftp(cancel,fresh=True),)
                 elif action=="install":
                     checked=self.manager.install_all(features,device.sftp_available,device,
-                        default_cache_dir(),cancel,message,include_sftp=group in {"all","common","common_all"})
+                        default_cache_dir(),cancel,message,include_sftp=group in {"all","common","common_all","login_all"})
                 else:
                     checked=self.manager.uninstall_packages(features,device.sftp_available,
-                        cancel,message,packages,include_sftp=group in {"all","common","common_all"})
+                        cancel,message,packages,include_sftp=group in {"all","common","common_all","login_all"})
                 if group=="capture" and selection is not None:
                     if action=="check":checked=tuple(item for item in checked if item.key in selection)
                     else:checked=self.manager.check(refresh_features, device.sftp_available, cancel)
@@ -206,7 +219,7 @@ class OpenWrtDependencyService(QObject):
                 if managed and self._same_connection(binding) and not self.owner._shutting_down:
                     try:
                         if group=="capture":checked=self.manager.check(refresh_features,device.sftp_available,Event())
-                        elif group=="common_all":checked=self.manager.check(features,self.manager._probe_sftp(Event(),device.sftp_available),Event())
+                        elif group in {"common_all","login_all"}:checked=self.manager.check(features,self.manager._probe_sftp(Event(),device.sftp_available),Event())
                         elif group in TOOL_KEYS:checked=check_tools(self.manager.command_runner,TOOL_KEYS,Event())
                         else:checked=(self.manager.check_terminal(Event()),) if group=="terminal" else (self.manager.check_sftp(Event(),fresh=True),)
                     except Exception as probe_error:
@@ -222,10 +235,14 @@ class OpenWrtDependencyService(QObject):
             if group in TOOL_KEYS and not any(item.key==group for item in checked):
                 error=error or "未获取本项检测结果，请重新检查。"
             if group=="common_all":
-                checked=tuple(item for item in checked if item.key in COMMON_KEYS)
-                if set(COMMON_ITEMS)-{item.key for item in checked}:error=error or "未获取全部常用依赖检测结果，请重新检查。"
+                checked=tuple(item for item in checked if item.key in REQUIRED_COMMON_KEYS)
+                if set(REQUIRED_COMMON_ITEMS)-{item.key for item in checked}:error=error or "未获取全部常用依赖检测结果，请重新检查。"
             if group=="capture" and selection is not None and set(selection) - {item.key for item in checked}:
                 error=error or "未获取选中抓包依赖的检测结果，请重新检查。"
+            if group=="login_all":
+                checked=tuple(item for item in checked if item.key in REQUIRED_COMMON_KEYS | CAPTURE_KEYS)
+            if group=="login_all" and set(items)-{item.key for item in checked}:
+                error=error or "\u4f9d\u8d56\u590d\u6d4b\u4e0d\u5b8c\u6574\uff0c\u8bf7\u91cd\u65b0\u68c0\u67e5\u3002"
             verification=tuple(item for item in checked if item.key!="converter"
                 and (group!="capture" or selection is None or item.key in selection)
                 and (group not in TOOL_KEYS or item.key==group))
@@ -261,7 +278,8 @@ class OpenWrtDependencyService(QObject):
         if group=="common":checked=tuple(item for item in checked if item.key=="sftp")
         elif group=="terminal":checked=tuple(item for item in checked if item.key=="terminal")
         elif group in TOOL_KEYS:checked=tuple(item for item in checked if item.key in TOOL_KEYS)
-        elif group=="common_all":checked=tuple(item for item in checked if item.key in COMMON_KEYS)
+        elif group=="common_all":checked=tuple(item for item in checked if item.key in REQUIRED_COMMON_KEYS)
+        elif group=="login_all":checked=tuple(item for item in checked if item.key in REQUIRED_COMMON_KEYS | CAPTURE_KEYS)
         elif group=="capture":checked=tuple(item for item in checked if item.key not in {"sftp","terminal"} | TOOL_KEYS)
         keys={item.key for item in checked}
         merged=tuple(item for item in backend.snapshot.dependencies if item.key not in keys)+checked
@@ -291,7 +309,7 @@ class OpenWrtDependencyService(QObject):
             checked=result.get("checked",())
             if (task.group in {"common","terminal"} or task.group in TOOL_KEYS) and not checked:
                 checked=(DependencyInfo(task.items[0],TOOL_BY_KEY[task.group].title if task.group in TOOL_KEYS else "终端会话保留" if task.group=="terminal" else "文件传输",DependencyState.UNKNOWN,detail=error),)
-            if task.group=="common_all":
+            if task.group in {"common_all","login_all"}:
                 seen={item.key for item in checked}
                 checked=tuple(checked)+tuple(DependencyInfo(key,key,DependencyState.UNKNOWN,detail=error)
                     for key in task.items if key not in seen)

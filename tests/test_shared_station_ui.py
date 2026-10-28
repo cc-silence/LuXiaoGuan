@@ -6,7 +6,7 @@ from unittest.mock import patch
 from PySide6.QtWidgets import QWidget,QScrollArea
 from tests.test_standalone import APP
 from tests.test_wireless_ui import environment
-from tests.test_shared_station_identity import device_with_group, apply_batch
+from tests.test_shared_station_identity import device_with_group, apply_legacy_batch
 from modules.config_manager import ConfigManager
 from modules.dialog_theme import build_base_stylesheet
 from modules.ui_scale_manager import UiScaleManager
@@ -19,7 +19,7 @@ class SharedStationUiTests(unittest.TestCase):
     def test_shared_preview_and_editor_render_with_recovery_hints(self):
         output=Path("build/shared-station-identity-20261025/previews")
         output.mkdir(parents=True,exist_ok=True)
-        d=device_with_group();plan=apply_batch(d)
+        d=device_with_group();plan=apply_legacy_batch(d)
         text=review_text(plan)
         self.assertIn("wwan",text)
         for entry in plan["identities"]:

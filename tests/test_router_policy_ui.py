@@ -30,8 +30,12 @@ class PolicyUiTests(unittest.TestCase):
         buttons=[page.password_button,page.lan_button,page.system_button,page.relocation_actions.button,
                  page.backup_button,page.restore_button,page.reset_button,page.reboot_button,
                  *[page.policy_actions.buttons[k] for k in ("initial","boot","station","ap","homepage")],page.orphan_actions.button]
-        for start in range(0,len(buttons),3):
-            edges=[b.mapTo(page,QPoint(0,b.height())).y() for b in buttons[start:start+3]]
+        rows = {}
+        for button in buttons:
+            card = next(card for card in page.cards if card.isAncestorOf(button))
+            row = page.cards_layout.getItemPosition(page.cards_layout.indexOf(card))[0]
+            rows.setdefault(row, []).append(button.mapTo(page,QPoint(0,button.height())).y())
+        for edges in rows.values():
             self.assertLessEqual(max(edges)-min(edges),2,edges)
         for card in (page.relocation_card,page.cards[8],page.cards[10],page.cards[11]):
             detail=next(b for b in card.findChildren(QAbstractButton) if b.text()=="\u8be6\u60c5")
@@ -117,3 +121,37 @@ class PolicyUiTests(unittest.TestCase):
                     progress.show();APP.processEvents()
                     progress.grab().save(str(out/f"progress-{light}-{percent}.png"));progress.finish()
             page.grab().save(str(out/f"cards-{light}.png"))
+
+    def test_group_headings_keep_every_existing_card_and_adapt_without_recreating_widgets(self):
+        from modules.ui_scale_manager import UiScaleManager
+        from modules.main_pages.packet_capture.capture_page_styles import CapturePageStyleManager
+        from modules.config_manager import ConfigManager
+        from router_app.appearance import build_main_stylesheet
+        from PySide6.QtWidgets import QFrame
+        for light in (False, True):
+            page,_=self.create_page(light)
+            groups=page.card_groups.groups
+            self.assertEqual([len(cards) for title,cards in groups],[4,6,4])
+            self.assertEqual({id(c) for title,cards in groups for c in cards},{id(c) for c in page.cards})
+            identity=tuple(id(c) for c in page.cards)
+            for scale in (100,150):
+                owner=page.parentWidget();owner.scale_manager=UiScaleManager(scale)
+                owner.scale_manager.publish(owner)
+                owner.setStyleSheet(build_main_stylesheet(ConfigManager(),'light.qss' if light else 'dark.qss',owner.scale_manager))
+                page.setStyleSheet(CapturePageStyleManager(owner)._build_stylesheet())
+                owner.scale_manager.apply_bound_metrics(owner)
+                for width in (650,1150):
+                    page.resize(width,900)
+                    for _ in range(4):APP.processEvents()
+                    previous=-1
+                    for header,(title,cards) in zip(page.card_groups.headers,groups):
+                        row,col,rs,cs=page.cards_layout.getItemPosition(page.cards_layout.indexOf(header))
+                        self.assertGreater(row,previous)
+                        self.assertEqual(cs,page._card_columns)
+                        positions=[page.cards_layout.getItemPosition(page.cards_layout.indexOf(c))[0] for c in cards]
+                        self.assertTrue(all(pos>row for pos in positions))
+                        previous=max(positions)
+                    self.assertEqual(tuple(id(c) for c in page.cards),identity)
+                path=Path('build/review/common-settings-groups');path.mkdir(parents=True,exist_ok=True)
+                self.assertTrue(page.grab().save(str(path/(('light' if light else 'dark')+'-'+str(scale)+'.png'))))
+            page.hide()

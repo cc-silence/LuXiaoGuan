@@ -1,7 +1,8 @@
 """Public distribution names, independent of stable credential/product identity."""
 from pathlib import Path
 DISPLAY_NAME = "\u8def\u5c0f\u7ba1"
-PACKAGE_DIRECTORY = "LuXiaoGuan"
+PRODUCT_NAME = "LuXiaoGuan"
+PACKAGE_DIRECTORY = PRODUCT_NAME
 ARCHIVE_PREFIX = "LuXiaoGuan_v"
 # Stable filename: part of the signed update contract shipped to older clients.
 APPLICATION_EXECUTABLE = "LuXiaoGuan.exe"

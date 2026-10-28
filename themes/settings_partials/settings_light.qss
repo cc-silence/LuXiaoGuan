@@ -1116,3 +1116,11 @@ QLineEdit[inputError="true"], QLineEdit[inputError="true"]:focus,
 #settingsWindowFrame QLineEdit[inputError="true"]:focus {
     border-color: #c62828;
 }
+
+QLabel#settingsValidationError, #settingsWindowFrame QLabel#settingsValidationError { color: #c62828; }
+QLineEdit[passwordConfirmation="true"][inputError="true"],
+QLineEdit[passwordConfirmation="true"][inputError="true"]:focus,
+#settingsWindowFrame QLineEdit[passwordConfirmation="true"][inputError="true"],
+#settingsWindowFrame QLineEdit[passwordConfirmation="true"][inputError="true"]:focus {
+    background-color: #fff0f0;
+}

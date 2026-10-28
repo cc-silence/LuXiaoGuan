@@ -22,6 +22,7 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
+from modules.release_identity import PRODUCT_NAME, DISPLAY_NAME
 
 from modules.platform_services.local_gpo_firewall import (
     STARTUP_OWNER,
@@ -33,7 +34,7 @@ from modules.platform_services.local_gpo_firewall import (
 
 from modules.platform_services.runtime import is_windows as runtime_is_windows
 
-RULE_GROUP = "RouterManager Temporary Network Access"
+from .firewall_identity import TEMPORARY_RULE_GROUP as RULE_GROUP, LEGACY_TEMPORARY_RULE_GROUP as LEGACY_RULE_GROUP
 
 
 def is_windows() -> bool:
@@ -180,7 +181,7 @@ def remove_persistent_allow_rules(program_paths, *, owner=STARTUP_OWNER) -> list
     result = run_elevated_request({"operation": "remove", "owner": str(owner), "rules": rules})
     if not result.get("success"):
         return messages + [f"防火墙规则删除失败：{result.get('error', '未知错误')}"]
-    messages.append(f"已删除 {result.get('count', 0)} 条 RouterManager 启动联网组件 LocalGPO 防火墙规则。")
+    messages.append(f"已删除 {result.get('count', 0)} 条{DISPLAY_NAME}启动联网组件 LocalGPO 防火墙规则。")
     return messages
 
 
@@ -189,7 +190,7 @@ def temporary_rule_name(program_path: str | Path, session_id: str) -> str:
 
     path = str(program_path)
     digest = hashlib.sha1(path.casefold().encode("utf-8", errors="ignore")).hexdigest()[:10]
-    return f"RouterManager Temporary Allow - {session_id} - {digest} - {Path(path).name}"
+    return f"{PRODUCT_NAME} Temporary Allow - {session_id} - {digest} - {Path(path).name}"
 
 
 def _powershell_single_quoted(value) -> str:
@@ -304,7 +305,7 @@ foreach ($item in $items) {{
     if ($existing) {{
         $results += [pscustomobject]@{{ path = $p; rule = $existing.DisplayName; status = 'preexisting' }}
     }} else {{
-        New-NetFirewallRule -DisplayName $item.rule -Group '{RULE_GROUP}' -Description 'Created temporarily by RouterManager; safe to remove on exit.' -Program $p -Profile Any -Direction Outbound -Action Allow -Enabled True | Out-Null
+        New-NetFirewallRule -DisplayName $item.rule -Group '{RULE_GROUP}' -Description 'Created temporarily by {PRODUCT_NAME}; safe to remove on exit.' -Program $p -Profile Any -Direction Outbound -Action Allow -Enabled True | Out-Null
         $results += [pscustomobject]@{{ path = $p; rule = $item.rule; status = 'created' }}
     }}
 }}
@@ -358,7 +359,7 @@ $ErrorActionPreference = 'SilentlyContinue'
 $names = @({literals})
 foreach ($name in $names) {{
     Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue |
-        Where-Object {{ $_.Group -eq '{RULE_GROUP}' }} |
+        Where-Object {{ $_.Group -in @('{RULE_GROUP}', '{LEGACY_RULE_GROUP}') }} |
         Remove-NetFirewallRule
 }}
 exit 0
@@ -368,7 +369,7 @@ exit 0
         return ["防火墙临时规则清理失败：用户取消 UAC 或无法启动管理员权限进程。"]
     if exit_code != 0:
         return [f"防火墙临时规则清理失败：PowerShell 退出码 {exit_code}。"]
-    return ["已清理 RouterManager 本次创建的临时防火墙规则。"]
+    return [f"已清理{DISPLAY_NAME}本次创建的临时防火墙规则。"]
 
 
 def cleanup_stale_winbox_rules() -> list[str]:
@@ -384,7 +385,7 @@ def cleanup_stale_winbox_rules() -> list[str]:
     script = f"""
 $ErrorActionPreference = 'SilentlyContinue'
 $removed = 0
-Get-NetFirewallRule -Group '{RULE_GROUP}' -ErrorAction SilentlyContinue | ForEach-Object {{
+Get-NetFirewallRule -Group @('{RULE_GROUP}', '{LEGACY_RULE_GROUP}') -ErrorAction SilentlyContinue | ForEach-Object {{
     $app = $_ | Get-NetFirewallApplicationFilter -ErrorAction SilentlyContinue
     if ($app.Program -and !(Test-Path -LiteralPath $app.Program -ErrorAction SilentlyContinue)) {{
         $_ | Remove-NetFirewallRule -ErrorAction SilentlyContinue

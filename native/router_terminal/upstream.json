@@ -1,0 +1,12 @@
+{
+  "kodoterm": {
+    "upstream": "https://github.com/diegoiast/KodoTerm",
+    "revision": "9d016815076a451ad639fa021d46602585e91247",
+    "source_archive_sha256": "6b1d9b313becaf82112b9fdc43768aacaf2b0b9e767ac9dc9b8adb7c0bf83528"
+  },
+  "libvterm": {
+    "upstream": "https://github.com/neovim/libvterm",
+    "revision": "934bc2fbf21800ac3458a499df8820ca5fb45fd3",
+    "source_archive_sha256": "35a7a7e005b3321b32854c613d92ac70086703dd36d405184a28bc6b19415ca7"
+  }
+}

@@ -70,15 +70,15 @@ def client_plan(review,values):
 
 class RenewalGate:
     def __init__(self,plan):
-        self.plan=copy.deepcopy(plan);self.lock=threading.Lock();self.busy=False;self.closed=False
+        self.plan=copy.deepcopy(plan);self.adapters=copy.deepcopy(self.plan["adapters"]);self.lock=threading.Lock();self.busy=False;self.closed=False
         self.selected_id=None;self.armed=False;self.deadline=0;self.message='';self.attempted=set();self.restoring=False
     def payload(self):
         with self.lock:
-            return dict(control=self,guide=self.restore_guide() if self.restoring else self.plan['guide'],adapters=copy.deepcopy(self.plan['adapters']),used=list(self.attempted),
-                        busy=self.busy,can_renew=self.deadline-time.monotonic()>=15,closed=self.closed or not self.armed,message=self.message,selection_required=self.plan.get("selection_required",False))
+            return dict(control=self,guide=self.restore_guide() if self.restoring else self.plan['guide'],adapters=copy.deepcopy(self.adapters),used=list(self.attempted),
+                        busy=self.busy,can_renew=self.armed and not self.closed and self.deadline-time.monotonic()>=15,closed=self.closed or not self.armed,message=self.message,selection_required=self.plan.get("selection_required",False))
     def start(self,deadline,restoring=False):
         with self.lock:
-            self.deadline=deadline;self.closed=False;self.armed=restoring;self.attempted.clear();self.restoring=restoring
+            self.deadline=deadline;self.closed=False;self.armed=False;self.attempted.clear();self.restoring=restoring
         return self.payload()
     def arm(self):
         with self.lock:self.armed=True
@@ -89,14 +89,22 @@ class RenewalGate:
             if self.deadline-time.monotonic()<15:
                 self.message='剩余时间不足，已停止发起新的网卡操作，请等待恢复结果。'
                 return None
-            row=next((a for a in self.plan['adapters'] if a['id']==identity and a.get('dhcp') is True and a.get('renewable')),None)
+            row=next((a for a in self.adapters if a['id']==identity and a.get('dhcp') is True and a.get('renewable')),None)
             if row is None:return None
             self.selected_id=identity;self.busy=True;self.attempted.add(identity);self.message='\u6b63\u5728\u91cd\u65b0\u83b7\u53d6\u6240\u9009\u7f51\u5361\u5730\u5740\uff0c\u8bf7\u7b49\u5f85\u3002'
-            return copy.deepcopy(row),min(25,self.deadline-time.monotonic()-8)
+            selected=copy.deepcopy(row)
+            selected["expected_addresses"]=copy.deepcopy(self.plan.get("old_addresses" if self.restoring else "new_addresses",[]))
+            return selected,min(40,self.deadline-time.monotonic()-8)
     def permit(self):
         with self.lock:return self.armed and not self.closed and self.deadline-time.monotonic()>8
-    def finish_renewal(self,message):
-        with self.lock:self.busy=False;self.message=str(message);self.attempted.clear()
+    def finish_renewal(self,message,current=None):
+        with self.lock:
+            self.busy=False;self.message=str(message);self.attempted.clear()
+            if isinstance(current,dict):
+                for index,row in enumerate(self.adapters):
+                    if row['id']==current.get('id') and row.get('mac')==current.get('mac'):
+                        self.adapters[index]=copy.deepcopy(current)
+                        break
     def restore_guide(self):
         lines=['\u8def\u7531\u5668\u6b63\u5728\u6062\u590d\u539f\u5730\u5740\uff1a'+', '.join(self.plan.get('old_addresses',[])),
                '\u5982\u679c\u8c03\u6574\u8fc7\u7535\u8111\u7684\u624b\u52a8\u914d\u7f6e\uff0c\u8bf7\u6062\u590d\u539f IP\u3001\u7f51\u5173\u548c DNS\uff1b\u81ea\u52a8\u914d\u7f6e\u4ecd\u4e0d\u80fd\u8fde\u63a5\u65f6\u53ef\u91cd\u65b0\u83b7\u53d6\u5730\u5740\u3002']

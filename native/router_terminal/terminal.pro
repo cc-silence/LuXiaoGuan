@@ -1,0 +1,12 @@
+QT += core gui widgets
+TEMPLATE = lib
+CONFIG += dll release c++20
+CONFIG -= debug debug_and_release
+TARGET = winbox_terminal
+DESTDIR = .
+DEFINES += _CRT_SECURE_NO_WARNINGS
+INCLUDEPATH += $$PWD/vendor/kodoterm/include $$PWD/vendor/kodoterm/src $$PWD/vendor/libvterm/include $$PWD/vendor/libvterm/src
+SOURCES += $$PWD/bridge.cpp $$PWD/vendor/kodoterm/src/KodoTerm.cpp $$PWD/vendor/kodoterm/src/KodoTermConfig.cpp $$files($$PWD/vendor/libvterm/src/*.c)
+HEADERS += $$PWD/vendor/kodoterm/include/KodoTerm/KodoTerm.hpp $$PWD/vendor/kodoterm/src/PtyProcess.h
+RESOURCES += $$PWD/vendor/kodoterm/KodoTermThemes.qrc
+QMAKE_CFLAGS += /std:c17

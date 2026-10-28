@@ -23,7 +23,7 @@ class HostProcess:
 
 def host_command(address,parent_pid,self_test=False):
     """源码和冻结版本均复用隐藏主入口，不启动 Qt，不显示控制台。"""
-    executable=windowless_worker_executable()
+    executable=windowless_worker_executable(direct_process=True)
     args=[SESSION_ARG,address,str(parent_pid)]
     if self_test:
         args.append("--self-test")

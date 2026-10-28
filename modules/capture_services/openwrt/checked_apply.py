@@ -147,7 +147,7 @@ def _run_checked(channel, stage, verify, cancel, *, candidates, original_host, p
         # rpcd already emits config.change for each applied package; procd
         # reloads its registered services. Reloading after reconnect can sever it again.
         channel.ssh.close()
-        extra=dict(network_recovery=client_recovery.arm()) if client_recovery else {}
+        extra=dict(network_recovery=client_recovery.payload()) if client_recovery else {}
         phase("正在重连并核对配置",deadline=deadline,rollback=True,**extra)
         while time.monotonic()<deadline-8:
             for host in candidates:

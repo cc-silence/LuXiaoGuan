@@ -21,6 +21,7 @@ class Management(QObject):
 
 
 class Owner(QObject):
+    configurationProgressChanged=Signal(str,object)
     activityChanged=Signal()
     openwrtSnapshotChanged=Signal(object)
     def __init__(self,service):

@@ -43,7 +43,7 @@ def _old_version(root, directory, kind, budget):
     if not version.is_dir() or revision_id(version, kind) is None:
         return None
     compact = not _SHA.fullmatch(version.name)
-    allowed = {"catalog.json", "objects"} | ({"revision.json"} if compact else set())
+    allowed = {"catalog.json", "objects", "object-layout.json"} | ({"revision.json"} if compact else set())
     if {p.name for p in version.iterdir()} - allowed:
         return None
     catalog = safe_path(version, "catalog.json")
@@ -59,21 +59,27 @@ def _old_version(root, directory, kind, budget):
         return None
     if compact:
         metadata.append(safe_path(version, "revision.json"))
+    from .bundle_object_paths import numbered_layout
+    numbered = numbered_layout(version)
+    if numbered:
+        metadata.insert(0, safe_path(version, "object-layout.json"))
     data = safe_path(version, "objects")
     files = []
     if data.exists():
         if not data.is_dir():
             return None
+        from .bundle_object_paths import object_names
+        allowed_names = set(objects) | (set(object_names(objects).values()) if numbered else set())
         for entry in data.iterdir():
             budget.check()
             path = safe_path(version, "objects/" + entry.name)
-            if entry.name not in objects or entry.is_symlink() or not path.is_file():
+            if entry.name not in allowed_names or entry.is_symlink() or not path.is_file():
                 return None
             files.append(path)
     return files, metadata
 
 
-def retire_old_bundles(root, payload, manifest, cancel, tell=None, kind="common"):
+def retire_old_bundles(root, payload, manifest, cancel, tell=None, kind="common", public_key=None):
     """Best effort after activation; failure must not undo a successful update."""
     root = Path(root)
     keep = payload["sha256"]
@@ -119,6 +125,16 @@ def retire_old_bundles(root, payload, manifest, cancel, tell=None, kind="common"
         archives = safe_path(root, "archives")
         if archives.is_dir():
             for directory in archives.iterdir():
+                from .bundle_archive_paths import retire_short_archive
+                try:
+                    _current(root, manifest, budget)
+                    short_removed = retire_short_archive(root, directory, keep, kind, budget, lambda: _current(root, manifest, budget), public_key)
+                except (OSError, ValueError, TypeError, KeyError, AttributeError):
+                    failed = True
+                    continue
+                if short_removed is not None:
+                    size += short_removed
+                    continue
                 if directory.name == keep or not _SHA.fullmatch(directory.name):
                     continue
                 _current(root, manifest, budget)

@@ -4,13 +4,18 @@ from cryptography.exceptions import InvalidSignature
 from .common_bundle_repository import safe_path, validate_catalog
 from .common_bundle_manifest import verify_bundle_manifest
 from .offline_cleanup import report_cleanup_warning
+from .bundle_archive_paths import archive_candidates
 
 
 def discard_prepared_archive(root, payload, tell=None):
     """Caller has verified and activated every object in this signed revision."""
     try:
-        archive = safe_path(root, "archives/" + payload["sha256"] + "/" + payload["filename"])
-        archive.unlink(missing_ok=True)
+        for archive in archive_candidates(root, payload):
+            archive.unlink(missing_ok=True)
+            safe_path(archive.parent, archive.name + ".part").unlink(missing_ok=True)
+            safe_path(archive.parent, "resume.json").unlink(missing_ok=True)
+            if archive.parent.is_dir() and not any(archive.parent.iterdir()):
+                archive.parent.rmdir()
         return True
     except (OSError, ValueError):
         report_cleanup_warning(tell, "\u79bb\u7ebf\u8d44\u6e90\u5df2\u5c31\u7eea\uff0c\u4f46\u91cd\u590d ZIP \u6e05\u7406\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u6587\u4ef6\u5360\u7528\u6216\u6743\u9650\u3002")
@@ -36,8 +41,7 @@ def cleanup_repository_archive(repository, cancel, tell=None):
         expected = version_path(repository.root, payload["sha256"], repository.kind, payload=payload)
         if repository.content_root != expected:
             raise ValueError("Resource changed during installation")
-        archive = safe_path(repository.root, "archives/" + payload["sha256"] + "/" + payload["filename"])
-        if not archive.is_file():
+        if not any(path.is_file() for path in archive_candidates(repository.root, payload)):
             return
         # An installed subset does not prove the complete offline resource is usable.
         # Only legacy ZIPs trigger this streaming integrity pass, once per revision.

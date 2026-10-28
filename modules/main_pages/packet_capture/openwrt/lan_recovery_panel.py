@@ -21,6 +21,7 @@ class LanRecoveryPanel(QWidget):
         self.status=QLabel(self);self.status.setWordWrap(True)
         self.button=_create_dialog_button('\u91cd\u65b0\u83b7\u53d6\u7f51\u7edc\u5730\u5740',parent,'settingsSecondaryButton')
         layout.addWidget(self.guide);layout.addWidget(self.adapters);layout.addWidget(self.status);layout.addWidget(self.button)
+        self.button.setEnabled(False)
         self.adapters.currentIndexChanged.connect(self._sync)
         self.button.clicked.connect(self._request)
     def update_payload(self,value):
@@ -28,17 +29,20 @@ class LanRecoveryPanel(QWidget):
         text=str(value.get('guide',''))
         if self.guide.toPlainText()!=text:self.guide.setPlainText(text)
         rows=[r for r in value.get('adapters',[]) if r.get('dhcp') is True and r.get('renewable')]
-        signature=(bool(value.get('selection_required')),tuple((r['id'],r.get('name','')) for r in rows))
+        signature=(bool(value.get('selection_required')),tuple((r['id'],r.get('name',''),tuple(r.get('addresses',[]))) for r in rows))
         if signature!=self.signature:
+            selected=self.adapters.currentData()
             self.signature=signature;self.adapters.clear()
             if len(rows)!=1 or value.get("selection_required"):self.adapters.addItem('\u8bf7\u9009\u62e9\u8981\u66f4\u65b0\u7684\u7f51\u5361',None)
             for row in rows:self.adapters.addItem(str(row.get('name') or row['id'])+'  '+', '.join(row.get('addresses',[])),row['id'])
-        self.adapters.setVisible(bool(rows));self.button.setVisible(bool(rows) and not value.get('closed',False))
+            index=self.adapters.findData(selected) if selected else -1
+            if index>=0:self.adapters.setCurrentIndex(index)
+        self.adapters.setVisible(bool(rows));self.button.setVisible(bool(rows))
         self.status.setText(str(value.get('message','')))
         self._sync();self.show()
     def _sync(self,*_):
         identity=self.adapters.currentData()
-        enabled=bool(identity) and self.payload.get('can_renew',True) and not self.payload.get('busy') and not self.payload.get('closed') and identity not in self.payload.get('used',[])
+        enabled=bool(identity) and self.payload.get('can_renew',False) and not self.payload.get('busy') and not self.payload.get('closed') and identity not in self.payload.get('used',[]) and identity not in self.payload.get('busy_adapters',[])
         self.button.setEnabled(enabled)
         self.adapters.setEnabled(not self.payload.get('busy') and not self.payload.get('closed'))
     def _request(self):

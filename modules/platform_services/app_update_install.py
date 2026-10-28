@@ -35,7 +35,7 @@ def wait_for_parent(pid,expected,timeout=90000):
             if kernel.WaitForSingleObject(handle,0)==0: return
             raise ctypes.WinError(error)
         if Path(buffer.value).resolve()!=Path(expected).resolve(): raise ValueError("Parent process does not belong to this installation")
-        if kernel.WaitForSingleObject(handle,timeout)!=0: raise TimeoutError("RouterManager did not finish exiting")
+        if kernel.WaitForSingleObject(handle,timeout)!=0: raise TimeoutError("LuXiaoGuan did not finish exiting")
     finally: kernel.CloseHandle(handle)
 
 

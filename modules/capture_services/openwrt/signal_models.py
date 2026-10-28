@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from .signal_details import SignalDetails
+from .wireless_status_models import WirelessStatus
 
 
 @dataclass(frozen=True)
@@ -60,3 +61,5 @@ class SignalSnapshot:
     busy_label: str = ""
 
     pending_changes: bool = False
+    wireless_status: WirelessStatus = WirelessStatus()
+    wireless_status_stale: bool = True

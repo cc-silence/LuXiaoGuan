@@ -24,13 +24,16 @@ import uuid
 import winreg
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
+from modules.release_identity import PRODUCT_NAME
+from .firewall_identity import TEMPORARY_RULE_GROUP, LEGACY_TEMPORARY_RULE_GROUP
 
 
 
 LOCAL_GPO_FIREWALL_ARG = "--local-gpo-firewall"
 FIREWALL_SUBKEY = r"Software\Policies\Microsoft\WindowsFirewall\FirewallRules"
 STARTUP_OWNER = "routermanager-startup"
-OWNER_DESCRIPTION_PREFIX = "Managed by RouterManager; owner="
+OWNER_DESCRIPTION_PREFIX = f"Managed by {PRODUCT_NAME}; owner="
+LEGACY_OWNER_DESCRIPTION_PREFIX = "Managed by RouterManager; owner="
 _GPO_OPEN_LOAD_REGISTRY = 1
 _GPO_SECTION_MACHINE = 2
 _CLSCTX_INPROC_SERVER = 1
@@ -235,7 +238,7 @@ def _policy_mutex(timeout_ms: int = 120000):
     wait_result = kernel32.WaitForSingleObject(handle, timeout_ms)
     if wait_result == _WAIT_TIMEOUT:
         kernel32.CloseHandle(handle)
-        raise TimeoutError("等待其他 RouterManager 防火墙操作超时")
+        raise TimeoutError("等待其他路小管防火墙操作超时")
     if wait_result not in {_WAIT_OBJECT_0, _WAIT_ABANDONED}:
         kernel32.CloseHandle(handle)
         raise OSError(f"等待 LocalGPO 互斥锁失败：{wait_result}")
@@ -262,6 +265,10 @@ def _owner_description(owner: str) -> str:
     return OWNER_DESCRIPTION_PREFIX + owner
 
 
+def _owner_descriptions(owner: str) -> tuple[str, str]:
+    return (_owner_description(owner), LEGACY_OWNER_DESCRIPTION_PREFIX + owner)
+
+
 def _rule_value(program: Path, display_name: str, owner: str) -> str:
     return (
         "v2.30|Action=Allow|Active=TRUE|Dir=Out|"
@@ -275,7 +282,7 @@ def startup_rule_name(program: Path) -> str:
     import hashlib
 
     digest = hashlib.sha1(str(program).casefold().encode("utf-8", errors="ignore")).hexdigest()[:10]
-    return f"RouterManager Startup - {digest} - {program.name}"
+    return f"{PRODUCT_NAME} Startup - {digest} - {program.name}"
 
 
 def _normalize_request(request: dict) -> tuple[str, list[dict]]:
@@ -302,7 +309,6 @@ def _normalize_request(request: dict) -> tuple[str, list[dict]]:
 def _source_matches(owner: str) -> list[dict]:
     """从 LocalGPO 源读取当前 owner 的规则。"""
 
-    marker = _owner_description(owner)
     policy_path = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "GroupPolicy" / "Machine" / "Registry.pol"
     try:
         text = policy_path.read_bytes().decode("utf-16le", errors="ignore")
@@ -313,7 +319,7 @@ def _source_matches(owner: str) -> list[dict]:
     matches = []
     for index, match in enumerate(re.finditer(r"v2\.30\|[^\x00\]]+\|", text)):
         fields = _fields(match.group(0))
-        if fields.get("Desc") == marker:
+        if fields.get("Desc") in _owner_descriptions(owner):
             matches.append({"value_name": f"source-{index}", "fields": fields})
     return matches
 
@@ -450,10 +456,10 @@ def _record_verified_rules(rules, owner):
 def _active_matches(rules, owner, *, absent=False):
     """单次查询 ActiveStore；查询错误上抛，不当作规则缺失。"""
     expected = {(rule['name'].casefold(), str(rule['program']).casefold()) for rule in rules}
-    marker = _owner_description(owner).casefold()
+    markers = {value.casefold() for value in _owner_descriptions(owner)}
     actual = {(str(row.get('name', '')).casefold(), str(row.get('program', '')).casefold())
               for row in _active_rules([rule['name'] for rule in rules])
-              if str(row.get('description', '')).casefold() == marker}
+              if str(row.get('description', '')).casefold() in markers}
     return not (expected & actual) if absent else expected.issubset(actual)
 
 
@@ -478,7 +484,7 @@ $policy = New-Object -ComObject HNetCfg.FwPolicy2
 try {{
     $remove = @()
     foreach ($rule in $policy.Rules) {{
-        if ($rule.Grouping -eq 'RouterManager Temporary Network Access' -and
+        if ($rule.Grouping -in @('{TEMPORARY_RULE_GROUP}', '{LEGACY_TEMPORARY_RULE_GROUP}') -and
             $rule.ApplicationName -and ($paths -icontains $rule.ApplicationName)) {{
             $remove += [string]$rule.Name
         }}
@@ -489,7 +495,7 @@ try {{
 }}
 [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('[]'))
 """
-    _powershell_json(script, timeout=15, stage="清理 RouterManager 旧临时规则")
+    _powershell_json(script, timeout=15, stage="清理路小管旧临时规则")
 
 
 def _cleanup_legacy_policy_results(rules: list[dict]) -> bool:
@@ -519,7 +525,6 @@ def _cleanup_legacy_policy_results(rules: list[dict]) -> bool:
 
 def _source_update(values, rules, owner, operation):
     """按完整规则内容生成差异，保留未变规则的 GUID。"""
-    marker = _owner_description(owner)
     expected = {(r['name'].casefold(), str(r['program']).casefold()): r for r in rules}
     paths = {pair[1] for pair in expected}
     names = {pair[0] for pair in expected}
@@ -527,7 +532,7 @@ def _source_update(values, rules, owner, operation):
     for name, value in values:
         fields = _fields(value)
         pair = (fields.get('Name', '').casefold(), fields.get('App', '').casefold())
-        owned = fields.get('Desc') == marker
+        owned = fields.get('Desc') in _owner_descriptions(owner)
         desired = expected.get(pair)
         canonical = _fields(_rule_value(desired['program'], desired['name'], owner)) if desired else None
         comparable = dict(fields, Name=fields.get('Name', '').casefold(), App=fields.get('App', '').casefold())

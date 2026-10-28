@@ -1,4 +1,5 @@
 """\u81ea\u8eab\u66f4\u65b0\u7684\u7a97\u53e3\u63d0\u793a\uff1b\u4e0d\u6267\u884c\u7f51\u7edc\u6216\u66ff\u6362\u7a0b\u5e8f\u3002"""
+from modules.release_identity import DISPLAY_NAME
 from PySide6.QtCore import QDateTime, QEvent, QObject, Qt, QUrl, Signal, Slot
 from PySide6.QtWidgets import QApplication
 from modules.app_update_services.checker import UpdateChecker
@@ -251,7 +252,7 @@ class AppUpdatePresenter(QObject):
             self.stateChanged.emit()
             return
         from modules.common_widgets.common_dialogs import ConfirmDialog
-        dialog = ConfirmDialog("\u91cd\u542f\u5e76\u5b89\u88c5\u66f4\u65b0", "\u5c06\u9000\u51fa RouterManager\uff0c\u66ff\u6362\u5df2\u6838\u5bf9\u7684\u6587\u4ef6\u540e\u81ea\u52a8\u91cd\u65b0\u6253\u5f00\u3002\n\u5df2\u4fdd\u5b58\u7684\u7528\u6237\u914d\u7f6e\u548c\u6570\u636e\u4f1a\u4fdd\u7559\uff1b\u8bf7\u5148\u4fdd\u5b58\u5c1a\u672a\u786e\u8ba4\u7684\u8bbe\u7f6e\u3002", owner)
+        dialog = ConfirmDialog("\u91cd\u542f\u5e76\u5b89\u88c5\u66f4\u65b0", f"\u5c06\u9000\u51fa {DISPLAY_NAME}\uff0c\u66ff\u6362\u5df2\u6838\u5bf9\u7684\u6587\u4ef6\u540e\u81ea\u52a8\u91cd\u65b0\u6253\u5f00\u3002\n\u5df2\u4fdd\u5b58\u7684\u7528\u6237\u914d\u7f6e\u548c\u6570\u636e\u4f1a\u4fdd\u7559\uff1b\u8bf7\u5148\u4fdd\u5b58\u5c1a\u672a\u786e\u8ba4\u7684\u8bbe\u7f6e\u3002", owner)
         if not dialog.exec():
             return
         from modules.app_update_services.diagnostics import record, exception_chain
@@ -293,7 +294,7 @@ class AppUpdatePresenter(QObject):
         owner = self._owner()
         if owner is None or self.dialog is not None:
             return
-        self.dialog = MessageDialog("\u68c0\u67e5 RouterManager \u66f4\u65b0", message, owner)
+        self.dialog = MessageDialog(f"\u68c0\u67e5 {DISPLAY_NAME} \u66f4\u65b0", message, owner)
         self._open_dialog()
 
     def _open_dialog(self):
@@ -316,10 +317,10 @@ class AppUpdatePresenter(QObject):
         from modules.common_widgets.common_dialogs import apply_common_dialog_theme
         from modules.settings_pages.settings_widgets import create_settings_button
         self._notified = release.version
-        dialog = FramelessDialog("\u53d1\u73b0 RouterManager \u65b0\u7248\u672c", owner, inherit_parent_stylesheet=False)
+        dialog = FramelessDialog(f"\u53d1\u73b0 {DISPLAY_NAME} \u65b0\u7248\u672c", owner, inherit_parent_stylesheet=False)
         apply_common_dialog_theme(dialog, owner)
         dialog.set_scaled_size((500, 320), (640, 440))
-        label = QLabel(f"RouterManager v{self.checker.current_version}  \u2192  v{release.version}", dialog)
+        label = QLabel(f"{DISPLAY_NAME} v{self.checker.current_version}  \u2192  v{release.version}", dialog)
         label.setTextFormat(Qt.PlainText)
         dialog.content_layout.addWidget(label)
         notes = QTextEdit(dialog)
@@ -382,6 +383,6 @@ def check_app_updates(owner):
         presenter.check_manually(owner)
     else:
         from modules.common_widgets.common_dialogs import MessageDialog
-        dialog = MessageDialog("\u68c0\u67e5 RouterManager \u66f4\u65b0", "\u8bf7\u4ece RouterManager \u6b63\u5f0f\u542f\u52a8\u5165\u53e3\u68c0\u67e5\u66f4\u65b0\u3002", owner)
+        dialog = MessageDialog(f"\u68c0\u67e5 {DISPLAY_NAME} \u66f4\u65b0", f"\u8bf7\u4ece {DISPLAY_NAME} \u6b63\u5f0f\u542f\u52a8\u5165\u53e3\u68c0\u67e5\u66f4\u65b0\u3002", owner)
         dialog.setAttribute(Qt.WA_DeleteOnClose)
         dialog.open()

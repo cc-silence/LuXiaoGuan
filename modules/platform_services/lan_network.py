@@ -35,5 +35,10 @@ def renew(adapter,timeout,permit=lambda:True):
     if remaining<=0:raise TimeoutError('Network recovery timed out')
     rows=inspect(timeout=remaining)['adapters']
     current=next((r for r in rows if r['id']==adapter['id'] and r['mac']==adapter['mac']),None)
-    if not current:raise RuntimeError('\u91cd\u65b0\u83b7\u53d6\u540e\u672a\u80fd\u8bfb\u53d6\u7f51\u5361\u72b6\u6001\u3002')
+    if not current or current.get("dhcp") is not True or not current.get("connected"):raise RuntimeError('\u91cd\u65b0\u83b7\u53d6\u540e\u672a\u80fd\u8bfb\u53d6\u7f51\u5361\u72b6\u6001\u3002')
+    addresses=[ipaddress.IPv4Interface(v) for v in current.get("addresses",[])]
+    usable=[a for a in addresses if not (a.ip.is_link_local or a.ip.is_loopback or a.ip.is_unspecified or a.ip.is_multicast)]
+    expected=[ipaddress.IPv4Interface(v) for v in adapter.get("expected_addresses",[])]
+    if not usable or (expected and not any(a.ip in target.network and a.ip!=target.ip for a in usable for target in expected)):
+        raise RuntimeError("网卡尚未获取目标网段的有效地址，请确认路由器已启动且网线或 Wi-Fi 已连接后重试。")
     return current

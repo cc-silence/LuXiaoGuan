@@ -5,7 +5,7 @@ from modules.ui_scale_manager import UiScaleManager
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout
 
 
-def create_capture_card(parent, title, description="", *, collapsible=False, icon_path=None, actions_at_bottom=False):
+def create_capture_card(parent, title, description="", *, collapsible=False, expanded=True, icon_path=None, actions_at_bottom=False):
     """创建抓包页面专用分组卡片。
 
     参数：parent 是父页面；title 是分组名；description 是普通用户可见说明。
@@ -15,7 +15,7 @@ def create_capture_card(parent, title, description="", *, collapsible=False, ico
     # 折叠只复用公共组件，原有卡片调用保持原样。
     if collapsible:
         from modules.common_widgets.collapsible_section import CollapsibleSection
-        card = CollapsibleSection(title, expanded=True, parent=parent)
+        card = CollapsibleSection(title, expanded=expanded, parent=parent)
         layout = card
     else:
         card = QFrame(parent)

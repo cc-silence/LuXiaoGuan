@@ -26,6 +26,7 @@ class RouterCommonSettingsPage(QWidget):
         from .router_policy_actions import RouterPolicyActions
         self.policy_actions = RouterPolicyActions(self)
         self.setObjectName("routerCommonSettingsPage")
+        self.setAttribute(Qt.WA_StyledBackground, True)
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         self.status_label = QLabel(self)
@@ -40,6 +41,7 @@ class RouterCommonSettingsPage(QWidget):
         self.scroll = scroll
         body = QWidget(scroll)
         body.setObjectName("openwrtCaptureContent")
+        body.setAttribute(Qt.WA_StyledBackground, True)
         cards = QGridLayout(body)
         icon_root = BASE_DIR / "images/user_icons/icons_quick_settings"
         scale = UiScaleManager.for_widget(self)
@@ -95,12 +97,15 @@ class RouterCommonSettingsPage(QWidget):
         self.cards_layout = cards
         self.cards = (self.password_card, self.lan_card, self.system_card, self.relocation_card,
                       self.backup_card, self.restore_card, self.reset_card, self.reboot_card, *policy_cards, self.orphan_card)
-        for index, card in enumerate(self.cards):
-            cards.addWidget(card, index // 3, index % 3)
-        cards.setColumnStretch(0, 1)
-        cards.setColumnStretch(1, 1)
-        cards.setColumnStretch(2, 1)
-        cards.setRowStretch((len(self.cards) + 2) // 3, 1)
+        from .common_settings_groups import SettingsCardGroups
+        policy = dict(zip(("initial", "boot", "station", "ap", "homepage"), policy_cards))
+        self.card_groups = SettingsCardGroups(body, cards, (
+            ("\u5e38\u7528\u8bbe\u7f6e", (self.password_card, self.lan_card, self.system_card, policy['homepage'])),
+            ("\u5b89\u5168\u8bbe\u7f6e", (policy['initial'], self.relocation_card, policy['boot'],
+                               policy['station'], policy['ap'], self.orphan_card)),
+            ("\u7ef4\u62a4\u4e0e\u5907\u4efd\u6062\u590d", (self.reboot_card, self.reset_card, self.backup_card, self.restore_card)),
+        ))
+        self.card_groups.place(3)
         from .signal_relocation_actions import RelocationActions
         from .signal_orphan_actions import OrphanInterfaceActions
         self.relocation_actions = RelocationActions(self, self.relocation_container)
@@ -144,15 +149,7 @@ class RouterCommonSettingsPage(QWidget):
         columns = max(1, min(3, (width + spacing) // (minimum + spacing)))
         if columns == self._card_columns:
             return
-        for row in range(layout.rowCount()):
-            layout.setRowStretch(row, 0)
-        for column in range(3):
-            layout.setColumnStretch(column, 1 if column < columns else 0)
-        for card in self.cards:
-            layout.removeWidget(card)
-        for index, card in enumerate(self.cards):
-            layout.addWidget(card, index // columns, index % columns)
-        layout.setRowStretch((len(self.cards) + columns - 1) // columns, 1)
+        self.card_groups.place(columns)
         self._card_columns = columns
 
     def _message(self, text, level="info"):

@@ -48,7 +48,7 @@ class BundleArchiveCleanupTests(unittest.TestCase):
                 archive.parent.mkdir(parents=True); archive.write_bytes(f.archive.read_bytes())
                 repo=CommonBundleRepository(target,f.public); repo._load()
                 if corrupt:
-                    (repo.content_root/f.profile['packages'][0]['blob']).write_bytes(b'bad')
+                    repo.object_source(f.profile['packages'][0]).write_bytes(b'bad')
                 cleanup_repository_archive(repo,Event(),Mock())
                 self.assertEqual(archive.exists(),corrupt)
                 self.assertTrue(f.archive.exists())
@@ -57,6 +57,9 @@ class BundleArchiveCleanupTests(unittest.TestCase):
         from modules.capture_services.openwrt.bundle_archive_cleanup import discard_prepared_archive
         with tempfile.TemporaryDirectory() as folder:
             f=fixture(Path(folder)/'source'); warn=Mock()
+            from modules.capture_services.openwrt.bundle_archive_paths import reserve_archive
+            archive=reserve_archive(Path(folder)/'resource',f.payload,f.envelope,Event())
+            archive.write_bytes(f.archive.read_bytes())
             with patch('pathlib.Path.unlink',side_effect=PermissionError('busy')):
                 self.assertFalse(discard_prepared_archive(Path(folder)/'resource',f.payload,warn))
             warn.assert_called_once()

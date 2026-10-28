@@ -3,6 +3,7 @@
 #define _UNICODE
 #define NOMINMAX
 #include <windows.h>
+#include "product_branding.h"
 #include <commctrl.h>
 #include <uxtheme.h>
 #include <dwmapi.h>
@@ -71,14 +72,14 @@ struct Window {
     }
 };
 static std::wstring phase(const std::string &name) {
-    if(name=="waiting")return L"\u6b63\u5728\u7b49\u5f85 RouterManager \u9000\u51fa\u2026";
+    if(name=="waiting")return L"\u6b63\u5728\u7b49\u5f85 " PRODUCT_DISPLAY_NAME L" \u9000\u51fa\u2026";
     if(name=="checking")return L"\u6b63\u5728\u6838\u5bf9\u66f4\u65b0\u2026";
     if(name=="backup")return L"\u6b63\u5728\u5907\u4efd\u7a0b\u5e8f\u548c\u7528\u6237\u914d\u7f6e\u2026";
     if(name=="installing")return L"\u6b63\u5728\u5b89\u88c5\u66f4\u65b0\u2026";
     if(name=="migrating")return L"\u6b63\u5728\u4fdd\u7559\u914d\u7f6e\u5e76\u8865\u5145\u65b0\u8bbe\u7f6e\u2026";
     if(name=="validating")return L"\u6b63\u5728\u9a8c\u8bc1\u65b0\u7248\u7a0b\u5e8f\u2026";
     if(name=="rollback")return L"\u6b63\u5728\u6062\u590d\u539f\u6709\u6587\u4ef6\u2026";
-    if(name=="restarting")return L"\u6b63\u5728\u91cd\u65b0\u6253\u5f00 RouterManager\u2026";
+    if(name=="restarting")return L"\u6b63\u5728\u91cd\u65b0\u6253\u5f00 " PRODUCT_DISPLAY_NAME L"\u2026";
     return L"\u6b63\u5728\u51c6\u5907\u5b89\u88c5\u2026";
 }
 static LRESULT CALLBACK procedure(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
@@ -103,7 +104,7 @@ static LRESULT CALLBACK procedure(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
         MoveToEx(dc,state->px(20),state->px(52),nullptr);LineTo(dc,rect.right-state->px(20),state->px(52));
         auto oldFont=SelectObject(dc,state->title_font);SetBkMode(dc,TRANSPARENT);SetTextColor(dc,state->fg);
         RECT title{state->px(20),state->px(12),rect.right-state->px(20),state->px(41)};
-        DrawTextW(dc,L"RouterManager \u66f4\u65b0",-1,&title,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
+        DrawTextW(dc,PRODUCT_DISPLAY_NAME L" \u66f4\u65b0",-1,&title,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
         SelectObject(dc,oldFont);SelectObject(dc,oldBrush);SelectObject(dc,oldPen);DeleteObject(pen);EndPaint(hwnd,&paint);return 0;
     }
     if(msg==WM_DRAWITEM&&wp==100) {
@@ -137,14 +138,14 @@ static void create(Window &s,bool visible) {
     s.brush=CreateSolidBrush(s.bg);
     WNDCLASSW wc{};wc.lpfnWndProc=procedure;wc.hInstance=GetModuleHandleW(nullptr);wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);wc.hbrBackground=s.brush;wc.lpszClassName=L"RouterManagerNativeUpdateLauncher";
     if(!RegisterClassW(&wc))throw std::runtime_error("Unable to register native update window");
-    if(!CreateWindowExW(0,wc.lpszClassName,L"RouterManager \u66f4\u65b0",WS_POPUP|WS_SYSMENU,CW_USEDEFAULT,CW_USEDEFAULT,500,260,nullptr,nullptr,wc.hInstance,&s))throw std::runtime_error("Unable to create native update window");
+    if(!CreateWindowExW(0,wc.lpszClassName,PRODUCT_DISPLAY_NAME L" \u66f4\u65b0",WS_POPUP|WS_SYSMENU,CW_USEDEFAULT,CW_USEDEFAULT,500,260,nullptr,nullptr,wc.hInstance,&s))throw std::runtime_error("Unable to create native update window");
     s.scale*=GetDpiForWindow(s.hwnd)/96.0;
     s.font=CreateFontW(-s.px(14),0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Microsoft YaHei UI");
     s.title_font=CreateFontW(-s.px(16),0,0,0,FW_SEMIBOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Microsoft YaHei UI");
     s.message=child(s,L"STATIC",phase("").c_str(),0,0,20,66,310,24);
     s.bar=child(s,PROGRESS_CLASSW,L"",PBS_SMOOTH,0,20,104,400,6);
     s.percent=child(s,L"STATIC",L"",SS_RIGHT,0,350,66,70,24);
-    s.hint=child(s,L"STATIC",L"\u66f4\u65b0\u5b8c\u6210\u540e\u81ea\u52a8\u91cd\u65b0\u6253\u5f00 RouterManager\u3002\u8bf7\u52ff\u5173\u673a\u3002",0,0,20,132,400,36);
+    s.hint=child(s,L"STATIC",L"\u66f4\u65b0\u5b8c\u6210\u540e\u81ea\u52a8\u91cd\u65b0\u6253\u5f00 " PRODUCT_DISPLAY_NAME L"\u3002\u8bf7\u52ff\u5173\u673a\u3002",0,0,20,132,400,36);
     s.error=child(s,L"EDIT",L"",ES_MULTILINE|ES_READONLY|ES_AUTOVSCROLL|WS_VSCROLL,0,24,116,432,76);
     s.button=child(s,L"BUTTON",L"\u5173\u95ed",BS_OWNERDRAW,100,366,218,90,28);ShowWindow(s.error,SW_HIDE);ShowWindow(s.button,SW_HIDE);
     SetWindowLongPtrW(s.bar,GWL_STYLE,GetWindowLongPtrW(s.bar,GWL_STYLE)&~WS_BORDER);
@@ -216,6 +217,10 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int) {
         if(argc<2)return 2;create(s,!test);
         if(preview){s.running=false;s.set(Update{phase("installing"),1,2});}
         if(test) {
+            wchar_t title[128]{};GetWindowTextW(s.hwnd,title,128);
+            if(std::wstring(title)!=std::wstring(PRODUCT_DISPLAY_NAME)+L" \u66f4\u65b0")return 8;
+            if(phase("waiting").find(PRODUCT_DISPLAY_NAME)==std::wstring::npos)return 9;
+            if(phase("restarting").find(PRODUCT_DISPLAY_NAME)==std::wstring::npos)return 10;
             if(GetWindowLongPtrW(s.hwnd,GWL_STYLE)&WS_CAPTION)return 5;
             RECT rect{};GetClientRect(s.bar,&rect);if(rect.bottom!=s.px(6))return 6;
             POINT header{s.px(40),s.px(30)};ClientToScreen(s.hwnd,&header);
@@ -225,5 +230,5 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int) {
         if(!preview)s.worker=std::thread([&s,job]{install(s,job);});
         MSG msg{};BOOL result;while((result=GetMessageW(&msg,nullptr,0,0))>0){TranslateMessage(&msg);DispatchMessageW(&msg);}
         return result<0?1:s.exit_code;
-    } catch(...) { MessageBoxW(nullptr,L"Unable to start RouterManager update window.",L"RouterManager",MB_OK|MB_ICONERROR);return 1; }
+    } catch(...) { MessageBoxW(nullptr,L"Unable to start " PRODUCT_DISPLAY_NAME L" update window.",PRODUCT_DISPLAY_NAME,MB_OK|MB_ICONERROR);return 1; }
 }

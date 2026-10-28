@@ -19,7 +19,7 @@ class DependencySection:
             parent,
             "路由器抓包依赖",
             "这些是路由器运行相关功能所需的软件，不安装到 Windows。先登录，勾选需要的功能，再检查安装；安装前会让你确认清单。",
-            collapsible=True,
+            collapsible=True, expanded=False,
         )
         self.offline_controls = None
         if owner is not None:
@@ -64,6 +64,7 @@ class DependencySection:
             "装的是路由器端软件，不动 Windows；连不上路由器时点不了。",
         )
         self.layout.addWidget(self.install_button)
+        self.install_button.setProperty("dependencyInstallPrimary", True)
         self.install_button.setEnabled(False)
 
     def _row_clicked(self,key):

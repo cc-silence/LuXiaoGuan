@@ -8,7 +8,6 @@ from shiboken6 import delete as delete_layout_item
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QButtonGroup,
-    QCheckBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -21,7 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from modules.capture_services.privacy_mask import mask_text
-from modules.display_privacy import controller_for, masker_for, PrivacyLabel
+from modules.display_privacy import controller_for, PrivacyLabel
 from modules.common_widgets.bounce_scroll_area import BounceScrollArea
 from modules.common_widgets.navigation_button import NavigationButton
 from .signal_setup_panels import SignalSetupPanels
@@ -48,14 +47,11 @@ class RouterSignalPage(QWidget):
         self.service = service
         self.info_panel = info_panel
         self.setObjectName("openwrtSignalPage")
-        # 名称隐藏是纯本机显示偏好，每次打开默认关闭，不保存、不恢复。
-        self._mask_names = False
         self._privacy = controller_for(self)
         self._name_labels = []
         self._row_widgets = {}
         self._group_labels = {}
         self._layout_keys = ()
-        self._ssid_values = set()
         if self._privacy is not None:
             self._privacy.changed.connect(self._refresh_display_privacy)
         root = QVBoxLayout(self)
@@ -107,17 +103,6 @@ class RouterSignalPage(QWidget):
         self.status_label = PrivacyLabel("尚未读取路由器无线配置。", left)
         self.status_label.setObjectName("captureDescription")
         self.status_label.setWordWrap(True)
-        self.mask_names_check = QCheckBox("隐藏信号名称", left)
-        self.mask_names_check.setObjectName("captureCheckBox")
-        self.mask_names_check.setToolTip(
-            "勾选后，列表里的 WiFi 名称只显示圆点，不分自己发的还是连上级的；启停操作不受影响，确认框里仍能看到频段和网卡来分辨是哪一个。"
-        )
-        self.details_check = QCheckBox("显示信号详情", left)
-        self.details_check.setObjectName("captureCheckBox")
-        self.details_check.setToolTip("勾选后读取接口、信道、带宽配置、加密和已连接设备；只读不改路由器。未勾选时不读取详情。")
-        self.details_check.setChecked(bool(getattr(service, 'details_enabled', False)))
-        top_row.addWidget(self.mask_names_check)
-        top_row.addWidget(self.details_check)
         top_row.addWidget(self.status_label, 1)
         top_row.addWidget(self.install_button)
         top_row.addWidget(self.refresh_button)
@@ -159,8 +144,8 @@ class RouterSignalPage(QWidget):
 
         self.refresh_button.clicked.connect(self._on_refresh)
         self.install_button.clicked.connect(self._on_install)
-        self.mask_names_check.toggled.connect(lambda _checked: self._on_mask_toggled())
-        self.details_check.toggled.connect(self._on_details_toggled)
+        from .signal_runtime_monitor import SignalRuntimeMonitor
+        self.runtime_monitor = SignalRuntimeMonitor(self)
         service.snapshotChanged.connect(self.apply_snapshot)
         service.reconnectRequired.connect(self._on_reconnect_required)
         if info_panel is not None:
@@ -173,7 +158,6 @@ class RouterSignalPage(QWidget):
         self.navigation_buttons[index].setChecked(True)
         self.inventory_toolbar.setVisible(index == 0)
         self.setup_panels.apply_snapshot(self.service.snapshot)
-
     def _on_refresh(self):
         """主线程申请只读刷新；未登录先弹窗指引去登录，不断按钮。
 
@@ -194,6 +178,7 @@ class RouterSignalPage(QWidget):
             ).exec() == MessageDialog.Accepted:
                 self.loginRequested.emit()
             return
+        self.runtime_monitor.invalidate()
         if not self.service.refresh():
             self.status_label.setText("无法刷新：未连接、已有任务运行或服务正在退出。")
             if self.info_panel is not None:
@@ -212,25 +197,20 @@ class RouterSignalPage(QWidget):
     def _on_stop(self):
         """请求停止当前核实；结果由服务快照回放，不在这里断言成功。"""
 
+        self.runtime_monitor.pause()
         self._request_cancel("信号读取或核实")
 
-    def _on_mask_toggled(self):
-        """开关变化只改当次显示，不保存；下次打开页面恢复默认关闭。"""
-
-        self._mask_names = bool(self.mask_names_check.isChecked())
-        self._refresh_display_privacy()
-
     def _refresh_display_privacy(self):
-        from PySide6.QtCore import QSignalBlocker
-        forced = bool(self._privacy and self._privacy.enabled)
-        with QSignalBlocker(self.mask_names_check):
-            self.mask_names_check.setChecked(forced or self._mask_names)
-        self.mask_names_check.setEnabled(not forced)
         for label, row in self._name_labels:
             label.setText(self._shown_name(row))
         self.setup_panels.refresh_privacy()
-        if self.info_panel is not None:
-            self.info_panel.set_local_masker(masker_for(self._ssid_values if self._mask_names else (), mask_mac=False))
+        private = bool(self._privacy and self._privacy.enabled)
+        from .signal_runtime_details import runtime_detail_text
+        for widget in self._row_widgets.values():
+            detail = runtime_detail_text(widget.row, self.service.snapshot, private)
+            if widget.detail_label.text() != detail:
+                widget.detail_label.setText(detail)
+            widget.detail_label.setVisible(bool(detail))
 
     def _request_edit(self, row):
         """只在当前清单有效时打开对应编辑预览；不向设备提交配置。"""
@@ -239,9 +219,9 @@ class RouterSignalPage(QWidget):
             self.setup_panels.edit(row)
 
     def _shown_name(self, row):
-        """显示用名称：开关打开时全部行只显示圆点；操作仍用配置段名。"""
+        """Project signal names through the application-wide privacy setting."""
 
-        return mask_text(self._display_name(row), self._mask_names or bool(self._privacy and self._privacy.enabled))
+        return mask_text(self._display_name(row), bool(self._privacy and self._privacy.enabled))
 
     def _on_install(self):
         """主线程确认后安装信号依赖；装完服务自动重读，不在这里断言成功。"""
@@ -328,8 +308,6 @@ class RouterSignalPage(QWidget):
         """回放白名单快照：重建两组列表并同步按钮可用性，不修改配置。"""
 
         values = [self._display_name(row) for row in snapshot.inventory.rows]
-        if len(self._ssid_values) < 50000:
-            self._ssid_values.update(values[:50000 - len(self._ssid_values)])
         if self._privacy is not None:
             self._privacy.register_values(value for row in snapshot.inventory.rows if row.details is not None
                                           for client in row.details.clients for value in (client.name, client.ip))
@@ -371,12 +349,7 @@ class RouterSignalPage(QWidget):
             self.install_button.style().polish(self.install_button)
         self._rebuild_rows(snapshot)
         self.setup_panels.apply_snapshot(snapshot)
-        self._refresh_display_privacy()
-
-    def _on_details_toggled(self, checked):
-        """勾选后才读取和显示详情，取消后立即收起。"""
-        self.service.set_details_enabled(checked)
-        self._rebuild_rows(self.service.snapshot)
+        self.runtime_monitor.apply_snapshot(snapshot)
 
     def _request_delete(self, row):
         actions = self.setup_panels.actions
@@ -419,7 +392,7 @@ class RouterSignalPage(QWidget):
                 widget = self._row_widgets.get(row.section)
                 if widget is None:
                     widget = self._row_widgets[row.section] = SignalRowWidget(self,row)
-                widget.update_row(row,snapshot,snapshot.connected and not row.reason,self.details_check.isChecked())
+                widget.update_row(row,snapshot,snapshot.connected and not row.reason)
                 self._name_labels.append((widget.name_label,row))
                 desired.append(widget)
         if not rows:
@@ -484,7 +457,7 @@ class RouterSignalPage(QWidget):
 
     @staticmethod
     def _state_kind(row):
-        if row.disabled or row.radio_disabled:
+        if row.disabled or row.radio_disabled or row.running == "inactive":
             return "blocked"
         if row.running == "active":
             return "ready"
@@ -560,6 +533,7 @@ class RouterSignalPage(QWidget):
 
     def dispose(self):
         """仅断开页面订阅，不停止常驻任务。"""
+        self.runtime_monitor.dispose()
         self.pending_actions.dispose()
         self.setup_panels.dispose()
         try:

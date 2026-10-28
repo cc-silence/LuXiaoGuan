@@ -94,6 +94,7 @@ class UpdateTransfer(QThread):
 
     def _download_locked(self,plan,release,stage):
         import requests
+        from modules.resumable_download import PartialDownload
         from modules.http_socks_bridge import ProxyBridgePool
         from modules.network_policy import allowed_channels, retryable_route_status
         from .catalog import parse_catalog
@@ -132,7 +133,14 @@ class UpdateTransfer(QThread):
                     last=None
                     route_failures=[]
                     from .network_errors import route_failure, request_failure_reason
-                    for channel in channels:
+                    part=compressed.with_suffix(".part")
+                    partial=PartialDownload(part,entry["blob_size"],entry["blob_sha256"],self.cancel_event.is_set)
+                    complete=partial.prepare()
+                    record("blob_resume_prepared", blob=entry["blob_sha256"], received=partial.offset, expected=entry["blob_size"])
+                    if complete: part.replace(compressed)
+                    for channel in ([] if complete else channels):
+                        if partial.prepare():
+                            part.replace(compressed); last=None; break
                         record("blob_request_started", route=getattr(channel,"name","unknown"), host=endpoint_host(base), route_id=route_identity(channel.proxy_url),
                                blob=entry["blob_sha256"], expected=entry["blob_size"],
                                connect_timeout_s=5, read_timeout_s=5, deadline_s=300)
@@ -144,44 +152,40 @@ class UpdateTransfer(QThread):
                             route_failures.append(route_failure(base, channel.proxy_url, "proxy"))
                             continue
                         proxies={"http":proxy_url,"https":proxy_url} if proxy_url else {}
-                        part=compressed.with_suffix(".part"); received=0; start=time.monotonic()
+                        received=partial.offset; start=time.monotonic()
                         try:
                             with session.get(base+"/blobs/"+entry["blob_sha256"]+".z",proxies=proxies,
-                                             timeout=(5,5),stream=True,allow_redirects=False) as response:
+                                             timeout=(5,5),stream=True,allow_redirects=False,headers=partial.headers()) as response:
                                 record("blob_response", route=getattr(channel,"name","unknown"), blob=entry["blob_sha256"], status=response.status_code, cf_ray=response_trace(response.headers.get("CF-Ray", "")))
                                 if retryable_route_status(response.status_code):
                                     last = RuntimeError("Update route HTTP " + str(response.status_code))
                                     route_failures.append(route_failure(base, channel.proxy_url, "", response.status_code))
                                     continue
-                                if response.status_code!=200:
+                                if response.status_code not in (200,206):
                                     record("blob_http_failed", blob=entry["blob_sha256"], status=response.status_code)
-                                    raise ValueError("Update download HTTP "+str(response.status_code))
-                                with part.open("wb") as stream:
-                                    for block in response.iter_content(65536):
-                                        if self.cancel_event.is_set(): raise InterruptedError()
-                                        if time.monotonic()-start>300:
-                                            record("blob_deadline_failed", blob=entry["blob_sha256"], received=received, deadline_s=300)
-                                            raise ValueError("File download deadline exceeded")
-                                        received+=len(block)
-                                        if received>entry["blob_size"]:
-                                            record("blob_size_failed", blob=entry["blob_sha256"], received=received, expected=entry["blob_size"])
-                                            raise ValueError("Download exceeds signed size")
-                                        stream.write(block)
-                                        if time.monotonic()-self._last_progress>=0.1:
-                                            self._last_progress=time.monotonic()
-                                            self.progress.emit(done+received,total,entry["path"])
+                                def check_deadline():
+                                    if time.monotonic()-start>300:
+                                        record("blob_deadline_failed", blob=entry["blob_sha256"], received=partial.offset, deadline_s=300)
+                                        raise TimeoutError("File download deadline exceeded; partial file retained")
+                                def report_progress(count):
+                                    if time.monotonic()-self._last_progress>=0.1:
+                                        self._last_progress=time.monotonic()
+                                        self.progress.emit(done+count,total,entry["path"])
+                                received=partial.receive(response,report_progress,check_deadline)
                             part.replace(compressed); last=None; break
                         except requests.RequestException as exc:
                             last=exc
                             record("blob_transport_failed", route=getattr(channel,"name","unknown"), host=endpoint_host(base),
-                                   blob=entry["blob_sha256"], received=received, expected=entry["blob_size"],
+                                   blob=entry["blob_sha256"], received=partial.offset, expected=entry["blob_size"],
                                    elapsed_ms=round((time.monotonic()-start)*1000),
                                    error=request_failure_reason(exc), error_type=type(exc).__name__, chain=exception_chain(exc))
                             route_failures.append(route_failure(base, channel.proxy_url, request_failure_reason(exc)))
-                        except OSError as exc:
-                            record("blob_file_failed", blob=entry["blob_sha256"], received=received, error_type=type(exc).__name__, chain=exception_chain(exc))
+                        except ValueError as exc:
+                            record("blob_response_validation_failed", blob=entry["blob_sha256"], received=partial.offset, error_type=type(exc).__name__)
                             raise
-                        finally: part.unlink(missing_ok=True)
+                        except OSError as exc:
+                            record("blob_file_failed", blob=entry["blob_sha256"], received=partial.offset, error_type=type(exc).__name__, chain=exception_chain(exc))
+                            raise
                     if last is not None:
                         raise RuntimeError(" ".join(route_failures[-4:])) from last
                 try:

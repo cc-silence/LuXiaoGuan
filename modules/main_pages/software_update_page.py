@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from modules.release_identity import DISPLAY_NAME
 import time
 from pathlib import Path
 
@@ -137,7 +138,7 @@ class SoftwareUpdatePage(QFrame):
         toolbar.setSpacing(4)
         self.scan_btn = _shared_text_button(self, "检测更新包", "重新扫描下载目录里的更新包。")
         self.create_dirs_btn = _shared_text_button(self, "创建软件目录", "为所有启用软件创建对应的下载/离线更新目录。")
-        self.open_root_btn = _shared_text_button(self, "打开下载根目录", "打开 WinBox 统一下载目录。")
+        self.open_root_btn = _shared_text_button(self, "打开下载根目录", f"打开 {DISPLAY_NAME} 统一下载目录。")
         toolbar.addWidget(self.scan_btn)
         toolbar.addWidget(self.create_dirs_btn)
         toolbar.addWidget(self.open_root_btn)
@@ -168,7 +169,7 @@ class SoftwareUpdatePage(QFrame):
             placeholder_text="更新信息会显示在这里。",
             default_text=(
                 "软件更新使用说明\n\n"
-                "1. 点击\u201c检测更新包\u201d，WinBox 会扫描统一下载目录里的安装包或压缩包。\n"
+                f"1. 点击\u201c检测更新包\u201d，{DISPLAY_NAME} 会扫描统一下载目录里的安装包或压缩包。\n"
                 "2. 只有检测到更新包的软件才会显示在表格中。\n"
                 "3. 有更新方案的软件可点击\u201c更新\u201d自动执行；没有更新方案的软件只提供打开下载目录。\n"
                 "4. 更新界面的目录和软件下载界面共用：Downloads\\winbox下载\\软件名称。"
@@ -290,7 +291,7 @@ class SoftwareUpdatePage(QFrame):
             self._append_info(
                 f"{skipped.get('name', 'Windows 月度更新')}：发现 {filename}，但缺少或不匹配 "
                 ".winbox-update.json 确认单，暂不显示为可安装更新。"
-                "请到下载页面重新检测该项后点击下载；若文件仍匹配，WinBox 会跳过重复下载并补写确认单。",
+                f"请到下载页面重新检测该项后点击下载；若文件仍匹配，{DISPLAY_NAME} 会跳过重复下载并补写确认单。",
                 level="warning",
             )
 

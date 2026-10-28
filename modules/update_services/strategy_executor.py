@@ -7,6 +7,7 @@
 StrategyExecutor.execute() 入口使用。
 """
 
+from modules.release_identity import DISPLAY_NAME
 import locale
 import os
 import queue
@@ -74,7 +75,7 @@ def _installer_failure_message(name, exit_code, install_dir="", output="", eleva
     if exit_code == 5:
         target = f"“{install_dir}”" if install_dir else "目标安装目录"
         stage = (
-            "WinBox 已成功启动管理员安装程序，失败发生在安装程序写入文件或启动附属组件时。"
+            f"{DISPLAY_NAME} 已成功启动管理员安装程序，失败发生在安装程序写入文件或启动附属组件时。"
             if elevated else
             "安装程序在写入文件或启动附属组件时被系统拒绝访问。"
         )
@@ -133,11 +134,11 @@ def _permission_failure_message(target, exc):
         return (
             f"{target}: 复制失败：{file_name} 无法写入，可能被其它程序占用。\n"
             "如果该软件正在运行，请先关闭它（包括系统托盘中的图标）后重试；"
-            "若确认是权限问题，可尝试以管理员身份运行 WinBox。"
+            f"若确认是权限问题，可尝试以管理员身份运行 {DISPLAY_NAME}。"
         )
     return (
         f"{target}: 复制失败：文件被其它进程占用或权限不足，"
-        "请关闭相关程序后重试，或尝试以管理员身份运行 WinBox。"
+        f"请关闭相关程序后重试，或尝试以管理员身份运行 {DISPLAY_NAME}。"
     )
 
 
@@ -759,7 +760,7 @@ class StrategyExecutor:
                 copy2(download_path, target_path)
                 success_count += 1
             except PermissionError:
-                errors.append(f"{target}: 权限不足，请以管理员身份运行 WinBox")
+                errors.append(f"{target}: 权限不足，请以管理员身份运行 {DISPLAY_NAME}")
             except (OSError, shutil.Error) as exc:
                 errors.append(f"{target}: {exc}")
         if success_count > 0:

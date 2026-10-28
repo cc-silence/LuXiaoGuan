@@ -10,6 +10,9 @@ class CommonConfigActions:
         self.pending={}
         self.disposed=False
         self.progress_dialogs={}
+        self.recovery_plans={}
+        self.configuration_signal=getattr(page.capture_service,"configurationProgressChanged",None)
+        if self.configuration_signal is not None:self.configuration_signal.connect(self._progress)
         signal=getattr(page.manager,"progress",None)
         if signal is not None:signal.connect(self._progress)
 
@@ -59,6 +62,7 @@ class CommonConfigActions:
     def completed(self,key,result):
         item=self.pending.pop(key,None)
         if item is None:return False
+        recovery_plan=self.recovery_plans.pop(key,None)
         self._finish_progress(key)
         page=self.page
         try:
@@ -73,7 +77,19 @@ class CommonConfigActions:
             if item[3] in {"save","force"}:
                 outcome=result.get("outcome")
                 page._message(result["note"],"error" if outcome=="restored" else "warning" if outcome=="uncertain" else "info")
-                if item[3]=="save" and result.get("force_retry") and self._current(item):self._offer_force(result,item)
+                if item[3]=="save" and result.get("force_retry") and self._current(item):
+                    if self._offer_force(result,item,recovery_plan):return True
+                    if self.disposed or not self._current(item):return True
+                if recovery_plan:
+                    from .network_recovery_result_dialog import NetworkRecoveryResultDialog
+                    recovery_result=dict(result,recovery_title="LAN 设置：重新连接")
+                    display_plan=dict(recovery_plan)
+                    if outcome=="restored":
+                        display_plan["new_addresses"]=display_plan.get("old_addresses",[])
+                        display_plan["guide"]="\u5df2\u6062\u590d\u539f\u767b\u5f55\u5730\u5740\uff1a"+", ".join(display_plan.get("old_addresses",[]))
+                    recovery_dialog=NetworkRecoveryResultDialog(recovery_result,display_plan,page.capture_service,page)
+                    try:recovery_dialog.exec()
+                    finally:recovery_dialog.deleteLater()
                 return True
             dialog=RouterConfigDialog(result,page)
             try:
@@ -104,7 +120,7 @@ class CommonConfigActions:
         finally:page._sync()
         return True
 
-    def _offer_force(self,result,item):
+    def _offer_force(self,result,item,recovery_plan=None):
         values=result.get("force_values",{})
         addresses=values.get("ipaddr",[]);addresses=[addresses] if isinstance(addresses,str) else addresses
         text="普通应用未能确认连接，已恢复原设置。\n\n如果确认新设置无误，可以选择强制应用。强制应用后，即使连接中断，也不会自动恢复旧地址；如果无法重新登录，需要手动恢复网络设置。"
@@ -122,11 +138,14 @@ class CommonConfigActions:
             self.page._message("连接已变化，未强制应用。","warning");return
         key=self.page.manager.submit("common_save",apply=True,force=True,force_token=result["force_retry"],connection_settings=dict(self.page.connection_settings()))
         self.pending[key]=(*item[:3],"force")
+        if recovery_plan:self.recovery_plans[key]=recovery_plan
         self._show_progress(key,force=True)
         self.page._message("正在强制应用 LAN 设置，请勿断电。")
+        return True
 
     def failed(self,key,message):
         if self.pending.pop(key,None) is None:return False
+        self.recovery_plans.pop(key,None)
         self._finish_progress(key)
         if not self.disposed:self.page._message(message, "error")
         self.page._sync()
@@ -139,6 +158,15 @@ class CommonConfigActions:
         dialog.show()
 
     def _progress(self,key,value):
+        if key in self.pending and isinstance(value,dict):
+            recovery=value.get("network_recovery")
+            if isinstance(recovery,dict) and recovery.get("guide"):
+                from copy import deepcopy
+                control=recovery.get("control")
+                if control is not None:
+                    plan=deepcopy(control.plan)
+                    plan["adapters"]=deepcopy(recovery.get("adapters",plan["adapters"]))
+                    self.recovery_plans[key]=plan
         dialog=self.progress_dialogs.get(key)
         if dialog is not None:dialog.update_progress(value)
 
@@ -150,6 +178,8 @@ class CommonConfigActions:
         self.disposed=True
         for key in tuple(self.pending):self.page.manager.cancel(key)
         self.pending.clear()
+        self.recovery_plans.clear()
+        if self.configuration_signal is not None:self.configuration_signal.disconnect(self._progress)
         for key in tuple(self.progress_dialogs):self._finish_progress(key)
         signal=getattr(self.page.manager,"progress",None)
         if signal is not None:signal.disconnect(self._progress)

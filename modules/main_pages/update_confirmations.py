@@ -8,6 +8,7 @@ update_services 这类执行服务反向依赖 Qt 弹窗或具体页面。
 绝不执行进程等待、taskkill 或 UAC，避免阻塞主线程。
 """
 
+from modules.release_identity import DISPLAY_NAME
 from pathlib import Path
 
 from modules.common_widgets.common_dialogs import (
@@ -102,7 +103,7 @@ def _close_update_processes_message(running_configured, locked_files, system_nam
     if extra_locked_files:
         message += "\n\n以下更新文件还被其它程序占用：\n" + _format_locked_files(extra_locked_files)
     if system_names:
-        message += "\n\n系统进程（" + "、".join(sorted(system_names)) + "）不会被 WinBox 自动关闭。"
+        message += "\n\n系统进程（" + "、".join(sorted(system_names)) + f"）不会被 {DISPLAY_NAME} 自动关闭。"
     message += "\n\n关闭这些程序可能丢失未保存的更改。是否关闭并继续更新？"
     return message
 
@@ -186,7 +187,7 @@ def _system_only_message(locked_files, system_names):
 
     names = "、".join(sorted(system_names)) if system_names else "未知系统进程"
     return (
-        "更新目标目录中有文件被系统进程占用，WinBox 不会自动关闭系统进程：\n\n"
+        f"更新目标目录中有文件被系统进程占用，{DISPLAY_NAME} 不会自动关闭系统进程：\n\n"
         + _format_locked_files(locked_files)
         + f"\n\n占用进程：{names}\n"
         "请重启电脑后再更新（系统进程重启后会释放文件）。"
@@ -217,7 +218,7 @@ def confirm_firewall_rules(config, parent=None, stylesheet=""):
         except Exception:
             display_paths.append(raw)
     message = (
-        "更新完成后，WinBox 将把以下程序加入 Windows 防火墙的出站允许规则：\n\n"
+        f"更新完成后，{DISPLAY_NAME} 将把以下程序加入 Windows 防火墙的出站允许规则：\n\n"
         + "\n".join(f"  • {path}" for path in display_paths)
         + "\n\n是否继续添加？"
     )

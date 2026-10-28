@@ -72,7 +72,7 @@ def subprocess_creationflags():
     return 0
 
 
-def windowless_worker_executable():
+def windowless_worker_executable(*, direct_process=False):
     """返回后台管理员入口的无控制台宿主路径，不启动进程。
 
     源码选同环境 pythonw.exe，发布版保留 GUI 主程序。
@@ -81,6 +81,9 @@ def windowless_worker_executable():
     executable = Path(sys.executable)
     if not is_windows() or getattr(sys, "frozen", False):
         return executable
+    if direct_process:
+        # Windows venv executables are redirectors; PID-bound workers must start the real image.
+        executable = Path(getattr(sys, '_base_executable', sys.executable))
     executable = executable.with_name("pythonw.exe")
     if not executable.is_file():
         raise FileNotFoundError(f"缺少后台解释器：{executable}。请修复 Python 安装环境后重试。")

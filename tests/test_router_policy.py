@@ -212,14 +212,12 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(list(rules)[:4],order["sections"][:4])
         self.assertEqual(rules["lxg_initial_web"]["dest_port"],["80","443"])
 
-    def test_station_batch_preserves_credentials_and_existing_identity_restore_contract(self):
+    def test_station_batch_preserves_credentials_without_identity_restore_records(self):
         s=self.p.read(self.cancel);plan=build_plan(s,"station")
         self.p._transaction(s,plan["operations"],self.cancel)
         row=self.d.config["wireless"]["station"]
         self.assertEqual(row["key"],"preserve-station-password")
-        saved=json.loads(row["rm_identity_backup"])
-        self.assertEqual(saved["network"],"wwan");self.assertEqual(saved["hostname"],"OldPhone")
-        self.assertEqual(saved["applied_mac"],row["macaddr"])
+        self.assertNotIn("rm_identity_backup",row)
         self.assertNotEqual(row["macaddr"],self.d.config["wireless"]["home"].get("macaddr"))
 
     def test_shared_network_with_access_point_is_never_rewritten(self):

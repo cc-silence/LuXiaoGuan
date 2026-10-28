@@ -381,6 +381,7 @@ class OpenWrtPage(QWidget):
             else:
                 page.dispose()
         self.login_page.compatible_tools.dispose()
+        self.login_page.dependency_prompt.dispose()
         self.login_page.common_tools.dispose()
         self.login_page.dependencies.dispose()
         self.service.openwrtSnapshotChanged.disconnect(self.login_page._apply_snapshot)

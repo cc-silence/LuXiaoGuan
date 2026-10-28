@@ -153,7 +153,7 @@ class PolicyReviewDialog(FramelessDialog):
             self.ack=QCheckBox("我已确认以上修改和断线提醒",self)
             self.content_layout.addWidget(self.ack)
         self.apply_button,self.cancel_button=create_dialog_ok_cancel_buttons(self,action if boot else "直接应用","取消")
-        self.backup_button=create_settings_button("备份并"+action if boot else "备份并应用",self,"secondary")
+        self.backup_button=create_settings_button("备份并"+action if boot else "修改前备份并应用" if review["kind"]=="station" else "备份并应用",self,"secondary")
         has_changes=bool(review.get("operations") or review.get("files") or review.get("new_ap") or review.get("service") or "boot_enabled" in review)
         for button in (self.apply_button,self.backup_button):
             button.setEnabled(has_changes and boot)

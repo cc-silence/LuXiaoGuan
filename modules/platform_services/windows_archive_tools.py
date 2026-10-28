@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+from modules.release_identity import DISPLAY_NAME
 import shutil
 from pathlib import Path
 
@@ -35,6 +36,6 @@ def required_7zip_message(context):
     """
 
     return (
-        f"{context} 需要 7-Zip，但未找到 WinBox 内置工具或系统 7z.exe。"
-        "请重新安装完整 WinBox，或安装 7-Zip 并加入 PATH 后重试。"
+        f"{context} 需要 7-Zip，但未找到 {DISPLAY_NAME} 内置工具或系统 7z.exe。"
+        f"请重新安装完整 {DISPLAY_NAME}，或安装 7-Zip 并加入 PATH 后重试。"
     )

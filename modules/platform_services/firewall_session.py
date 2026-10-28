@@ -1,4 +1,5 @@
 """WinBox 共享管理员授权会话；兼容原防火墙入口，首次提权、退出释放。"""
+from modules.release_identity import DISPLAY_NAME
 import atexit
 import os
 import json
@@ -39,7 +40,7 @@ class FirewallSession:
     def _connect(self):
         with self._state_lock:
             if self._closed:
-                raise RuntimeError("WinBox 正在退出，已停止管理员会话。")
+                raise RuntimeError(f"{DISPLAY_NAME} 正在退出，已停止管理员会话。")
             if self._host is not None and self._connection is not None and self._host.alive():
                 return self._connection
         self._disconnect()
@@ -53,7 +54,7 @@ class FirewallSession:
                 raise PermissionError("共享管理员进程握手无效。")
             with self._state_lock:
                 if self._closed:
-                    raise RuntimeError("WinBox 已退出，停止管理员会话。")
+                    raise RuntimeError(f"{DISPLAY_NAME} 已退出，停止管理员会话。")
                 self._host=host
                 self._connection=connection
                 host=connection=None
@@ -106,7 +107,7 @@ def request_firewall(request,timeout_ms=600000):
     global _session
     with _session_lock:
         if _shutting_down:
-            return {"success":False,"error":"WinBox 正在退出，未再启动管理员授权。"}
+            return {"success":False,"error":f"{DISPLAY_NAME} 正在退出，未再启动管理员授权。"}
         if _session is None:
             _session=FirewallSession()
         session=_session

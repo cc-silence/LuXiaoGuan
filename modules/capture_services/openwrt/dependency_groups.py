@@ -1,5 +1,5 @@
 """Shared dependency boundaries for confirmations, task scopes and UI rows."""
-from .common_tool_dependencies import TOOLS, TOOL_KEYS
+from .common_tool_dependencies import TOOLS, TOOL_KEYS, REQUIRED_TOOL_KEYS
 
 CAPTURE_PACKAGES = {
     "scan": ("aircrack-ng",), "handshake": ("aircrack-ng",),
@@ -9,6 +9,8 @@ CAPTURE_PACKAGES = {
 CAPTURE_KEYS = frozenset(CAPTURE_PACKAGES)
 COMMON_ITEMS = ("sftp", "terminal", *(tool.key for tool in TOOLS))
 COMMON_KEYS = frozenset(COMMON_ITEMS)
+REQUIRED_COMMON_ITEMS = ("sftp", *(tool.key for tool in TOOLS if tool.key in REQUIRED_TOOL_KEYS))
+REQUIRED_COMMON_KEYS = frozenset(REQUIRED_COMMON_ITEMS)
 
 
 def missing_packages(dependencies, keys):

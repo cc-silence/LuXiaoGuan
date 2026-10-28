@@ -94,6 +94,7 @@ class CommonBundleRepository:
         self.catalog = None
         self.content_root = None
         self.revision = None
+        self.object_names = {}
 
     def _load(self):
         receipt = safe_path(self.root, "current.json")
@@ -115,7 +116,9 @@ class CommonBundleRepository:
         if hashlib.sha256(catalog).hexdigest() != payload["catalog_sha256"]:
             raise ValueError("\u79bb\u7ebf\u5305\u9002\u914d\u6e05\u5355\u6821\u9a8c\u5931\u8d25\uff0c\u8bf7\u91cd\u65b0\u4e0b\u8f7d\u3002")
         self.catalog = json.loads(catalog.decode("utf-8"))
-        validate_catalog(self.catalog, self.kind)
+        from .bundle_object_paths import object_names, numbered_layout
+        self.object_names = object_names(validate_catalog(self.catalog, self.kind))
+        self.numbered_objects = numbered_layout(self.content_root)
         return True
 
     def profile(self, device):
@@ -131,8 +134,12 @@ class CommonBundleRepository:
                 return p
         return None
 
+    def object_source(self, row):
+        from .bundle_object_paths import object_source
+        return object_source(self.content_root, row["sha256"], self.object_names, self.numbered_objects)
+
     def object_path(self, row, cancel=None):
-        path = safe_path(self.content_root, row["blob"])
+        path = self.object_source(row)
         if (not path.is_file() or path.stat().st_size != row["size"]
                 or sha256_file(path, cancel) != row["sha256"]):
             raise ValueError("\u79bb\u7ebf\u5305\u5bf9\u8c61\u7f3a\u5931\u6216\u6821\u9a8c\u5931\u8d25\uff1a" + row["filename"])
