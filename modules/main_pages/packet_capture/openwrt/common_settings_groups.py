@@ -1,5 +1,5 @@
-"""Presentation-only grouping for the existing common-settings cards."""
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QFrame
+"""Themed sections that retain existing action cards across responsive layouts."""
+from PySide6.QtWidgets import QVBoxLayout, QGridLayout, QLabel, QFrame
 from modules.ui_scale_manager import UiScaleManager
 
 
@@ -8,34 +8,37 @@ class SettingsCardGroups:
         self.layout = layout
         self.groups = tuple(groups)
         self.headers = []
-        for title, _cards in self.groups:
-            header = QWidget(parent)
-            line = QHBoxLayout(header)
-            UiScaleManager.for_widget(parent).bind_layout(line, margins=(0, 2, 0, 0), spacing=12)
-            label = QLabel(title, header)
-            label.setObjectName('captureGroupTitle')
-            line.addWidget(label)
-            separator = QFrame(header)
-            separator.setObjectName('captureSectionSeparator')
-            UiScaleManager.for_widget(parent).bind_metrics(separator, fixed_height=1)
-            line.addWidget(separator, 1)
+        self.sections = []
+        self.grids = []
+        scale = UiScaleManager.for_widget(parent)
+        for row, (title, cards) in enumerate(self.groups):
+            section = QFrame(parent)
+            section.setObjectName("captureSettingsGroup")
+            contents = QVBoxLayout(section)
+            scale.bind_layout(contents, margins=(0, 0, 0, 0), spacing=12)
+            header = QLabel(title, section)
+            header.setObjectName("captureSettingsGroupTitle")
+            contents.addWidget(header)
+            grid = QGridLayout()
+            scale.bind_layout(grid, margins=(0, 0, 0, 0), spacing=12)
+            contents.addLayout(grid)
+            for card in cards:
+                card.setParent(section)
             self.headers.append(header)
+            self.sections.append(section)
+            self.grids.append(grid)
+            layout.addWidget(section, row, 0)
+        scale.bind_layout(layout, margins=(10, 8, 10, 14), spacing=24)
+        layout.setColumnStretch(0, 1)
+        layout.setRowStretch(len(self.groups), 1)
 
     def place(self, columns):
-        layout = self.layout
-        for row in range(layout.rowCount()):
-            layout.setRowStretch(row, 0)
-        for column in range(3):
-            layout.setColumnStretch(column, 1 if column < columns else 0)
-        for header, (_title, cards) in zip(self.headers, self.groups):
-            layout.removeWidget(header)
+        for grid, (_title, cards) in zip(self.grids, self.groups):
+            for row in range(grid.rowCount()):
+                grid.setRowStretch(row, 0)
+            for column in range(3):
+                grid.setColumnStretch(column, 1 if column < columns else 0)
             for card in cards:
-                layout.removeWidget(card)
-        row = 0
-        for header, (_title, cards) in zip(self.headers, self.groups):
-            layout.addWidget(header, row, 0, 1, columns)
-            row += 1
+                grid.removeWidget(card)
             for index, card in enumerate(cards):
-                layout.addWidget(card, row + index // columns, index % columns)
-            row += (len(cards) + columns - 1) // columns
-        layout.setRowStretch(row, 1)
+                grid.addWidget(card, index // columns, index % columns)

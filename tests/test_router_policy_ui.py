@@ -33,7 +33,8 @@ class PolicyUiTests(unittest.TestCase):
         rows = {}
         for button in buttons:
             card = next(card for card in page.cards if card.isAncestorOf(button))
-            row = page.cards_layout.getItemPosition(page.cards_layout.indexOf(card))[0]
+            grid = next(g for g in page.card_groups.grids if g.indexOf(card) >= 0)
+            row = (id(grid), grid.getItemPosition(grid.indexOf(card))[0])
             rows.setdefault(row, []).append(button.mapTo(page,QPoint(0,button.height())).y())
         for edges in rows.values():
             self.assertLessEqual(max(edges)-min(edges),2,edges)
@@ -144,13 +145,14 @@ class PolicyUiTests(unittest.TestCase):
                     page.resize(width,900)
                     for _ in range(4):APP.processEvents()
                     previous=-1
-                    for header,(title,cards) in zip(page.card_groups.headers,groups):
-                        row,col,rs,cs=page.cards_layout.getItemPosition(page.cards_layout.indexOf(header))
+                    for section,header,grid,(title,cards) in zip(page.card_groups.sections,page.card_groups.headers,page.card_groups.grids,groups):
+                        row,col,rs,cs=page.cards_layout.getItemPosition(page.cards_layout.indexOf(section))
                         self.assertGreater(row,previous)
-                        self.assertEqual(cs,page._card_columns)
-                        positions=[page.cards_layout.getItemPosition(page.cards_layout.indexOf(c))[0] for c in cards]
-                        self.assertTrue(all(pos>row for pos in positions))
-                        previous=max(positions)
+                        self.assertIs(header.parentWidget(),section)
+                        self.assertTrue(all(c.parentWidget() is section for c in cards))
+                        positions=[grid.getItemPosition(grid.indexOf(c)) for c in cards]
+                        self.assertTrue(all(pos[1]<page._card_columns for pos in positions))
+                        previous=row
                     self.assertEqual(tuple(id(c) for c in page.cards),identity)
                 path=Path('build/review/common-settings-groups');path.mkdir(parents=True,exist_ok=True)
                 self.assertTrue(page.grab().save(str(path/(('light' if light else 'dark')+'-'+str(scale)+'.png'))))

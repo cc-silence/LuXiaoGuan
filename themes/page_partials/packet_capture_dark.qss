@@ -103,7 +103,7 @@ QFrame#captureSignalRow QLabel { background: transparent; border: none; }
 QFrame#captureSignalRow[signalEmphasis="active"] { background: #1d2924; }
 QFrame#captureSignalRow[signalEmphasis="disabled"] { background: #191d22; border-color: #292f37; }
 QFrame#captureSignalRow[signalEmphasis="disabled"] QLabel { color: #7f8995; }
-QFrame#captureSignalRow[signalEmphasis="disabled"] QPushButton#captureSecondaryButton { color: #7f8995; background: #191d22; border-color: #292f37; }
+QFrame#captureSignalRow[signalEmphasis="disabled"] QLabel[signalIdentity="true"] { color: #aeb8c6; }
 
 QFrame#captureSignalRow QPushButton#captureSecondaryButton { min-height: 24px; padding: 2px 10px; }
 QPushButton#captureSecondaryButton { background: #24282e; color: #f4f6f8; border: 1px solid #343b45; border-radius: 5px; min-height: 28px; padding: 4px 10px; }
@@ -177,3 +177,9 @@ QWidget#routerCommonSettingsPage, QWidget#routerCommonSettingsPage QWidget#openw
 
 QPushButton#captureSecondaryButton[dependencyInstallPrimary="true"] { color: #8ce5ae; background: #203c2e; border-color: #36784e; }
 QPushButton#captureSecondaryButton[dependencyInstallPrimary="true"]:hover:enabled { background: #294b39; }
+
+/* Shared settings group heading; titles remain outside the action cards. */
+
+
+QFrame#captureSettingsGroup { background: transparent; border: none; }
+QLabel#captureSettingsGroupTitle { color: #f4f6f8; font: __HEADER_PT__pt "__FONT_FAMILY__"; font-weight: bold; background: #293442; border: 1px solid #46566a; border-radius: 5px; padding: 10px 12px; }

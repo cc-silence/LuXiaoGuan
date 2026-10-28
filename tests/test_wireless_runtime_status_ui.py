@@ -87,6 +87,26 @@ class WirelessStatusUiTests(unittest.TestCase):
                 self.assertTrue(owner.grab().save(str(path/(('light' if light else 'dark')+'-'+str(scale)+'.png'))))
                 owner.hide()
 
+    def test_status_notice_hides_routine_results_but_shows_problems_and_recovers(self):
+        page,service,owner=self.create()
+        self.assertTrue(page.status_label.isHidden())
+        for level in ('warning','error'):
+            state=replace(service.snapshot,detail='Read failed',detail_level=level)
+            page.apply_snapshot(state)
+            self.assertFalse(page.status_label.isHidden())
+            self.assertEqual(page.status_label.text(),'Read failed')
+        page.apply_snapshot(replace(service.snapshot,detail='Updated',detail_level='info'))
+        self.assertTrue(page.status_label.isHidden())
+        self.assertEqual(page.status_label.text(),'')
+        page._show_status_notice('Action could not start')
+        self.assertFalse(page.status_label.isHidden())
+        panel=Mock()
+        page.info_panel=panel
+        for level in ('info','success','warning','error'):
+            page._show_problem_message('Result',level)
+        self.assertEqual([c.args[1] for c in panel.append_info.call_args_list],['warning','error'])
+        page.info_panel=None
+
     def test_expired_stale_disconnected_or_different_signal_never_gets_old_success(self):
         page,service,owner=self.create()
         sta=page._row_widgets['uplink']
@@ -188,7 +208,11 @@ class WirelessStatusUiTests(unittest.TestCase):
             self.assertEqual(ap.palette().color(QPalette.Window).name(), '#edf6f0' if light else '#1d2924')
             self.assertEqual(disabled.property('signalEmphasis'),'disabled')
             self.assertTrue(disabled.button.isEnabled())
-            self.assertEqual(disabled.name_label.palette().color(QPalette.WindowText).name(),
+            self.assertEqual(disabled.name_label.palette().color(QPalette.WindowText),
+                             ap.name_label.palette().color(QPalette.WindowText))
+            self.assertEqual(disabled.button.palette().color(QPalette.ButtonText),
+                             ap.button.palette().color(QPalette.ButtonText))
+            self.assertEqual(disabled.band_label.palette().color(QPalette.WindowText).name(),
                              '#8a94a3' if light else '#7f8995')
             original=service.snapshot
             networks=tuple(replace(n,rx_bps=0,tx_bps=0,peers=() if n.mode=='sta' else n.peers)
@@ -224,6 +248,8 @@ class WirelessStatusUiTests(unittest.TestCase):
                         card.property('signalEmphasis'),card.geometry().getRect(),
                         card.palette().color(QPalette.Window).name())
             stable=(appearance(ap),appearance(sta))
+            button_before=(page.refresh_button.text(),page.refresh_button.isEnabled(),
+                           page.refresh_button.palette().color(QPalette.Button).name(),page.refresh_button.sizeHint())
             service._status_running=True;service.active=True
             service.snapshot=replace(before,busy=True,stale=True)
             # Crossing the HTTPS evidence expiry during a pending read must not
@@ -232,6 +258,8 @@ class WirelessStatusUiTests(unittest.TestCase):
                 for _ in range(3):
                     page.apply_snapshot(service.snapshot);APP.processEvents()
                     self.assertEqual((appearance(ap),appearance(sta)),stable)
+                    self.assertEqual((page.refresh_button.text(),page.refresh_button.isEnabled(),
+                                      page.refresh_button.palette().color(QPalette.Button).name(),page.refresh_button.sizeHint()),button_before)
             service._status_running=False;service.active=False
             networks=tuple(replace(n,associated=False,rx_bps=0,tx_bps=0) if n.mode=='sta' else n
                            for n in before.wireless_status.networks)

@@ -58,6 +58,7 @@ class SignalRuntimeMonitor(QObject):
         method = getattr(service, 'refresh_status', None)
         if (self._disposed or self._paused or not page.isVisible() or page.stack.currentIndex() != 0
                 or method is None or not snapshot.connected or snapshot.busy or service.active
+                or getattr(service, "_refresh_after_status", False)
                 or snapshot.stale or not snapshot.inventory.revision):
             return
         if not any(not r.disabled and not r.radio_disabled and r.mode in ("ap", "sta") and not r.reason

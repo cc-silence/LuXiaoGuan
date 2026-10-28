@@ -63,3 +63,4 @@ class SignalSnapshot:
     pending_changes: bool = False
     wireless_status: WirelessStatus = WirelessStatus()
     wireless_status_stale: bool = True
+    detail_level: str = "info"

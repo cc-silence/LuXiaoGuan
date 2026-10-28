@@ -22,6 +22,7 @@ class SignalRowWidget(QFrame):
         line.setSpacing(8)
         self.name_label = QLabel(self)
         self.name_label.setObjectName('captureDescription')
+        self.name_label.setProperty('signalIdentity', True)
         self.name_label.setTextFormat(Qt.PlainText)
         self.band_label = QLabel(self)
         self.band_label.setObjectName('captureDescription')

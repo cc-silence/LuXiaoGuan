@@ -104,6 +104,7 @@ class RouterSignalPage(QWidget):
         self.status_label.setObjectName("captureDescription")
         self.status_label.setWordWrap(True)
         top_row.addWidget(self.status_label, 1)
+        top_row.addStretch(1)
         top_row.addWidget(self.install_button)
         top_row.addWidget(self.refresh_button)
         left_layout.addWidget(self.inventory_toolbar)
@@ -149,10 +150,19 @@ class RouterSignalPage(QWidget):
         service.snapshotChanged.connect(self.apply_snapshot)
         service.reconnectRequired.connect(self._on_reconnect_required)
         if info_panel is not None:
-            service.messageGenerated.connect(info_panel.append_info)
+            service.messageGenerated.connect(self._show_problem_message)
             for text, level in service.messages:
-                info_panel.append_info(text, level)
+                self._show_problem_message(text, level)
         self.apply_snapshot(service.snapshot)
+
+    def _show_status_notice(self, text, level="warning"):
+        problem = level in ("warning", "error", "critical")
+        self.status_label.setText(text if problem else "")
+        self.status_label.setVisible(problem and bool(text))
+
+    def _show_problem_message(self, text, level):
+        if self.info_panel is not None and level in ("warning", "error", "critical"):
+            self.info_panel.append_info(text, level)
 
     def _navigation_changed(self, index):
         self.navigation_buttons[index].setChecked(True)
@@ -164,7 +174,8 @@ class RouterSignalPage(QWidget):
         自动安装依赖期间此按钮文字已是“取消安装”，点击改为请求取消安装。
         """
 
-        if self.service.snapshot.busy and self.service.active:
+        if (self.service.snapshot.busy and self.service.active
+                and not getattr(self.service, "_status_running", False)):
             self._on_stop()
             return
         if bool(getattr(self.service.snapshot, "installing", False)):
@@ -180,7 +191,7 @@ class RouterSignalPage(QWidget):
             return
         self.runtime_monitor.invalidate()
         if not self.service.refresh():
-            self.status_label.setText("无法刷新：未连接、已有任务运行或服务正在退出。")
+            self._show_status_notice("无法刷新：未连接、已有任务运行或服务正在退出。")
             if self.info_panel is not None:
                 self.info_panel.append_info(
                     "无法刷新信号列表：请先连接路由器，并等待其他任务结束。",
@@ -241,7 +252,7 @@ class RouterSignalPage(QWidget):
         if dialog.exec() != ConfirmDialog.Accepted:
             return
         if not self.service.install_dependencies():
-            self.status_label.setText("安装未开始：连接已断开或有其他任务运行。")
+            self._show_status_notice("安装未开始：连接已断开或有其他任务运行。")
             if self.info_panel is not None:
                 self.info_panel.append_info(
                     "依赖安装未开始：请确认已连接，并等待其他任务结束。",
@@ -258,7 +269,7 @@ class RouterSignalPage(QWidget):
         state = self.service.snapshot
         if state.inventory is inventory and state.connected and not state.busy and not state.stale:
             return True
-        self.status_label.setText("列表或连接已变化，请刷新后重新操作。")
+        self._show_status_notice("列表或连接已变化，请刷新后重新操作。")
         return False
 
     def _request_change(self, row):
@@ -297,7 +308,7 @@ class RouterSignalPage(QWidget):
         if not self._confirm_inventory_action(dialog, inventory):
             return
         if not self.service.change(row.section, target_enabled, confirmed=True):
-            self.status_label.setText("操作未开始：快照已过期、有其他任务或连接已断开。")
+            self._show_status_notice("操作未开始：快照已过期、有其他任务或连接已断开。")
             if self.info_panel is not None:
                 self.info_panel.append_info(
                     "操作未开始：请等待其他任务结束，并刷新列表后重试。",
@@ -313,14 +324,18 @@ class RouterSignalPage(QWidget):
                                           for client in row.details.clients for value in (client.name, client.ip))
             self._privacy.register_snapshot(snapshot)
             self._privacy.register_values(values)
-        self.status_label.setText(snapshot.detail)
+        self._show_status_notice(snapshot.detail, snapshot.detail_level)
         # 刷新按钮只看忙闲：未登录不断按钮，点后弹窗指引去登录。
         # stale 只锁单行启停：刷新是解除 stale 的唯一入口，连接空闲时必须可用。
         # 依赖自动安装期间把“刷新信号列表”变成“取消安装”，点一次只取消本安装。
         committing = getattr(getattr(getattr(self.service, "setup", None), "snapshot", None), "action", "") == "pending_commit"
         installing = bool(getattr(snapshot, "installing", False))
         idle = bool(snapshot.connected and not snapshot.busy)
-        if committing:
+        background_status = bool(getattr(self.service, "_status_running", False))
+        if background_status:
+            refresh_text = "\u5237\u65b0\u4fe1\u53f7\u5217\u8868"
+            refresh_tip = "\u91cd\u65b0\u8bfb\u53d6\u8def\u7531\u5668\u5df2\u914d\u7f6e\u7684\u5168\u90e8\u4fe1\u53f7\uff08\u542b\u7981\u7528\u9879\uff09\u3002"
+        elif committing:
             refresh_text = "正在提交配置"
             refresh_tip = "正在保存并核对结果，请等待完成。"
         elif installing:
@@ -512,7 +527,7 @@ class RouterSignalPage(QWidget):
         if not self._confirm_inventory_action(dialog, inventory):
             return
         if not self.service.repair(row.section, confirmed=True):
-            self.status_label.setText("操作未开始：快照已过期、有其他任务或连接已断开。")
+            self._show_status_notice("操作未开始：快照已过期、有其他任务或连接已断开。")
             if self.info_panel is not None:
                 self.info_panel.append_info(
                     "操作未开始：请等待其他任务结束，并刷新列表后重试。",
@@ -540,6 +555,6 @@ class RouterSignalPage(QWidget):
             self.service.snapshotChanged.disconnect(self.apply_snapshot)
             self.service.reconnectRequired.disconnect(self._on_reconnect_required)
             if self.info_panel is not None:
-                self.service.messageGenerated.disconnect(self.info_panel.append_info)
+                self.service.messageGenerated.disconnect(self._show_problem_message)
         except (RuntimeError, TypeError):
             pass

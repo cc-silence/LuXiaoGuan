@@ -174,6 +174,24 @@ class StatusServiceTests(unittest.TestCase):
         self.assertFalse(service.snapshot.stale)
         self.assertFalse(service.snapshot.wireless_status_stale)
 
+    def test_manual_refresh_during_status_read_is_coalesced_after_success_or_failure(self):
+        from tests.test_standalone import APP
+        for failed in (False,True):
+            owner,service=self.create()
+            self.assertTrue(service.refresh_status(force_internet=False))
+            _,_,success,failure=owner.workers.pop()
+            self.assertTrue(service.refresh())
+            self.assertTrue(service.refresh())
+            self.assertEqual(len(owner.workers),0)
+            if failed:
+                failure('Read failed','TimeoutError')
+            else:
+                success(replace(sample(row()),checked_at=NOW))
+            APP.processEvents()
+            self.assertEqual(len(owner.workers),1)
+            self.assertFalse(service._status_running)
+            self.assertFalse(service._refresh_after_status)
+
     def test_switched_connection_cannot_publish_previous_uplink_success(self):
         owner,service=self.create()
         self.assertTrue(service.refresh_status())
