@@ -16,17 +16,22 @@ REVIEW = dict(operation="reset", model="Router A", version="25.12", reset_comman
 class MaintenanceUiTests(unittest.TestCase):
     create_page = create_page
 
-    def test_all_fourteen_cards_have_reference_icons_and_three_columns(self):
+    def test_all_fourteen_cards_have_reference_icons_in_responsive_groups(self):
         page, _ = self.create_page()
         self.assertEqual(len(page.cards), 14)
-        for index, card in enumerate(page.cards):
-            row, col, _, _ = page.cards_layout.getItemPosition(index)
-            self.assertEqual((row,col),(index//3,index%3))
-            illustration = card.findChild(CardIcon)
-            self.assertIsNotNone(illustration)
-            self.assertFalse(illustration.icon.isNull())
-        self.assertEqual(page.password_card.y(),page.lan_card.y())
-        self.assertGreater(page.lan_card.x(),page.password_card.x()+page.password_card.width())
+        grouped = [card for _title, cards in page.card_groups.groups for card in cards]
+        self.assertEqual(len(grouped), len(set(grouped)))
+        self.assertEqual(set(grouped), set(page.cards))
+        for grid, (_title, cards) in zip(page.card_groups.grids, page.card_groups.groups):
+            positions = []
+            for index, card in enumerate(cards):
+                row, col, _, _ = grid.getItemPosition(grid.indexOf(card))
+                self.assertEqual((row, col), (index // page._card_columns, index % page._card_columns))
+                positions.append((row, col))
+                illustration = card.findChild(CardIcon)
+                self.assertIsNotNone(illustration)
+                self.assertFalse(illustration.icon.isNull())
+            self.assertEqual(len(positions), len(set(positions)))
 
     def test_disabling_clicked_actions_does_not_walk_focus_and_scroll_to_bottom(self):
         for name in ("lan_button","system_button","relocation","orphan"):

@@ -36,9 +36,11 @@ class ConfigurationProgressTests(unittest.TestCase):
     def test_early_completion_stops_clock_and_closes_immediately(self):
         dialog=RouterTaskProgressDialog("Apply",Mock())
         dialog.show()
-        dialog.update_progress(dict(configuration_apply=True,stage="Verifying",deadline=time.monotonic()+90))
-        self.assertTrue(dialog._clock.isActive())
-        self.assertIn("90",dialog.message.text())
+        with patch("modules.main_pages.packet_capture.openwrt.router_task_progress.time") as clock:
+            clock.monotonic.return_value=100.0
+            dialog.update_progress(dict(configuration_apply=True,stage="Verifying",deadline=190.0))
+            self.assertTrue(dialog._clock.isActive())
+            self.assertIn("90",dialog.message.text())
         dialog.finish()
         self.assertFalse(dialog.running)
         self.assertFalse(dialog._clock.isActive())
