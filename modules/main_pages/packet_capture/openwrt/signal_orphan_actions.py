@@ -1,5 +1,6 @@
 """Read-only orphan preview, user selection and final cleanup confirmation."""
 from PySide6.QtCore import QObject
+from .page_feedback import publish_page_message
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from modules.main_pages.page_action_buttons import create_page_text_button, set_page_action_enabled
 from .orphan_review_dialog import OrphanReviewDialog
@@ -31,14 +32,18 @@ class OrphanInterfaceActions(QObject):
         self.button.setVisible(True)
         self.button.setToolTip("\u5148\u68c0\u67e5\u518d\u9009\u62e9\u6e05\u7406\uff0c\u4e0d\u4f1a\u76f4\u63a5\u5220\u9664\u3002" if supported else "\u63a5\u53e3\u68c0\u67e5\u670d\u52a1\u5c1a\u672a\u5c31\u7eea\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55\u540e\u91cd\u8bd5\u3002")
         set_page_action_enabled(self.button, bool(supported and state.connected and not state.busy and not self.service.active and not self._waiting))
+        if getattr(self.page,'prompt_for_router_login',False) and not state.connected:
+            set_page_action_enabled(self.button,not state.busy and not self._waiting)
 
     def review(self):
+        from .router_login_prompt import require_router_login
+        if not require_router_login(self.page,self.page.service.snapshot.connected):return
         if not self.button.isEnabled():return
         self._identity=self.service._connection_identity()
         self._waiting=True
         if not self.service.orphan_preview():
             self._waiting=False
-            self.page.status_label.setText("\u8bf7\u7b49\u5f85\u5f53\u524d\u4efb\u52a1\u7ed3\u675f\u540e\u91cd\u8bd5\u3002")
+            publish_page_message(self.page,"\u8bf7\u7b49\u5f85\u5f53\u524d\u4efb\u52a1\u7ed3\u675f\u540e\u91cd\u8bd5\u3002")
         self._sync()
 
     def _completed(self,result):
@@ -47,7 +52,9 @@ class OrphanInterfaceActions(QObject):
         if not result.error and self._current():
             review=result.value
             if not review["rows"]:
-                MessageDialog("\u9057\u7559\u63a5\u53e3\u68c0\u67e5","\u6ca1\u6709\u53d1\u73b0\u9700\u8981\u68c0\u67e5\u7684\u9057\u7559\u63a5\u53e3\u3002",self.page).exec()
+                dialog=MessageDialog("\u9057\u7559\u63a5\u53e3\u68c0\u67e5","\u6ca1\u6709\u53d1\u73b0\u9700\u8981\u68c0\u67e5\u7684\u9057\u7559\u63a5\u53e3\u3002",self.page)
+                try:dialog.exec()
+                finally:dialog.deleteLater()
             else:
                 dialog=OrphanReviewDialog(review,self.page)
                 try:
@@ -61,9 +68,9 @@ class OrphanInterfaceActions(QObject):
                             try:
                                 if confirm.exec()==confirm.Accepted:
                                     if not self._current():
-                                        self.page.status_label.setText("\u8fde\u63a5\u5df2\u53d8\u5316\uff0c\u8bf7\u91cd\u65b0\u68c0\u67e5\u3002")
+                                        publish_page_message(self.page,"\u8fde\u63a5\u5df2\u53d8\u5316\uff0c\u8bf7\u91cd\u65b0\u68c0\u67e5\u3002")
                                     elif not self.service.cleanup_orphans(review,selected):
-                                        self.page.status_label.setText("\u6e05\u7406\u672a\u5f00\u59cb\uff0c\u8bf7\u7b49\u5f85\u4efb\u52a1\u7ed3\u675f\u540e\u91cd\u65b0\u68c0\u67e5\u3002")
+                                        publish_page_message(self.page,"\u6e05\u7406\u672a\u5f00\u59cb\uff0c\u8bf7\u7b49\u5f85\u4efb\u52a1\u7ed3\u675f\u540e\u91cd\u65b0\u68c0\u67e5\u3002")
                             finally:confirm.deleteLater()
                 finally:dialog.deleteLater()
         self._sync()

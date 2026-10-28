@@ -127,10 +127,9 @@ class Builder:
     def lan(self,options):
         lan=self.s["configs"].get("network",{}).get("lan",{})
         if lan.get(".type")!="interface" or lan.get("proto")!="static":raise ValueError("LAN \u4e0d\u662f\u5df2\u6709\u9759\u6001\u5730\u5740\u914d\u7f6e\uff0c\u672a\u5f3a\u884c\u6539\u5199\u3002")
-        ip=ipaddress.IPv4Address(options.get("lan_ip","192.168.11.1"))
+        from .initial_input_validation import lan_address
+        ip=lan_address(options.get("lan_ip","192.168.11.1"))
         net=ipaddress.IPv4Network(str(ip)+"/24",strict=False)
-        if ip in (net.network_address,net.broadcast_address) or not any(ip in ipaddress.IPv4Network(v) for v in ("10.0.0.0/8","172.16.0.0/12","192.168.0.0/16")):
-            raise ValueError("\u8bf7\u8f93\u5165\u666e\u901a\u5c40\u57df\u7f51\u5730\u5740\uff0c\u4e0d\u80fd\u4f7f\u7528\u7f51\u7edc\u5730\u5740\u6216\u5e7f\u64ad\u5730\u5740\u3002")
         runtime=self.s.get("runtime",{}).get("interface")
         if not isinstance(runtime,list):raise ValueError("\u65e0\u6cd5\u786e\u8ba4\u5f53\u524d\u4e0a\u7ea7\u7f51\u7edc\u5730\u5740\uff0c\u672a\u4fee\u6539 LAN \u5730\u5740\u3002")
         for iface in runtime:
@@ -233,7 +232,7 @@ class Builder:
                 except ValueError as exc:self.skip(item,str(exc));continue
                 if server.get("home","/www")!="/www":raise ValueError("\u7ba1\u7406\u7f51\u9875\u4f7f\u7528\u81ea\u5b9a\u4e49\u76ee\u5f55\uff0c\u672a\u8986\u76d6\u9996\u9875\u3002")
                 path="/cgi-bin/luci/"+PAGES[page][1]
-                self.file("/www/index.html",'<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url='+path+'"></head><body><a href="'+path+'">Open router settings</a></body></html>\n')
+                self.file("/www/index.html",'<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta http-equiv="refresh" content="0;url='+path+'"></head><body><a href="'+path+'">Open router settings</a></body></html>\n')
             if len(self.plan["operations"])+len(self.plan["files"])>before or item in {"upgrade","replace_ap"}:
                 self.plan["steps"].append(ITEMS[item][0]+"\uff1a"+ITEMS[item][1])
         self.finish_firewall_order()
@@ -288,12 +287,12 @@ class Builder:
             if supports_interfaces(radio.get("capabilities",""),sum(r.get("mode")=="ap" for r in active)+1,sum(r.get("mode")=="sta" for r in active)):candidates.append(radio)
         if not candidates:raise ValueError("\u6ca1\u6709\u53ef\u6838\u5b9e\u5bb9\u91cf\u8db3\u591f\u7684 2.4G \u7f51\u5361\uff0c\u4fdd\u7559\u539f\u70ed\u70b9\uff0c\u672a\u6267\u884c\u521d\u59cb\u5316\u3002")
         password=options.get("ap_password",DEFAULT_PASSWORD)
-        if not isinstance(password,str) or not 8<=len(password)<=63 or not all(32<=ord(c)<127 for c in password):raise ValueError("\u70ed\u70b9\u5bc6\u7801\u9700\u8981 8 \u81f3 63 \u4e2a\u666e\u901a\u82f1\u6587\u5b57\u7b26\u3002")
+        from .initial_input_validation import hotspot_password,hotspot_name
+        hotspot_password(password)
         existing={r.get("ssid","").casefold() for _,r in rows(self.s,"wireless","wifi-iface")}
         ssid=options.get("ap_ssid")
         if ssid is not None:
-            if not isinstance(ssid,str) or not ssid or len(ssid.encode("utf-8"))>32 or any(ord(c)<32 or ord(c)==127 for c in ssid):
-                raise ValueError("新热点名称需要 1 至 32 字节，不能包含换行等控制字符。")
+            hotspot_name(ssid)
             if ssid.casefold() in existing:
                 raise ValueError("新热点名称已被使用，请换一个名称。")
         else:
@@ -330,10 +329,11 @@ class Builder:
 
 
 def build_plan(snapshot,kind,options=None,environment=None):
-    if kind not in {"initial","station","ap","boot"}:raise ValueError("\u65e0\u6548\u7684\u8bbe\u7f6e\u7c7b\u578b\u3002")
+    if kind not in {"initial","station","ap","boot","homepage"}:raise ValueError("\u65e0\u6548\u7684\u8bbe\u7f6e\u7c7b\u578b\u3002")
     options=dict(options or {})
     b=Builder(snapshot,kind,options)
-    if kind=="initial":b.initial(options,environment)
+    if kind=="homepage":b.initial(dict(items=["homepage"],homepage=options.get("homepage","wireless")),None)
+    elif kind=="initial":b.initial(options,environment)
     elif kind=="boot":b.boot(options)
     else:
         b.batch("sta" if kind=="station" else "ap")

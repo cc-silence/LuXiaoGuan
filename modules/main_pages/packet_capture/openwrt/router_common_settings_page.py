@@ -18,6 +18,7 @@ class RouterCommonSettingsPage(QWidget):
         self.manager = capture_service.router_management
         self.connection_settings = connection_settings
         self._password_key = None
+        self.prompt_for_router_login = True
         from .common_config_actions import CommonConfigActions
         self.config_actions = CommonConfigActions(self)
         from .maintenance_actions import MaintenanceActions
@@ -77,7 +78,7 @@ class RouterCommonSettingsPage(QWidget):
         self.restore_card, layout = create_capture_card(body, "恢复配置",
             "从备份恢复配置并重启，管理地址和密码可能改变。",
             icon_path=icon_root / "System Upload.png", actions_at_bottom=True)
-        self.restore_button = create_page_text_button(self.restore_card, "上传备份", "先预览，再保存当前配置备份，最后恢复并重启。")
+        self.restore_button = create_page_text_button(self.restore_card, "上传备份", "先预览，可选择保存当前配置备份，再恢复并重启。")
         layout.addWidget(self.restore_button)
         self.reset_card, layout = create_capture_card(body, "恢复出厂设置",
             "清空设置和后来安装的软件，回到当前固件初始状态。",
@@ -155,9 +156,12 @@ class RouterCommonSettingsPage(QWidget):
         self._card_columns = columns
 
     def _message(self, text, level="info"):
-        self.status_label.setText(text)
         if self.info_panel is not None:
+            self.status_label.clear()
+            self.status_label.hide()
             self.info_panel.append_info(text, level)
+        else:
+            self.status_label.setText(text)
 
     def _password_error(self, text):
         from modules.common_widgets.common_dialogs import MessageDialog
@@ -172,7 +176,7 @@ class RouterCommonSettingsPage(QWidget):
     def _sync(self, *_):
         ssh = self.manager.manager.ssh
         connected = ssh.connected
-        available = connected and not self.capture_service.is_busy and not self.config_actions.active and not self.maintenance_actions.active and not self.policy_actions.active and self._password_key is None
+        available = not self.capture_service.is_busy and not self.config_actions.active and not self.maintenance_actions.active and not self.policy_actions.active and self._password_key is None
         set_page_action_enabled(self.password_button, available)
         set_page_action_enabled(self.lan_button, available)
         set_page_action_enabled(self.system_button, available)
@@ -194,6 +198,8 @@ class RouterCommonSettingsPage(QWidget):
         if not self.password_button.isEnabled():
             return
         ssh = self.manager.manager.ssh
+        from .router_login_prompt import require_router_login
+        if not require_router_login(self,ssh.connected):return
         from .router_password_dialog import RouterPasswordDialog
         dialog = RouterPasswordDialog(ssh._user, self)
         connection = ssh._client
@@ -202,7 +208,7 @@ class RouterCommonSettingsPage(QWidget):
             if dialog.exec() != dialog.Accepted:
                 return
             if ssh._client is not connection or not ssh.connected:
-                self.status_label.setText("\u8fde\u63a5\u5df2\u53d8\u5316\uff0c\u8bf7\u91cd\u65b0\u6253\u5f00\u5bc6\u7801\u8bbe\u7f6e\u3002")
+                self._message("\u8fde\u63a5\u5df2\u53d8\u5316\uff0c\u8bf7\u91cd\u65b0\u6253\u5f00\u5bc6\u7801\u8bbe\u7f6e\u3002","warning")
                 return
             settings = dict(self.connection_settings())
             settings.update(host=ssh._host, port=ssh._port, user=ssh._user)

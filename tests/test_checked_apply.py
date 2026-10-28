@@ -165,13 +165,27 @@ class CheckedApplyTests(unittest.TestCase):
         result=run_checked(channel,stage,check,event,candidates=("old",),original_host="old")
         self.assertTrue(result["applied"])
 
-    def test_network_load_failure_after_apply_restores_original_configuration(self):
+    def test_native_apply_does_not_reload_a_recovered_connection_again(self):
         device,channel,event,stage,verify=self.fixture();device.fail=("network","reload")
-        original=copy.deepcopy(device.config)
-        with fast_deadlines(),self.assertRaises(RuntimeError):
-            run_checked(channel,stage,verify,event,candidates=("new",),original_host="old",reload_network=True)
-        self.assertEqual(device.config,original);self.assertIn("checked_rollback",channel.calls)
-        self.assertNotIn("checked_confirm",channel.calls)
+        with fast_deadlines():
+            result=run_checked(channel,stage,verify,event,candidates=("new",),original_host="old")
+        self.assertTrue(result["applied"])
+        self.assertNotIn(("network","reload"),device.calls)
+        self.assertNotIn("checked_rollback",channel.calls)
+        self.assertEqual(channel.calls.count("checked_apply"),1)
+
+    def test_native_reload_is_allowed_to_finish_before_confirmation(self):
+        device,channel,event,stage,verify=self.fixture();checks=[]
+        def settling(remote,sid):
+            checks.append(sid)
+            if len(checks)<3:return False
+            return verify(remote,sid)
+        with fast_deadlines():
+            result=run_checked(channel,stage,settling,event,candidates=("new",),original_host="old")
+        self.assertTrue(result["applied"]);self.assertEqual(len(checks),3)
+        self.assertEqual(channel.calls.count("checked_apply"),1)
+        self.assertEqual(channel.calls.count("checked_confirm"),1)
+        self.assertNotIn(("network","reload"),device.calls)
 
     def test_cancel_before_apply_never_writes(self):
         device,channel,event,stage,verify=self.fixture();event.set()

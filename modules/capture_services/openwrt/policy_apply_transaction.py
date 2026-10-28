@@ -7,6 +7,8 @@ from .configuration_runtime import network_ready
 
 
 def apply_operations(owner, snapshot, operations, cancel, report):
+    from .apply_evidence import ApplyEvidence
+    evidence=ApplyEvidence(getattr(owner.manager.runner,"operation_diagnostics",None))
     channel=owner._apply_channel
     verified={}
     desired=next((op.get("values",{}).get("ipaddr") for op in operations
@@ -27,7 +29,7 @@ def apply_operations(owner, snapshot, operations, cancel, report):
         readiness=remote.call("policy_applied",operations=operations)
         if readiness.get("ready") is not True:return False
         current=remote.call("snapshot")
-        if desired and not network_ready(readiness.get("network_state"),current["configs"]["network"]["lan"],snapshot["configs"]["network"]["lan"]):return False
+        if desired and not network_ready(readiness.get("network_state"),current["configs"]["network"]["lan"],snapshot["configs"]["network"]["lan"],evidence=evidence):return False
         removed={op["section"] for op in operations if op.get("config")=="wireless" and op.get("action")=="delete_section"}
         if removed.intersection(current.get("runtime",{}).get("active",())):return False
         current_active=set(current.get("runtime",{}).get("active",()))
@@ -73,9 +75,9 @@ def apply_operations(owner, snapshot, operations, cancel, report):
             if values:previous.append(dict(action="set",config=config,section=section,values=values))
         readiness=remote.call("policy_applied",operations=previous)
         if readiness.get("ready") is not True:return False
-        return not desired or network_ready(readiness.get("network_state"),snapshot["configs"]["network"]["lan"])
+        return not desired or network_ready(readiness.get("network_state"),snapshot["configs"]["network"]["lan"],evidence=evidence)
     result=run_checked(channel,stage,verify,cancel,candidates=targets,original_host=owner._apply_host,progress=report,close_channel=False,restore_verify=restore_verify,
-        reload_network=any(op.get("config") in {"network","wireless"} for op in operations),client_recovery=recovery)
+        client_recovery=recovery,evidence=evidence)
     owner._apply_host=result["target_host"]
     from .router_policy import signature,boot_state
     verified["boot_state"]=boot_state(verified)

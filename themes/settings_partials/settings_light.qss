@@ -1109,3 +1109,10 @@ QTextEdit#settingsMessageText[connectionWarning="true"] {
 /* Title controls must not inherit left alignment from content buttons. */
 #settingsTitleButtons QPushButton[windowControl="true"],
 #settingsTitleButtons QPushButton#settingsCloseBtn { text-align: center; }
+
+/* Shared field validation; layout and normal styling stay unchanged. */
+QLineEdit[inputError="true"], QLineEdit[inputError="true"]:focus,
+#settingsWindowFrame QLineEdit[inputError="true"],
+#settingsWindowFrame QLineEdit[inputError="true"]:focus {
+    border-color: #c62828;
+}

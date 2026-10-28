@@ -101,6 +101,24 @@ local function common_commit()
  end,{req.config},{[req.config]=review.token})
 end
 
+local function common_force_apply()
+ local review=common_validate()
+ if req.config~="network" then fail("common_values") end
+ local before=common_read()
+ if before.token~=review.token or before.section~=review.section then fail("changed") end
+ local _,err=bus:call("uci","commit",{ubus_rpc_session=sid(),config="network"})
+ if err then fail("rpc_uci_commit_"..tostring(err)) end
+ local c=uci.cursor();if not c:load("network") then fail("read") end
+ for key,value in pairs(req.values) do
+  local expected=value
+  if value=="" or (type(value)=="table" and #value==0) then expected=nil end
+  if not save_equal(c:get("network",review.section,key),expected,0) then fail("force_verify") end
+ end
+ -- Native commit emits config.change; apply(false) matches LuCI's unchecked path.
+ local _,apply_err=bus:call("uci","apply",{ubus_rpc_session=sid(),rollback=false})
+ if apply_err and apply_err~=5 then fail("rpc_uci_apply_"..tostring(apply_err)) end
+ return {submitted=true}
+end
 local function common_applied()
  common_validate()
  local runtime=nil
@@ -109,16 +127,17 @@ local function common_applied()
  for key,value in pairs(req.values) do
   local expected=value
   if value=="" or (type(value)=="table" and #value==0) then expected=nil end
-  if not save_equal(c:get(req.config,section,key),expected,0) then return {ready=false} end
+  if not save_equal(c:get(req.config,section,key),expected,0) then return {ready=false,mismatch="saved_values"} end
  end
  if req.config=="network" then
   local state,err=bus:call("network.interface."..req.review.section,"status",{})
-  if err or type(state)~="table" then return {ready=false} end
+  if err or type(state)~="table" then return {ready=false,mismatch="runtime_missing"} end
   runtime=fields(state,{"up","pending","proto","device","ipv4-address","ipv6-address","ipv6-prefix","route"})
   runtime.up=state.up;runtime.pending=state.pending
   if req.values.auto=="0" then return {ready=state.up==false and state.pending~=true,state=runtime} end
   if req.values.proto=="none" then return {ready=state.proto=="none" and state.pending~=true and #(state["ipv4-address"] or {})==0,state=runtime} end
-  if state.up~=true or state.pending==true then return {ready=false} end
+  if state.up~=true then return {ready=false,state=runtime,mismatch="runtime_up"} end
+  if state.pending==true then return {ready=false,state=runtime,mismatch="runtime_pending"} end
   if req.values.proto=="static" then
    local addresses={}
    for _,entry in ipairs(state["ipv4-address"] or {}) do addresses[entry.address]=entry end
@@ -133,7 +152,8 @@ local function common_applied()
    for _,address in ipairs(wanted or {}) do
     local entry=addresses[address:match("^[^/]+") or address]
     local prefix=tonumber(address:match("/(%d+)$")) or netmask
-    if not entry or (prefix and entry.mask~=prefix) then return {ready=false} end
+    if not entry then return {ready=false,state=runtime,mismatch="runtime_ipv4"} end
+    if prefix and entry.mask~=prefix then return {ready=false,state=runtime,mismatch="runtime_ipv4_mask"} end
    end
   end
  else

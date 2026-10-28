@@ -207,7 +207,7 @@ class RouterPolicyManager:
         return ""
 
     def _apply_review(self,review,backup_path,backup_expected,cancel,report):
-        if not isinstance(review,dict) or review.get("kind") not in {"initial","station","ap","boot"}:
+        if not isinstance(review,dict) or review.get("kind") not in {"initial","station","ap","boot","homepage"}:
             raise ValueError("\u8bf7\u91cd\u65b0\u6253\u5f00\u9884\u89c8\u3002")
         if not (review.get("operations") or review.get("files") or review.get("new_ap") or review.get("service") or "boot_enabled" in review):
             raise ValueError("\u6ca1\u6709\u9700\u8981\u5e94\u7528\u7684\u53d8\u5316\uff0c\u672a\u6267\u884c\u5907\u4efd\u6216\u91cd\u542f\u3002")

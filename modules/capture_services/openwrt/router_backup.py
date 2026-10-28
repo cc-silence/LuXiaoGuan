@@ -156,7 +156,9 @@ class RouterBackupManager:
             raise RuntimeError("设备或配置已变化，请重新预览后确认。")
         if operation == "reset" and (current["reset_command"] == "none" or current["reset_command"] != review.get("reset_command")):
             raise RuntimeError("设备重置能力已变化，请重新预览。")
-        if operation == "restore" and Path(backup_path).resolve() == Path(review["source"]).resolve():
+        if operation=="reset" and not backup_path:raise ValueError("Factory reset requires a backup destination")
+        if backup_path is None and backup_expected is not None:raise ValueError("Unexpected backup file identity")
+        if operation == "restore" and backup_path is not None and Path(backup_path).resolve() == Path(review["source"]).resolve():
             raise ValueError("操作前备份不能覆盖即将恢复的源文件。")
         with tempfile.TemporaryDirectory(prefix="router-restore-") as local:
             snapshot = Path(local) / "restore.tar.gz"
@@ -178,15 +180,22 @@ class RouterBackupManager:
                 info = inspect_archive(snapshot, cancel)
                 if info["sha256"] != review.get("sha256"):
                     raise RuntimeError("所选备份已变化，请重新选择并确认。")
-            backup = self.export(backup_path, backup_expected, cancel, progress)
+            backup = self.export(backup_path, backup_expected, cancel, progress) if backup_path is not None else dict(path="")
+            backup_note=("当前备份已保存："+backup["path"]) if backup["path"] else "本次未生成当前配置备份。"
             if self.preflight(cancel)["token"] != review["token"]:
-                raise RuntimeError("备份期间配置已变化，未执行恢复或重置。当前备份已保存：" + backup["path"])
+                raise RuntimeError("配置已变化，未执行恢复或重置。" + backup_note)
             if cancel.is_set():
-                raise InterruptedError("操作已取消；当前配置备份已保存：" + backup["path"])
+                raise InterruptedError("操作已取消。"+backup_note)
             if operation == "reset":
                 command = review["reset_command"] + " -y"
+                from .factory_reset_guidance import read_factory_defaults,login_note
+                defaults=read_factory_defaults(self,cancel)
+                if cancel.is_set():raise InterruptedError("Factory reset cancelled before execution")
                 progress(dict(stage="\u6b63\u5728\u6062\u590d\u51fa\u5382\u5e76\u8bf7\u6c42\u91cd\u542f\uff0c\u8bf7\u52ff\u65ad\u7535",completed=0,total=0,uncancellable=True))
-                return self._destructive(command, "恢复出厂设置", backup["path"])
+                result=self._destructive(command, "恢复出厂设置", backup["path"])
+                result.update(operation="reset",factory_login=defaults)
+                result["note"] = login_note(defaults,result.get("outcome")=="uncertain")+"\n\n"+result["note"]
+                return result
             workspace = self._workspace(cancel)
             result = None
             try:
@@ -201,7 +210,7 @@ class RouterBackupManager:
                 # Conservative headroom: archive payload plus 1 MiB.
                 free = int(self._run("space", "df -Pk / | awk 'END {print $4}'", cancel))
                 if free * 1024 < info["expanded"] + 1024 * 1024:
-                    raise RuntimeError("配置存储空间不足，未执行恢复；当前备份已保存：" + backup["path"])
+                    raise RuntimeError("配置存储空间不足，未执行恢复。"+backup_note)
                 if self.preflight(cancel)["token"] != review["token"]:
                     raise RuntimeError("上传期间配置已变化，未执行恢复。")
                 if cancel.is_set():
@@ -214,15 +223,17 @@ class RouterBackupManager:
                 else:
                     cleanup_note = self._cleanup(workspace)
             result["note"] += cleanup_note
+            result["operation"] = "restore"
             return result
 
     def _destructive(self, command, label, backup_path):
+        backup_note=("操作前备份："+backup_path) if backup_path else "本次未生成操作前备份。"
         # After the irreversible command starts, observe it with its own bounded event.
         try:
             self._run("apply", command + " >/dev/null 2>&1", Event(), 90)
         except Exception:
-            return dict(outcome="uncertain", note=label + "请求的执行结果未确认。请保持供电、重新连接核对，勿连续重试。操作前备份：" + backup_path)
+            return dict(outcome="uncertain", note=label + "请求的执行结果未确认。请保持供电、重新连接核对，勿连续重试。" + backup_note)
         from .router_reboot import request_reboot
         if not request_reboot(self._run, self.manager.ssh, self._connection):
-            return dict(outcome="reconnect", note=label + "命令已完成，重启请求后连接可能已断开，请保持供电并等待几分钟，待设备启动后重新登录核对。操作前备份：" + backup_path)
-        return dict(outcome="reconnect", note=label + "命令已完成并已请求重启。请保持供电，等待几分钟让路由器完成重启，再使用恢复后的管理地址和密码重新登录；具体时间以设备启动情况为准。操作前备份：" + backup_path)
+            return dict(outcome="reconnect", note=label + "命令已完成，重启请求后连接可能已断开，请保持供电并等待几分钟，待设备启动后重新登录核对。" + backup_note)
+        return dict(outcome="reconnect", note=label + "命令已完成并已请求重启。请保持供电，等待几分钟让路由器完成重启，再使用恢复后的管理地址和密码重新登录；具体时间以设备启动情况为准。" + backup_note)

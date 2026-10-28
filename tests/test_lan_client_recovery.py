@@ -25,11 +25,12 @@ NEW=dict(proto='static',ipaddr='192.168.22.1',netmask='255.255.255.0')
 class ClientPlanningTests(unittest.TestCase):
     def test_static_guide_and_no_automatic_renew(self):
         result=client_plan(review(adapter(dhcp=False,renewable=False)),NEW)
-        self.assertIn('192.168.22.0/24',result['guide'])
+        self.assertIn('192.168.22.1',result['guide']);self.assertNotIn('/24',result['guide'])
         self.assertIn('255.255.255.0',result['guide'])
         gate=RenewalGate(result);gate.start(time.monotonic()+90);gate.arm()
         self.assertIsNone(gate.claim(adapter()['id']))
-        self.assertTrue(gate.ready())
+        with patch('modules.platform_services.lan_network.inspect',return_value=dict(adapters=[adapter(dhcp=False)])):
+            self.assertTrue(gate.ready())
 
     def test_known_route_excludes_overlapping_other_adapter(self):
         row=adapter(id='other',route=False)
@@ -56,16 +57,16 @@ class ClientPlanningTests(unittest.TestCase):
         gate=RenewalGate(client_plan(review(adapter()),NEW));gate.start(time.monotonic()+10);gate.arm()
         self.assertIsNone(gate.claim(adapter()['id']))
 
-    def test_command_success_does_not_prove_address_gateway_dns_updated(self):
+    def test_router_confirmation_does_not_require_client_address_gateway_dns(self):
         gate=RenewalGate(client_plan(review(adapter()),NEW));gate.start(time.monotonic()+90);gate.arm()
         fresh=adapter(addresses=['192.168.22.123/24'],gateways=['192.168.22.1'],dns=['192.168.22.1'])
         with patch('modules.platform_services.lan_network.inspect',side_effect=[dict(adapters=[adapter()]),dict(adapters=[fresh])]):
-            self.assertFalse(gate.ready());self.assertTrue(gate.ready())
+            self.assertTrue(gate.ready());self.assertTrue(gate.ready())
 
-    def test_same_mac_other_adapter_cannot_satisfy_readiness(self):
+    def test_client_inventory_does_not_block_router_readiness(self):
         gate=RenewalGate(client_plan(review(adapter()),NEW));gate.start(time.monotonic()+90)
         fresh=adapter(id='other',addresses=['192.168.22.123/24'],gateways=['192.168.22.1'],dns=['192.168.22.1'])
-        with patch('modules.platform_services.lan_network.inspect',return_value=dict(adapters=[fresh])):self.assertFalse(gate.ready())
+        with patch('modules.platform_services.lan_network.inspect',return_value=dict(adapters=[fresh])):self.assertTrue(gate.ready())
 
     def test_restoration_resets_target_to_original_address(self):
         gate=RenewalGate(client_plan(review(adapter()),NEW));gate.start(time.monotonic()+90,restoring=True)

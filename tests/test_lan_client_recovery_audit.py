@@ -23,13 +23,13 @@ class RecoveryAuditTests(unittest.TestCase):
         self.assertTrue(gate.message);self.assertFalse(gate.payload()['can_renew'])
         self.assertFalse(gate.busy)
 
-    def test_only_chosen_adapter_can_satisfy_readiness(self):
+    def test_selected_adapter_does_not_become_a_router_readiness_requirement(self):
         chosen=adapter(route=False);other=adapter(id='other',route=False,mac='11:22:33:44:55:66')
         gate=self.gate(chosen,other);gate.start(time.monotonic()+90);gate.arm()
         gate.claim(chosen['id']);gate.finish_renewal('done')
         fresh=adapter(id='other',route=False,mac=other['mac'],addresses=['192.168.22.55/24'],gateways=['192.168.22.1'],dns=['192.168.22.1'])
         with patch('modules.platform_services.lan_network.inspect',return_value=dict(adapters=[chosen,fresh])):
-            self.assertFalse(gate.ready())
+            self.assertTrue(gate.ready())
 
     def test_wan_management_does_not_offer_overlapping_local_lan_reset(self):
         value=review(adapter());value['client_network']['peer']='192.168.11.254'

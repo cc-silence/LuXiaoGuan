@@ -147,15 +147,18 @@ class FeedbackUiTests(unittest.TestCase):
         dialog.checks['replace_ap'].setChecked(False);dialog.checks['replace_ap'].setChecked(True)
         self.assertEqual(dialog.password.text(),'chosen-password');dialog.deleteLater()
 
-    def test_backup_and_restore_results_always_show_modal_notice(self):
+    def test_backup_result_keeps_modal_but_restore_uses_information_window(self):
         from modules.main_pages.packet_capture.openwrt.maintenance_actions import MaintenanceActions
         page=Mock();page.manager.progress=None
-        for note in ('backup saved','restore accepted; wait before login'):
+        for operation,note in (('backup','backup saved'),('restore','restore accepted; wait before login')):
             actions=MaintenanceActions(page);actions.pending['task']=('done',None)
             with patch('modules.main_pages.packet_capture.openwrt.maintenance_actions.MessageDialog') as dialog:
-                self.assertTrue(actions.completed('task',dict(note=note)))
-                dialog.return_value.exec.assert_called_once();dialog.return_value.deleteLater.assert_called_once()
-            page._message.assert_called_with(note)
+                self.assertTrue(actions.completed('task',dict(operation=operation,note=note)))
+                if operation=='restore':dialog.assert_not_called()
+                else:
+                    dialog.return_value.exec.assert_called_once();dialog.return_value.deleteLater.assert_called_once()
+            page._message.assert_called_with(note,'info')
+
 
 
 class RestoredSessionPublishTests(unittest.TestCase):

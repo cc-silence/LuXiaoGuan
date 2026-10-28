@@ -405,6 +405,7 @@ __SCAN__
 __CHECKED_APPLY__
 local function run()
 __CHECKED_ACTIONS__
+ if req.action=="common_force_apply" then return common_force_apply() end
  if req.action=="common_applied" then return common_applied() end
  if req.action=="common_read" then return common_read() end
  if req.action=="common_stage" then return common_stage() end

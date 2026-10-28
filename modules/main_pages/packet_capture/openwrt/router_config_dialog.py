@@ -90,7 +90,7 @@ class RouterConfigDialog(FramelessDialog):
 
     def _lan(self,body,layout):
         old=self.review["values"]
-        layout.addWidget(hint("“保存并应用”将在确认后重启路由器；“仅保存”留待以后手动重启生效。",body))
+        layout.addWidget(hint("“保存并应用”会立即更新网络，期间会短暂断线；“仅保存”暂不生效。",body))
         protocol=choice(body,[("静态地址","static"),("自动获取地址（DHCP）","dhcp"),("不配置地址","none")])
         index=protocol.findData(old.get("proto","static"))
         if index<0:
@@ -125,6 +125,12 @@ class RouterConfigDialog(FramelessDialog):
             if multiple:
                 edit=ConfigValueList(body)
                 edit.set_values(value if isinstance(value,list) else ([value] if value else []))
+            elif key=="netmask":
+                masks=("", "255.255.255.0", "255.255.0.0", "255.0.0.0", "255.255.255.128", "255.255.255.192", "255.255.255.224", "255.255.255.240")
+                edit=choice(body,[(v,v) for v in masks])
+                edit.setEditable(True)
+                edit.setInsertPolicy(edit.NoInsert)
+                edit.setEditText(value)
             else:edit=text_input(body,value)
             self.controls[key]=edit
             add_field(layout,body,label,edit,description)
@@ -143,6 +149,7 @@ class RouterConfigDialog(FramelessDialog):
         for key,control in self.controls.items():
             if key in {"proto","device"}:values[key]=control.currentData()
             elif key=="auto":values[key]="1" if control.isChecked() else "0"
+            elif key=="netmask":values[key]=control.currentText().strip()
             elif key in {"ipaddr","ip6addr","ip6prefix"}:
                 entries=control.values()
                 original=self.review["values"].get(key)
