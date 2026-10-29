@@ -242,11 +242,24 @@ class OpenWrtDependencyManager:
             return checked()
         tell("本次安装：" + "、".join(wanted) + "。", "info")
         from .common_bundle_installer import install_from_local
-        from .installation_sources import install_with_sources, report_verified
-        source = install_with_sources(
-            lambda: install_from_local(self, wanted, device, cache_dir, sftp_available, cancel_event, tell, uploader),
-            lambda: self._install_online(wanted, cancel_event, tell),
-            lambda: self._install_offline(wanted, device, cache_dir, sftp_available, cancel_event, tell, uploader), tell)
+        from .installation_sources import install_with_sources, report_verified, package_batches
+        sources = []
+        for index, batch in enumerate(package_batches(wanted)):
+            if cancel_event is not None and cancel_event.is_set():
+                raise SignalError("cancelled", "依赖安装已取消。")
+            if index:
+                # Earlier groups may have supplied a shared/transitive dependency.
+                remaining = set(self._missing_packages(checked()))
+                batch = tuple(name for name in batch if name in remaining)
+            if not batch:
+                continue
+            source = install_with_sources(
+                lambda: install_from_local(self, batch, device, cache_dir, sftp_available, cancel_event, tell, uploader),
+                lambda: self._install_online(batch, cancel_event, tell),
+                lambda: self._install_offline(batch, device, cache_dir, sftp_available, cancel_event, tell, uploader), tell)
+            if source not in sources:
+                sources.append(source)
+        source = " / ".join(sources)
         tell("正在复测依赖…", "info")
         if include_sftp:
             sftp_available = self._probe_sftp(cancel_event, sftp_available)

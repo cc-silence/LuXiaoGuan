@@ -56,3 +56,18 @@ def _failed_routes_diagnostic(online_error, computer_error):
         detail = getattr(error, "package_diagnostic", "") or str(error)
         parts.append(label + "\n" + str(detail)[-8192:])
     return sanitized_text("\n\n".join(parts), Masker())
+
+
+def package_batches(wanted):
+    """Preserve single-bundle requests; partition mixed roots without duplicates."""
+    from .bundle_specs import COMMON_ROOTS, CAPTURE_ROOTS
+    wanted = tuple(dict.fromkeys(wanted))
+    if not wanted:
+        return ()
+    names = set(wanted)
+    if names.issubset(COMMON_ROOTS) or names.issubset(CAPTURE_ROOTS):
+        return (wanted,)
+    capture = tuple(name for name in wanted if name in CAPTURE_ROOTS)
+    common = tuple(name for name in wanted if name in COMMON_ROOTS and name not in capture)
+    other = tuple(name for name in wanted if name not in COMMON_ROOTS | CAPTURE_ROOTS)
+    return tuple(batch for batch in (capture, common, other) if batch)

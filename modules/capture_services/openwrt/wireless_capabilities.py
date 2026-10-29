@@ -35,7 +35,15 @@ local function ap_ready(iface,ssid)
  local device=optional("network.device","status",{name=iface})
  if device.up~=true then return false end
  local value,err=bus:call("hostapd."..iface,"get_status",{})
- if not err then return type(value)=="table" and value.status=="ENABLED" and value.ssid==ssid end
+ if not err then
+  if type(value)~="table" or value.status~="ENABLED" then return false end
+  if value.ssid~=nil then return value.ssid==ssid end
+  -- Early get_status implementations report state/frequency but no SSID.
+  -- Confirm the running SSID independently; never accept only the saved UCI value.
+  if type(value.freq)~="number" or value.freq<=0 then return false end
+  local info=optional("iwinfo","info",{device=iface})
+  return info.mode=="Master" and info.frequency==value.freq and info.ssid==ssid
+ end
  -- Only a missing method permits the legacy path; disabled/new status never does.
  if err~=3 then return false end
  local clients,failed=bus:call("hostapd."..iface,"get_clients",{})

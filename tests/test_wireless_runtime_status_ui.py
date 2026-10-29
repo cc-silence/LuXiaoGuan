@@ -176,7 +176,7 @@ class WirelessStatusUiTests(unittest.TestCase):
                 ('online',True,'\u7f51\u7edc\u5df2\u901a','ready'),
                 ('not_verified',True,'\u7f51\u7edc\u4e0d\u901a','blocked'),
                 ('online',False,'\u94fe\u63a5\u5931\u8d25','blocked'),
-                ('limited',True,'\u7f51\u7edc\u53d7\u9650','blocked'),
+                ('limited',True,'\u7f51\u7edc\u53d7\u9650','warning'),
                 ('unknown',True,'\u7f51\u7edc\u65e0\u6cd5\u786e\u8ba4','unknown')):
                 networks=tuple(replace(n,associated=associated,association_known=True,
                     internet=replace(n.internet,state=state,reason='probe_failed' if state=='not_verified' else 'not_checked'))
@@ -190,9 +190,9 @@ class WirelessStatusUiTests(unittest.TestCase):
                 self.assertNotIn('\u901a\u7f51\uff1a',sta.detail_label.text())
                 if associated:
                     self.assertIn('\u8fde\u63a5\u6210\u529f',sta.state_label.text())
-                if kind=='blocked':
+                if kind in ('blocked','warning'):
                     from PySide6.QtGui import QPalette
-                    expected_color='#b52d2d' if light else '#ef7777'
+                    expected_color = ('#946600' if light else '#e5bd62') if kind=='warning' else ('#b52d2d' if light else '#ef7777')
                     self.assertEqual(sta.network_label.palette().color(QPalette.WindowText).name(),expected_color)
                     path=Path('build/review/signal-inline-details')
                     sta.grab().save(str(path/(('light' if light else 'dark')+'-'+(state if associated else 'link-failed')+'.png')))
