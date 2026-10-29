@@ -23,7 +23,7 @@ from modules.capture_services.openwrt.apk_offline import ApkOfflineInstaller
 from modules.capture_services.openwrt.package_manager import PackageManager
 
 
-def fixture(directory, apk=False, kind="common"):
+def fixture(directory, apk=False, kind="common", package_factory=None):
     from modules.capture_services.openwrt.bundle_specs import bundle_spec
     spec=bundle_spec(kind); roots=spec.roots
     directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
@@ -33,7 +33,7 @@ def fixture(directory, apk=False, kind="common"):
         return dict(sha256=sha,size=len(data),blob="objects/"+sha,filename=filename)
     for name in sorted(roots):
         suffix=".apk" if apk else ".ipk"
-        row=record(("package:"+name).encode(),name+"-1"+suffix)
+        row=record(package_factory(name,apk) if package_factory else ("package:"+name).encode(),name+"-1"+suffix)
         row.update(name=name,version="1",architecture="aarch64_cortex-a53",depends=[dict(name="libc",match=0,version="")] if apk else ["libc"],
                    provides=[],feed="base",url="https://downloads.openwrt.org/releases/24.10.8/packages/aarch64_cortex-a53/base/"+row["filename"])
         rows.append(row)

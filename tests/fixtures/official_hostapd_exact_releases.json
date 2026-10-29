@@ -1,0 +1,555 @@
+[
+  {
+    "release": "19.07.0",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.0/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "e5257e8037b687df9969ed25f60a46930c01b33c47926c743bf3347932775c73",
+    "method_error": 3,
+    "sample": null,
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "19.07.1",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.1/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "e5257e8037b687df9969ed25f60a46930c01b33c47926c743bf3347932775c73",
+    "method_error": 3,
+    "sample": null,
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "19.07.2",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.2/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "e5257e8037b687df9969ed25f60a46930c01b33c47926c743bf3347932775c73",
+    "method_error": 3,
+    "sample": null,
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "19.07.3",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.3/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "e5257e8037b687df9969ed25f60a46930c01b33c47926c743bf3347932775c73",
+    "method_error": 3,
+    "sample": null,
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "19.07.4",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.4/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "e5257e8037b687df9969ed25f60a46930c01b33c47926c743bf3347932775c73",
+    "method_error": 3,
+    "sample": null,
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "19.07.5",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.5/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "e5257e8037b687df9969ed25f60a46930c01b33c47926c743bf3347932775c73",
+    "method_error": 3,
+    "sample": null,
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "19.07.6",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.6/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "e5257e8037b687df9969ed25f60a46930c01b33c47926c743bf3347932775c73",
+    "method_error": 3,
+    "sample": null,
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "19.07.7",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.7/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "e5257e8037b687df9969ed25f60a46930c01b33c47926c743bf3347932775c73",
+    "method_error": 3,
+    "sample": null,
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "19.07.8",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.8/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "e5257e8037b687df9969ed25f60a46930c01b33c47926c743bf3347932775c73",
+    "method_error": 3,
+    "sample": null,
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "19.07.9",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.9/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "e5257e8037b687df9969ed25f60a46930c01b33c47926c743bf3347932775c73",
+    "method_error": 3,
+    "sample": null,
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "19.07.10",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.10/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "e5257e8037b687df9969ed25f60a46930c01b33c47926c743bf3347932775c73",
+    "method_error": 3,
+    "sample": null,
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "21.02.0",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.0/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "6b254e8f65af80c92cae09885aa27a740647c4ee84101384bf75fd10b73403e7",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "21.02.1",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.1/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "e620f7aaceaa5bcf2cdfec5080c9647a6560f7b39d5fa31aee7b568242dc6891",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "21.02.2",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.2/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "e620f7aaceaa5bcf2cdfec5080c9647a6560f7b39d5fa31aee7b568242dc6891",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "21.02.3",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.3/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "517880ff93acbad0ea2b6a7869c2d41b245c68822bd47df5b8939ac6c590b2e0",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "21.02.4",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.4/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "1637c1674dd33b313532b3bc68fc506f72ed6b8c7c07852acb72da86ff403fb1",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "21.02.5",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.5/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "1637c1674dd33b313532b3bc68fc506f72ed6b8c7c07852acb72da86ff403fb1",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "21.02.6",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.6/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "1637c1674dd33b313532b3bc68fc506f72ed6b8c7c07852acb72da86ff403fb1",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "21.02.7",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.7/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "1637c1674dd33b313532b3bc68fc506f72ed6b8c7c07852acb72da86ff403fb1",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "22.03.0",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.0/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "65a331f83e9ed36b28419223043b374fb04d84c70427d896ab599b49b8f2b945",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "22.03.1",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.1/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "65a331f83e9ed36b28419223043b374fb04d84c70427d896ab599b49b8f2b945",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "22.03.2",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.2/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "65a331f83e9ed36b28419223043b374fb04d84c70427d896ab599b49b8f2b945",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "22.03.3",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.3/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "65a331f83e9ed36b28419223043b374fb04d84c70427d896ab599b49b8f2b945",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "22.03.4",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.4/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "3bd204440834e8c746cb8c877c16e400195493634a8ee41e7512b0adc42da378",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "22.03.5",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.5/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "3bd204440834e8c746cb8c877c16e400195493634a8ee41e7512b0adc42da378",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "22.03.6",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.6/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "3bd204440834e8c746cb8c877c16e400195493634a8ee41e7512b0adc42da378",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "22.03.7",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.7/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "3bd204440834e8c746cb8c877c16e400195493634a8ee41e7512b0adc42da378",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "23.05.0",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.0/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "43d1010f9a61e3a6c7e2ff5855ed5a2992a599bc57392ff24ceff99d6faef994",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "23.05.1",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.1/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "43d1010f9a61e3a6c7e2ff5855ed5a2992a599bc57392ff24ceff99d6faef994",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "23.05.2",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.2/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "43d1010f9a61e3a6c7e2ff5855ed5a2992a599bc57392ff24ceff99d6faef994",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "23.05.3",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.3/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "3c1a67c33e9665b60c33c2c034cf0104d47f5a2755d9e1cf095ff3c6a1a1913a",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "23.05.4",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "3c1a67c33e9665b60c33c2c034cf0104d47f5a2755d9e1cf095ff3c6a1a1913a",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "23.05.5",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.5/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "3c1a67c33e9665b60c33c2c034cf0104d47f5a2755d9e1cf095ff3c6a1a1913a",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "23.05.6",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.6/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "3c1a67c33e9665b60c33c2c034cf0104d47f5a2755d9e1cf095ff3c6a1a1913a",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "24.10.0",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.0/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "a32b0f259a31d384df48ce6af7029156ec8a3291c229de5004c0171e05ab9fae",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "24.10.1",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.1/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "a32b0f259a31d384df48ce6af7029156ec8a3291c229de5004c0171e05ab9fae",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "24.10.2",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.2/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "a32b0f259a31d384df48ce6af7029156ec8a3291c229de5004c0171e05ab9fae",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "24.10.3",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.3/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "a32b0f259a31d384df48ce6af7029156ec8a3291c229de5004c0171e05ab9fae",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "24.10.4",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.4/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "a32b0f259a31d384df48ce6af7029156ec8a3291c229de5004c0171e05ab9fae",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "24.10.5",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.5/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "a32b0f259a31d384df48ce6af7029156ec8a3291c229de5004c0171e05ab9fae",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "24.10.6",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.6/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "a32b0f259a31d384df48ce6af7029156ec8a3291c229de5004c0171e05ab9fae",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "24.10.7",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.7/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "a32b0f259a31d384df48ce6af7029156ec8a3291c229de5004c0171e05ab9fae",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "24.10.8",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.8/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "a32b0f259a31d384df48ce6af7029156ec8a3291c229de5004c0171e05ab9fae",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "25.12.0",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.0/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "3e59c9e2d17ed03bbdf887a50346def069a1e742b27a560fddb6ec082da83e4b",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "25.12.1",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.1/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "3e59c9e2d17ed03bbdf887a50346def069a1e742b27a560fddb6ec082da83e4b",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "25.12.2",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.2/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "058a6c8add329de75f908f75f7a61d174b5b83a1676e67ba882c66e17c4ebe19",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "25.12.3",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.3/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "058a6c8add329de75f908f75f7a61d174b5b83a1676e67ba882c66e17c4ebe19",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "25.12.4",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.4/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "058a6c8add329de75f908f75f7a61d174b5b83a1676e67ba882c66e17c4ebe19",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "25.12.5",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.5/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "058a6c8add329de75f908f75f7a61d174b5b83a1676e67ba882c66e17c4ebe19",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  },
+  {
+    "release": "25.12.6",
+    "source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "f2ee99f880ac24d09c6177fa051a5ee56e9d67bbd99cb1f635402e6a61d08c9e",
+    "method_error": null,
+    "sample": {
+      "status": "ENABLED",
+      "freq": 2412,
+      "ssid": "Running-test-AP"
+    },
+    "fixture_kind": "Synthetic response containing only fields present in the exact official release; not a device capture"
+  }
+]

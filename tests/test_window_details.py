@@ -68,9 +68,17 @@ class WindowDetailsTests(unittest.TestCase):
         with patch.object(w.close_behavior,'_ask',return_value=None),patch.object(w,'request_exit') as exit:
             w.close()
             exit.assert_not_called()
-        with patch.object(w.close_behavior,'_ask',return_value='tray'),patch.object(w.config_manager,'save'),patch.object(w.close_behavior,'hide_to_tray') as hide:
+        with patch.object(w.close_behavior,'_ask',return_value='tray') as ask,patch.object(w.config_manager,'save') as save,patch.object(w.close_behavior,'hide_to_tray') as hide:
             w.close()
-            hide.assert_called_once()
+            w.close()
+            self.assertEqual(ask.call_count,2)
+            self.assertEqual(hide.call_count,2)
+            save.assert_not_called()
+            self.assertEqual(w.runtime.config.get('runtime','close_button_action'),'ask')
+        from router_app.close_behavior import normalize_close_action
+        self.assertEqual(normalize_close_action(None),'ask')
+        self.assertEqual(normalize_close_action('invalid'),'ask')
+        self.assertEqual(d.close_button_action_combo.itemText(d.close_button_action_combo.findData('ask')), '\u6bcf\u6b21\u8be2\u95ee')
         with patch('router_app.close_behavior.QSystemTrayIcon.isSystemTrayAvailable',return_value=False):
             w.close_behavior.hide_to_tray()
             self.assertTrue(w.isMinimized())

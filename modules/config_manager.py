@@ -246,7 +246,7 @@ class ConfigManager:
             "run_at_login": "false",
             "standby_cleanup_seconds": "30",
             "auto_optimize_memory": "true",
-            "close_button_action": "tray",
+            "close_button_action": "ask",
         },
     }
 
