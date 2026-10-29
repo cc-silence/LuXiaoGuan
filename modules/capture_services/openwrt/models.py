@@ -54,6 +54,8 @@ class DependencyState(str, Enum):
     UNKNOWN = "unknown"
     CHECKING = "checking"
     READY = "ready"
+    UPGRADABLE = "upgradable"
+    OUTDATED = "outdated"
     MISSING = "missing"
     UNSUPPORTED = "unsupported"
     DISABLED = "disabled"

@@ -24,11 +24,11 @@ def operate_capture(page, key):
         return
     item = next((row for row in page.capture_service.openwrt_snapshot.dependencies if row.key == key), None)
     state = item.state.value if item is not None else "unknown"
-    if not CAPTURE_PACKAGES[key] or state not in {"ready", "missing"}:
+    if not CAPTURE_PACKAGES[key] or state not in {"ready", "missing", "upgradable", "outdated"}:
         context = _context(page, key)
         if context:
             service.check_capture_async(context[1], key)
-    elif state == "ready":
+    elif state in ("ready", "outdated"):
         uninstall_capture(page, key)
     else:
         install_capture(page, key)

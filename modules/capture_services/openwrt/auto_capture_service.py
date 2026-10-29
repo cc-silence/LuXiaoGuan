@@ -137,6 +137,10 @@ class AutoCaptureRadioSession:
         if self.stats.state in {"idle", "error"}:
             return
         self.stats.state = "stopping"
+        self.service.radioStreamOutput.emit(
+            self.radio_name,
+            "\n⏹ [提示] 收到停止抓包请求，正在终止抓包进程并安全收尾...\n",
+        )
         self.service.radioStateChanged.emit(self.radio_name, "stopping")
         self._stop_event.set()
 
@@ -144,11 +148,21 @@ class AutoCaptureRadioSession:
         """抓包完整流程：接管 -> 建口 -> 起 hcxdumptool -> 读流 -> 收尾回滚 -> 拉成果。"""
         takeover = OpenWrtRadioTakeover(self.runner)
         try:
+            self.service.radioStreamOutput.emit(
+                self.radio_name,
+                f"\n============================================================\n"
+                f"🚀 [流水线启动] 正在初始化射频 {self.radio_name} 前台抓包流水线...\n"
+                f"============================================================\n",
+            )
             # 0. 前置环境与连接检查
             client = getattr(self.ssh_client, "_client", None)
             if client is None or not getattr(self.ssh_client, "connected", False):
                 raise RuntimeError("路由器尚未建立 SSH 连接，无法启动抓包。请确认连接状态。")
 
+            self.service.radioStreamOutput.emit(
+                self.radio_name,
+                "📁 [目录准备] 检查并创建远端抓包文件保存目录 /root/cap...\n",
+            )
             # 确保远端 /root/cap 目录存在，防止 hcxdumptool 报 No such file or directory
             mkdir_res = self.runner.run("mkdir_cap", "mkdir -p /root/cap", timeout=8, cancel_event=self._stop_event)
             if mkdir_res.exit_code != 0:
@@ -157,7 +171,7 @@ class AutoCaptureRadioSession:
             # 探测远端是否存在 hcxdumptool 抓包二进制，并记录绝对/可用路径
             bin_res = self.runner.run(
                 "find_hcx_bin",
-                "if command -v hcxdumptool >/dev/null 2>&1; then command -v hcxdumptool; elif [ -x /root/.winbox-tools/bin/hcxdumptool ]; then printf '/root/.winbox-tools/bin/hcxdumptool'; fi",
+                "if [ -x /root/.winbox-tools/bin/hcxdumptool ] && /root/.winbox-tools/bin/hcxdumptool -h 2>&1 | grep -q -- '-w'; then printf '/root/.winbox-tools/bin/hcxdumptool'; elif command -v hcxdumptool >/dev/null 2>&1; then command -v hcxdumptool; elif [ -x /root/.winbox-tools/bin/hcxdumptool ]; then printf '/root/.winbox-tools/bin/hcxdumptool'; fi",
                 timeout=8,
                 cancel_event=self._stop_event,
             )
@@ -165,6 +179,10 @@ class AutoCaptureRadioSession:
             if not found_bin:
                 raise RuntimeError("路由器尚未安装抓包工具 hcxdumptool！\n请先在页面部署自启脚本，或在【工具管理】页面安装兼容的 hcxdumptool。")
             self._hcx_bin = found_bin
+            self.service.radioStreamOutput.emit(
+                self.radio_name,
+                f"🔍 [工具就绪] 定位抓包工具路径: {found_bin}\n",
+            )
 
             # 动态核准该射频对应的真实底层物理 phy (对齐 hcx_autocap.sh 三级动态探测)
             default_phy = self.phy if (self.phy and re.fullmatch(r"phy\d+", self.phy)) else f"phy{self.idx}"
@@ -187,18 +205,32 @@ class AutoCaptureRadioSession:
             resolved_phy = (phy_res.stdout or "").strip()
             if re.fullmatch(r"phy\d+", resolved_phy):
                 self.phy = resolved_phy
+            self.service.radioStreamOutput.emit(
+                self.radio_name,
+                f"📡 [射频绑定] 物理设备: {self.phy} (对应配置: wireless.{self.radio_name})\n",
+            )
 
-            # 1. 如果射频非空闲，且用户允许接管，执行无线安全接管事务
-            is_free = bool(self.radio_info.free)
+            # 1. 如果射频正在承载实际业务接口，且用户允许接管，才执行无线安全接管事务；
+            # 若当前没有任何业务接口（例如重置后未开启无线或处于空闲），本身即无需接管
+            has_running_ifaces = bool(self.radio_info.interfaces)
+            is_free = bool(self.radio_info.free) or not has_running_ifaces
             if not is_free:
                 if not allow_takeover:
                     raise RuntimeError(f"射频 {self.radio_name} 当前正在使用，且未勾选允许接管，已拒绝启动。")
                 self.service.messageGenerated.emit(f"正在安全接管无线射频 {self.radio_name}...", "info")
+                self.service.radioStreamOutput.emit(
+                    self.radio_name,
+                    f"🛡️ [安全接管] 射频 {self.radio_name} 正在承载无线业务，正在执行临时安全接管隔离...\n",
+                )
                 session_id = uuid4().hex
                 record = takeover.prepare_config_takeover(self.phy, self.radio_name, session_id, self._stop_event)
                 takeover.takeover_prepared(record, self._stop_event)
                 self.takeover_record = record
 
+            self.service.radioStreamOutput.emit(
+                self.radio_name,
+                f"🧹 [环境净化] 扫描并清理残留旧监听接口与冲突进程...\n",
+            )
             # 2. 清理旧残留监听口与残留外部抓包进程 (严格对齐 hcx_autocap.sh，绝不误伤或关闭同 PHY 其他接口，不误杀其它路抓包)
             cleanup_script = (
                 f"stale_pids=$(ps w 2>/dev/null | grep 'hcxdumptool' | grep -w '{self.mon_iface}' | grep -v grep | awk '{{print $1}}'); "
@@ -236,14 +268,23 @@ class AutoCaptureRadioSession:
                 "6 0 0 0\n72 0 0 34\n53 1 0 95\n6 0 0 0\n80 0 0 130\n97 0 0 0\n"
                 "80 0 0 22\n84 0 0 15\n21 1 0 0\n6 0 0 0\n6 0 0 4294967295\n"
             )
+            self.service.radioStreamOutput.emit(
+                self.radio_name,
+                f"🛡️ [内核过滤] 下发内核标准 BPF 纯净白名单 (仅放行信标与握手包，阻断高频数据流量)...\n",
+            )
             bpf_file = f"/tmp/.hcx_{self.mon_iface}.bpf"
             self.runner.run("init_bpf", f"cat << 'EOF' > {bpf_file}\n{bpf_payload}EOF", timeout=6)
 
             # 4. 生成有效单播 MAC 并创建监控接口 (严格对齐 hcx_autocap.sh 原生原子命令与 1 秒稳定延时)
+            self.service.radioStreamOutput.emit(
+                self.radio_name,
+                f"🌐 [网卡创建] 正在为 {self.phy} 创建专属虚拟监听网卡 {self.mon_iface}...\n",
+            )
             rand_bytes = secrets.token_bytes(5)
             wlan_mac = f"02:{rand_bytes[0]:02x}:{rand_bytes[1]:02x}:{rand_bytes[2]:02x}:{rand_bytes[3]:02x}:{rand_bytes[4]:02x}"
 
             create_cmd = (
+                f"" \
                 f"iw phy {self.phy} interface add {self.mon_iface} type monitor addr {wlan_mac} && "
                 f"ip link set {self.mon_iface} up && sleep 1"
             )
@@ -276,6 +317,10 @@ class AutoCaptureRadioSession:
                 f"ip link show dev {self.mon_iface} 2>/dev/null",
                 timeout=6,
                 cancel_event=self._stop_event,
+            )
+            self.service.radioStreamOutput.emit(
+                self.radio_name,
+                f"✅ [网卡就绪] 监听网卡 {self.mon_iface} 已启用，网络协议栈链路正常 (UP)\n",
             )
             if chk_link.exit_code != 0:
                 raise RuntimeError(
@@ -318,6 +363,11 @@ class AutoCaptureRadioSession:
             log_dir = self.output_dir / "autocap_logs"
             log_dir.mkdir(parents=True, exist_ok=True)
             self.local_log_file = log_dir / f"run_{self.mon_iface}_{stamp}.log"
+            self.service.radioStreamOutput.emit(
+                self.radio_name,
+                f"📄 [目标路径] 远端抓包文件: {self.remote_cap_file}\n"
+                f"🎯 [信道规划] 目标信道范围: {channels or '全信道跳频'}\n",
+            )
 
             # 6. 对齐 hcx_autocap.sh 多档尝试阶梯 (next_attempt) 自愈驱动兼容问题
             attempts = self._build_attempt_commands(channels, bpf_file)
@@ -421,6 +471,11 @@ class AutoCaptureRadioSession:
             self.service.radioStateChanged.emit(self.radio_name, "capturing")
             self.service.messageGenerated.emit(f"射频 {self.radio_name} 抓包已启动 ({self.mon_iface})", "success")
             self.service.radioStatsUpdated.emit(self.radio_name, self._build_stats_dict())
+            self.service.radioStreamOutput.emit(
+                self.radio_name,
+                f"⚡ [引擎就绪] 抓包工具已稳定运行，正在实时接收抓包数据流...\n"
+                f"------------------------------------------------------------\n",
+            )
 
             # 7. 实时流式读取输出并写入本地日志
             self._stream_loop()
@@ -773,7 +828,15 @@ class AutoCaptureRadioSession:
         except Exception as exc:
             LOGGER.debug("Kill hcx pid failed: %s", exc)
 
+        self.service.radioStreamOutput.emit(
+            self.radio_name,
+            f"\n⏹ [收尾流程] 正在安全停止抓包进程并释放占用资源...\n",
+        )
         # 3. 删除监控接口与本会话创建的 Multi-PHY 占位 stub 接口
+        self.service.radioStreamOutput.emit(
+            self.radio_name,
+            f"🌐 [网卡释放] 正在删除虚拟监听网卡 {self.mon_iface}...\n",
+        )
         try:
             self.runner.run("del_mon_iface", f"iw dev {self.mon_iface} del 2>/dev/null", timeout=8)
         except Exception as exc:
@@ -791,6 +854,10 @@ class AutoCaptureRadioSession:
         if self.takeover_record is not None:
             try:
                 self.service.messageGenerated.emit(f"正在原子恢复射频 {self.radio_name} 业务配置...", "info")
+                self.service.radioStreamOutput.emit(
+                    self.radio_name,
+                    f"🔄 [业务恢复] 正在恢复射频 {self.radio_name} 原始无线网络配置...\n",
+                )
                 takeover.restore_config_takeover(self.takeover_record)
                 takeover.audit_restore(self.takeover_record)
                 self.service.messageGenerated.emit(f"射频 {self.radio_name} 业务已成功恢复上线！", "success")
@@ -807,6 +874,11 @@ class AutoCaptureRadioSession:
         # 5. 更新状态 (若有未解决的异常，保留 error 状态供用户知晓)
         final_state = "error" if self.stats.error_message else "idle"
         self.stats.state = final_state
+        if final_state == "idle":
+            self.service.radioStreamOutput.emit(
+                self.radio_name,
+                "✅ [提示] 抓包已安全停止，无线监听接口已清理，Wi-Fi 业务已恢复正常。\n",
+            )
         self.service.radioStateChanged.emit(self.radio_name, final_state)
         self.service.radioStatsUpdated.emit(self.radio_name, self._build_stats_dict())
 
@@ -827,6 +899,10 @@ class AutoCaptureRadioSession:
                             if dest_file.exists():
                                 dest_file.unlink()
                             temp_dest.rename(dest_file)
+                            self.service.radioStreamOutput.emit(
+                                self.radio_name,
+                                f"📥 [成果] 抓包产物已拉回本地: {dest_file.name} ({dest_file.stat().st_size} 字节)\n",
+                            )
                             self.service.messageGenerated.emit(f"抓包产物已拉回: {dest_file.name}", "success")
                 except FileNotFoundError:
                     pass
@@ -857,6 +933,8 @@ class AutoCaptureService(QObject):
     offlineArtifactsPulled = Signal(list, str)              # pulled_files, local_dir
     offlinePullFailed = Signal(str)                         # error_message
     messageGenerated = Signal(str, str)                     # message, level
+    radioIdleStatusUpdated = Signal(dict)                   # {radio_name: is_free}
+    bootLogUpdated = Signal(str)                            # 最新后台会话日志文本
 
     def __init__(self, owner):
         super().__init__(owner if isinstance(owner, QObject) else None)
@@ -947,6 +1025,18 @@ class AutoCaptureService(QObject):
         for session in list(self.sessions.values()):
             session.stop()
         self._resource_timer.stop()
+
+    def poll_boot_log(self, max_lines: int = 35):
+        """异步读取远端后台抓包会话日志最新末尾并发布。"""
+        def _task():
+            try:
+                log_text = self.boot_manager.read_recent_session_log(max_lines=max_lines)
+                if log_text:
+                    self.bootLogUpdated.emit(log_text)
+            except Exception:
+                pass
+
+        threading.Thread(target=_task, name="PollBootLog", daemon=True).start()
 
     def refresh_boot_status(self):
         """在后台异步刷新开机自启状态。"""
@@ -1090,9 +1180,14 @@ class AutoCaptureService(QObject):
         target_dir = dest_dir or str(self.get_output_dir())
         return AutoCaptureLogAnalyzer.analyze_directory(target_dir)
 
-    def _poll_resources(self):
-        """轻量探针读取内存与 Flash 剩余空间。"""
-        if not self.is_busy:
+    def poll_resources(self, force: bool = False):
+        """轻量探针读取内存与 Flash 剩余空间。若 force=True 则在连接建立时无条件查询一次。"""
+        if not force and not self.is_busy:
+            return
+
+        snapshot = getattr(self.owner, "openwrt_snapshot", None)
+        conn_state = getattr(snapshot, "connection_state", None)
+        if getattr(conn_state, "value", conn_state) != "connected":
             return
 
         def _query():
@@ -1118,8 +1213,8 @@ class AutoCaptureService(QObject):
 
                         self.resourceStatsUpdated.emit(mem_avail, mem_total, disk_avail, disk_total, level)
 
-                        # 触发危险红线紧急停机保护！
-                        if level == "danger":
+                        # 触发危险红线紧急停机保护！仅在真正前台抓包运行时执行停止
+                        if level == "danger" and self.is_busy:
                             self.messageGenerated.emit(
                                 f"【资源危险预警】远端内存({mem_avail}MB)或磁盘({disk_avail}MB)已逼近极限！触发紧急优雅停机保护...",
                                 "error",
@@ -1129,6 +1224,44 @@ class AutoCaptureService(QObject):
                 LOGGER.debug("Guard probe failed: %s", exc)
 
         t = threading.Thread(target=_query, name="GuardProbe", daemon=True)
+        t.start()
+
+    def _poll_resources(self):
+        self.poll_resources(force=False)
+
+    def refresh_radio_idle_status(self):
+        """异步读取远端最新无线配置与运行状态，更新各射频业务空闲/使用中状态。"""
+        if getattr(self, "_is_probing_idle", False):
+            return
+        snapshot = getattr(self.owner, "openwrt_snapshot", None)
+        conn_state = getattr(snapshot, "connection_state", None)
+        if getattr(conn_state, "value", conn_state) != "connected":
+            return
+
+        self._is_probing_idle = True
+
+        def _task():
+            try:
+                cmd = (
+                    "uci show wireless 2>/dev/null; "
+                    "ip -o link 2>/dev/null; "
+                    "printf '\\n__WINBOX_SNAP_WIFISTATUS__\\n'; wifi status 2>/dev/null; "
+                    "printf '\\n__WINBOX_IWDEV__\\n'"
+                )
+                res = self.runner.run("probe_radio_idle", cmd, timeout=6)
+                if res.exit_code == 0 and res.stdout:
+                    from .device_probe import parse_radio_idle_status
+                    free_map = parse_radio_idle_status(res.stdout)
+                    if free_map:
+                        if hasattr(self.owner, "update_openwrt_radio_idle_status"):
+                            self.owner.update_openwrt_radio_idle_status(free_map)
+                        self.radioIdleStatusUpdated.emit(free_map)
+            except Exception as exc:
+                LOGGER.debug("Probe radio idle status failed: %s", exc)
+            finally:
+                self._is_probing_idle = False
+
+        t = threading.Thread(target=_task, name="ProbeRadioIdle", daemon=True)
         t.start()
 
     def _on_snapshot_changed(self, snapshot):

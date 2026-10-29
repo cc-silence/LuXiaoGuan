@@ -298,7 +298,7 @@ class OpenWrtPage(QWidget):
         name = next((name for name, number in self._page_indices.items() if number == index), None)
         if name is not None:
             page = self._ensure_subpage(name)
-            if name in ("files", "terminal"):
+            if name in ("files", "terminal", "auto_capture"):
                 page.enter()
         self.settingsChanged.emit()
 

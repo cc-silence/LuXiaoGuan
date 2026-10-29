@@ -430,6 +430,16 @@ class AutoCaptureBootManager:
         return pulled_files
 
 
+    def read_recent_session_log(self, max_lines: int = 35, cancel_event=None) -> str:
+        """读取远端最新的抓包会话日志末尾文本。"""
+        cmd = (
+            "LATEST=$(ls -1t /root/cap/script_*.log 2>/dev/null | head -n 1); "
+            f"if [ -n \"$LATEST\" ] && [ -f \"$LATEST\" ]; then tail -n {max_lines} \"$LATEST\" 2>/dev/null; fi"
+        )
+        res = self.runner.run("read_autocap_log", cmd, timeout=6, cancel_event=cancel_event)
+        return (res.stdout or "").strip()
+
+
 if __name__ == "__main__":
     print(f"本地内置抓包脚本: {get_local_script_path()}")
     print(f"本地脚本版本: {read_local_script_version()}")

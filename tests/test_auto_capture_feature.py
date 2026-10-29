@@ -35,6 +35,8 @@ from modules.capture_services.openwrt.models import (
 from modules.main_pages.packet_capture.openwrt.auto_capture_page import (
     AutoCapturePage,
     AutoCaptureReportDialog,
+    check_auto_capture_environment,
+    is_modern_hcx_supported_on_device,
 )
 from modules.main_pages.packet_capture.openwrt.auto_capture_radio_card import (
     AutoCaptureRadioCard,
@@ -387,6 +389,74 @@ phy#3
         self.assertTrue(free_map.get("radio1"), "radio1 should be free because all wifi-ifaces disabled='1'")
         self.assertTrue(free_map.get("radio2"), "radio2 should be free because wifi status up=False")
         self.assertFalse(free_map.get("radio3"), "radio3 should be busy because it has active AP interface")
+
+    def test_parse_radio_idle_status_when_signals_disabled_in_signal_page(self):
+        """验证当在信号管理页面禁用 Wi-Fi 信号（default_radio0/1 disabled='1' 且 radio.up=True）时，前台射频正确识别为空闲。"""
+        from modules.capture_services.openwrt.device_probe import parse_radio_idle_status
+
+        # 场景: 官方标准配置，default_radio0 与 default_radio1 均已设置 disabled='1'，
+        # 底层物理射频硬件保持 up=True 但业务接口均被停用
+        real_output = """
+wireless.radio0=wifi-device
+wireless.radio0.type='mac80211'
+wireless.radio0.path='platform/soc/18000000.wifi'
+wireless.radio0.channel='36'
+wireless.radio0.band='5g'
+wireless.radio0.disabled='0'
+wireless.default_radio0=wifi-iface
+wireless.default_radio0.device='radio0'
+wireless.default_radio0.network='lan'
+wireless.default_radio0.mode='ap'
+wireless.default_radio0.ssid='OpenWrt-5G'
+wireless.default_radio0.disabled='1'
+
+wireless.radio1=wifi-device
+wireless.radio1.type='mac80211'
+wireless.radio1.path='platform/soc/18000000.wifi+1'
+wireless.radio1.channel='1'
+wireless.radio1.band='2g'
+wireless.radio1.disabled='0'
+wireless.default_radio1=wifi-iface
+wireless.default_radio1.device='radio1'
+wireless.default_radio1.network='lan'
+wireless.default_radio1.mode='ap'
+wireless.default_radio1.ssid='OpenWrt-2.4G'
+wireless.default_radio1.disabled='1'
+
+__WINBOX_SNAP_WIFISTATUS__
+{
+  "radio0": {
+    "up": true,
+    "disabled": false,
+    "interfaces": [
+      {
+        "section": "default_radio0",
+        "ifname": "wlan0",
+        "config": {
+          "disabled": true
+        }
+      }
+    ]
+  },
+  "radio1": {
+    "up": true,
+    "disabled": false,
+    "interfaces": [
+      {
+        "section": "default_radio1",
+        "ifname": "wlan1",
+        "config": {
+          "disabled": true
+        }
+      }
+    ]
+  }
+}
+__WINBOX_IWDEV__
+"""
+        free_map = parse_radio_idle_status(real_output)
+        self.assertTrue(free_map.get("radio0"), "radio0 应该被正确判定为空闲，因为其上的业务接口 default_radio0 已禁用")
+        self.assertTrue(free_map.get("radio1"), "radio1 应该被正确判定为空闲，因为其上的业务接口 default_radio1 已禁用")
 
     def test_uci_radio_bands_and_phy_mapping_enhancement(self):
         from modules.capture_services.openwrt.radio_identity import uci_radio_bands
@@ -1107,6 +1177,462 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         self.assertIn("彻底加载完成", page.status_banner_title.text())
         page._on_boot_status_changed(ready_status)
         self.assertIn("彻底加载完成", page.status_banner_title.text())
+
+
+    def test_switching_between_foreground_and_background_refreshes_status(self):
+        """测试每当切换到前台抓包或后台抓包时，均刷新页面上的状态。"""
+        from modules.capture_services.openwrt.models import OpenWrtConnectionState, OpenWrtDeviceInfo, OpenWrtRadioInfo
+        from unittest.mock import patch, MagicMock
+
+        service = MagicMock()
+        service.openwrt_backend = MagicMock()
+        service.openwrt_backend.command_runner = MagicMock()
+        service.openwrt_backend.ssh_client = MagicMock()
+        service.settings = {}
+
+        auto_cap_service = AutoCaptureService(service)
+        service.auto_capture = auto_cap_service
+
+        r0 = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",), free=True)
+        device = OpenWrtDeviceInfo(model="MT7981 TestRouter", architecture="aarch64", radios=(r0,))
+        snapshot = OpenWrtSessionSnapshot(
+            connection_state=OpenWrtConnectionState.CONNECTED,
+            device=device,
+        )
+        service.openwrt_snapshot = snapshot
+
+        ready_status = AutoCaptureBootStatus(
+            installed=True,
+            service_installed=True,
+            autostart_enabled=True,
+            is_running=False,
+            remote_script_exists=True,
+            remote_script_path="/root/hcx_autocap.sh",
+            remote_version="1.0.0",
+            local_version="1.0.0",
+        )
+        auto_cap_service._boot_status = ready_status
+
+        page = AutoCapturePage(service, {})
+
+        # 模拟 session
+        session_mock = MagicMock()
+        session_mock.stats.state = "capturing"
+        session_mock.stats.error_message = ""
+        session_mock._build_stats_dict.return_value = {
+            "duration_seconds": 120,
+            "pmkid_count": 2,
+            "eapol_count": 1,
+            "file_size_bytes": 10240,
+            "current_channel": "36",
+            "state": "capturing",
+            "error_message": "",
+        }
+        auto_cap_service.sessions["radio0"] = session_mock
+
+        with patch.object(auto_cap_service, "refresh_boot_status") as mock_refresh_boot, \
+             patch.object(auto_cap_service, "poll_resources") as mock_poll_res, \
+             patch.object(auto_cap_service, "refresh_radio_idle_status") as mock_refresh_idle:
+
+            # 1. 切换到【后台抓包】(index 1)
+            page.sub_tabs.setCurrentIndex(1)
+            self.assertEqual(page.sub_tabs.currentIndex(), 1)
+
+            # 验证后台抓包状态被刷新
+            mock_refresh_boot.assert_called()
+            self.assertTrue(page._bg_status_timer.isActive())
+            self.assertIn("彻底加载完成", page.status_banner_title.text())
+
+            # 2. 切换回【前台抓包】(index 0)
+            page.sub_tabs.setCurrentIndex(0)
+            self.assertEqual(page.sub_tabs.currentIndex(), 0)
+
+            # 验证前台抓包状态被刷新
+            mock_poll_res.assert_called_with(force=True)
+            mock_refresh_idle.assert_called()
+            self.assertFalse(page._bg_status_timer.isActive())
+
+            # 验证射频卡片状态被更新为 session 当前抓包态
+            card = page.radio_cards["radio0"]
+            self.assertIn("前台抓包", card.status_badge.text())
+            self.assertIn("PMKID: 2 个", card.pmkid_label.text())
+            self.assertIn("握手包: 1 个", card.eapol_label.text())
+
+            # 3. 验证 enter() 接口调用当前激活页刷新
+            mock_poll_res.reset_mock()
+            mock_refresh_idle.reset_mock()
+            page.enter()
+            mock_poll_res.assert_called_with(force=True)
+            mock_refresh_idle.assert_called()
+
+    def test_radio_idle_status_dynamic_update_on_page(self):
+        """验证当远端射频状态更新时，前台射频卡片的徽章与接管复选框即时动态切换。"""
+        from modules.capture_services.openwrt.models import OpenWrtConnectionState, OpenWrtDeviceInfo, OpenWrtRadioInfo
+        from unittest.mock import MagicMock
+
+        service = MagicMock()
+        service.openwrt_backend = MagicMock()
+        service.openwrt_backend.command_runner = MagicMock()
+        service.openwrt_backend.ssh_client = MagicMock()
+        service.settings = {}
+
+        auto_cap_service = AutoCaptureService(service)
+        service.auto_capture = auto_cap_service
+
+        # 初始状态: radio0 正在使用 (free=False)
+        r0 = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",), free=False)
+        device = OpenWrtDeviceInfo(model="MT7981 TestRouter", architecture="aarch64", radios=(r0,))
+        snapshot = OpenWrtSessionSnapshot(
+            connection_state=OpenWrtConnectionState.CONNECTED,
+            device=device,
+        )
+        service.openwrt_snapshot = snapshot
+
+        page = AutoCapturePage(service, {})
+        card = page.radio_cards["radio0"]
+
+        # 初始应显示正在使用，且接管复选框可见
+        self.assertIn("正在使用", card.status_badge.text())
+        self.assertFalse(card.takeover_check.isHidden())
+
+        # 模拟信号管理或后台探测返回 radio0 变为已禁用/空闲 (free=True)
+        auto_cap_service.radioIdleStatusUpdated.emit({"radio0": True})
+
+        # 卡片状态应立即更新为空闲，且接管复选框自动隐藏
+        self.assertTrue(card.radio_info.free)
+        self.assertIn("空闲", card.status_badge.text())
+        self.assertTrue(card.takeover_check.isHidden())
+
+    def test_radio_card_and_session_stop_message_output(self):
+        """验证前台抓包停止时，控制台终端能够正确收到并输出停止与清理提示信息。"""
+        from modules.capture_services.openwrt.models import OpenWrtConnectionState, OpenWrtDeviceInfo, OpenWrtRadioInfo
+        from unittest.mock import MagicMock
+        from pathlib import Path
+
+        service = MagicMock()
+        service.openwrt_backend = MagicMock()
+        service.openwrt_backend.command_runner = MagicMock()
+        service.openwrt_backend.ssh_client = MagicMock()
+        service.settings = {}
+
+        auto_cap_service = AutoCaptureService(service)
+        service.auto_capture = auto_cap_service
+
+        r0 = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",), free=True)
+        device = OpenWrtDeviceInfo(model="MT7981 TestRouter", architecture="aarch64", radios=(r0,))
+        service.openwrt_snapshot = OpenWrtSessionSnapshot(
+            connection_state=OpenWrtConnectionState.CONNECTED,
+            device=device,
+        )
+
+        page = AutoCapturePage(service, {})
+        card = page.radio_cards["radio0"]
+
+        # 1. 模拟卡片点击停止
+        card.stop_btn.setEnabled(True)
+        card._on_stop_clicked()
+        self.assertIn("正在停止此路抓包", card.console.toPlainText())
+
+        # 2. 模拟 session 停止发出流提示
+        session = AutoCaptureRadioSession(r0, service.openwrt_backend.command_runner, service.openwrt_backend.ssh_client, Path("/tmp"), auto_cap_service)
+        session.stats.state = "capturing"
+        session.stop()
+        self.assertIn("收到停止抓包请求", card.console.toPlainText())
+
+        # 3. 模拟 session 收尾完成发出完成提示
+        mock_takeover = MagicMock()
+        session._cleanup_session(mock_takeover)
+        self.assertIn("抓包已安全停止", card.console.toPlainText())
+
+    def test_hcx_outdated_warning_conditional_prompt(self):
+        """测试旧版 hcxdumptool 警告根据路由器是否支持新版本进行分流提示。"""
+        # 1. OpenWrt 23.05 + 6.2.4 hcx (支持升级到 6.3.4)
+        dev_2305 = OpenWrtDeviceInfo(
+            model="Xiaomi AX3600",
+            version="23.05.2",
+            kernel_version="5.15.150",
+            architecture="aarch64",
+            radios=(OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",), free=True),),
+        )
+        self.assertTrue(is_modern_hcx_supported_on_device(dev_2305))
+
+        pmkid_dep = DependencyInfo(
+            key="pmkid",
+            display_name="PMKID",
+            state=DependencyState.MISSING,
+            detail="缺少命令：hcxdumptool (当前为旧版 6.2.4，不支持自动抓包，需升级 6.3.4+)",
+        )
+        snap_2305 = OpenWrtSessionSnapshot(
+            connection_state=OpenWrtConnectionState.CONNECTED,
+            device=dev_2305,
+            dependencies=(pmkid_dep,),
+        )
+        has_issue, issue_type, issue_detail = check_auto_capture_environment(dev_2305, snap_2305)
+        self.assertTrue(has_issue)
+        self.assertEqual(issue_type, "hcx_outdated_upgradeable")
+
+        # 验证页面卡片渲染：支持升级时显示升级按钮并提示一键升级
+        service = MagicMock()
+        service.openwrt_backend = MagicMock()
+        service.settings = {}
+        service.openwrt_snapshot = snap_2305
+        service.current_device = dev_2305
+        auto_cap_service = AutoCaptureService(service)
+        service.auto_capture = auto_cap_service
+
+        page = AutoCapturePage(service, {})
+        page._on_snapshot_changed(snap_2305)
+        self.assertFalse(page.version_warning_card.isHidden())
+        self.assertFalse(page.upgrade_hcx_btn.isHidden())
+        self.assertIn("需升级", page.version_warning_title.text())
+        self.assertIn("一键升级", page.version_warning_detail.text())
+
+        # 2. OpenWrt 22.03 + 6.2.4 hcx (不支持升级新版，内核 < 5.15 且固件 < 23.05)
+        dev_2203 = OpenWrtDeviceInfo(
+            model="Redmi AX6S",
+            version="22.03.5",
+            kernel_version="5.10.176",
+            architecture="aarch64",
+            radios=(OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",), free=True),),
+        )
+        self.assertFalse(is_modern_hcx_supported_on_device(dev_2203))
+
+        snap_2203 = OpenWrtSessionSnapshot(
+            connection_state=OpenWrtConnectionState.CONNECTED,
+            device=dev_2203,
+            dependencies=(pmkid_dep,),
+        )
+        has_issue, issue_type, issue_detail = check_auto_capture_environment(dev_2203, snap_2203)
+        self.assertTrue(has_issue)
+        self.assertEqual(issue_type, "hcx_outdated_unsupported")
+
+        # 验证页面卡片渲染：不支持升级时隐藏升级按钮，且提示升级 OpenWrt 到 23 或更高版本
+        service.openwrt_snapshot = snap_2203
+        service.current_device = dev_2203
+        page._on_snapshot_changed(snap_2203)
+        self.assertFalse(page.version_warning_card.isHidden())
+        self.assertTrue(page.upgrade_hcx_btn.isHidden())
+        self.assertNotIn("需升级", page.version_warning_title.text())
+        self.assertIn("工具是旧版本，可能无法正常抓包", page.version_warning_detail.text())
+        self.assertIn("点击下方【手动启动】按钮看是否能稳定运行 2 分钟", page.version_warning_detail.text())
+        self.assertIn("直接切换到【前台抓包】执行看是否报错", page.version_warning_detail.text())
+        self.assertIn("若无法正常抓包，建议将 OpenWrt 升级到 23 或更高版本", page.version_warning_detail.text())
+
+        # 3. 第三方定制固件 (如 Kiddin')，内核 5.4 低于 5.15 基线
+        dev_custom_low = OpenWrtDeviceInfo(
+            model="Custom Router",
+            version="R23.01.01",  # 日期/非标准主版本
+            kernel_version="5.4.213",
+            architecture="mipsel",
+            radios=(OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("2.4G",), free=True),),
+        )
+        self.assertFalse(is_modern_hcx_supported_on_device(dev_custom_low))
+        snap_custom_low = OpenWrtSessionSnapshot(
+            connection_state=OpenWrtConnectionState.CONNECTED,
+            device=dev_custom_low,
+            dependencies=(pmkid_dep,),
+        )
+        has_issue, issue_type, issue_detail = check_auto_capture_environment(dev_custom_low, snap_custom_low)
+        self.assertEqual(issue_type, "hcx_outdated_unsupported")
+        page._on_snapshot_changed(snap_custom_low)
+        self.assertTrue(page.upgrade_hcx_btn.isHidden())
+        self.assertIn("若无法正常抓包，建议将 OpenWrt 升级到 23 或更高版本", page.version_warning_detail.text())
+
+        # 4. 第三方定制固件，内核 6.1 >= 5.15 基线
+        dev_custom_high = OpenWrtDeviceInfo(
+            model="Custom Router High",
+            version="R24.01.01",
+            kernel_version="6.1.42",
+            architecture="aarch64",
+            radios=(OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",), free=True),),
+        )
+        self.assertTrue(is_modern_hcx_supported_on_device(dev_custom_high))
+        snap_custom_high = OpenWrtSessionSnapshot(
+            connection_state=OpenWrtConnectionState.CONNECTED,
+            device=dev_custom_high,
+            dependencies=(pmkid_dep,),
+        )
+        has_issue, issue_type, issue_detail = check_auto_capture_environment(dev_custom_high, snap_custom_high)
+        self.assertEqual(issue_type, "hcx_outdated_upgradeable")
+        page._on_snapshot_changed(snap_custom_high)
+        self.assertFalse(page.upgrade_hcx_btn.isHidden())
+        self.assertIn("一键升级", page.version_warning_detail.text())
+
+        # 5. 防御测试：在不支持新版的设备上触发 _on_upgrade_hcx_clicked 会被拦截弹窗
+        with patch("modules.main_pages.packet_capture.openwrt.auto_capture_page.MessageDialog") as mock_dialog_cls:
+            service.current_device = dev_2203
+            service.dependency_service = MagicMock()
+            page._on_upgrade_hcx_clicked()
+            mock_dialog_cls.assert_called_once()
+            self.assertIn("不支持升级", mock_dialog_cls.call_args[0][0])
+            self.assertIn("请将 OpenWrt 升级到 23 或更高版本以获得更好的抓包体验", mock_dialog_cls.call_args[0][1])
+            service.dependency_service.install_async.assert_not_called()
+
+
+    def test_pmkid_dependency_outdated_handling_and_dynamic_version_reporting(self):
+        """测试登录页 PMKID 依赖检测旧版本分流（可升级 / 旧版本，拒绝提示缺少依赖），及后台抓包页面动态显示探测到的实际版本（杜绝写死 6.2.4）。"""
+        from modules.capture_services.openwrt.dependency_manager import OpenWrtDependencyManager, is_hcx_outdated
+        from modules.capture_services.openwrt.models import DependencyState, OpenWrtDeviceInfo, OpenWrtSessionSnapshot
+        from modules.main_pages.packet_capture.openwrt.auto_capture_page import AutoCapturePage
+        from modules.main_pages.packet_capture.openwrt.dependency_section import DependencySection
+        from unittest.mock import MagicMock
+
+        # 1. 验证 is_hcx_outdated 工具函数逻辑
+        self.assertTrue(is_hcx_outdated("6.0.1"))
+        self.assertTrue(is_hcx_outdated("6.2.4"))
+        self.assertFalse(is_hcx_outdated("6.3.4"))
+        self.assertFalse(is_hcx_outdated("6.3.5"))
+
+        # 2. 模拟真实路由器上检测到 hcxdumptool 6.0.1（非 6.2.4）
+        runner = MagicMock()
+        mgr = OpenWrtDependencyManager(runner)
+
+        # 2.1 支持新版本环境 (OpenWrt 23.05, kernel 5.15)
+        dev_modern = OpenWrtDeviceInfo(
+            model="Xiaomi AX3600",
+            version="23.05.2",
+            kernel_version="5.15.150",
+            architecture="aarch64_cortex-a53",
+        )
+
+        # Mock 命令探针：系统内存在 hcxdumptool，且版本为 6.0.1
+        def mock_run(step_name, cmd, *args, **kwargs):
+            res = MagicMock()
+            res.cancelled = False
+            res.timed_out = False
+            res.stderr = ""
+            if "dependency_" in step_name:
+                res.exit_code = 0
+                cmd_name = step_name.replace("dependency_", "")
+                res.stdout = f"OK:/usr/bin/{cmd_name}"
+            elif "DISTRIB_RELEASE" in cmd:
+                res.exit_code = 0
+                res.stdout = "23.05.2\n5.15.150"
+            elif "hcxdumptool" in cmd:
+                res.exit_code = 0
+                res.stdout = "hcxdumptool 6.0.1 (C) 2020 ZeroBeat"
+            else:
+                res.exit_code = 0
+                res.stdout = ""
+            return res
+
+        runner.run.side_effect = mock_run
+
+        deps = mgr.check(enabled_features={"pmkid": True}, sftp_available=True, device=dev_modern)
+        pmkid_dep = next(d for d in deps if d.key == "pmkid")
+
+        # 验证 PMKID 状态为 UPGRADABLE（可升级），决不能是 MISSING（缺少依赖）！
+        self.assertEqual(pmkid_dep.state, DependencyState.UPGRADABLE)
+        self.assertIn("6.0.1", pmkid_dep.detail)
+        self.assertIn("当前系统支持新版本，可升级至 6.3.4+", pmkid_dep.detail)
+        self.assertNotIn("缺少命令", pmkid_dep.detail)
+
+        # 2.2 不支持新版本环境 (OpenWrt 21.02, kernel 5.4)
+        dev_legacy = OpenWrtDeviceInfo(
+            model="ASUS RT-ACRH17",
+            version="21.02.7",
+            kernel_version="5.4.213",
+            architecture="arm_cortex-a7",
+        )
+
+        deps_legacy = mgr.check(enabled_features={"pmkid": True}, sftp_available=True, device=dev_legacy)
+        pmkid_legacy = next(d for d in deps_legacy if d.key == "pmkid")
+
+        # 验证 PMKID 状态为 OUTDATED（旧版本），决不能是 MISSING（缺少依赖）！
+        self.assertEqual(pmkid_legacy.state, DependencyState.OUTDATED)
+        self.assertIn("6.0.1", pmkid_legacy.detail)
+        self.assertIn("当前系统不支持新版本；常规抓包可正常使用", pmkid_legacy.detail)
+        self.assertNotIn("缺少命令", pmkid_legacy.detail)
+
+        # 3. 验证登录页依赖组件状态文案与按钮文本联动
+        self.assertEqual(DependencySection.STATE_TEXT.get("upgradable"), "可升级")
+        self.assertEqual(DependencySection.STATE_TEXT.get("outdated"), "旧版本")
+
+        # 4. 验证后台抓包页面卡片动态回显实际版本（显示 6.0.1，绝不硬编码 6.2.4）
+        snap = OpenWrtSessionSnapshot(
+            connection_state=OpenWrtConnectionState.CONNECTED,
+            device=dev_legacy,
+            dependencies=(pmkid_legacy,),
+        )
+        service = MagicMock()
+        service.openwrt_backend = MagicMock()
+        service.settings = {}
+        service.openwrt_snapshot = snap
+        service.current_device = dev_legacy
+        service.auto_capture = AutoCaptureService(service)
+
+        page = AutoCapturePage(service, {})
+        page._on_snapshot_changed(snap)
+
+        # 验证卡片标题和内容必须包含真实的 6.0.1，绝不能出现硬编码的 6.2.4
+        title_text = page.version_warning_title.text()
+        detail_text = page.version_warning_detail.text()
+        self.assertIn("6.0.1", title_text)
+        self.assertIn("6.0.1", detail_text)
+        self.assertNotIn("6.2.4", title_text)
+        self.assertNotIn("6.2.4", detail_text)
+        self.assertIn("工具是旧版本，可能无法正常抓包", detail_text)
+        self.assertIn("若无法正常抓包，建议将 OpenWrt 升级到 23 或更高版本", detail_text)
+
+    def test_background_capture_console_display_and_hide_lifecycle(self):
+        """测试后台抓包控制台的初始隐藏、手动启动成功后显示、停止后隐藏的生命周期。"""
+        service = MagicMock()
+        service.openwrt_backend = MagicMock()
+        service.settings = {}
+        auto_cap_service = AutoCaptureService(service)
+        service.auto_capture = auto_cap_service
+
+        page = AutoCapturePage(service, {})
+        # 1. 初始状态：控制台默认隐藏
+        self.assertTrue(page.bg_console_card.isHidden())
+
+        # 2. 模拟手动启动成功消息到达：控制台显示出来，并打入启动日志
+        page._on_message_generated("后台抓包脚本已成功启动！仅接管空闲射频，不影响正常业务 Wi-Fi。", "success")
+        self.assertFalse(page.bg_console_card.isHidden())
+        self.assertIn("后台抓包脚本已启动成功", page.bg_console.toPlainText())
+
+        # 3. 模拟接收后台会话日志更新
+        page._on_boot_log_updated("hcxmon0: capturing on channel 1, packet count: 42")
+        self.assertIn("hcxmon0: capturing", page.bg_console.toPlainText())
+
+        # 4. 模拟点击结束收尾：控制台隐藏
+        page._on_stop_and_cleanup_clicked()
+        self.assertTrue(page.bg_console_card.isHidden())
+
+    def test_foreground_capture_pipeline_emits_full_lifecycle_logs(self):
+        """测试前台抓包流水线在整个生命周期均有清晰的控制台日志输出。"""
+        service = MagicMock()
+        service.openwrt_backend = MagicMock()
+        service.openwrt_backend.command_runner = MagicMock()
+        service.openwrt_backend.ssh_client = MagicMock()
+        service.settings = {}
+
+        auto_cap_service = AutoCaptureService(service)
+        service.auto_capture = auto_cap_service
+
+        r0 = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",), free=True)
+        session = AutoCaptureRadioSession(
+            r0,
+            service.openwrt_backend.command_runner,
+            service.openwrt_backend.ssh_client,
+            Path("/tmp"),
+            auto_cap_service,
+        )
+
+        emitted_logs = []
+        auto_cap_service.radioStreamOutput.connect(lambda r, text: emitted_logs.append(text))
+
+        # 模拟停止收尾
+        session.stats.state = 'capturing'
+        session.stop()
+        self.assertTrue(any("收到停止抓包请求" in l for l in emitted_logs))
+
+        # 模拟清理网卡与收尾
+        mock_takeover = MagicMock()
+        session._cleanup_session(mock_takeover)
+        self.assertTrue(any("收尾流程" in l for l in emitted_logs))
+        self.assertTrue(any("网卡释放" in l for l in emitted_logs))
+        self.assertTrue(any("抓包已安全停止" in l for l in emitted_logs))
 
 
 if __name__ == "__main__":

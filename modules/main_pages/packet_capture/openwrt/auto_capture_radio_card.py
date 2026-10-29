@@ -308,12 +308,28 @@ class AutoCaptureRadioCard(QFrame):
         else:
             self.curr_channel_label.setText("当前信道: --")
             is_free = bool(self.radio_info.free)
+            self.takeover_check.setVisible(not is_free)
             if is_free:
                 self.status_badge.setText("【空闲】(安全无感)")
                 self.status_badge.setStyleSheet("color: #10b981; font-weight: bold;")
             else:
                 self.status_badge.setText("【正在使用】(业务已在线)")
                 self.status_badge.setStyleSheet("color: #f59e0b; font-weight: bold;")
+
+    def refresh_status(self, session=None, latest_radio_info=None):
+        """刷新卡片状态与回显指标。"""
+        if latest_radio_info is not None:
+            self.radio_info = latest_radio_info
+            band_str = "/".join(latest_radio_info.bands) if latest_radio_info.bands else "2.4G"
+            phy_name = latest_radio_info.interface or "phy"
+            drv_str = f" [{latest_radio_info.driver}]" if latest_radio_info.driver else ""
+            self.title_label.setText(f"📻 射频: {band_str} ({latest_radio_info.name} / {phy_name}){drv_str}")
+
+        if session is not None:
+            self.apply_state(session.stats.state, session.stats.error_message)
+            self.apply_stats(session._build_stats_dict())
+        else:
+            self.apply_state("idle")
 
     def _clear_console(self):
         self.console.clear()
@@ -342,4 +358,5 @@ class AutoCaptureRadioCard(QFrame):
         self.startRequested.emit(self.radio_info, channels, allow_takeover)
 
     def _on_stop_clicked(self):
+        self.append_stream_text("\n⏹ [提示] 正在停止此路抓包...\n")
         self.stopRequested.emit(self.radio_name)

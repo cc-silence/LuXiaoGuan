@@ -17,35 +17,38 @@ def parse_radio_idle_status(wireless_text: str) -> dict[str, bool]:
     """与 hcx_autocap.sh detect_idle_radios 严格对齐，解析射频真实业务空闲状态。
 
     判定准则：
-    1. 若 UCI wireless.<radio>.disabled == '1'，射频被整体禁用，直接判定为空闲 (True)；
-    2. 若 wifi status JSON 中 radio.up == False 或 radio.disabled == True 且无活动业务接口，判定为空闲 (True)；
-    3. 若属于该 radio 的所有 wifi-iface 均被禁用 (disabled == '1') 或无任何配置接口，判定为空闲 (True)；
-    4. 只有在存在未禁用的业务 wifi-iface 且接口处于活跃发射状态时，才判定为正在使用 (False)。
+    1. 若 UCI 中射频设备被显式声明禁用 (disabled == '1')，直接判定为空闲 (True)；
+    2. 若 wifi status JSON 中该射频处于未启用或无任何活跃发射接口，直接判定为空闲 (True)；
+    3. 若属于该射频的所有业务接口 (wifi-iface) 均声明了 disabled == '1' 或未配置业务接口，判定为空闲 (True)；
+    4. 只有在明确存在未禁用的业务 Wi-Fi 且该接口处于活跃发射中时，才判定为正在使用 (False)。
     """
     free_map = {}
 
-    # 1. 扫描 UCI wireless 属性
-    radio_disabled = {}
-    iface_dev = {}
-    iface_disabled = {}
+    # 1. 扫描 UCI wireless 配置节声明与属性，坚决不用节名字串猜测类型
+    section_types = {}    # sec -> "wifi-device" | "wifi-iface"
+    section_props = {}    # sec -> {prop: val}
+    anon_device_map = {}  # "@wifi-device[0]" -> "radio0"
 
+    device_idx = 0
     for line in str(wireless_text or "").splitlines():
         line = line.strip()
         if not line.startswith("wireless."):
             continue
-        m = re.match(r"^wireless\.([A-Za-z0-9_@\[\]\-]+)\.([A-Za-z0-9_]+)=(.*)$", line)
-        if not m:
+        m_decl = re.match(r"^wireless\.([A-Za-z0-9_@\[\]-]+)=['\"]?([A-Za-z0-9_-]+)['\"]?$", line)
+        if m_decl:
+            sec, stype = m_decl.groups()
+            section_types[sec] = stype
+            if stype == "wifi-device" and sec.startswith("@"):
+                anon_device_map[sec] = f"radio{device_idx}"
+                device_idx += 1
             continue
-        sec, prop, val = m.groups()
-        val = val.strip().strip("'\"")
-
-        if prop == "disabled":
-            if "radio" in sec or sec.startswith("wifi-device"):
-                radio_disabled[sec] = (val == "1")
-            else:
-                iface_disabled[sec] = (val == "1")
-        elif prop == "device":
-            iface_dev[sec] = val
+        m_prop = re.match(r"^wireless\.([A-Za-z0-9_@\[\]-]+)\.([A-Za-z0-9_]+)=(.*)$", line)
+        if m_prop:
+            sec, prop, val = m_prop.groups()
+            val = val.strip().strip('"\'')
+            if sec not in section_props:
+                section_props[sec] = {}
+            section_props[sec][prop] = val
 
     # 2. 扫描 wifi status JSON
     wifi_status_data = {}
@@ -59,45 +62,71 @@ def parse_radio_idle_status(wireless_text: str) -> dict[str, bool]:
             pass
 
     # 3. 收集所有 radio 名称
-    all_radios = set(radio_disabled.keys()) | set(wifi_status_data.keys()) | set(iface_dev.values())
+    all_radios = set(wifi_status_data.keys())
+    for sec, stype in section_types.items():
+        if stype == "wifi-device":
+            all_radios.add(anon_device_map.get(sec, sec))
+    for sec, props in section_props.items():
+        if "device" in props:
+            dev = props["device"]
+            all_radios.add(anon_device_map.get(dev, dev))
+        elif sec.startswith("radio") or (sec in section_types and section_types[sec] == "wifi-device"):
+            all_radios.add(anon_device_map.get(sec, sec))
+
+    def _is_disabled(val) -> bool:
+        return str(val).lower() in {"1", "true", "yes", "on", "disabled"}
 
     for r in all_radios:
         if not r or not re.match(r"^[A-Za-z0-9_]+$", r):
             continue
 
-        # 规则 1: UCI 显式声明 radio.disabled='1'
-        if radio_disabled.get(r, False):
+        # 规则 1: 检查 UCI 中 radio 设备本身是否被整卡禁用
+        r_sec_candidates = [r] + [sec for sec, mapped in anon_device_map.items() if mapped == r]
+        radio_disabled_in_uci = any(
+            _is_disabled(section_props.get(s, {}).get("disabled", "0"))
+            for s in r_sec_candidates
+        )
+        if radio_disabled_in_uci:
             free_map[r] = True
             continue
 
-        # 规则 2: wifi status 明确报告未启动或已禁用
+        # 规则 2: 检查 wifi status JSON
         st = wifi_status_data.get(r)
         if isinstance(st, dict):
+            is_dis = _is_disabled(st.get("disabled", False))
             is_up = st.get("up", True)
-            is_dis = st.get("disabled", False)
             interfaces = st.get("interfaces", [])
             has_running_iface = any(
-                isinstance(ifc, dict) and ifc.get("up", True) and not ifc.get("config", {}).get("disabled", False)
+                isinstance(ifc, dict)
+                and ifc.get("up", True)
+                and not _is_disabled(ifc.get("config", {}).get("disabled", False))
                 for ifc in interfaces
             )
-            if (not is_up or is_dis) and not has_running_iface:
+            # 若 radio 被禁用、未启动，或者根本没有正在发射的业务接口，直接视为空闲
+            if (is_dis or not is_up) or not has_running_iface:
                 free_map[r] = True
                 continue
 
-        # 规则 3: 检查属于该 radio 的所有 wifi-iface
-        bound = [sec for sec, dev in iface_dev.items() if dev == r]
-        if bound:
-            # 如果绑在该 radio 上的所有 wifi-iface 都声明了 disabled='1'
-            if all(iface_disabled.get(sec, False) for sec in bound):
+        # 规则 3: 检查属于该 radio 的所有 wifi-iface 业务接口
+        bound_ifaces = []
+        for sec, props in section_props.items():
+            dev = props.get("device", "")
+            mapped_dev = anon_device_map.get(dev, dev)
+            if mapped_dev == r:
+                bound_ifaces.append(sec)
+
+        if bound_ifaces:
+            # 如果配置在该 radio 上的所有 wifi-iface 都声明了 disabled='1'
+            if all(_is_disabled(section_props.get(sec, {}).get("disabled", "0")) for sec in bound_ifaces):
                 free_map[r] = True
                 continue
         else:
-            # 根本没有配置任何业务接口
+            # 根本没有配置任何业务接口且运行时也没有活动接口
             if not st or not st.get("interfaces"):
                 free_map[r] = True
                 continue
 
-        # 默认有未禁用的接口
+        # 默认存在未禁用的接口
         free_map[r] = False
 
     return free_map

@@ -350,6 +350,14 @@ class CaptureService(QObject):
         snapshot = self.openwrt_backend.set_access_points(access_points)
         self.openwrtSnapshotChanged.emit(snapshot)
 
+    def update_openwrt_radio_idle_status(self, free_map):
+        """同步更新 OpenWrt 射频业务状态并向外广播快照变更。"""
+        old_snapshot = self.openwrt_snapshot
+        snapshot = self.openwrt_backend.update_radio_idle_status(free_map)
+        if snapshot != old_snapshot:
+            self.openwrtSnapshotChanged.emit(snapshot)
+        return snapshot
+
     def set_openwrt_selected_bssids(self, bssids):
         """更新共享目标集合并广播快照；后端任务只读取该稳定选择。"""
 

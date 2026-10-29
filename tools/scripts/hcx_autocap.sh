@@ -234,7 +234,14 @@ hcx_probe_help() {
 
 # 按帮助文本 / 版本号定方言; 只写 HCX_MODE / HCX_PRIMARY, 不改 HCX_DIALECT(用户设置要留着)
 detect_hcx_dialect() {
-    HCX_BIN=$(command -v hcxdumptool 2>/dev/null)
+    HCX_BIN=""
+    if [ -x /root/.winbox-tools/bin/hcxdumptool ] && /root/.winbox-tools/bin/hcxdumptool -h 2>&1 | grep -q -- '-w'; then
+        HCX_BIN="/root/.winbox-tools/bin/hcxdumptool"
+    elif command -v hcxdumptool >/dev/null 2>&1; then
+        HCX_BIN=$(command -v hcxdumptool 2>/dev/null)
+    elif [ -x /root/.winbox-tools/bin/hcxdumptool ]; then
+        HCX_BIN="/root/.winbox-tools/bin/hcxdumptool"
+    fi
     [ -z "${HCX_BIN}" ] && HCX_BIN="hcxdumptool"
     HCX_VER=$(hcx_version_line)
     hcx_probe_help

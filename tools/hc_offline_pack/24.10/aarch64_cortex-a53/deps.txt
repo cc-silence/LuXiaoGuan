@@ -1,0 +1,8 @@
+# 24.10.8 / aarch64_cortex-a53 / ipk
+# 源: OpenWrt 24.10.8 官方 feed（base + packages）
+# 安装顺序（依赖在前）：
+  libpcap1       1.10.5-r2       120613 B  依赖: libc
+  libopenssl3    3.0.22-r1      1759618 B  依赖: libc
+  hcxdumptool    6.3.4-r1         37681 B  依赖: libc, libpcap1, libopenssl3
+# 合计 3 个包 / 1917912 B
+# 注: libc/kernel 属固件自带，不打包

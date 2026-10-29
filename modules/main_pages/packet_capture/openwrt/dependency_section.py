@@ -14,6 +14,16 @@ from modules.capture_services.openwrt.dependency_groups import CAPTURE_PACKAGES
 class DependencySection:
     """展示功能开关和依赖状态，安装按钮只发出页面动作。"""
 
+    STATE_TEXT = {
+        "ready": "已安装",
+        "upgradable": "可升级",
+        "outdated": "旧版本",
+        "missing": "缺少依赖",
+        "unsupported": "不支持",
+        "checking": "检测中",
+        "disabled": "已关闭",
+    }
+
     def __init__(self, parent, settings, action_callback, dependency_service=None, owner=None):
         self.card, self.layout = create_capture_card(
             parent,
@@ -81,7 +91,7 @@ class DependencySection:
             button.setProperty("dependencyStopSession",task.session_id if own else None)
             state=self._states.get(key,"unknown")
             text=("停止" if own else "检查" if not CAPTURE_PACKAGES[key]
-                  else "卸载" if state=="ready" else "安装" if state=="missing" else "检查")
+                  else "升级" if state=="upgradable" else "卸载" if state in ("ready", "outdated") else "安装" if state=="missing" else "检查")
             button.setText(text)
             button.setEnabled(self._connected and (own or not self._busy and self.checks[key].isChecked()))
             button.setToolTip("只检查系统自带命令，不删除系统组件。" if not CAPTURE_PACKAGES[key] else
@@ -141,13 +151,7 @@ class DependencySection:
             status = self.statuses.get(item.key)
             if status is None:
                 continue
-            text = {
-                "ready": "已安装",
-                "missing": "缺少依赖",
-                "unsupported": "不支持",
-                "checking": "检测中",
-                "disabled": "已关闭",
-            }.get(item.state.value, "未检测")
+            text = self.STATE_TEXT.get(item.state.value, "未检测")
             status.setText(text)
             # 版本与缺失详情进悬停提示，状态列只放四个短词。
             status.setToolTip(str(item.detail or ""))

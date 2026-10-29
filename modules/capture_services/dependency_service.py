@@ -210,6 +210,8 @@ class OpenWrtDependencyService(QObject):
                 if group in TOOL_KEYS and action!="check":
                     checked=check_tools(self.manager.command_runner,TOOL_KEYS,cancel)
             except Exception as exc:
+                import logging
+                logging.getLogger("routermanager.dependency").exception("Dependency %s failed: %s", action, exc)
                 error=str(exc) or type(exc).__name__
                 diagnostic=getattr(exc,"package_diagnostic","")
                 if diagnostic:
