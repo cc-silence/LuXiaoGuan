@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 import tempfile
+import time
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -553,7 +554,7 @@ __WINBOX_KERNEL__=5.15.137
             )
 
             # 在 _stream_loop 触发时记录当时状态 (正常启动后立即进入该循环)
-            def record_capturing():
+            def record_capturing(*args, **kwargs):
                 captured_states.append(session.stats.state)
 
             session._stream_loop = record_capturing
@@ -857,6 +858,7 @@ __WINBOX_KERNEL__=5.15.137
             channel="36",
             has_pmkid=True,
             has_eapol=True,
+            handshake_frames="M1+M2",
         )
         report = AutoCaptureDiagnosticReport(
             health_level="success",
@@ -892,8 +894,13 @@ __WINBOX_KERNEL__=5.15.137
         table_dark = dlg_dark.findChild(QTableWidget, "reportTable")
         self.assertIsNotNone(table_dark)
         self.assertEqual(table_dark.rowCount(), 1)
+        self.assertEqual(table_dark.columnCount(), 5)
         self.assertEqual(table_dark.item(0, 0).text(), "AA:BB:CC:DD:EE:FF")
-        self.assertIn("PMKID + 握手包", table_dark.item(0, 3).text())
+        self.assertIn("M1+M2", table_dark.item(0, 3).text())
+        self.assertIn("PMKID + 握手包", table_dark.item(0, 4).text())
+        # 验证 SSID (列 1) 与握手帧构成 (列 3) 加宽一倍 (>= 200px)
+        self.assertGreaterEqual(table_dark.columnWidth(1), 200)
+        self.assertGreaterEqual(table_dark.columnWidth(3), 200)
 
         # 检查日志浏览器
         log_view_dark = dlg_dark.findChild(QTextBrowser, "reportLogBrowser")
@@ -930,6 +937,176 @@ __WINBOX_KERNEL__=5.15.137
         dlg_empty = AutoCaptureReportDialog(empty_report, "C:/temp/empty_cap", parent_mock)
         empty_log_view = dlg_empty.findChild(QTextBrowser, "reportLogBrowser")
         self.assertIn("当前本地目录尚未检测到抓包会话日志", empty_log_view.toPlainText())
+
+    def test_log_analyzer_hcxdumptool_modern_format(self):
+        """测试 6.3.x 现代 hcxdumptool 动态字符表格格式解析与 MAC 归一化。"""
+        modern_log = """
+Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last seen on top)     SCAN-FREQUENCY:   2412
+-----------------------------------------------------------------------------------------
+   1 08:52:54 + +     + 54a7035d5758 TP-LINK_abcd
+   1 08:52:54       + + 64bf6be17c64 hengshanlu
+   1 08:52:54           bc54f9f3f478 AP_805053869
+   LAST   E 2 MAC-AP-ROGUE   MAC-CLIENT   ESSID (last seen on top)
+-----------------------------------------------------------------------------------------
+ 08:52:54 + + 54a7035d5758 3ac62034d21b TP-LINK_abcd
+"""
+        report = AutoCaptureLogAnalyzer.analyze_log_text(modern_log)
+        self.assertEqual(report.pmkid_count, 1)  # 64bf6be17c64 有 P 标志
+        self.assertEqual(report.eapol_count, 1)  # 54a7035d5758 有 1 标志和 M2 标志
+        self.assertEqual(len(report.targets), 3)
+
+        # 检查归一化 MAC 与详细标志
+        target_map = {t.bssid: t for t in report.targets}
+        self.assertIn("54:A7:03:5D:57:58", target_map)
+        self.assertIn("64:BF:6B:E1:7C:64", target_map)
+        self.assertIn("BC:54:F9:F3:F4:78", target_map)
+        self.assertTrue(target_map["64:BF:6B:E1:7C:64"].has_pmkid)
+        self.assertTrue(target_map["54:A7:03:5D:57:58"].has_eapol)
+        self.assertEqual(target_map["54:A7:03:5D:57:58"].handshake_frames, "M1+M2")
+
+    def test_auto_capture_stream_stats_modern_format(self):
+        """测试前台流式解析器对 6.3.x 格式信道与抓包计数实时更新。"""
+        radio = OpenWrtRadioInfo(name="radio1", interface="phy1", bands=("2.4G",))
+        service = MagicMock()
+        session = AutoCaptureRadioSession(radio, MagicMock(), MagicMock(), Path(tempfile.gettempdir()), service)
+
+        sample_stream = (
+            "   1 08:52:54 + +     + 54a7035d5758 TP-LINK_abcd\n"
+            "   6 08:52:55       + + 64bf6be17c64 hengshanlu\n"
+            " 08:52:56 + + 54a7035d5758 3ac62034d21b TP-LINK_abcd\n"
+        )
+        session._parse_stream_stats(sample_stream)
+
+        self.assertEqual(session.stats.pmkid_count, 1)
+        self.assertEqual(session.stats.eapol_count, 1)
+        self.assertEqual(session.stats.current_channel, "6")
+
+    def test_auto_capture_full_deauth_and_no_restart(self):
+        """测试全程启用受控 Deauth 强制重连策略：无 --disable_deauthentication，保留 --disable_beacon，全程单进程常驻。"""
+        radio = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",))
+        service = MagicMock()
+        runner = MagicMock()
+        runner.run.return_value = MagicMock(exit_code=0, stdout="YES", stderr="")
+        ssh_client = MagicMock()
+        session = AutoCaptureRadioSession(radio, runner, ssh_client, Path(tempfile.gettempdir()), service)
+
+        # 1. 验证命令阶梯：所有档位绝不带 --disable_deauthentication，保证真实发送 Deauth 帧踢线重连
+        cmds = session._build_attempt_commands("36b,40b", "/tmp/test.bpf")
+        for desc, cmd in cmds:
+            self.assertNotIn("--disable_deauthentication", cmd)
+            self.assertIn("--disable_beacon", cmd)
+            self.assertIn("--disable_proberequest", cmd)
+            if "modern" in desc and "min" not in desc:
+                self.assertIn("--attemptclientmax=3", cmd)
+                self.assertIn("--attemptapmax=3", cmd)
+
+        # 2. 验证 stream_loop 正常持续读取流且不会触发任何进程重启
+        mock_channel = MagicMock()
+        mock_channel.exit_status_ready.side_effect = [False, True]
+        mock_channel.recv.return_value = b""
+        session._channel = mock_channel
+        session._start_time = time.monotonic()
+
+        session._stream_loop()
+        self.assertEqual(mock_channel.recv.call_count, 1)
+
+    def test_background_capture_view_status_banner_and_lifecycle(self):
+        """测试后台抓包视图顶部状态提示横幅与完整加载生命周期。"""
+        from modules.capture_services.openwrt.models import OpenWrtConnectionState, OpenWrtDeviceInfo, OpenWrtRadioInfo
+
+        service = MagicMock()
+        service.openwrt_backend = MagicMock()
+        service.openwrt_backend.command_runner = MagicMock()
+        service.openwrt_backend.ssh_client = MagicMock()
+        service.settings = {}
+
+        auto_cap_service = AutoCaptureService(service)
+        service.auto_capture = auto_cap_service
+
+        page = AutoCapturePage(service, {})
+
+        # 1. 验证初始未连接状态
+        self.assertIn("未连接", page.status_banner_title.text())
+        self.assertIn("○", page.step1_label.text())
+        self.assertIn("○", page.step2_label.text())
+        self.assertIn("○", page.step3_label.text())
+
+        # 2. 模拟阶段一：正在登录路由器
+        connecting_snap = MagicMock()
+        connecting_snap.connection_state = OpenWrtConnectionState.CONNECTING
+        connecting_snap.connection_detail = "正在登录路由器..."
+        connecting_snap.last_error = ""
+        connecting_snap.device = OpenWrtDeviceInfo(model="MT7981 TestRouter", architecture="aarch64_cortex-a53")
+        page._on_snapshot_changed(connecting_snap)
+
+        self.assertIn("正在登录路由器", page.status_banner_title.text())
+        self.assertIn("登录认证中", page.step1_label.text())
+        self.assertIn("正在登录", page.boot_status_badge.text())
+
+        # 3. 模拟阶段二：正在读取路由器信息
+        reading_snap = MagicMock()
+        reading_snap.connection_state = OpenWrtConnectionState.CONNECTING
+        reading_snap.connection_detail = "正在读取路由器信息..."
+        reading_snap.last_error = ""
+        reading_snap.device = OpenWrtDeviceInfo(model="MT7981 TestRouter", architecture="aarch64_cortex-a53")
+        page._on_snapshot_changed(reading_snap)
+
+        self.assertIn("正在读取路由器信息", page.status_banner_title.text())
+        self.assertIn("✓", page.step1_label.text())
+        self.assertIn("读取信息中", page.step2_label.text())
+        self.assertIn("正在读取", page.boot_status_badge.text())
+
+        # 4. 模拟阶段三：正在检测抓包环境
+        connected_snap = MagicMock()
+        connected_snap.connection_state = OpenWrtConnectionState.CONNECTED
+        connected_snap.connection_detail = "OpenWrt SSH 登录和设备探测完成."
+        connected_snap.last_error = ""
+        connected_snap.device = OpenWrtDeviceInfo(
+            model="MT7981 TestRouter",
+            architecture="aarch64_cortex-a53",
+            radios=(OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("2.4G",)),),
+        )
+        auto_cap_service._boot_status = None
+        page._on_snapshot_changed(connected_snap)
+
+        self.assertIn("正在检测后台抓包环境", page.status_banner_title.text())
+        self.assertIn("✓", page.step1_label.text())
+        self.assertIn("✓", page.step2_label.text())
+        self.assertIn("检测环境", page.step3_label.text())
+        self.assertIn("检测抓包环境中", page.boot_status_badge.text())
+
+        # 5. 模拟阶段四：彻底加载完成
+        ready_status = AutoCaptureBootStatus(
+            installed=True,
+            service_installed=True,
+            autostart_enabled=True,
+            is_running=False,
+            remote_script_exists=True,
+            remote_script_path="/root/hcx_autocap.sh",
+            remote_version="1.0.0",
+            local_version="1.0.0",
+        )
+        page._on_boot_status_changed(ready_status)
+
+        self.assertIn("彻底加载完成", page.status_banner_title.text())
+        self.assertIn("✓", page.step1_label.text())
+        self.assertIn("✓", page.step2_label.text())
+        self.assertIn("✓", page.step3_label.text())
+        self.assertIn("MT7981 TestRouter", page.status_banner_detail.text())
+        self.assertIn("aarch64_cortex-a53", page.status_banner_detail.text())
+
+        # 6. 验证亮暗主题换肤
+        page.set_light_theme(True)
+        self.assertIn("#f8fafc", page.status_banner.styleSheet())
+        page.set_light_theme(False)
+        self.assertIn("rgba(30, 41, 59", page.status_banner.styleSheet())
+
+        # 7. 验证加载完成后静默巡检防闪烁机制：轮询放宽至15秒，静默巡检绝不重置为检测中
+        self.assertEqual(page._bg_status_timer.interval(), 15000)
+        page._on_boot_status_checking()
+        self.assertIn("彻底加载完成", page.status_banner_title.text())
+        page._on_boot_status_changed(ready_status)
+        self.assertIn("彻底加载完成", page.status_banner_title.text())
 
 
 if __name__ == "__main__":

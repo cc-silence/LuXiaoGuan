@@ -72,6 +72,14 @@ def frequency_to_channel(freq: int) -> str:
     return str(freq)
 
 
+def format_mac(raw: str) -> str:
+    """归一化 MAC 地址为标准大写冒号格式 (如 AA:BB:CC:DD:EE:FF)。"""
+    cleaned = re.sub(r"[^0-9a-fA-F]", "", raw)
+    if len(cleaned) == 12:
+        return ":".join(cleaned[i : i + 2].upper() for i in range(0, 12, 2))
+    return raw.upper()
+
+
 class AutoCaptureRadioSession:
     """管理单路射频前台实时抓包的 SSH 通道、流式读取与本地日志落盘。"""
 
@@ -476,7 +484,7 @@ class AutoCaptureRadioSession:
         return ""
 
     def _build_attempt_commands(self, user_channels: str, bpf_file: str) -> List[tuple[str, str]]:
-        """与 hcx_autocap.sh next_attempt 严格对齐，构建多档自愈阶梯命令列表。"""
+        """与 hcx_autocap.sh next_attempt 严格对齐，构建多档自愈阶梯命令列表 (全程启用受控 Deauth 踢线重连)。"""
         dialect = self._probe_dialect()
         hcx_bin = getattr(self, "_hcx_bin", "hcxdumptool")
 
@@ -538,84 +546,84 @@ class AutoCaptureRadioSession:
             pure_ch = re.sub(r"[a-zA-Z]", "", channels)
             cmd_list.append((
                 "legacy-chan (旧版方言指定信道)",
-                f"{hcx_bin} -i {self.mon_iface} -o {self.remote_cap_file} -c {pure_ch} --enable_status=15 --disable_deauthentication",
+                f"{hcx_bin} -i {self.mon_iface} -o {self.remote_cap_file} -c {pure_ch} --enable_status=15",
             ))
             cmd_list.append((
                 "legacy-nochan (旧版方言自适应全频)",
-                f"{hcx_bin} -i {self.mon_iface} -o {self.remote_cap_file} --enable_status=15 --disable_deauthentication",
+                f"{hcx_bin} -i {self.mon_iface} -o {self.remote_cap_file} --enable_status=15",
             ))
             cmd_list.append((
                 "legacy-min (旧版极简模式)",
-                f"{hcx_bin} -i {self.mon_iface} -o {self.remote_cap_file} --disable_deauthentication",
+                f"{hcx_bin} -i {self.mon_iface} -o {self.remote_cap_file}",
             ))
         else:
-            # modern 方言 (>= 6.3.x，严禁混入旧版 -o 参数)
+            # modern 方言 (>= 6.3.x，严禁混入旧版 -o 参数；全程开启受控 Deauth 踢线，坚决禁用假信标)
             if not is_5g and not is_6g:
                 # 2.4G 专属阶梯：强化容错与驱动兼容自愈 (严格对齐 hcx_autocap.sh)
-                # 档位 1: 双轨主动加速 + 信道表 + BPF
+                # 档位 1: 双轨主动加速与重连 + 信道表 + BPF
                 cmd_list.append((
                     "modern-chan (双轨主动加速+信道表)",
                     f"{hcx_bin} -i {self.mon_iface} -w {self.remote_cap_file} -c {channels} {bpf_opt} "
-                    f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest --disable_deauthentication",
+                    f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest",
                 ))
                 # 档位 2: 无 BPF 模式 (解决个别 2.4G 网卡驱动挂载 BPF 时报错 PACKET_STATISTICS failed)
                 cmd_list.append((
                     "modern-nobpf (无BPF安全模式)",
                     f"{hcx_bin} -i {self.mon_iface} -w {self.remote_cap_file} -c {channels} "
-                    f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest --disable_deauthentication",
+                    f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest",
                 ))
                 # 档位 3: 2.4G 基础通用信道 1~11 (某些老旧或美规固件不支持 12/13 信道)
                 if channels != "1a,2a,3a,4a,5a,6a,7a,8a,9a,10a,11a":
                     cmd_list.append((
                         "modern-safe2g (2.4G通用信道1~11)",
                         f"{hcx_bin} -i {self.mon_iface} -w {self.remote_cap_file} -c 1a,2a,3a,4a,5a,6a,7a,8a,9a,10a,11a "
-                        f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest --disable_deauthentication",
+                        f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest",
                     ))
                 # 档位 4: 全频自适应跳频 (-F) 模式 (让驱动与 hcxdumptool 自适应跳频)
                 cmd_list.append((
                     "modern-full (双轨主动加速+全频跳频)",
                     f"{hcx_bin} -i {self.mon_iface} -w {self.remote_cap_file} -F {bpf_opt} "
-                    f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest --disable_deauthentication",
+                    f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest",
                 ))
                 # 档位 5: 无 BPF 全频自适应跳频 (-F) 模式
                 cmd_list.append((
                     "modern-full-nobpf (无BPF全频跳频)",
                     f"{hcx_bin} -i {self.mon_iface} -w {self.remote_cap_file} -F "
-                    f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest --disable_deauthentication",
+                    f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest",
                 ))
                 # 档位 6: 极简防扰模式 (去除跳频与主动参数，最基础纯净抓包)
                 cmd_list.append((
                     "modern-min (极简防扰模式)",
                     f"{hcx_bin} -i {self.mon_iface} -w {self.remote_cap_file} "
-                    f"--disable_beacon --disable_proberequest --disable_deauthentication",
+                    f"--disable_beacon --disable_proberequest",
                 ))
             else:
                 # 5G / 6G 阶梯 (保持现有经实测验证成功的 5G 完美表现)
                 cmd_list.append((
                     "modern-chan (双轨主动加速+信道表)",
                     f"{hcx_bin} -i {self.mon_iface} -w {self.remote_cap_file} -c {channels} {bpf_opt} "
-                    f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest --disable_deauthentication",
+                    f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest",
                 ))
                 cmd_list.append((
                     "modern-full (双轨主动加速+全频跳频)",
                     f"{hcx_bin} -i {self.mon_iface} -w {self.remote_cap_file} -F {bpf_opt} "
-                    f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest --disable_deauthentication",
+                    f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest",
                 ))
                 if is_5g and channels != "36b,40b,44b,48b":
                     cmd_list.append((
                         "modern-base5g (5G低频安全信道)",
                         f"{hcx_bin} -i {self.mon_iface} -w {self.remote_cap_file} -c 36b,40b,44b,48b {bpf_opt} "
-                        f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest --disable_deauthentication",
+                        f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest",
                     ))
                 cmd_list.append((
                     "modern-nobpf (无BPF安全模式)",
                     f"{hcx_bin} -i {self.mon_iface} -w {self.remote_cap_file} -c {channels} "
-                    f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest --disable_deauthentication",
+                    f"--attemptapmax=3 --attemptclientmax=3 --disable_beacon --disable_proberequest",
                 ))
                 cmd_list.append((
                     "modern-min (极简防扰模式)",
                     f"{hcx_bin} -i {self.mon_iface} -w {self.remote_cap_file} "
-                    f"--disable_beacon --disable_proberequest --disable_deauthentication",
+                    f"--disable_beacon --disable_proberequest",
                 ))
 
         return cmd_list
@@ -627,7 +635,6 @@ class AutoCaptureRadioSession:
             log_f = open(self.local_log_file, "a", encoding="utf-8", errors="replace")
 
         try:
-            line_buf = ""
             while not self._stop_event.is_set():
                 if self._channel is None or self._channel.exit_status_ready():
                     break
@@ -661,20 +668,54 @@ class AutoCaptureRadioSession:
 
     def _parse_stream_stats(self, text: str):
         """从流式文本解析信道、PMKID 和 EAPOL。"""
-        for line in text.splitlines():
-            # 1. 匹配现代 hcxdumptool 的 SCAN-FREQUENCY: 2412 / 5180
+        hcx_ap_tbl_pat = re.compile(
+            r"^\s*(\d+[a-zA-Z]?)\s+(\d{2}:\d{2}:\d{2})\s+([+ ]{9})\s+([0-9a-fA-F]{12})\s*(.*)$"
+        )
+        hcx_sta_tbl_pat = re.compile(
+            r"^\s*(\d{2}:\d{2}:\d{2})\s+([+ ]{3,5})\s+([0-9a-fA-F]{12})\s+([0-9a-fA-F]{12})\s*(.*)$"
+        )
+
+        for raw_line in text.splitlines():
+            line = re.sub(r"\x1b\[[0-9;?]*[a-zA-Z]", "", raw_line).strip("\r")
+
+            # 1. 匹配 hcxdumptool 6.3.x AP 表格行
+            m_ap = hcx_ap_tbl_pat.match(line)
+            if m_ap:
+                ch, _time, flags, hex_mac, _essid = m_ap.groups()
+                b_norm = format_mac(hex_mac)
+                if ch:
+                    self.stats.current_channel = ch
+                # flags: 1(2)=M1, 3(4)=M3, P(6)=PMKID
+                has_m1 = len(flags) > 2 and flags[2] == "+"
+                has_m3 = len(flags) > 4 and flags[4] == "+"
+                has_p = len(flags) > 6 and flags[6] == "+"
+                if has_p:
+                    self._pmkid_set.add(b_norm)
+                if has_m1 or has_m3:
+                    self._eapol_set.add(b_norm)
+                continue
+
+            # 2. 匹配 hcxdumptool 6.3.x 客户端握手行
+            m_sta = hcx_sta_tbl_pat.match(line)
+            if m_sta:
+                _time, flags, ap_hex, _sta_hex, _essid = m_sta.groups()
+                if "+" in flags:
+                    self._eapol_set.add(format_mac(ap_hex))
+                continue
+
+            # 3. 匹配现代 hcxdumptool 的 SCAN-FREQUENCY: 2412 / 5180
             sf_m = re.search(r"SCAN-FREQUENCY:\s*(\d+)", line, re.IGNORECASE)
             if sf_m:
                 freq = int(sf_m.group(1))
                 ch = frequency_to_channel(freq)
                 self.stats.current_channel = f"{ch} ({freq}MHz)"
             else:
-                # 2. 匹配 [CH 36b] 或 [CH 1] 格式
+                # 4. 匹配 [CH 36b] 或 [CH 1] 格式
                 ch_m = re.search(r"\[CH\s*([0-9a-zA-Z]+)\]", line, re.IGNORECASE)
                 if ch_m:
                     self.stats.current_channel = ch_m.group(1)
                 else:
-                    # 3. 匹配频率表格式: 2412 [  1]
+                    # 5. 匹配频率表格式: 2412 [  1]
                     ch_tbl = re.search(r"\b(\d{4})\s*\[\s*(\d+)\s*\]", line)
                     if ch_tbl:
                         freq = int(ch_tbl.group(1))
@@ -685,19 +726,19 @@ class AutoCaptureRadioSession:
                         if ch_alt and ch_alt.group(1).lower() not in {"hopping", "info", "set", "width", "of", "the"}:
                             self.stats.current_channel = ch_alt.group(1)
 
-            # PMKID 解析
+            # 6. 传统 PMKID 行解析 (支持 17 位或 12 位 MAC)
             if "PMKID" in line:
-                m = re.search(r"([0-9a-fA-F:]{17})", line)
+                m = re.search(r"([0-9a-fA-F:]{17}|[0-9a-fA-F]{12})", line)
                 if m:
-                    self._pmkid_set.add(m.group(1).upper())
+                    self._pmkid_set.add(format_mac(m.group(1)))
                 else:
                     self._pmkid_set.add(f"unknown_{len(self._pmkid_set)}")
 
-            # 握手包解析
+            # 7. 传统握手包行解析
             if "EAPOL" in line or "handshake" in line.lower():
-                m = re.search(r"([0-9a-fA-F:]{17})", line)
+                m = re.search(r"([0-9a-fA-F:]{17}|[0-9a-fA-F]{12})", line)
                 if m:
-                    self._eapol_set.add(m.group(1).upper())
+                    self._eapol_set.add(format_mac(m.group(1)))
                 else:
                     self._eapol_set.add(f"unknown_{len(self._eapol_set)}")
 
@@ -811,6 +852,7 @@ class AutoCaptureService(QObject):
     radioStatsUpdated = Signal(str, dict)                   # radio_name, stats_dict
     radioStreamOutput = Signal(str, str)                    # radio_name, text_chunk
     radioStateChanged = Signal(str, str)                    # radio_name, state
+    bootStatusChecking = Signal()                           # 开始探测自启与抓包环境
     bootStatusChanged = Signal(object)                      # AutoCaptureBootStatus
     offlineArtifactsPulled = Signal(list, str)              # pulled_files, local_dir
     offlinePullFailed = Signal(str)                         # error_message
@@ -832,6 +874,7 @@ class AutoCaptureService(QObject):
         self._resource_timer.timeout.connect(self._poll_resources)
 
         self._boot_status: Optional[AutoCaptureBootStatus] = None
+        self._is_probing_boot = False
         self._disposed = False
 
         owner.openwrtSnapshotChanged.connect(self._on_snapshot_changed)
@@ -840,6 +883,11 @@ class AutoCaptureService(QObject):
     def boot_status(self) -> Optional[AutoCaptureBootStatus]:
         """获取最近一次探测到的远端自启与服务状态快照。"""
         return self._boot_status
+
+    @property
+    def is_probing_boot(self) -> bool:
+        """是否正在探测远端自启与服务状态。"""
+        return self._is_probing_boot
 
     @property
     def is_busy(self) -> bool:
@@ -902,12 +950,17 @@ class AutoCaptureService(QObject):
 
     def refresh_boot_status(self):
         """在后台异步刷新开机自启状态。"""
+        self._is_probing_boot = True
+        self.bootStatusChecking.emit()
+
         def _task():
             try:
                 status = self.boot_manager.probe_boot_status()
                 self._boot_status = status
+                self._is_probing_boot = False
                 self.bootStatusChanged.emit(status)
             except Exception as exc:
+                self._is_probing_boot = False
                 LOGGER.warning("Probe boot status failed: %s", exc)
 
         t = threading.Thread(target=_task, name="ProbeBootStatus", daemon=True)

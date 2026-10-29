@@ -10,6 +10,7 @@
 
 import os
 from pathlib import Path
+import re
 import threading
 from typing import Dict, List, Optional
 
@@ -121,7 +122,7 @@ class AutoCaptureReportDialog(FramelessDialog):
         base_stylesheet = build_base_stylesheet(ConfigManager(), light_theme=self.light_theme, scale_manager=scale)
         dialog_extra_qss = self._build_report_dialog_stylesheet(self.light_theme)
         self.setStyleSheet(f"{base_stylesheet}\n\n{dialog_extra_qss}")
-        self.set_scaled_size((740, 540), (960, 720))
+        self.set_scaled_size((800, 550), (1020, 720))
 
         # 头部状态卡片
         header_card = QFrame(self)
@@ -195,15 +196,45 @@ class AutoCaptureReportDialog(FramelessDialog):
         ap_table = QTableWidget(ap_widget)
         ap_table.setObjectName("reportTable")
         ap_table.setAlternatingRowColors(True)
-        ap_table.setColumnCount(4)
-        ap_table.setHorizontalHeaderLabels(["BSSID (MAC)", "SSID (Wi-Fi名称)", "信道", "捕获状态"])
+        ap_table.setColumnCount(5)
+        ap_table.setHorizontalHeaderLabels(["BSSID (MAC)", "SSID (Wi-Fi名称)", "信道", "握手帧构成", "捕获状态"])
         ap_table.setRowCount(len(report.targets))
         success_color = QColor("#16a34a") if self.light_theme else QColor("#4ade80")
+        warning_color = QColor("#d97706") if self.light_theme else QColor("#fbbf24")
         muted_color = QColor("#64748b") if self.light_theme else QColor("#94a3b8")
         for row, target in enumerate(report.targets):
             ap_table.setItem(row, 0, QTableWidgetItem(target.bssid))
             ap_table.setItem(row, 1, QTableWidgetItem(target.ssid or "<隐藏或未解析>"))
             ap_table.setItem(row, 2, QTableWidgetItem(target.channel or "--"))
+
+            # 握手帧构成列
+            frames = set(re.findall(r"M[1-4]", target.handshake_frames))
+            if "M1" in frames and "M2" in frames:
+                if len(frames) == 4:
+                    frame_text = "M1+M2+M3+M4 (完整)"
+                elif "M3" in frames:
+                    frame_text = "M1+M2+M3 (可跑包)"
+                else:
+                    frame_text = "M1+M2 (可跑包)"
+                frame_color = success_color
+            elif "M2" in frames and "M3" in frames:
+                frame_text = "M2+M3 (可跑包)"
+                frame_color = success_color
+            elif target.handshake_frames:
+                frame_text = f"仅 {target.handshake_frames} (残缺)"
+                frame_color = warning_color
+            elif target.has_eapol:
+                frame_text = "已检测到 EAPOL"
+                frame_color = warning_color
+            else:
+                frame_text = "--"
+                frame_color = muted_color
+
+            frame_item = QTableWidgetItem(frame_text)
+            frame_item.setForeground(QBrush(frame_color))
+            ap_table.setItem(row, 3, frame_item)
+
+            # 捕获状态列
             cap_status = []
             if target.has_pmkid:
                 cap_status.append("PMKID")
@@ -212,7 +243,11 @@ class AutoCaptureReportDialog(FramelessDialog):
             status_text = " + ".join(cap_status) if cap_status else "信标嗅探中"
             item = QTableWidgetItem(status_text)
             item.setForeground(QBrush(success_color if cap_status else muted_color))
-            ap_table.setItem(row, 3, item)
+            ap_table.setItem(row, 4, item)
+        ap_table.setColumnWidth(0, scale.px(145))
+        ap_table.setColumnWidth(1, scale.px(210))
+        ap_table.setColumnWidth(2, scale.px(65))
+        ap_table.setColumnWidth(3, scale.px(210))
         ap_table.horizontalHeader().setStretchLastSection(True)
         ap_layout.addWidget(ap_table)
         tabs.addTab(ap_widget, f"AP 热点列表 ({len(report.targets)})")
@@ -522,6 +557,9 @@ class AutoCapturePage(QWidget):
         self.bg_layout.setContentsMargins(0, 4, 0, 0)
         self.bg_layout.setSpacing(8)
 
+        # 0. 顶部状态提示横幅
+        self._build_status_banner()
+
         # 1. 开机自启管理面板
         self._build_boot_section()
 
@@ -534,6 +572,7 @@ class AutoCapturePage(QWidget):
         self.sub_tabs.currentChanged.connect(self._on_sub_tab_changed)
 
         # 连接服务信号
+        self.auto_capture_service.bootStatusChecking.connect(self._on_boot_status_checking)
         self.auto_capture_service.bootStatusChanged.connect(self._on_boot_status_changed)
         self.auto_capture_service.resourceStatsUpdated.connect(self._on_resource_stats_updated)
         self.auto_capture_service.radioStatsUpdated.connect(self._on_radio_stats_updated)
@@ -545,10 +584,13 @@ class AutoCapturePage(QWidget):
 
         # 连接建立时检测运行中抓包进程的弹窗控制标记
         self._connected_running_prompted = False
+        self._initial_loaded = False
+        self._last_loading_state_key = None
+        self._last_rendered_boot_status = None
 
-        # 后台抓包状态自动刷新定时器 (仅在切换到后台抓包且已连接时运行)
+        # 后台抓包状态自动巡检定时器 (仅在切换到后台抓包且已连接时运行)
         self._bg_status_timer = QTimer(self)
-        self._bg_status_timer.setInterval(4000)
+        self._bg_status_timer.setInterval(15000)  # 放宽至 15 秒巡检间隔，降低设备负荷并消除高频刷新打扰
         self._bg_status_timer.timeout.connect(self._poll_bg_boot_status)
 
         # 若服务层已有自启状态快照，立即回显展示
@@ -560,8 +602,9 @@ class AutoCapturePage(QWidget):
 
     def _poll_bg_boot_status(self):
         """周期性轮询刷新后台自启与脚本状态。"""
-        snapshot = getattr(self.service, "openwrt_snapshot", None)
-        connected = bool(snapshot and getattr(snapshot.connection_state, "value", "") == "connected")
+        snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
+        conn_state = getattr(snapshot, "connection_state", None)
+        connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
         if connected and self.sub_tabs.currentIndex() == 1:
             self.auto_capture_service.refresh_boot_status()
 
@@ -582,6 +625,214 @@ class AutoCapturePage(QWidget):
     def _build_header_row(self):
         """兼容保留。视图切换功能已直接整合至顶部紧凑控制栏。"""
         pass
+
+    def _build_status_banner(self):
+        """构建后台抓包顶部连接与环境加载状态提示横幅。"""
+        self.status_banner = QFrame(self.bg_content)
+        self.status_banner.setObjectName("captureCard")
+        banner_layout = QVBoxLayout(self.status_banner)
+        banner_layout.setContentsMargins(14, 10, 14, 10)
+        banner_layout.setSpacing(6)
+
+        # 顶层：图标 + 主标题 + 伸缩 + 三步流程指示
+        top_row = QHBoxLayout()
+        top_row.setContentsMargins(0, 0, 0, 0)
+        top_row.setSpacing(10)
+
+        self.status_banner_icon = QLabel("⚪", self.status_banner)
+        self.status_banner_icon.setStyleSheet("font-size: 14pt;")
+        top_row.addWidget(self.status_banner_icon)
+
+        self.status_banner_title = QLabel("未连接路由器", self.status_banner)
+        self.status_banner_title.setObjectName("captureGroupTitle")
+        self.status_banner_title.setStyleSheet("font-size: 11pt; font-weight: bold; color: #94a3b8;")
+        top_row.addWidget(self.status_banner_title)
+
+        top_row.addStretch(1)
+
+        # 步骤指示器
+        steps_row = QHBoxLayout()
+        steps_row.setContentsMargins(0, 0, 0, 0)
+        steps_row.setSpacing(6)
+
+        self.step1_label = QLabel("○ 1.登录认证", self.status_banner)
+        self.step1_label.setObjectName("captureDescription")
+        self.step1_label.setStyleSheet("color: #94a3b8;")
+        steps_row.addWidget(self.step1_label)
+
+        self.step_arrow1 = QLabel("→", self.status_banner)
+        self.step_arrow1.setObjectName("captureDescription")
+        self.step_arrow1.setStyleSheet("color: #64748b;")
+        steps_row.addWidget(self.step_arrow1)
+
+        self.step2_label = QLabel("○ 2.读取信息", self.status_banner)
+        self.step2_label.setObjectName("captureDescription")
+        self.step2_label.setStyleSheet("color: #94a3b8;")
+        steps_row.addWidget(self.step2_label)
+
+        self.step_arrow2 = QLabel("→", self.status_banner)
+        self.step_arrow2.setObjectName("captureDescription")
+        self.step_arrow2.setStyleSheet("color: #64748b;")
+        steps_row.addWidget(self.step_arrow2)
+
+        self.step3_label = QLabel("○ 3.环境检测", self.status_banner)
+        self.step3_label.setObjectName("captureDescription")
+        self.step3_label.setStyleSheet("color: #94a3b8;")
+        steps_row.addWidget(self.step3_label)
+
+        top_row.addLayout(steps_row)
+        banner_layout.addLayout(top_row)
+
+        # 底层：详细状态说明
+        self.status_banner_detail = QLabel("请在【路由器登录】页面连接 OpenWrt 路由器设备", self.status_banner)
+        self.status_banner_detail.setObjectName("captureDescription")
+        self.status_banner_detail.setWordWrap(True)
+        banner_layout.addWidget(self.status_banner_detail)
+
+        self._update_status_banner_style()
+        self.bg_layout.addWidget(self.status_banner)
+
+    def _update_status_banner_style(self):
+        """同步状态横幅明暗主题样式。"""
+        if not hasattr(self, "status_banner") or not self.status_banner:
+            return
+        if self._light_theme:
+            self.status_banner.setStyleSheet(
+                "QFrame#captureCard { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 7px; }"
+            )
+        else:
+            self.status_banner.setStyleSheet(
+                "QFrame#captureCard { background: rgba(30, 41, 59, 0.45); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 7px; }"
+            )
+
+    def _on_boot_status_checking(self):
+        """后台抓包环境探测开始槽函数（仅首次加载未就绪时提示，后续静默巡检不打扰界面）。"""
+        if not getattr(self, "_initial_loaded", False):
+            snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
+            conn_state = getattr(snapshot, "connection_state", None)
+            connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
+            if connected:
+                self._update_loading_status("checking_env")
+
+    def _update_loading_status(self, stage: str, detail_override: str = ""):
+        """更新后台抓包顶部状态横幅与步骤流显示。"""
+        if not hasattr(self, "status_banner"):
+            return
+
+        if stage == "ready":
+            self._initial_loaded = True
+        elif stage in {"disconnected", "error"}:
+            self._initial_loaded = False
+
+        # 状态阶段与副文本完全一致时直接跳过，杜绝频繁 setStyleSheet 造成多处视图重绘闪烁
+        current_state_key = (stage, detail_override)
+        if getattr(self, "_last_loading_state_key", None) == current_state_key:
+            return
+        self._last_loading_state_key = current_state_key
+
+        active_color = "#38bdf8"
+        waiting_color = "#94a3b8"
+        success_color = "#10b981"
+        warning_color = "#f59e0b"
+        error_color = "#ef4444"
+
+        snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
+        device = getattr(snapshot, "device", None) if snapshot else None
+        dev_model = getattr(device, "model", "") or "OpenWrt 路由器"
+        dev_arch = getattr(device, "architecture", "") or ""
+        dev_radios = len(getattr(device, "radios", ())) if device else 0
+
+        if stage == "logging_in":
+            self.status_banner_icon.setText("⏳")
+            self.status_banner_title.setText("正在登录路由器...")
+            self.status_banner_title.setStyleSheet(f"font-size: 11pt; font-weight: bold; color: {active_color};")
+            self.status_banner_detail.setText(detail_override or "正在与路由器建立 SSH 安全通道并验证登录凭据与主机指纹...")
+            self.step1_label.setText("⏳ 1.登录认证中...")
+            self.step1_label.setStyleSheet(f"color: {active_color}; font-weight: bold;")
+            self.step2_label.setText("○ 2.读取信息")
+            self.step2_label.setStyleSheet(f"color: {waiting_color};")
+            self.step3_label.setText("○ 3.环境检测")
+            self.step3_label.setStyleSheet(f"color: {waiting_color};")
+            if hasattr(self, "boot_status_badge"):
+                self.boot_status_badge.setText("【正在登录路由器...】")
+                self.boot_status_badge.setStyleSheet(f"color: {active_color}; font-weight: bold;")
+
+        elif stage == "reading_info":
+            self.status_banner_icon.setText("⏳")
+            self.status_banner_title.setText("正在读取路由器信息...")
+            self.status_banner_title.setStyleSheet(f"font-size: 11pt; font-weight: bold; color: {active_color};")
+            self.status_banner_detail.setText(detail_override or "SSH 登录认证成功，正在读取硬件型号、CPU 架构与无线射频配置...")
+            self.step1_label.setText("✓ 1.登录成功")
+            self.step1_label.setStyleSheet(f"color: {success_color}; font-weight: bold;")
+            self.step2_label.setText("⏳ 2.读取信息中...")
+            self.step2_label.setStyleSheet(f"color: {active_color}; font-weight: bold;")
+            self.step3_label.setText("○ 3.环境检测")
+            self.step3_label.setStyleSheet(f"color: {waiting_color};")
+            if hasattr(self, "boot_status_badge"):
+                self.boot_status_badge.setText("【正在读取路由器信息...】")
+                self.boot_status_badge.setStyleSheet(f"color: {active_color}; font-weight: bold;")
+
+        elif stage == "checking_env":
+            self.status_banner_icon.setText("⏳")
+            self.status_banner_title.setText("正在检测后台抓包环境...")
+            self.status_banner_title.setStyleSheet(f"font-size: 11pt; font-weight: bold; color: {warning_color};")
+            info_prefix = f"已连接 {dev_model}" + (f" ({dev_arch})" if dev_arch else "")
+            self.status_banner_detail.setText(detail_override or f"{info_prefix}，正在检查抓包脚本 (/root/hcx_autocap.sh) 与系统守护服务...")
+            self.step1_label.setText("✓ 1.登录成功")
+            self.step1_label.setStyleSheet(f"color: {success_color}; font-weight: bold;")
+            self.step2_label.setText("✓ 2.信息就绪")
+            self.step2_label.setStyleSheet(f"color: {success_color}; font-weight: bold;")
+            self.step3_label.setText("⏳ 3.检测环境中...")
+            self.step3_label.setStyleSheet(f"color: {warning_color}; font-weight: bold;")
+            if hasattr(self, "boot_status_badge"):
+                self.boot_status_badge.setText("【检测抓包环境中...】")
+                self.boot_status_badge.setStyleSheet(f"color: {warning_color}; font-weight: bold;")
+
+        elif stage == "ready":
+            self.status_banner_icon.setText("✓")
+            self.status_banner_title.setText("后台抓包环境已彻底加载完成")
+            self.status_banner_title.setStyleSheet(f"font-size: 11pt; font-weight: bold; color: {success_color};")
+            b_status = self.auto_capture_service.boot_status or getattr(self, "_last_boot_status", None)
+            script_desc = "抓包脚本已就绪" if (b_status and b_status.remote_script_exists) else "抓包脚本未部署"
+            svc_desc = "自启服务已注册" if (b_status and b_status.installed) else ("已配置自启" if (b_status and b_status.autostart_enabled) else "自启未启用")
+            run_desc = "正在自主抓包" if (b_status and b_status.is_running) else "待机就绪"
+            detail_msg = f"已连接设备: {dev_model}"
+            if dev_arch:
+                detail_msg += f" · 架构: {dev_arch}"
+            if dev_radios > 0:
+                detail_msg += f" · 可用射频: {dev_radios} 路"
+            detail_msg += f" · {script_desc} · {svc_desc} · {run_desc}"
+            self.status_banner_detail.setText(detail_override or detail_msg)
+            self.step1_label.setText("✓ 1.登录成功")
+            self.step1_label.setStyleSheet(f"color: {success_color}; font-weight: bold;")
+            self.step2_label.setText("✓ 2.信息就绪")
+            self.step2_label.setStyleSheet(f"color: {success_color}; font-weight: bold;")
+            self.step3_label.setText("✓ 3.环境就绪")
+            self.step3_label.setStyleSheet(f"color: {success_color}; font-weight: bold;")
+
+        elif stage == "error":
+            self.status_banner_icon.setText("⚠️")
+            self.status_banner_title.setText("连接或加载异常")
+            self.status_banner_title.setStyleSheet(f"font-size: 11pt; font-weight: bold; color: {error_color};")
+            self.status_banner_detail.setText(detail_override or "路由器连接异常或探测失败，请在【路由器登录】页面检查并重新连接。")
+            self.step1_label.setText("✕ 1.连接异常")
+            self.step1_label.setStyleSheet(f"color: {error_color};")
+            self.step2_label.setText("○ 2.读取信息")
+            self.step2_label.setStyleSheet(f"color: {waiting_color};")
+            self.step3_label.setText("○ 3.环境检测")
+            self.step3_label.setStyleSheet(f"color: {waiting_color};")
+
+        else:  # disconnected
+            self.status_banner_icon.setText("⚪")
+            self.status_banner_title.setText("未连接路由器")
+            self.status_banner_title.setStyleSheet(f"font-size: 11pt; font-weight: bold; color: {waiting_color};")
+            self.status_banner_detail.setText(detail_override or "请在【路由器登录】页面连接 OpenWrt 路由器设备")
+            self.step1_label.setText("○ 1.登录认证")
+            self.step1_label.setStyleSheet(f"color: {waiting_color};")
+            self.step2_label.setText("○ 2.读取信息")
+            self.step2_label.setStyleSheet(f"color: {waiting_color};")
+            self.step3_label.setText("○ 3.环境检测")
+            self.step3_label.setStyleSheet(f"color: {waiting_color};")
 
     def _build_boot_section(self):
         """构建【开机自启管理】面板，采用分块式现代指标看板设计。"""
@@ -644,6 +895,7 @@ class AutoCapturePage(QWidget):
         self.boot_metrics_frame = QFrame(card)
         self.boot_metrics_frame.setObjectName("captureCard")
         self._update_boot_metrics_style()
+        self._update_status_banner_style()
         metrics_layout = QHBoxLayout(self.boot_metrics_frame)
         metrics_layout.setContentsMargins(12, 8, 12, 8)
         metrics_layout.setSpacing(18)
@@ -771,6 +1023,7 @@ class AutoCapturePage(QWidget):
         layout.addLayout(exec_row)
 
         self._update_boot_metrics_style()
+        self._update_status_banner_style()
         self.bg_layout.addWidget(card)
 
     def _update_boot_metrics_style(self):
@@ -923,10 +1176,15 @@ class AutoCapturePage(QWidget):
         for card in self.radio_cards.values():
             card.set_light_theme(self._light_theme)
         self._update_boot_metrics_style()
+        self._update_status_banner_style()
 
     def _on_snapshot_changed(self, snapshot):
         """根据快照同步探测射频与卡片状态。"""
+        self._last_snapshot = snapshot
         if snapshot is None or not hasattr(snapshot, "connection_state"):
+            self._initial_loaded = False
+            self._last_rendered_boot_status = None
+            self._last_loading_state_key = None
             self.empty_label.setVisible(True)
             self.split_container.setVisible(False)
             self.tabbed_container.setVisible(False)
@@ -938,21 +1196,11 @@ class AutoCapturePage(QWidget):
             self.boot_enable_check.setEnabled(False)
             self.boot_enable_check.setChecked(False)
             self.boot_enable_check.setToolTip("请先连接路由器")
-            self.boot_status_badge.setText("【未连接路由器】")
-            self.boot_status_badge.setStyleSheet("color: #94a3b8; font-weight: bold;")
-            self.metric_script_label.setText("📄 抓包脚本: 未连接")
-            self.metric_script_label.setStyleSheet("color: #94a3b8;")
-            self.metric_version_label.setText("🏷 版本: --")
-            self.metric_version_label.setStyleSheet("color: #94a3b8;")
-            self.metric_service_label.setText("🛡 系统服务: 未连接")
-            self.metric_service_label.setStyleSheet("color: #94a3b8;")
-            self.metric_autostart_label.setText("🚀 自启配置: 未连接")
-            self.metric_autostart_label.setStyleSheet("color: #94a3b8;")
-            self.metric_running_label.setText("⚡ 运行状态: 未连接")
-            self.metric_running_label.setStyleSheet("color: #94a3b8;")
+            self._update_loading_status("disconnected")
             return
 
-        connected = getattr(snapshot.connection_state, "value", "") == "connected"
+        conn_state_val = getattr(snapshot.connection_state, "value", "")
+        connected = conn_state_val == "connected"
         device = getattr(snapshot, "device", None)
         radios = list(device.radios) if (connected and device and hasattr(device, "radios")) else []
 
@@ -964,30 +1212,33 @@ class AutoCapturePage(QWidget):
         self.boot_enable_check.setEnabled(connected)
 
         if not connected:
+            self._initial_loaded = False
+            self._last_rendered_boot_status = None
             self.running_alert_widget.setVisible(False)
             self.start_script_btn.setEnabled(False)
             self._bg_status_timer.stop()
             self.boot_enable_check.setEnabled(False)
             self.boot_enable_check.setChecked(False)
             self.boot_enable_check.setToolTip("请先连接路由器")
-            self.boot_status_badge.setText("【未连接路由器】")
-            self.boot_status_badge.setStyleSheet("color: #94a3b8; font-weight: bold;")
-            self.metric_script_label.setText("📄 抓包脚本: 未连接")
-            self.metric_script_label.setStyleSheet("color: #94a3b8;")
-            self.metric_version_label.setText("🏷 版本: --")
-            self.metric_version_label.setStyleSheet("color: #94a3b8;")
-            self.metric_service_label.setText("🛡 系统服务: 未连接")
-            self.metric_service_label.setStyleSheet("color: #94a3b8;")
-            self.metric_autostart_label.setText("🚀 自启配置: 未连接")
-            self.metric_autostart_label.setStyleSheet("color: #94a3b8;")
-            self.metric_running_label.setText("⚡ 运行状态: 未连接")
-            self.metric_running_label.setStyleSheet("color: #94a3b8;")
+
+            if conn_state_val == "connecting":
+                detail = getattr(snapshot, "connection_detail", "")
+                if "读取" in detail:
+                    self._update_loading_status("reading_info", detail)
+                else:
+                    self._update_loading_status("logging_in", detail)
+            elif conn_state_val in {"failed", "disconnecting"}:
+                err = getattr(snapshot, "last_error", "") or getattr(snapshot, "connection_detail", "")
+                self._update_loading_status("error", err)
+            else:
+                self._update_loading_status("disconnected")
         else:
             if self.sub_tabs.currentIndex() == 1 and not self._bg_status_timer.isActive():
                 self._bg_status_timer.start()
             if self.auto_capture_service.boot_status is not None:
                 self._on_boot_status_changed(self.auto_capture_service.boot_status)
             else:
+                self._update_loading_status("checking_env")
                 self.auto_capture_service.refresh_boot_status()
 
         if not radios:
@@ -1062,6 +1313,11 @@ class AutoCapturePage(QWidget):
 
     def _on_boot_status_changed(self, status: AutoCaptureBootStatus):
         """自启状态更新，结构化指标看板展示。"""
+        self._last_boot_status = status
+        # 相同状态避免重复重刷控件树，消除频繁重绘与闪烁
+        if getattr(self, "_last_rendered_boot_status", None) == status:
+            return
+        self._last_rendered_boot_status = status
         # 1. 顶部大号状态徽章
         if status.is_running:
             self.boot_status_badge.setText("【抓包运行中】")
@@ -1077,8 +1333,9 @@ class AutoCapturePage(QWidget):
             self.boot_status_badge.setStyleSheet("color: #94a3b8; font-weight: bold;")
 
         # 1.1 正在运行状态告警横幅控制（仅在已连接且正在运行时显示，断开连接或未运行时隐藏）
-        snapshot = getattr(self.service, "openwrt_snapshot", None)
-        connected = bool(snapshot and getattr(snapshot.connection_state, "value", "") == "connected")
+        snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
+        conn_state = getattr(snapshot, "connection_state", None)
+        connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
         if connected and status.is_running:
             self.running_alert_widget.setVisible(True)
             self.stop_capture_btn.setEnabled(True)
@@ -1137,8 +1394,9 @@ class AutoCapturePage(QWidget):
         self.boot_enable_check.setChecked(status.autostart_enabled)
         self.boot_enable_check.blockSignals(False)
 
-        snapshot = getattr(self.service, "openwrt_snapshot", None)
-        connected = bool(snapshot and getattr(snapshot.connection_state, "value", "") == "connected")
+        snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
+        conn_state = getattr(snapshot, "connection_state", None)
+        connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
         self.boot_enable_check.setEnabled(connected)
 
         if not connected:
@@ -1170,6 +1428,9 @@ class AutoCapturePage(QWidget):
             self.start_script_btn.setToolTip("后台抓包正在运行中\n【说明】：仅使用空闲无线频段在后台抓包，抓获的握手包实时保存在路由器 (/root/cap/)。如需停止请点击上方“结束并收尾抓包”。")
         else:
             self.start_script_btn.setToolTip("立即在后台启动抓包\n【说明】：只会使用未开启 Wi-Fi 的空闲无线频段，正在正常上网的 Wi-Fi 不受任何影响；抓包数据实时保存，断电不丢失")
+
+        if connected:
+            self._update_loading_status("ready")
 
     def _on_resource_stats_updated(self, mem_avail: int, mem_total: int, disk_avail: int, disk_total: int, level: str):
         """更新全局资源守卫看板。"""
@@ -1246,8 +1507,9 @@ class AutoCapturePage(QWidget):
 
     def _on_boot_check_clicked(self, checked: bool):
         """响应用户点击开机自启开关。支持未部署时引导一键部署并开启。"""
-        snapshot = getattr(self.service, "openwrt_snapshot", None)
-        connected = bool(snapshot and getattr(snapshot.connection_state, "value", "") == "connected")
+        snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
+        conn_state = getattr(snapshot, "connection_state", None)
+        connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
         if not connected:
             self.boot_enable_check.setChecked(False)
             MessageDialog("提示", "路由器尚未连接，请先连接路由器后再配置开机自启。", self).exec()
@@ -1293,8 +1555,9 @@ class AutoCapturePage(QWidget):
 
     def _on_start_script_clicked(self):
         """响应手动启动抓包脚本操作。"""
-        snapshot = getattr(self.service, "openwrt_snapshot", None)
-        connected = bool(snapshot and getattr(snapshot.connection_state, "value", "") == "connected")
+        snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
+        conn_state = getattr(snapshot, "connection_state", None)
+        connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
         if not connected:
             MessageDialog("提示", "路由器尚未连接，请先连接路由器后再启动抓包脚本。", self).exec()
             return
@@ -1350,8 +1613,9 @@ class AutoCapturePage(QWidget):
 
     def _on_pull_offline_clicked(self):
         """异步拉取远端 /root/cap/ 的离线抓包成果与日志到本地电脑。"""
-        snapshot = getattr(self.service, "openwrt_snapshot", None)
-        connected = bool(snapshot and getattr(snapshot.connection_state, "value", "") == "connected")
+        snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
+        conn_state = getattr(snapshot, "connection_state", None)
+        connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
         if not connected:
             MessageDialog("提示", "路由器尚未连接，请先连接路由器后再拉取离线包。", self).exec()
             return
