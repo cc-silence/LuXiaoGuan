@@ -1,4 +1,4 @@
-"""Real Lua tests for one hostname per shared network and independent MACs."""
+"""Legacy identity recovery compatibility; production batch replacement is tested separately."""
 import copy
 import json
 import unittest
@@ -13,9 +13,14 @@ def device_with_group(legacy=False):
     return d
 
 
-def apply_batch(d):
+def apply_legacy_batch(d):
     snapshot=d.policy.read(d.cancel)
     plan=build_plan(snapshot,"station")
+    for op in plan["operations"]:
+        if op["action"]=="station_identity":op["action"]="identity_group"
+        if op["action"]=="identity_group" and len(op["members"])==1:
+            member=op["members"][0]
+            op.update(action="identity",config="wireless",section=member["section"],network=op["section"],values=dict(identity_action="set",macaddr=member["macaddr"],hostname=op["hostname"]))
     d.policy._transaction(snapshot,plan["operations"],d.cancel)
     return plan
 
@@ -42,7 +47,7 @@ class SharedStationIdentityTests(unittest.TestCase):
                     return original(obj,method,args)
                 d.lua.globals().bridge_call=call
                 d.calls.clear()
-                plan=apply_batch(d)
+                plan=apply_legacy_batch(d)
                 self.assertFalse(plan["skipped"])
                 self.assertEqual(len(plan["operations"]),1)
                 self.assertEqual(plan["operations"][0]["action"],"identity_group")
@@ -71,7 +76,7 @@ class SharedStationIdentityTests(unittest.TestCase):
                 if not present:del d.config["network"]["wwan"]["hostname"]
                 d.config["wireless"]["saved2"]["macaddr"]="02:AA:BB:CC:DD:22"
                 before=copy.deepcopy(d.config)
-                apply_batch(d);plan=apply_batch(d)
+                apply_legacy_batch(d);plan=apply_legacy_batch(d)
                 current=d.config["network"]["wwan"]["hostname"]
                 sections=["saved2","station","saved4","saved1","saved3"]
                 for index,section in enumerate(sections):
@@ -82,7 +87,7 @@ class SharedStationIdentityTests(unittest.TestCase):
                 self.assertEqual(d.config,before)
 
     def test_single_member_rename_updates_group_backups_without_changing_other_macs(self):
-        d=device_with_group();apply_batch(d)
+        d=device_with_group();apply_legacy_batch(d)
         before=copy.deepcopy(d.config)
         change_identity(d,"saved2",identity_action="set",macaddr="02:AA:BB:CC:DD:44",hostname="New-Shared-Name")
         self.assertEqual(d.config["network"]["wwan"]["hostname"],"New-Shared-Name")
@@ -94,10 +99,10 @@ class SharedStationIdentityTests(unittest.TestCase):
         self.assertEqual(d.config["network"]["wwan"]["hostname"],"OldPhone")
 
     def test_external_hostname_edit_is_never_overwritten(self):
-        d=device_with_group();apply_batch(d)
+        d=device_with_group();apply_legacy_batch(d)
         d.config["network"]["wwan"]["hostname"]="External"
         before=copy.deepcopy(d.config)
-        with self.assertRaises(RuntimeError):apply_batch(d)
+        with self.assertRaises(RuntimeError):apply_legacy_batch(d)
         self.assertEqual(d.config,before)
 
     def test_incomplete_group_and_duplicate_macs_are_rejected_atomically(self):
@@ -120,9 +125,9 @@ class SharedStationIdentityTests(unittest.TestCase):
         self.assertEqual(d.config,before)
 
     def test_existing_independent_backup_migrates_without_losing_original_hostname(self):
-        d=PolicyDevice();apply_batch(d)
+        d=PolicyDevice();apply_legacy_batch(d)
         d.config["wireless"]["second"]={".type":"wifi-iface","mode":"sta","network":"wwan","device":"radio7","ssid":"second","key":"keep-password"}
-        apply_batch(d)
+        apply_legacy_batch(d)
         for section in ("station","second"):
             self.assertEqual(json.loads(d.config["wireless"][section]["rm_identity_backup"])["hostname"],"OldPhone")
             change_identity(d,section,identity_action="restore")
@@ -134,7 +139,7 @@ class SharedStationIdentityTests(unittest.TestCase):
         from tests.test_save_only import PersistenceDevice
         from modules.capture_services.openwrt.wireless_setup_manager import WirelessSetupManager
         from modules.capture_services.openwrt.wireless_setup_models import WirelessRequest
-        source=device_with_group();plan=apply_batch(source)
+        source=device_with_group();plan=apply_legacy_batch(source)
         d=PersistenceDevice()
         sections=[entry["section"] for entry in plan["identities"]]
         for section in sections:d.config["wireless"][section]=copy.deepcopy(source.config["wireless"][section])
@@ -163,7 +168,7 @@ class SharedStationIdentityTests(unittest.TestCase):
         from modules.capture_services.openwrt.wireless_setup_manager import WirelessSetupManager
         from modules.capture_services.openwrt.wireless_setup_models import WirelessRequest
         from modules.capture_services.openwrt.signal_manager import SignalError
-        source=device_with_group();apply_batch(source)
+        source=device_with_group();apply_legacy_batch(source)
         d=PersistenceDevice()
         for section,row in source.config["wireless"].items():
             if row.get("mode")=="sta":d.config["wireless"][section]=copy.deepcopy(row)
@@ -185,9 +190,9 @@ class SharedStationIdentityTests(unittest.TestCase):
         self.assertEqual(d.config["network"]["wwan"]["hostname"],"OldPhone")
 
     def test_regroup_after_partial_restore_retains_the_first_original_hostname(self):
-        d=device_with_group();apply_batch(d)
+        d=device_with_group();apply_legacy_batch(d)
         change_identity(d,"saved2",identity_action="restore")
-        apply_batch(d)
+        apply_legacy_batch(d)
         for section in ("station","saved1","saved2","saved3","saved4"):
             change_identity(d,section,identity_action="restore")
         self.assertEqual(d.config["network"]["wwan"]["hostname"],"OldPhone")
@@ -195,20 +200,20 @@ class SharedStationIdentityTests(unittest.TestCase):
     def test_conflicting_or_damaged_peer_backup_stops_before_writing(self):
         for damaged in (False,True):
             with self.subTest(damaged=damaged):
-                d=device_with_group();apply_batch(d)
+                d=device_with_group();apply_legacy_batch(d)
                 row=d.config["wireless"]["saved2"]
                 saved=json.loads(row["rm_identity_backup"])
                 saved["hostname"]="different-original"
                 row["rm_identity_backup"]="invalid-json" if damaged else json.dumps(saved)
                 before=copy.deepcopy(d.config)
-                with self.assertRaises(RuntimeError):apply_batch(d)
+                with self.assertRaises(RuntimeError):apply_legacy_batch(d)
                 self.assertEqual(d.config,before)
 
     def test_independent_uplink_does_not_share_the_group_recovery_state(self):
         d=device_with_group()
         d.config["network"]["other"]={".type":"interface","proto":"dhcp","hostname":"OtherOriginal"}
         d.config["wireless"]["other_sta"]={".type":"wifi-iface","mode":"sta","network":"other","device":"radio7","ssid":"Other","key":"other-password"}
-        plan=apply_batch(d)
+        plan=apply_legacy_batch(d)
         self.assertEqual(len(plan["operations"]),2)
         other_name=d.config["network"]["other"]["hostname"]
         for section in ("station","saved1","saved2","saved3","saved4"):

@@ -97,6 +97,8 @@ class RouterLoginPage(QWidget):
                 card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
         root.addStretch(1)
 
+        from .login_dependency_prompt import LoginDependencyPrompt
+        self.dependency_prompt = LoginDependencyPrompt(self)
         service.openwrtSnapshotChanged.connect(self._apply_snapshot)
         self._apply_snapshot(service.openwrt_snapshot)
 

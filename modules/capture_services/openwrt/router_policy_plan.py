@@ -227,10 +227,9 @@ class Builder:
             elif item=="homepage":
                 page=options.get("homepage","wireless")
                 if page not in PAGES or page not in self.s.get("pages",[]):raise ValueError("\u6240\u9009\u9875\u9762\u5728\u672c\u8bbe\u5907\u4e0d\u53ef\u7528\u3002")
-                from .router_web_config import management_server
-                try:_,server=management_server(self.s)
+                from .router_web_config import homepage_server
+                try:_,server=homepage_server(self.s)
                 except ValueError as exc:self.skip(item,str(exc));continue
-                if server.get("home","/www")!="/www":raise ValueError("\u7ba1\u7406\u7f51\u9875\u4f7f\u7528\u81ea\u5b9a\u4e49\u76ee\u5f55\uff0c\u672a\u8986\u76d6\u9996\u9875\u3002")
                 path="/cgi-bin/luci/"+PAGES[page][1]
                 self.file("/www/index.html",'<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta http-equiv="refresh" content="0;url='+path+'"></head><body><a href="'+path+'">Open router settings</a></body></html>\n')
             if len(self.plan["operations"])+len(self.plan["files"])>before or item in {"upgrade","replace_ap"}:

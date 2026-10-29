@@ -96,7 +96,7 @@ class SourceFallbackTests(unittest.TestCase):
     def test_bad_matching_object_stops_before_any_network_fallback(self):
         profile = self.repo.profile(self.f.device)
         row = next(row for row in profile["packages"] if row["name"] == "wpa-cli")
-        (self.repo.content_root / row["blob"]).write_bytes(b"corrupt")
+        self.repo.object_path(row).write_bytes(b"corrupt")
         manager = NS(command_runner=Mock(), _execute_stage=Mock(return_value="libc - 1\n"),
                      _install_offline=Mock())
         online, computer = Mock(), Mock()

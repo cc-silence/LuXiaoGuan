@@ -140,3 +140,34 @@ test("Linux archives support the existing streaming and range contract",async()=
  assert.equal((await get(path.replace("linux-x64","linux-other"),store)).status,404);
  assert.equal((await get(path,store,{method:"DELETE"})).status,405);
 });
+
+
+test("update blobs resume with bounded ranges, suffixes and unsatisfied ranges",async()=>{
+ const path="/blobs/"+"b".repeat(64)+".z";
+ const store=env();
+ store.UPDATES.get=async(key, options={})=>{
+   store.calls.push([key,options]);
+   if(options.range) {
+     const {offset,length}=options.range;
+     return {...object("payload".slice(offset,offset+length)),size:7,range:{offset,length}};
+   }
+   return object("payload");
+ };
+ for(const [range,body,contentRange] of [["bytes=3-","load","bytes 3-6/7"],["bytes=-2","ad","bytes 5-6/7"],["bytes=1-999","ayload","bytes 1-6/7"]]) {
+   const response=await get(path,store,{headers:{Range:range}});
+   assert.equal(response.status,206);assert.equal(await response.text(),body);
+   assert.equal(response.headers.get("Content-Range"),contentRange);
+   assert.equal(response.headers.get("Content-Length"),String(body.length));
+   assert.equal(response.headers.get("Accept-Ranges"),"bytes");
+   assert.equal(response.headers.get("Content-Type"),"application/octet-stream");
+ }
+ for(const range of ["bytes=7-","bytes=999-","bytes=4-2","bytes=-0"]) {
+   const response=await get(path,store,{headers:{Range:range}});
+   assert.equal(response.status,416);assert.equal(response.headers.get("Content-Range"),"bytes */7");
+ }
+ for(const headers of [{Range:"bytes=3-","If-Range":'"old-etag"'},{Range:"invalid"},{Range:"bytes=0-1,4-5"}]) {
+   const response=await get(path,store,{headers});assert.equal(response.status,200);assert.equal(await response.text(),"payload");
+ }
+ const head=await get(path,store,{method:"HEAD",headers:{Range:"bytes=3-"}});
+ assert.equal(head.status,200);assert.equal(head.headers.get("Content-Length"),"7");assert.equal(await head.text(),"");
+});

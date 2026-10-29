@@ -49,3 +49,11 @@ build/common-settings-extension-review/ 保存源码、日志和截图。Lua 5.1
 - 开机连接采用简短的开启/关闭确认，执行后重新读取脚本内容与启动链接核实结果；当前无线不主动断开，从下次开机生效。
 
 RandomNameInput 位于无线设置页面模块，edit 保留原输入框接口，random_button 只替换 edit.text()；不读写路由器、不触碰密码或无线地址。发射信号的新建和编辑窗口、初始化热点名称共用此实现。
+
+## Settings group presentation
+
+`SettingsCardGroups` reuses each existing action card. Full-width title bars and scaled spacing separate the three groups. Title bars have no left stripe; the section body stays transparent and cards are retained during resizing. `captureSettingsGroup` and `captureSettingsGroupTitle` are shared selectors in both page themes.
+
+## Fixed hcxdumptool installation requirement
+
+User-requested policy: login and common bulk installation always include missing hcxdumptool, independently of the saved PMKID switch. The common tool catalog is the policy source for checks, consent and execution; existing package deduplication and three-source installation remain in place. A bounded `-h` probe only checks that the binary starts; it never starts capture or implies driver compatibility. Existing six-series package matching, supported-version capture allowlists and BPF requirements remain unchanged, including the 6.0.1 capture rejection. No router or Debian desktop was tested. Upstream help contract: https://github.com/ZerBea/hcxdumptool/blob/master/man/hcxdumptool.1 . Official package definition and six-series evidence remain in docs/offline-packages/support.json and docs/openwrt-compatibility.md.

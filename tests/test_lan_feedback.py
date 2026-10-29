@@ -26,19 +26,19 @@ class LanFeedbackTests(unittest.TestCase):
             self.assertNotIn('/24',plan['guide']);self.assertNotIn('/31',plan['guide']);self.assertNotIn('/32',plan['guide'])
             self.assertIn(address.split('/')[0],plan['guide'])
 
-    def test_recovery_button_is_hidden_until_apply_has_been_sent_and_never_reenabled_while_busy(self):
+    def test_recovery_button_requires_apply_and_never_reenables_while_busy_or_closed(self):
         from tests.test_standalone import APP
         from PySide6.QtWidgets import QWidget
         from modules.main_pages.packet_capture.openwrt.lan_recovery_panel import LanRecoveryPanel
         parent=QWidget();panel=LanRecoveryPanel(parent);self.addCleanup(parent.deleteLater)
         gate=RenewalGate(client_plan(review(adapter()),NEW));gate.start(time.monotonic()+90)
         panel.update_payload(gate.payload())
-        self.assertTrue(panel.button.isHidden());self.assertFalse(panel.button.isEnabled())
+        self.assertFalse(panel.button.isHidden());self.assertFalse(panel.button.isEnabled())
         gate.arm();panel.update_payload(gate.payload())
         self.assertFalse(panel.button.isHidden());self.assertTrue(panel.button.isEnabled())
         gate.claim(adapter()['id']);panel.update_payload(gate.payload())
         self.assertFalse(panel.button.isEnabled());self.assertFalse(panel.adapters.isEnabled())
-        gate.close();panel.update_payload(gate.payload());self.assertTrue(panel.button.isHidden())
+        gate.close();panel.update_payload(gate.payload());self.assertFalse(panel.button.isEnabled())
 
     def test_netmask_dropdown_preserves_custom_values_and_validation(self):
         from tests.test_standalone import APP

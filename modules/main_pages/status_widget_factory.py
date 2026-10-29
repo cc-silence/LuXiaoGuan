@@ -6,6 +6,7 @@
 所有函数不依赖类实例，通过显式参数传递回调处理器。
 """
 
+from modules.release_identity import DISPLAY_NAME
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtWidgets import (
     QFrame,
@@ -242,7 +243,7 @@ def build_status_widget(row_data, table, light_theme, scale_manager, config_mana
         proxy_retry_btn.set_hover_sweep(False)
         proxy_retry_btn.setEnabled(bool(configured_proxy_channels(config_manager)))
         if not proxy_retry_btn.isEnabled():
-            proxy_retry_btn.setToolTip("当前没有可用代理。请先在代理设置中启用 WinBox 代理或系统代理。")
+            proxy_retry_btn.setToolTip(f"当前没有可用代理。请先在代理设置中启用 {DISPLAY_NAME} 代理或系统代理。")
         proxy_retry_btn.clicked.connect(
             lambda checked=False, sid=software_id: callbacks.get("retry_with_proxy", lambda x: None)(sid)
         )
@@ -278,7 +279,7 @@ def build_status_widget(row_data, table, light_theme, scale_manager, config_mana
         proxy_retry_btn.set_hover_sweep(False)
         proxy_retry_btn.setEnabled(bool(configured_proxy_channels(config_manager)))
         if not proxy_retry_btn.isEnabled():
-            proxy_retry_btn.setToolTip("当前没有可用代理。请先在代理设置中启用 WinBox 代理或系统代理。")
+            proxy_retry_btn.setToolTip(f"当前没有可用代理。请先在代理设置中启用 {DISPLAY_NAME} 代理或系统代理。")
         proxy_retry_btn.clicked.connect(
             lambda checked=False, sid=software_id: callbacks.get("check_with_proxy", lambda x: None)(sid)
         )

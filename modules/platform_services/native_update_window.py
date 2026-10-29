@@ -1,4 +1,5 @@
 """\u66f4\u65b0\u5668\u4e13\u7528 Windows \u539f\u751f\u7a97\u53e3\uff0c\u4ec5\u4f7f\u7528\u7cfb\u7edf DLL\u3002"""
+from modules.release_identity import DISPLAY_NAME
 import ctypes as C
 from ctypes import wintypes as W
 import os
@@ -94,7 +95,7 @@ class NativeUpdateWindow:
         wc=WindowClass(0,self.proc,0,0,self.instance,None,self.user.LoadCursorW(None,C.c_void_p(32512)),self.brush,None,self.class_name)
         if not self.user.RegisterClassW(C.byref(wc)):raise C.WinError(C.get_last_error())
         self.registered=True
-        self.hwnd=self.user.CreateWindowExW(0,self.class_name,'WinBox \u66f4\u65b0',0x00c80000,-2147483648,-2147483648,500,260,None,None,self.instance,None)
+        self.hwnd=self.user.CreateWindowExW(0,self.class_name,f'{DISPLAY_NAME} \u66f4\u65b0',0x00c80000,-2147483648,-2147483648,500,260,None,None,self.instance,None)
         if not self.hwnd:raise C.WinError(C.get_last_error())
         if hasattr(self.user,'GetDpiForWindow'):
             fn=self.user.GetDpiForWindow;fn.argtypes=[W.HWND];fn.restype=W.UINT
@@ -103,7 +104,7 @@ class NativeUpdateWindow:
         self.message=self._child('STATIC','\u6b63\u5728\u51c6\u5907\u5b89\u88c5\u2026',0)
         self.bar=self._child('msctls_progress32','',0x01)
         self.percent=self._child('STATIC','',0)
-        self.hint=self._child('STATIC','\u66f4\u65b0\u5b8c\u6210\u540e\u81ea\u52a8\u91cd\u65b0\u6253\u5f00 WinBox\u3002\u8bf7\u52ff\u5173\u673a\u3002',0)
+        self.hint=self._child('STATIC',f'\u66f4\u65b0\u5b8c\u6210\u540e\u81ea\u52a8\u91cd\u65b0\u6253\u5f00 {DISPLAY_NAME}\u3002\u8bf7\u52ff\u5173\u673a\u3002',0)
         self.close_button=self._child('BUTTON','\u5173\u95ed',0,100)
         self.user.ShowWindow(self.close_button,0)
         self.error_box=self._child('EDIT','',0x200844)

@@ -84,7 +84,7 @@ class PlatformRenewalTests(unittest.TestCase):
         script=base64.b64decode(argv[-1]).decode('utf-16-le')
         self.assertIn(adapter()['id'],script);self.assertIn('InterfaceIndex -ne 14',script)
         self.assertIn('0050562B292D',script);self.assertIn('!$nic.DHCPEnabled',script)
-        self.assertNotIn('ReleaseDHCPLease',script);self.assertIn('RenewDHCPLease',script)
+        self.assertLess(script.index('ReleaseDHCPLease'),script.index('RenewDHCPLease'));self.assertIn('RenewDHCPLease',script)
         self.assertGreaterEqual(script.count('ToUnixTimeSeconds() -ge'),2)
 
     def test_windows_expired_gate_does_not_spawn_process(self):
@@ -120,7 +120,7 @@ class RecoveryUiTests(unittest.TestCase):
         from PySide6.QtWidgets import QWidget
         from modules.main_pages.packet_capture.openwrt.lan_recovery_panel import LanRecoveryPanel
         parent=QWidget();panel=LanRecoveryPanel(parent)
-        value=dict(guide='Guide',adapters=[adapter()],selection_required=True)
+        value=dict(guide='Guide',adapters=[adapter()],selection_required=True,can_renew=True)
         panel.update_payload(value);self.assertFalse(panel.button.isEnabled())
         panel.adapters.setCurrentIndex(1);self.assertTrue(panel.button.isEnabled())
         panel.update_payload(dict(value,busy=True));self.assertFalse(panel.button.isEnabled())
@@ -176,7 +176,7 @@ class BrokerLifecycleTests(unittest.TestCase):
         self.assertEqual(threads,[False]);self.assertFalse(owner._openwrt_workers)
         self.assertFalse(broker.offers);owner.deleteLater()
 
-    def test_lua_transaction_arms_only_after_apply_and_confirms_after_client_check(self):
+    def test_lua_transaction_stays_locked_through_apply_and_confirmation(self):
         from tests.test_checked_apply import CheckedApplyTests,run_checked,LuaRuntime
         from modules.capture_services.configuration_progress import reporting
         if not LuaRuntime:self.skipTest('Lua unavailable')
@@ -190,5 +190,5 @@ class BrokerLifecycleTests(unittest.TestCase):
                 if not payload['closed']:self.assertIn('checked_apply',channel.calls)
         with patch('modules.platform_services.lan_network.inspect',return_value=dict(adapters=[fresh])),reporting(progress):
             result=run_checked(channel,stage,verify,event,candidates=('192.168.22.1',),original_host='192.168.8.1',client_recovery=gate)
-        self.assertEqual(states[:2],[True,False]);self.assertTrue(result['applied'])
+        self.assertEqual(states[:2],[True,True]);self.assertTrue(result['applied'])
         self.assertIn(('uci','confirm'),device.calls);self.assertTrue(gate.closed)

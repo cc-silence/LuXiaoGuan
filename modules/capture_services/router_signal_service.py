@@ -57,7 +57,10 @@ class RouterSignalService(QObject):
         self._refreshRequested.connect(self._try_auto_refresh, Qt.QueuedConnection)
         self._verified = False
         self.dependencies_missing = False
-        self.details_enabled = False
+        self._status_connection = None
+        self._status_running = False
+        self._status_request_connection = None
+        self._refresh_after_status = False
         owner.openwrtSnapshotChanged.connect(self._connection_changed)
         owner.task_controller.stateChanged.connect(self._controller_state_changed)
         self.signalRefreshed.connect(self._apply_external_inventory)
@@ -98,17 +101,19 @@ class RouterSignalService(QObject):
             return
         if state not in ("idle", "failed"):
             self._foreign_task_active = True
+            self.snapshot = replace(self.snapshot, wireless_status_stale=True)
             label = _BUSY_COPY.get(task_type, "抓包中")
             detail = f"{label}，当前功能不可用；结束自动恢复。"
             changed = self._sync_transient()
             if self.snapshot.detail != detail or self.snapshot.busy_label != label:
-                self.snapshot = replace(self.snapshot, detail=detail, busy_label=label)
+                self.snapshot = replace(self.snapshot, detail=detail, detail_level="info", busy_label=label)
                 changed = True
             if changed:
                 self.snapshotChanged.emit(self.snapshot)
             return
         if task_type in _WIRELESS_WRITERS:
             self._verified = False
+            self.snapshot = replace(self.snapshot, wireless_status_stale=True)
         # Connection broadcasts may already have cleared snapshot.busy before this slot.
         # Track the task lifecycle itself so completion always schedules one fresh read.
         was_busy = bool(self._foreign_task_active or self.snapshot.busy)
@@ -129,7 +134,7 @@ class RouterSignalService(QObject):
         record_workflow(self.owner, "signal_refresh", "started", source="task_finished")
         if self._start(None):
             return
-        self.snapshot = replace(self.snapshot, detail="任务结束，点“刷新信号列表”更新。")
+        self.snapshot = replace(self.snapshot, detail="任务结束，点“刷新信号列表”更新。", detail_level="warning")
         self.snapshotChanged.emit(self.snapshot)
 
     @property
@@ -142,13 +147,31 @@ class RouterSignalService(QObject):
         """同步连接状态；忙碌与核实位以互斥器与核实位为准，不闩锁。"""
         connected = snapshot.connection_state.value == "connected"
         if not connected:
+            self._refresh_after_status = False
             self._auto_refresh_blocked = False
             self._verified = False
             self.snapshot = SignalSnapshot(connected=False)
+            self._status_connection = None
         else:
+            current = self._current_status_connection()
+            if self._status_connection is not current:
+                self._refresh_after_status = False
+                from .openwrt.wireless_status_models import WirelessStatus
+                self.snapshot = replace(self.snapshot, wireless_status=WirelessStatus(), wireless_status_stale=True)
+                self._status_connection = current
             self.snapshot = replace(self.snapshot, connected=True)
         self._sync_transient()
         self.snapshotChanged.emit(self.snapshot)
+
+    def _current_status_connection(self):
+        ssh = getattr(self.owner.openwrt_backend, 'ssh_client', None)
+        return getattr(ssh, '_client', None)
+
+    def refresh_status(self, force_internet=True):
+        if self.active or self.owner.task_controller.busy:
+            return False
+        self._status_force_next = bool(force_internet)
+        return self._start(('__status__',))
 
     def refresh(self):
         """主线程申请只读刷新；返回是否占用任务槽并启动后台工作。"""
@@ -158,20 +181,15 @@ class RouterSignalService(QObject):
         self._auto_refresh_blocked = False
         if setup is not None:
             setup._inspection_revision = None
+        if self._status_running and self.snapshot.connected:
+            self._refresh_after_status = True
+            return True
         started = self._start(None)
         if not started:
             self._auto_refresh_blocked = previous_blocked
             if setup is not None:
                 setup._inspection_revision = previous_revision
         return started
-
-    def set_details_enabled(self, enabled):
-        """纯显示选项；勾选后在空闲后台读取，不另加轮询。"""
-        enabled = bool(enabled)
-        changed = enabled != self.details_enabled
-        self.details_enabled = enabled
-        if changed and enabled and self.snapshot.connected and not self.owner.task_controller.busy:
-            self.refresh()
 
     def change(self, section, enabled, confirmed=False):
         """主线程确认后申请单行启停；拒绝过期、未知行和未确认请求。"""
@@ -214,7 +232,7 @@ class RouterSignalService(QObject):
         跨线程发 signalRefreshed，主线程槽里落快照。
         """
         try:
-            inventory = self.manager.read(cancel_event, details=True) if self.details_enabled else self.manager.read(cancel_event)
+            inventory = self.manager.read(cancel_event)
         except Exception:
             if cancel_event is not None and cancel_event.is_set():
                 return False
@@ -243,7 +261,8 @@ class RouterSignalService(QObject):
         """落实外部推送的清单：只换数据不动状态，忙闲与按钮由任务槽决定。"""
         inventory, acknowledged = payload if isinstance(payload, tuple) else (payload, None)
         try:
-            self.snapshot = replace(self.snapshot, inventory=inventory)
+            self.snapshot = replace(self.snapshot, inventory=inventory,
+                                    wireless_status_stale=self.snapshot.wireless_status_stale or self.snapshot.inventory != inventory)
             self.snapshotChanged.emit(self.snapshot)
             self._message("信号列表已同步最新状态。", "info")
         finally:
@@ -264,19 +283,32 @@ class RouterSignalService(QObject):
         if self.owner._shutting_down or not self.snapshot.connected or self.owner.task_controller.busy:
             return False
         self._active = True
+        self._status_running = request == ("__status__",)
         session_id = uuid4().hex
         event = self.owner.task_controller.begin("signal_management", session_id)
         if event is None:
+            self._status_running = False
             self._active = False
             return False
         inventory = self.snapshot.inventory
         if request is None:
-            details = self.details_enabled
             operation = self._guarded(
-                lambda cancel, message=None: self.manager.read(cancel, details=True) if details else self.manager.read(cancel)
+                lambda cancel, message=None: self.manager.read(cancel)
             )
             success_slot = self._succeeded
             detail = "正在读取或核实无线配置。"
+        elif request == ('__status__',):
+            from .openwrt.wireless_status_manager import WirelessStatusManager
+            self._status_connection = self._current_status_connection()
+            self._status_request_connection = self._status_connection
+            self._status_running = True
+            previous = None if self.snapshot.wireless_status_stale else self.snapshot.wireless_status
+            force = getattr(self, '_status_force_next', True)
+            manager = WirelessStatusManager(self.manager)
+            operation = self._guarded(lambda cancel, message=None: manager.read(
+                cancel, message, previous=previous, force_internet=force))
+            success_slot = self._status_succeeded
+            detail = '正在读取无线状态并核对上级联网情况。'
         elif request == ("__install__",):
             # 设备档案与缓存目录在主线程快照，后台只用值对象，不碰后端。
             device = self.owner.openwrt_backend.snapshot.device
@@ -301,16 +333,54 @@ class RouterSignalService(QObject):
             )
             success_slot = self._succeeded
             detail = "正在读取或核实无线配置。"
+        if request not in (None, ("__status__",)):
+            self.snapshot = replace(self.snapshot, wireless_status_stale=True)
         self.snapshot = replace(
             self.snapshot, busy=True, stale=True,
-            installing=(request == ("__install__",)), detail=detail,
+            installing=(request == ("__install__",)), detail=detail, detail_level="info",
         )
         self.snapshotChanged.emit(self.snapshot)
         from .task_completion import start_service_worker
         return start_service_worker(
-            self.owner, session_id, operation, event, success_slot, self._failed,
+            self.owner, session_id, operation, event, success_slot,
+            self._status_failed if request == ('__status__',) else self._failed,
             None, self._forward_worker_message if request == ("__install__",) else None,
         )
+
+    @Slot(object)
+    def _status_succeeded(self, result):
+        if isinstance(result, SignalFailure):
+            self._status_failed(result.message, result.code)
+            return
+        self._status_running = False
+        same = self.snapshot.connected and self._status_request_connection is self._current_status_connection()
+        if same:
+            self.snapshot = replace(self.snapshot, wireless_status=result, wireless_status_stale=False, detail_level="info",
+                                    detail="\u65e0\u7ebf\u72b6\u6001\u5df2\u5237\u65b0\u3002")
+        self.owner.task_controller.finish()
+        self._active = False
+        self._sync_transient()
+        self.snapshotChanged.emit(self.snapshot)
+        record_workflow(self.owner, 'wireless_status', 'completed' if same else 'cancelled',
+                        reason='verified' if same else 'connection_changed')
+        self._dispatch_pending_refresh()
+
+    @Slot(str, str)
+    def _status_failed(self, summary, detail):
+        self._status_running = False
+        self.snapshot = replace(self.snapshot, wireless_status_stale=True, detail=summary, detail_level="warning")
+        self.owner.task_controller.finish(failed=True)
+        self._active = False
+        self._sync_transient()
+        self.snapshotChanged.emit(self.snapshot)
+        self._message(summary, 'warning')
+        record_workflow(self.owner, 'wireless_status', 'failed', reason='unconfirmed')
+        self._dispatch_pending_refresh()
+
+    def _dispatch_pending_refresh(self):
+        if self._refresh_after_status:
+            self._refresh_after_status = False
+            self._refreshRequested.emit()
 
     def _forward_worker_message(self, text, level):
         """后台播报直转信息窗；只透传脱敏文本。"""
@@ -339,7 +409,9 @@ class RouterSignalService(QObject):
         self._verified = not result.pending_changes
         detail = ("已刷新信号，有待提交改动，可点“查看待提交改动”核对。" if result.pending_changes
                   else "无线配置与运行状态已核实。")
-        self.snapshot = replace(self.snapshot, inventory=result, pending_changes=result.pending_changes, detail=detail)
+        self.snapshot = replace(self.snapshot, inventory=result, pending_changes=result.pending_changes, detail=detail,
+                                detail_level="warning" if result.pending_changes else "info",
+                                wireless_status_stale=self.snapshot.wireless_status_stale or self.snapshot.inventory != result)
         self.dependencies_missing = False
         self._message(self.snapshot.detail, "success")
         self.owner.task_controller.finish()
@@ -356,7 +428,7 @@ class RouterSignalService(QObject):
         self.dependencies_missing = False
         detail = "信号依赖已安装并通过核验，正在重新读取无线配置。"
         self._verified = False
-        self.snapshot = replace(self.snapshot, detail=detail)
+        self.snapshot = replace(self.snapshot, detail=detail, detail_level="info")
         self._message(detail, "success")
         self.owner.task_controller.finish()
         self._active = False
@@ -383,7 +455,7 @@ class RouterSignalService(QObject):
         )
         record_workflow(self.owner, "signal_refresh", "cancelled" if code == "cancelled" else "failed", reason=code or "worker_error")
         self._verified = False
-        self.snapshot = replace(self.snapshot, detail=detail, pending_changes=code == "pending")
+        self.snapshot = replace(self.snapshot, detail=detail, detail_level="error", pending_changes=code == "pending")
         self.dependencies_missing = missing
         self._message(summary, "error")
         self.owner.task_controller.finish(failed=True)

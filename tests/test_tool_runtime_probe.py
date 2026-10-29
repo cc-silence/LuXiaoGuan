@@ -39,12 +39,36 @@ class RuntimeProbeTests(unittest.TestCase):
                          ("iwinfo",'test "$1" = -h || exit 7; echo "Usage: iwinfo device info" >&2; exit 1')):
             with self.subTest(key=key):self.assertEqual(self.execute(key,body),"READY")
 
+    def test_hcx_probe_only_reads_help_and_does_not_broaden_capture_support(self):
+        for version in ('6.0.1','6.2.4','6.3.4','6.3.5','7.0.0'):
+            body='test "$#" = 1 && test "$1" = -h || exit 7; echo "hcxdumptool '+version+' (C) ZerBea"'
+            self.assertEqual(self.execute('hcxdumptool',body),'READY')
+        self.assertEqual(self.execute('hcxdumptool','echo unrelated; exit 0'),'BROKEN')
+
     def test_missing_is_distinct_from_loader_failure(self):
-        for key in ("iw","wpa_cli","iwinfo"):
+        for key in ("iw","wpa_cli","iwinfo","curl","hcxdumptool"):
             with self.subTest(key=key):
                 self.assertEqual(self.execute(key),"MISSING")
                 self.assertEqual(self.execute(key,'echo "Error loading shared library" >&2; exit 127'),"BROKEN")
                 self.assertEqual(self.execute(key,'exit 0'),"BROKEN")
+
+    def test_rpc_helper_probe_executes_read_only_against_actual_posix_stubs(self):
+        from modules.capture_services.openwrt.runtime_helper_dependencies import WIRELESS_RPC_PROBE
+        with TemporaryDirectory() as folder:
+            root=Path(folder)
+            for key,body in (('ubus','echo iwinfo'),('rpcd','exit 99')):
+                target=root/key;target.write_text('#!/bin/sh\n'+body,encoding='utf-8',newline='\n');target.chmod(0o755)
+            location=root.as_posix()
+            if os.name=='nt':location='/'+location[0].lower()+location[2:]
+            script='PATH='+shlex.quote(location)+'\n'+WIRELESS_RPC_PROBE
+            result=subprocess.run([BASH,'--noprofile','--norc','-s'],input=script,text=True,encoding='utf-8',capture_output=True,timeout=10)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertIn('rpcd=1',result.stdout);self.assertIn('iwinfo=1',result.stdout)
+
+    def test_curl_requires_a_usable_https_build_without_contacting_a_website(self):
+        good='test "$1" = --version || exit 7; printf "curl 8.0\\nProtocols: http https\\n"'
+        self.assertEqual(self.execute('curl',good),'READY')
+        self.assertEqual(self.execute('curl','printf "curl 8.0\\nProtocols: http\\n"'),'BROKEN')
 
     def test_broken_program_is_not_reported_ready_or_missing(self):
         class Runner:

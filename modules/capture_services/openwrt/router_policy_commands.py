@@ -6,6 +6,7 @@ from .pending_config_commands import PENDING
 from .save_only_commands import SAVE_ONLY
 from .checked_apply_commands import CHECKED_APPLY, CHECKED_ACTIONS
 from .wireless_identity_commands import IDENTITY
+from .station_identity_commands import STATION_IDENTITY
 from .router_policy_files import FILES_LUA
 from .wireless_capabilities import CAPABILITIES_LUA
 
@@ -68,7 +69,7 @@ local visible={
  wireless={"mode","ssid","device","network","encryption","macaddr","disabled","band","hwmode","channel","htmode","rm_identity_backup","rm_wds_backup","rm_bridge","lxg_boot_disabled"},
  firewall={"name","device","subnet","extra_src","extra_dest","src","dest","proto","icmp_type","family","target","dest_port","enabled","network","input","output","forward","src_ip","dest_ip","src_port","extra"},
  dhcp={"interface","quietdhcp","ra","dhcpv6","start","limit","ignore","dhcp_option"},dropbear={"Interface","DirectInterface","Port","enable"},
- uhttpd={"home","listen_http","listen_https","redirect_https","enabled"},luci={"lang"},fstab={"auto_mount","anon_swap"}
+ uhttpd={"home","listen_http","listen_https","redirect_https","enabled","index_page"},luci={"lang"},fstab={"auto_mount","anon_swap"}
 }
 local function snapshot()
  local out={configs={},hashes={},files={},pages={},capabilities={},order={}}
@@ -180,6 +181,9 @@ local function stage()
   if op.action=="order" then
    if op.config~="firewall" or type(op.sections)~="table" or #op.sections>1024 then fail("values") end
    rpc("uci","order",{ubus_rpc_session=sid(),config="firewall",sections=op.sections})
+  elseif op.action=="station_identity" then
+   if op.config~="network" then fail("values") end
+   stage_station_identity(c,op.section,op.members,op.hostname)
   elseif op.action=="identity_group" then
    if op.config~="network" then fail("values") end
    stage_identity_group(c,op.section,op.members,op.hostname)
@@ -269,11 +273,11 @@ local function policy_applied()
   if op.action=="identity" then
    if c:get("wireless",section,"macaddr")~=op.values.macaddr or c:get("network",op.network,"hostname")~=op.values.hostname then return {ready=false} end
    identity_backup(c:get_all("wireless",section))
-  elseif op.action=="identity_group" then
+  elseif op.action=="identity_group" or op.action=="station_identity" then
    if c:get("network",section,"hostname")~=op.hostname then return {ready=false} end
    for _,member in ipairs(op.members or {}) do
     if c:get("wireless",save_resolve_section(c,"wireless",member.section,member.section_ref),"macaddr")~=member.macaddr then return {ready=false} end
-    identity_backup(c:get_all("wireless",save_resolve_section(c,"wireless",member.section,member.section_ref)))
+    if op.action=="identity_group" then identity_backup(c:get_all("wireless",save_resolve_section(c,"wireless",member.section,member.section_ref))) end
    end
   elseif op.action=="delete_section" then
    if c:get(op.config,section) then return {ready=false} end
@@ -334,7 +338,7 @@ local ok,result=pcall(run)
 if bus then bus:close() end
 io.write(json.stringify(ok and {ok=true,result=result} or {ok=false,code=type(result)=="table" and result.code or "internal",backup_dir=type(result)=="table" and result.backup_dir or nil,cleanup_failed=type(result)=="table" and result.cleanup_failed or nil}))
 '''
-BOOT = BOOT.replace("__CHECKED_APPLY__",CHECKED_APPLY).replace("__CHECKED_ACTIONS__",CHECKED_ACTIONS).replace("__AP_HELPERS__",CAPABILITIES_LUA.replace("__DEVICE_OPTIONS__","").replace("__INTERFACE_OPTIONS__","")).replace("__FILES_LUA__",FILES_LUA).replace("__PENDING__",PENDING).replace("__SAVE__",SAVE_ONLY).replace("__IDENTITY__",IDENTITY).replace("__CONFIGS__", "{" + ",".join(json.dumps(c) for c in CONFIGS) + "}").replace("__FILES__", "{" + ",".join(json.dumps(p) for p in FILES) + "}")
+BOOT = BOOT.replace("__CHECKED_APPLY__",CHECKED_APPLY).replace("__CHECKED_ACTIONS__",CHECKED_ACTIONS).replace("__AP_HELPERS__",CAPABILITIES_LUA.replace("__DEVICE_OPTIONS__","").replace("__INTERFACE_OPTIONS__","")).replace("__FILES_LUA__",FILES_LUA).replace("__PENDING__",PENDING).replace("__SAVE__",SAVE_ONLY).replace("__IDENTITY__",IDENTITY+STATION_IDENTITY).replace("__CONFIGS__", "{" + ",".join(json.dumps(c) for c in CONFIGS) + "}").replace("__FILES__", "{" + ",".join(json.dumps(p) for p in FILES) + "}")
 
 
 def policy_command(action, lua_bin="lua", **values):

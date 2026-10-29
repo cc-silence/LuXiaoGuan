@@ -186,6 +186,8 @@ class FactoryResultUiTests(unittest.TestCase):
         with patch('modules.platform_services.lan_network.renew') as renew:
             dialog=FactoryResetResultDialog(result,dict(adapters=[adapter()]),owner,page)
             self.addCleanup(dialog.deleteLater);dialog.show();APP.processEvents()
+            self.assertFalse(dialog.panel.button.isEnabled())
+            dialog.ready.setChecked(True)
             self.assertTrue(dialog.panel.button.isEnabled())
             renew.assert_not_called()
             dialog.reject()

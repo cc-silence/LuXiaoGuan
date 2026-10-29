@@ -94,7 +94,9 @@ class ExportTests(unittest.TestCase):
             event=Event()
             if corrupt:
                 row=next(row for row in profile["packages"] if row["name"] in wanted)
-                (version_path(root,selection["revision"])/row["blob"]).write_bytes(b"bad")
+                from modules.capture_services.openwrt.common_bundle_repository import CommonBundleRepository
+                repo=CommonBundleRepository(root,public);repo._load()
+                repo.object_source(row).write_bytes(b"bad")
             def report(value):
                 if not corrupt and value.get("total",0)>0:event.set()
             with self.assertRaises((ValueError,InterruptedError)):

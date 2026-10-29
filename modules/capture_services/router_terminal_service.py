@@ -229,6 +229,22 @@ class RouterTerminalService(QObject):
         if self.sender() is self.worker:
             self.history_diagnostic=reason
 
+    def report_component_failure(self,exc):
+        """Retain safe local component failures alongside remote session failures."""
+        if self.active:
+            return
+        compiled=getattr(exc,'compiled_version',None)
+        runtime=getattr(exc,'runtime_version',None)
+        if compiled is not None and runtime is not None:
+            reason=f'终端组件版本不匹配：组件 Qt {compiled}，程序 Qt {runtime}；请更新完整安装包。'
+        else:
+            code=getattr(exc,'winerror',None)
+            reason=f'终端组件加载失败（{type(exc).__name__}'
+            if code is not None:reason+=f'，系统错误码 {code}'
+            reason+='），请检查安装文件或运行依赖。'
+        self._detail(reason)
+        self._set_state('failed')
+
     def send(self,text):
         if self.state!="connected" or self.worker is None:return False
         data=text.encode("utf-8")

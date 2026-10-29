@@ -6,7 +6,7 @@ from PySide6.QtGui import QKeyEvent
 from .native_view import NativeTerminalView
 
 
-def run_terminal_smoke(app):
+def run_terminal_smoke(app, library_path=None):
     """\u5b9e\u9645\u52a0\u8f7d\u539f\u751f DLL \u5e76\u9a8c\u8bc1\u8f93\u51fa\u3001\u5907\u7528\u5c4f\u5e55\u548c\u8f93\u5165\u3002"""
     class Bridge(QObject):
         output=Signal(str)
@@ -17,7 +17,7 @@ def run_terminal_smoke(app):
         def ack(self,value):self.acknowledged+=value
         def selectionChanged(self,value):pass
         def copy(self,value):pass
-    bridge=Bridge();view=NativeTerminalView(bridge)
+    bridge=Bridge();view=NativeTerminalView(bridge, library_path=library_path)
     try:
         bridge.control.emit(json.dumps({'action':'state','connected':True}))
         data='\u8def\u7531\u5668'.encode('utf-8')

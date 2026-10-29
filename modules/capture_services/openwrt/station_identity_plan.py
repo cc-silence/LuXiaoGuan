@@ -46,11 +46,7 @@ def build_station_batch(builder,targets):
             assignments.append(dict(section=section,macaddr=address))
             old=str(row.get("ssid",section))+(" ["+section+"]" if len(members)>1 else "")
             builder.plan["identities"].append(dict(section=section,old=old,name=host,mac=address))
-        if len(assignments)>1:
-            builder.plan["operations"].append(dict(action="identity_group",config="network",section=network,hostname=host,members=assignments))
-            builder.plan["steps"].append("\u63a5\u53e3 "+network+" \u7684 "+str(len(members))+" \u6761\u4e0a\u7ea7 Wi-Fi \u5171\u7528\u540d\u79f0 "+host+"\uff0c\u4ec5\u5199\u5165\u4e00\u6b21\uff1b\u5404\u6761 MAC \u72ec\u7acb\u66f4\u6362\uff0cWi-Fi \u540d\u79f0\u548c\u5bc6\u7801\u4fdd\u7559\u3002\u6700\u540e\u4e00\u6761\u6062\u590d\u65f6\u8fd8\u539f\u539f\u4e0a\u62a5\u540d\u79f0\u3002")
-        else:
-            member=assignments[0]
-            builder.plan["operations"].append(dict(action="identity",config="wireless",section=member["section"],network=network,values=dict(identity_action="set",macaddr=member["macaddr"],hostname=host)))
+        builder.plan["operations"].append(dict(action="station_identity",config="network",section=network,hostname=host,members=assignments))
+        builder.plan["steps"].append("\u63a5\u53e3 "+network+" \u7684\u4e0a\u7ea7 Wi-Fi \u5171\u7528\u540d\u79f0 "+host+"\uff1b\u5404\u6761 MAC \u72ec\u7acb\u66f4\u6362\uff0cWi-Fi \u540d\u79f0\u548c\u5bc6\u7801\u4fdd\u7559\u3002\u53ef\u9009\u62e9\u201c\u4fee\u6539\u524d\u5907\u4efd\u5e76\u5e94\u7528\u201d\uff0c\u4ee5\u540e\u901a\u8fc7\u201c\u6062\u590d\u914d\u7f6e\u201d\u624b\u52a8\u8fd8\u539f\u3002")
     if not builder.plan["operations"]:
         raise ValueError("\u6ca1\u6709\u53ef\u6267\u884c\u7684\u4fee\u6539\uff1a\n"+"\n".join(builder.plan["skipped"]))

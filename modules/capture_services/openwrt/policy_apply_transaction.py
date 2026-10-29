@@ -37,7 +37,7 @@ def apply_operations(owner, snapshot, operations, cancel, report):
         from .uci_sections import resolve,reference
         touched={resolve(current,"wireless",op.get("section"),op.get("section_ref")) for op in operations if op.get("config")=="wireless"}
         for op in operations:
-            if op.get("action")=="identity_group":touched.update(resolve(current,"wireless",member["section"],member.get("section_ref")) for member in op["members"])
+            if op.get("action") in {"identity_group","station_identity"}:touched.update(resolve(current,"wireless",member["section"],member.get("section_ref")) for member in op["members"])
         before_active={resolve(current,"wireless",name,reference(snapshot,"wireless",name)) for name in snapshot.get("runtime",{}).get("active",())}
         associated={resolve(current,"wireless",name,reference(snapshot,"wireless",name)) for name in snapshot.get("runtime",{}).get("associated",())}
         added={op["section"] for op in operations if op.get("action")=="add" and op.get("config")=="wireless"}

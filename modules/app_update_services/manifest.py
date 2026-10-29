@@ -15,7 +15,7 @@ def version_key(value: str) -> tuple:
     """\u6bd4\u8f83\u6570\u5b57\u7248\u672c\u3001\u9636\u6bb5\u548c\u5c3e\u53f7\uff1b\u62d2\u7edd\u672a\u77e5\u683c\u5f0f\u3002"""
     match = _VERSION.fullmatch(value) if isinstance(value, str) else None
     if not match or len(value) > 64:
-        raise ValueError("Invalid RouterManager version")
+        raise ValueError("Invalid LuXiaoGuan version")
     parts = tuple(map(int, match[1].split(".")))
     return (parts + (0,) * (4 - len(parts)),
             {"dev": 0, "alpha": 1, "beta": 2, "rc": 3, None: 4}[match[2]],
@@ -63,7 +63,7 @@ def parse_payload(payload: dict, *, expected_platform=None) -> Release:
     expected_platform = require_native_updater() if expected_platform is None else validate_platform(expected_platform)
     if (not isinstance(payload, dict) or payload.get("schema") != 1
             or payload.get("product") != "RouterManager" or payload.get("platform") != expected_platform):
-        raise ValueError("Unsupported RouterManager update manifest")
+        raise ValueError("Unsupported LuXiaoGuan update manifest")
     version_key(payload.get("version"))
     channel = release_channel(payload["version"], legacy="channel" not in payload)
     if payload.get("channel", channel) != channel:

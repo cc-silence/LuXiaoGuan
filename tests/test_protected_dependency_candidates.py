@@ -65,7 +65,7 @@ class LocalCandidateTests(unittest.TestCase):
     def test_signed_blob_corruption_stops_instead_of_trying_install(self):
         profile=self.repo.profile(self.f.device)
         row=next(r for r in profile["packages"] if r["name"]=="wpa-cli")
-        (self.repo.content_root/row["blob"]).write_bytes(b"bad")
+        self.repo.object_path(row).write_bytes(b"bad")
         manager=NS(command_runner=Mock(), _execute_stage=Mock(return_value="libc - 1\n"), _install_offline=Mock())
         with self.assertRaises(Exception):
             install_from_local(manager,("wpa-cli",),self.kwrt(),self.root/"work",True,Event(),Mock(),repository=self.repo)

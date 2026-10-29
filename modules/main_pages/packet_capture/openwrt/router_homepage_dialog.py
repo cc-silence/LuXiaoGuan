@@ -24,7 +24,7 @@ class RouterHomepageDialog(FramelessDialog):
         add_field(layout,body,'默认打开的网页',self.homepage,'')
         self.content_layout.addWidget(body)
         if not options:self.content_layout.addWidget(hint('当前路由器未检测到可用的管理网页。',self))
-        self.continue_button,cancel=create_dialog_ok_cancel_buttons(self,'预览修改','取消')
+        self.continue_button,cancel=create_dialog_ok_cancel_buttons(self,'保存','取消')
         self.continue_button.setEnabled(bool(options))
         self.continue_button.clicked.connect(self.accept);cancel.clicked.connect(self.reject)
         self.button_layout.addWidget(self.continue_button);self.button_layout.addWidget(cancel)

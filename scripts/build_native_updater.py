@@ -5,13 +5,16 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 ROOT=Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:sys.path.insert(0,str(ROOT))
+from modules.release_identity import DISPLAY_NAME, PRODUCT_NAME
 
 def inputs():
     """\u7248\u672c\u548c\u6e90\u7801\u540c\u65f6\u53c2\u4e0e\u4ea7\u7269\u4e00\u81f4\u6027\u68c0\u67e5\u3002"""
     version=next(n.value.value for n in ast.parse((ROOT/'main.py').read_bytes()).body if isinstance(n,ast.Assign) and getattr(n.targets[0],'id','')=='APP_VERSION')
     source=ROOT/'native/update_launcher/main.cpp'
-    return dict(version=version,source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),builder_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest())
+    return dict(version=version,display_name=DISPLAY_NAME,product_name=PRODUCT_NAME,source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),builder_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest())
 
 def ensure_native_updater():
     """\u4ec5\u5728\u8f93\u5165\u6539\u53d8\u65f6\u7f16\u8bd1\uff0c\u5931\u8d25\u4fdd\u7559\u65e7\u4ea7\u7269\u3002"""
@@ -24,9 +27,11 @@ def ensure_native_updater():
     stage=ROOT/'build/native-update-launcher';stage.mkdir(parents=True,exist_ok=True)
     import re
     parts=[int(n) for n in re.match(r'[0-9.]+',expected['version'])[0].split('.')];parts=(parts+[0]*4)[:4];numeric=','.join(map(str,parts))
-    resource='#include <windows.h>\n1 VERSIONINFO\nFILEVERSION '+numeric+'\nPRODUCTVERSION '+numeric+'\nFILEOS VOS_NT_WINDOWS32\nFILETYPE VFT_APP\nBEGIN\n BLOCK "StringFileInfo" BEGIN BLOCK "040904b0" BEGIN\n VALUE "FileVersion", "'+expected['version']+'\\0"\n VALUE "ProductVersion", "'+expected['version']+'\\0"\n VALUE "ProductName", "RouterManager\\0"\n END END\n BLOCK "VarFileInfo" BEGIN VALUE "Translation", 0x409, 1200 END\nEND\n'
+    branding='#define PRODUCT_DISPLAY_NAME L'+json.dumps(DISPLAY_NAME,ensure_ascii=True)+'\n'
+    (stage/'product_branding.h').write_text(branding,encoding='ascii')
+    resource='#include <windows.h>\n1 VERSIONINFO\nFILEVERSION '+numeric+'\nPRODUCTVERSION '+numeric+'\nFILEOS VOS_NT_WINDOWS32\nFILETYPE VFT_APP\nBEGIN\n BLOCK "StringFileInfo" BEGIN BLOCK "040904b0" BEGIN\n VALUE "FileVersion", "'+expected['version']+'\\0"\n VALUE "ProductVersion", "'+expected['version']+'\\0"\n VALUE "ProductName", "'+PRODUCT_NAME+'\\0"\n VALUE "FileDescription", "'+PRODUCT_NAME+' Update\\0"\n END END\n BLOCK "VarFileInfo" BEGIN VALUE "Translation", 0x409, 1200 END\nEND\n'
     (stage/'version.rc').write_text(resource,encoding='ascii')
-    command='@echo off\r\ncall "'+str(vcvars)+'" > env.log 2>&1\r\nif errorlevel 1 exit /b %errorlevel%\r\nrc /nologo /fo version.res version.rc\r\nif errorlevel 1 exit /b %errorlevel%\r\ncl /nologo /std:c++17 /O2 /MT /EHsc /W4 /utf-8 "'+str(ROOT/'native/update_launcher/main.cpp')+'" version.res /Fe:RouterManagerUpdater.exe /link /SUBSYSTEM:WINDOWS user32.lib gdi32.lib comctl32.lib uxtheme.lib dwmapi.lib shell32.lib\r\nexit /b %errorlevel%\r\n'
+    command='@echo off\r\ncall "'+str(vcvars)+'" > env.log 2>&1\r\nif errorlevel 1 exit /b %errorlevel%\r\nrc /nologo /fo version.res version.rc\r\nif errorlevel 1 exit /b %errorlevel%\r\ncl /nologo /std:c++17 /O2 /MT /EHsc /W4 /utf-8 /I"'+str(stage)+'" "'+str(ROOT/'native/update_launcher/main.cpp')+'" version.res /Fe:RouterManagerUpdater.exe /link /SUBSYSTEM:WINDOWS user32.lib gdi32.lib comctl32.lib uxtheme.lib dwmapi.lib shell32.lib\r\nexit /b %errorlevel%\r\n'
     (stage/'build.cmd').write_bytes(command.encode('ascii'))
     with (stage/'build.log').open('wb') as log:
         done=subprocess.run(['cmd.exe','/d','/c',str(stage/'build.cmd')],cwd=stage,stdout=log,stderr=subprocess.STDOUT,timeout=120,creationflags=subprocess.CREATE_NO_WINDOW)

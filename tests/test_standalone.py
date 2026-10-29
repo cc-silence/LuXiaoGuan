@@ -54,7 +54,7 @@ class StandaloneTests(unittest.TestCase):
         self.assertEqual(BASE_DIR, Path(__file__).resolve().parents[1])
         self.assertTrue(SingleInstanceController._build_server_name().startswith('RouterManager.'))
         self.assertEqual(local_gpo_firewall.STARTUP_OWNER,'routermanager-startup')
-        self.assertIn('RouterManager',local_gpo_firewall.OWNER_DESCRIPTION_PREFIX)
+        self.assertIn('LuXiaoGuan',local_gpo_firewall.OWNER_DESCRIPTION_PREFIX)
         self.assertEqual(user_config_dir(),Path(self.temp.name)/'user')
         self.assertTrue(self.runtime.capture_service._openwrt_credential_target({'host':'router','port':22,'username':'root'}).startswith('RouterManager:'))
 

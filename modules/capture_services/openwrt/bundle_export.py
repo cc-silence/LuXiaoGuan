@@ -119,7 +119,7 @@ def export_packages(kind,selection,wanted,destination,cancel,progress=None,*,roo
         completed=0
         for row in rows:
             guard.check()
-            source=safe_path(repo.content_root,row["blob"])
+            source=repo.object_source(row)
             _copy_verified(source,temporary/row["filename"],row,guard,report,completed,total)
             completed+=row["size"]
         firmware_conditions=[

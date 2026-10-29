@@ -4,7 +4,7 @@ from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from modules.common_widgets.task_progress_dialog import TaskProgressDialog
 from modules.main_pages.page_action_buttons import create_page_text_button
 from modules.main_pages.packet_capture.ui_helpers import create_capture_card
-from modules.capture_services.openwrt.common_tool_dependencies import TOOLS, TOOL_KEYS, TOOL_BY_KEY
+from modules.capture_services.openwrt.common_tool_dependencies import TOOLS, TOOL_KEYS, TOOL_BY_KEY, OPTIONAL_TOOL_KEYS
 from .dependency_row import create_dependency_row
 
 
@@ -17,7 +17,7 @@ class CommonToolSection(QObject):
         self.dialog=None
         self.dialog_session=None
         self.card,self.layout=create_capture_card(parent,"路由器常用工具依赖",
-            "登录时检查；按需安装或卸载。网页功能在路由器管理页面中使用。", collapsible=True)
+            "\u767b\u5f55\u53ea\u68c0\u67e5\u8def\u5c0f\u7ba1\u529f\u80fd\u5fc5\u9700\u9879\uff1b\u6807\u6ce8\u53ef\u9009\u7684\u5de5\u5177\u4ec5\u5728\u624b\u52a8\u9009\u62e9\u65f6\u68c0\u67e5\u3001\u5b89\u88c5\u3002", collapsible=True, expanded=False)
         from .common_bundle_controls import CommonBundleControls
         self.offline_controls=CommonBundleControls(self.card,self.layout,owner)
         self.rows={}
@@ -28,14 +28,17 @@ class CommonToolSection(QObject):
         entries=(('sftp','文件传输','openssh-sftp-server'),('terminal','终端会话保留','tmux'))
         entries+=tuple((tool.key,tool.title,tool.package) for tool in TOOLS)
         for position,(key,title,package) in enumerate(entries):
+            if key == "terminal" or key in OPTIONAL_TOOL_KEYS:
+                title += "\uff08\u53ef\u9009\uff09"
             container,name,status,button=create_dependency_row(
                 self.card,key,title,package,position,self._clicked,observer=self)
             self.row_widgets[key]=container
             self.names[key]=name
             if key in TOOL_KEYS:name.setToolTip(TOOL_BY_KEY[key].description)
             self.layout.addWidget(container);self.rows[key]=(status,button)
-        self.install_all_button=create_page_text_button(self.card,"检查并安装全部常用依赖","只补齐本组缺失项，复用统一安装流程。")
+        self.install_all_button=create_page_text_button(self.card,"\u68c0\u67e5\u5e76\u5b89\u88c5\u8def\u5c0f\u7ba1\u5fc5\u9700\u4f9d\u8d56","只补齐本组缺失项，复用统一安装流程。")
         self.install_all_button.setObjectName("captureSecondaryButton")
+        self.install_all_button.setProperty("dependencyInstallPrimary", True)
         self.install_all_button.clicked.connect(self._install_all)
         self.layout.addWidget(self.install_all_button)
         self.status,self.button=self.rows['sftp']
@@ -98,7 +101,7 @@ class CommonToolSection(QObject):
         task=self.service.task
         bulk=task is not None and task.group=="common_all"
         self.install_all_button.setProperty("dependencyStopSession",task.session_id if bulk else None)
-        self.install_all_button.setText("停止安装" if bulk else "检查并安装全部常用依赖")
+        self.install_all_button.setText("停止安装" if bulk else "\u68c0\u67e5\u5e76\u5b89\u88c5\u8def\u5c0f\u7ba1\u5fc5\u9700\u4f9d\u8d56")
         self.install_all_button.setEnabled(connected and (bulk or not self.owner.is_busy))
         for key,(status,button) in self.rows.items():
             own=task is not None and key in task.items and task.group in {'common','common_all','terminal'} | TOOL_KEYS
@@ -111,6 +114,13 @@ class CommonToolSection(QObject):
             if not connected:
                 status.setText('检测中' if snapshot.connection_state.value=='connecting' else '请先登录')
                 button.setText('安装');button.setVisible(True);button.setEnabled(False)
+                continue
+            if item is None and (key == 'terminal' or key in OPTIONAL_TOOL_KEYS):
+                status.setText('\u53ef\u9009\uff0c\u672a\u68c0\u67e5')
+                button.setText('\u68c0\u67e5')
+                button.setVisible(True)
+                button.setEnabled(not self.owner.is_busy)
+                button.setToolTip('\u53ef\u9009\u5de5\u5177\uff0c\u4e0d\u53c2\u4e0e\u767b\u5f55\u68c0\u6d4b\u6216\u6279\u91cf\u8865\u88c5\uff1b\u70b9\u51fb\u540e\u6309\u9700\u68c0\u67e5\u3002')
                 continue
             status.setText({'ready':'已安装','missing':'未安装','checking':'检测中'}.get(state,'检测失败'))
             status.setToolTip(item.detail if item is not None else '请重新检查。')

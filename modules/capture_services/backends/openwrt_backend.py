@@ -503,11 +503,11 @@ class OpenWrtCaptureBackend(CaptureBackend):
             sftp_available=True if sftp.state.value=="ready" else False if sftp.state.value=="missing" else None
             device = replace(device, sftp_available=sftp_available)
             dependencies = self.dependency_manager.check(
-                dict(settings.get("enabled_features", {}), terminal=True),
+                dict(settings.get("enabled_features", {})),
                 sftp_available, cancel_event)
-            from modules.capture_services.openwrt.common_tool_dependencies import TOOL_KEYS, check_tools
+            from modules.capture_services.openwrt.common_tool_dependencies import REQUIRED_TOOL_KEYS, check_tools
             dependencies=tuple(sftp if item.key=="sftp" else item for item in dependencies)
-            dependencies += check_tools(self.command_runner, TOOL_KEYS, cancel_event)
+            dependencies += check_tools(self.command_runner, REQUIRED_TOOL_KEYS, cancel_event)
             dependencies = tuple(
                 replace(item, detail=item.detail + "\uff1b\u5b89\u88c5\u65f6\u4f18\u5148\u68c0\u67e5\u5df2\u4e0b\u8f7d\u7684\u672c\u5730\u79bb\u7ebf\u5305\uff0c\u5e76\u6838\u5bf9\u5b9e\u9645\u4f9d\u8d56\u662f\u5426\u5339\u914d\u3002")
                 if item.state.value == "missing" and item.missing_packages else item

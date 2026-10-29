@@ -2,6 +2,7 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from modules.common_widgets.frameless_dialog import FramelessDialog
 from modules.common_widgets.common_dialogs import apply_common_dialog_theme, ConfirmDialog
+from modules.common_widgets.input_validation import set_input_error
 from .settings_impacts import PASSWORD_WARNING
 from modules.settings_pages.settings_widgets import create_dialog_ok_cancel_buttons
 from .signal_setup_forms import PasswordInput, add_field, hint
@@ -21,6 +22,10 @@ class RouterPasswordDialog(FramelessDialog):
         add_field(layout, body, "新密码", self.new_password, "8～128 字节，不允许换行或控制字符。")
         add_field(layout, body, "确认密码", self.confirm_password, "两次输入必须一致。")
         self.error_label = hint("", body)
+        self.error_label.setObjectName("settingsValidationError")
+        self.confirm_password.edit.setProperty("passwordConfirmation", True)
+        self.confirm_password.edit.textEdited.connect(self._clear_error)
+        self.new_password.edit.textEdited.connect(self._clear_error)
         layout.addWidget(self.error_label)
         self.content_layout.addWidget(body)
         self.save_button, cancel = create_dialog_ok_cancel_buttons(self, "修改密码", "取消")
@@ -35,9 +40,15 @@ class RouterPasswordDialog(FramelessDialog):
             self.setTabOrder(first, second)
 
 
+    def _clear_error(self, *_):
+        set_input_error(self.confirm_password.edit, False)
+        self.error_label.clear()
+
     def _validate(self):
         password = self.new_password.submitted_text()
+        self._clear_error()
         if password != self.confirm_password.submitted_text():
+            set_input_error(self.confirm_password.edit, True)
             self.error_label.setText("两次输入的新密码不一致。")
             return
         try:

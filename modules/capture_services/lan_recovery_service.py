@@ -8,18 +8,28 @@ from .lan_client_recovery import RenewalGate
 
 class LanRecoveryService(QObject):
     def __init__(self,owner):
-        super().__init__(owner);self.owner=owner;self.offers={};self.standalone=set()
-    def create_offer(self,plan):
+        super().__init__(owner);self.owner=owner;self.offers={};self.standalone=set();self.adapter_jobs={}
+    def create_offer(self,plan,*,ready=True):
         """Post-task recovery stays available while its result dialog is open."""
         if len(self.offers)>=32:raise RuntimeError("Too many network recovery offers")
-        key='reset-recovery-'+uuid4().hex
-        gate=RenewalGate(plan);gate.start(time.monotonic()+600);gate.arm()
+        key='network-recovery-'+uuid4().hex
+        gate=RenewalGate(plan);gate.start(time.monotonic()+600)
+        if ready:gate.arm()
         self.offers[key]=(gate,{})
         self.standalone.add(key)
         return key
+    def set_ready(self,key,ready):
+        item=self.offers.get(key)
+        if key not in self.standalone or item is None:return
+        gate=item[0]
+        with gate.lock:
+            if gate.busy:return
+            gate.armed=bool(ready)
+            if ready:gate.deadline=time.monotonic()+600
+
     def payload(self,key):
         item=self.offers.get(key)
-        return item[0].payload() if item else {}
+        return dict(item[0].payload(),busy_adapters=list(self.adapter_jobs)) if item else {}
     def observe(self,key,value):
         payload=value.get('network_recovery')
         if isinstance(payload,dict) and isinstance(payload.get('control'),RenewalGate):
@@ -29,19 +39,34 @@ class LanRecoveryService(QObject):
         self.standalone.discard(key)
         item=self.offers.pop(key,None)
         if item:item[0].close()
+    def _notify_adapter(self,identity):
+        for key,(gate,_) in tuple(self.offers.items()):
+            current=self.offers.get(key)
+            if current is None or current[0] is not gate:continue
+            if any(row['id']==identity for row in gate.adapters):
+                self.owner.configurationProgressChanged.emit(key,dict(current[1],network_recovery=self.payload(key)))
+
     def request(self,key,identity):
         item=self.offers.get(key)
         if getattr(self.owner,"_shutting_down",False):return False
         if item is None or (key not in self.standalone and key not in self.owner._openwrt_workers):return False
-        gate,value=item;claimed=gate.claim(str(identity))
+        identity=str(identity)
+        gate,value=item
+        if identity in self.adapter_jobs:
+            self.owner.configurationProgressChanged.emit(key,dict(value,network_recovery=self.payload(key)))
+            return False
+        claimed=gate.claim(identity)
         if claimed is None:
-            self.owner.configurationProgressChanged.emit(key,dict(value,network_recovery=gate.payload()))
+            self.owner.configurationProgressChanged.emit(key,dict(value,network_recovery=self.payload(key)))
             return False
         adapter,timeout=claimed
-        def emit():
-            current=self.offers.get(key)
-            if current is None or current[0] is not gate:return
-            self.owner.configurationProgressChanged.emit(key,dict(current[1],network_recovery=gate.payload()))
+        token=uuid4().hex
+        self.adapter_jobs[identity]=token
+        def finish(message,current=None):
+            if self.adapter_jobs.get(identity)!=token:return
+            self.adapter_jobs.pop(identity)
+            gate.finish_renewal(message,current)
+            self._notify_adapter(identity)
         def operation(cancel):
             from modules.platform_services.lan_network import renew
             from .management_diagnostics import ManagementTrace
@@ -54,14 +79,23 @@ class LanRecoveryService(QObject):
                 return renew(adapter,timeout,permitted)
             return trace.execute(perform,cancel,lambda *_:None)
         def completed(result):
-            if key in self.standalone:
-                gate.finish_renewal('已重新获取网卡地址。请使用恢复后的默认地址登录路由器。');emit();return
-            gate.finish_renewal('\u5df2\u91cd\u65b0\u83b7\u53d6\u7f51\u5361\u914d\u7f6e\uff0c\u6b63\u5728\u5c1d\u8bd5\u8fde\u63a5\u8def\u7531\u5668\u3002');emit()
+            addresses=', '.join(result.get('addresses',[])) if isinstance(result,dict) else ''
+            message='\u5df2\u91cd\u65b0\u83b7\u53d6\u7f51\u5361\u5730\u5740\u3002'
+            if addresses:message+='\u5f53\u524d\u5730\u5740\uff1a'+addresses+'\u3002'
+            message+=('\u8bf7\u7528\u8def\u7531\u5668\u5f53\u524d\u5730\u5740\u767b\u5f55\u3002' if key in self.standalone else
+                      '\u6b63\u5728\u5c1d\u8bd5\u8fde\u63a5\u8def\u7531\u5668\u3002')
+            finish(message,result)
         def failed(message,detail):
-            gate.finish_renewal('\u91cd\u65b0\u83b7\u53d6\u672a\u5b8c\u6210\uff1a'+message);emit()
-        emit()
+            finish('\u91cd\u65b0\u83b7\u53d6\u672a\u5b8c\u6210\uff1a'+message)
+        self._notify_adapter(identity)
         from .task_completion import start_capture_task
-        try:start_capture_task(self.owner,'lan-renew-'+uuid4().hex,operation,Event(),completed,failed)
-        except Exception as exc:failed(str(exc),'')
+        try:
+            started=start_capture_task(self.owner,'lan-renew-'+token,operation,Event(),completed,failed)
+            if started is False:
+                failed('\u540e\u53f0\u7f51\u5361\u4efb\u52a1\u672a\u80fd\u542f\u52a8\uff0c\u8bf7\u91cd\u8bd5\u3002','')
+                return False
+        except Exception as exc:
+            failed(str(exc),'')
+            return False
         self.owner.activityChanged.emit()
         return True

@@ -12,18 +12,27 @@ _WRITE = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int)
 _RESIZE = ctypes.CFUNCTYPE(None, ctypes.c_int, ctypes.c_int)
 
 
+class TerminalVersionError(OSError):
+    def __init__(self, compiled, runtime):
+        self.compiled_version = compiled
+        self.runtime_version = runtime
+        super().__init__(f'Native terminal Qt version mismatch: compiled={compiled}, runtime={runtime}')
+
+
 class NativeTerminalView(QWidget):
     """\u4fdd\u6301\u539f\u6709 bridge \u5951\u7ea6\uff0c\u7edf\u4e00\u8f93\u5165\u3001\u7c98\u8d34\u786e\u8ba4\u548c\u8d44\u6e90\u91ca\u653e\u3002"""
     _selectionRefresh = Signal()
 
     def __init__(self, bridge, parent=None, library_path=None):
-        super().__init__(parent)
-        self.setObjectName("routerTerminalContainer")
-        self.ensurePolished()
         if library_path is None:
             from modules.config_manager import BASE_DIR
             library_path = BASE_DIR / 'bin/router_terminal/winbox_terminal.dll'
-        self._dll = self._load_library(Path(library_path))
+        # Validate before creating a parent-owned widget so failed retries leave no hidden children.
+        library = self._load_library(Path(library_path))
+        super().__init__(parent)
+        self.setObjectName("routerTerminalContainer")
+        self.ensurePolished()
+        self._dll = library
         self._bridge = bridge
         self._connected = False
         self._disposed = False
@@ -75,8 +84,9 @@ class NativeTerminalView(QWidget):
         for name, (arguments, result) in specs.items():
             function = getattr(dll, name)
             function.argtypes, function.restype = arguments, result
-        if dll.wb_qt_version().decode('ascii') != qVersion():
-            raise OSError('Native terminal Qt version mismatch')
+        compiled = dll.wb_qt_version().decode('ascii')
+        if compiled != qVersion():
+            raise TerminalVersionError(compiled, qVersion())
         return dll
 
     def _write(self, pointer, size):

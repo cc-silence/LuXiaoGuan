@@ -2,7 +2,7 @@
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QPoint, QRect
 from PySide6.QtTest import QTest
 from tests.common_settings_fixture import create_page
 from tests.test_signal_actions_ui import PendingSetup
@@ -16,17 +16,21 @@ REVIEW = dict(operation="reset", model="Router A", version="25.12", reset_comman
 class MaintenanceUiTests(unittest.TestCase):
     create_page = create_page
 
-    def test_all_fourteen_cards_have_reference_icons_and_three_columns(self):
+    def test_all_fourteen_cards_have_reference_icons_in_responsive_groups(self):
         page, _ = self.create_page()
         self.assertEqual(len(page.cards), 14)
-        for index, card in enumerate(page.cards):
-            row, col, _, _ = page.cards_layout.getItemPosition(index)
-            self.assertEqual((row,col),(index//3,index%3))
+        grouped = [card for _title, cards in page.card_groups.groups for card in cards]
+        self.assertEqual(len(grouped), len(set(grouped)))
+        self.assertEqual(set(grouped), set(page.cards))
+        rectangles = []
+        for card in grouped:
             illustration = card.findChild(CardIcon)
             self.assertIsNotNone(illustration)
             self.assertFalse(illustration.icon.isNull())
-        self.assertEqual(page.password_card.y(),page.lan_card.y())
-        self.assertGreater(page.lan_card.x(),page.password_card.x()+page.password_card.width())
+            rectangles.append(QRect(card.mapTo(page, QPoint()), card.size()))
+        for index, rectangle in enumerate(rectangles):
+            for other in rectangles[index + 1:]:
+                self.assertFalse(rectangle.intersects(other))
 
     def test_disabling_clicked_actions_does_not_walk_focus_and_scroll_to_bottom(self):
         for name in ("lan_button","system_button","relocation","orphan"):

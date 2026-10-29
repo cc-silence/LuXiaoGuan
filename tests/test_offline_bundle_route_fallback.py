@@ -18,7 +18,7 @@ class OfflineBundleRouteFallbackTests(unittest.TestCase):
                 channels=[NetworkChannel('http_proxy','fixture proxy','http://broken:1'),NetworkChannel('direct','direct')]
                 def get(url,**kwargs):
                     if kwargs['proxies']:raise requests.exceptions.ProxyError('fixture proxy down')
-                    response=MagicMock();response.__enter__.return_value=response;response.status_code=200
+                    response=MagicMock();response.__enter__.return_value=response;response.status_code=200;response.headers={}
                     response.iter_content.return_value=[f.envelope if url.endswith('/manifest') else f.archive.read_bytes()]
                     return response
                 session.get.side_effect=get

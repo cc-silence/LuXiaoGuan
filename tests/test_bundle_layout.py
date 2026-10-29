@@ -23,14 +23,19 @@ def prepare(source, root, kind="common", **kwargs):
 def legacy_copy(source, root, kind="common"):
     result = prepare(source, root, kind)
     compact = Path(result["content_path"])
+    repo = CommonBundleRepository(root, source.public, kind); repo._load()
+    from modules.capture_services.openwrt.common_bundle_repository import validate_catalog
+    for sha, row in validate_catalog(repo.catalog, kind).items():
+        repo.object_source(row).rename(compact / row["blob"])
     legacy = root / "versions" / source.payload["sha256"]
+    (compact / "object-layout.json").unlink()
     compact.rename(legacy)
     (legacy / "revision.json").unlink()
     return legacy
 
 
 class BundleLayoutTests(unittest.TestCase):
-    def test_date_sequence_shortens_object_path_without_shortening_hashes(self):
+    def test_date_sequence_and_numbered_objects_preserve_full_hashes(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); source = fixture(root / "source"); target = root / "resource"
             with patch("modules.capture_services.openwrt.bundle_layout.datetime") as clock:
@@ -43,9 +48,9 @@ class BundleLayoutTests(unittest.TestCase):
             self.assertEqual(repo.revision, source.payload["sha256"])
             row = source.profile["packages"][0]
             actual = repo.object_path(row)
-            self.assertEqual(actual.name, row["sha256"])
+            self.assertRegex(actual.name, r"^[0-9]{6}$")
             previous = target / "versions" / source.payload["sha256"] / row["blob"]
-            self.assertEqual(len(str(previous)) - len(str(actual)), 53)
+            self.assertEqual(len(str(previous)) - len(str(actual)), 111)
             self.assertEqual(json.loads((repo.content_root / "revision.json").read_text())["sha256"], repo.revision)
 
     def test_same_day_revisions_retry_and_existing_user_folder_do_not_collide(self):
@@ -169,8 +174,8 @@ class BundleLayoutTests(unittest.TestCase):
             root = Path(folder); target = root / "resource"; source = fixture(root / "source")
             result = prepare(source, target); version = Path(result["content_path"])
             row = source.profile["packages"][0]
-            (version / row["blob"]).write_bytes(b"tampered")
             repo = CommonBundleRepository(target, source.public); repo._load()
+            repo.object_source(row).write_bytes(b"tampered")
             with self.assertRaises(ValueError):
                 repo.object_path(row)
             (version / "catalog.json").write_bytes(b"{}")

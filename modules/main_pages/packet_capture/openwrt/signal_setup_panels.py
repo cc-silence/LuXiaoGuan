@@ -301,7 +301,7 @@ class SignalSetupPanels:
     def refresh_privacy(self):
         """Project names once, without rebuilding rows or resizing every column."""
         private = bool(self.page._privacy and self.page._privacy.enabled)
-        self.table.refresh_privacy(self.page._mask_names or private, private)
+        self.table.refresh_privacy(private, private)
 
     def _show(self, dialog):
         """非阻塞打开有所属的弹窗；关闭后解除引用并销毁。"""

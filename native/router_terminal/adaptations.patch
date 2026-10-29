@@ -1,0 +1,498 @@
+--- upstream/KodoTerm.cpp
++++ winbox/KodoTerm.cpp
+@@ -116,6 +116,7 @@
+         return;
+     }
+     vterm_screen_enable_altscreen(m_vtermScreen, 1);
++    vterm_screen_enable_reflow(m_vtermScreen, true);
+     static VTermScreenCallbacks callbacks = {.damage = &KodoTerm::onDamage,
+                                              .moverect = &KodoTerm::onMoveRect,
+                                              .movecursor = &KodoTerm::onMoveCursor,
+@@ -126,7 +127,11 @@
+                                              .sb_popline = &KodoTerm::onSbPopLine,
+                                              .sb_clear = nullptr,
+                                              .sb_pushline4 = nullptr};
++    callbacks.sb_pushline4 = [](int cols, const VTermScreenCell *cells, bool continuation, void *user) {
++        return static_cast<KodoTerm*>(user)->pushScrollback(cols, cells, continuation);
++    };
+     vterm_screen_set_callbacks(m_vtermScreen, &callbacks, this);
++    vterm_screen_callbacks_has_pushline4(m_vtermScreen);
+     vterm_screen_reset(m_vtermScreen, 1);
+     if (!m_environment.contains("TERM")) {
+         m_environment.insert("TERM", "xterm-256color");
+@@ -281,11 +286,12 @@
+     return 1;
+ }
+ 
+-int KodoTerm::pushScrollback(int cols, const VTermScreenCell *cells) {
++int KodoTerm::pushScrollback(int cols, const VTermScreenCell *cells, bool continuation) {
+     if (m_altScreen) {
+         return 0;
+     }
+     SavedLine line;
++    line.continuation = continuation;
+     line.reserve(cols);
+     for (int i = 0; i < cols; ++i) {
+         SavedCell sc;
+@@ -693,119 +699,94 @@
+ }
+ 
+ void KodoTerm::renderToBackbuffer() {
+-    if (m_backBuffer.isNull()) {
+-        return;
+-    }
++    if (m_backBuffer.isNull()) return;
+     int rows, cols;
+     vterm_get_size(m_vterm, &rows, &cols);
+-    int cur = m_scrollBar->value(), sb = (int)m_scrollback.size();
+-    bool useCache = (cur == sb);
+-    if (useCache && (m_dirtyRect.start_row > m_dirtyRect.end_row)) {
++    const int cur = displayOffset(), history = visibleHistorySize();
++    const bool useCache = cur == history;
++    if (useCache && m_dirtyRect.start_row > m_dirtyRect.end_row) {
+         m_dirty = false;
+         return;
+     }
+-
+     QPainter painter(&m_backBuffer);
+-    QFont f = font();
+-    f.setKerning(false);
+-    f.setStyleStrategy(m_config.textAntialiasing ? QFont::PreferAntialias : QFont::NoAntialias);
+-    painter.setFont(f);
++    QFont terminalFont = m_config.font;
++    terminalFont.setKerning(false);
++    terminalFont.setStyleStrategy(m_config.textAntialiasing ? QFont::PreferAntialias : QFont::NoAntialias);
++    painter.setFont(terminalFont);
+     painter.setRenderHint(QPainter::TextAntialiasing, m_config.textAntialiasing);
+-    painter.setRenderHint(QPainter::Antialiasing,
+-                          false); // Always false for cell backgrounds to prevent gaps
+-
++    painter.setRenderHint(QPainter::Antialiasing, false);
+     VTermState *state = vterm_obtain_state(m_vterm);
+-    VTermColor dfg, dbg;
+-    vterm_state_get_default_colors(state, &dfg, &dbg);
+-    QColor defBg = mapColor(dbg, state), defFg = mapColor(dfg, state);
+-
+-    VTermPos sS = m_selectionStart, sE = m_selectionEnd;
+-    bool hasS = (sS.row != -1);
+-    if (hasS && (sS.row > sE.row || (sS.row == sE.row && sS.col > sE.col))) {
+-        std::swap(sS, sE);
+-    }
+-    int sR = 0, eR = rows, sC = 0, eC = cols;
+-    if (useCache) {
+-        sR = std::max(0, m_dirtyRect.start_row);
+-        eR = std::min(rows, m_dirtyRect.end_row);
+-        sC = std::max(0, m_dirtyRect.start_col);
+-        eC = std::min(cols, m_dirtyRect.end_col);
+-    }
+-    for (int r = sR; r < eR; ++r) {
+-        int absR = cur + r;
+-        for (int c = sC; c < eC; ++c) {
+-            VTermScreenCell cell;
+-            if (absR < sb) {
+-                const SavedLine &l = m_scrollback[absR];
+-                if (c < (int)l.size()) {
+-                    const SavedCell &sc = l[c];
+-                    memcpy(cell.chars, sc.chars, sizeof(cell.chars));
+-                    cell.attrs = sc.attrs;
+-                    cell.fg = sc.fg;
+-                    cell.bg = sc.bg;
+-                    cell.width = sc.width;
+-                } else {
+-                    memset(&cell, 0, sizeof(cell));
+-                    cell.width = 1;
+-                }
++    VTermColor defaultForeground, defaultBackground;
++    vterm_state_get_default_colors(state, &defaultForeground, &defaultBackground);
++    const QColor foreground = mapColor(defaultForeground, state);
++    const QColor background = mapColor(defaultBackground, state);
++    VTermPos selectionStart = m_selectionStart, selectionEnd = m_selectionEnd;
++    const bool hasSelection = selectionStart.row != -1;
++    if (hasSelection && (selectionStart.row > selectionEnd.row ||
++        (selectionStart.row == selectionEnd.row && selectionStart.col > selectionEnd.col))) {
++        std::swap(selectionStart, selectionEnd);
++    }
++    const int firstRow = useCache ? std::max(0, m_dirtyRect.start_row) : 0;
++    const int endRow = useCache ? std::min(rows, m_dirtyRect.end_row) : rows;
++    std::vector<VTermScreenCell> cells(cols);
++    std::vector<bool> selected(cols);
++    // A row is the painting/cache unit: every continuation cell is recorded,
++    // and all backgrounds are painted before any wide or fallback glyphs.
++    for (int r = firstRow; r < endRow; ++r) {
++        const int absoluteRow = cur + r;
++        bool changed = !useCache;
++        for (int c = 0; c < cols; ++c) {
++            VTermScreenCell &cell = cells[c];
++            memset(&cell, 0, sizeof(cell));
++            if (absoluteRow < history) {
++                const SavedLine &line = m_scrollback[absoluteRow];
++                if (c < int(line.size())) {
++                    const SavedCell &saved = line[c];
++                    memcpy(cell.chars, saved.chars, sizeof(cell.chars));
++                    cell.attrs = saved.attrs;
++                    cell.fg = saved.fg;
++                    cell.bg = saved.bg;
++                    cell.width = saved.width;
++                } else cell.width = 1;
+             } else {
+-                vterm_screen_get_cell(m_vtermScreen, {r, c}, &cell);
+-            }
+-            if (cell.width == 0) {
+-                continue;
+-            }
+-            bool sel = false;
+-            if (hasS) {
+-                if (absR > sS.row && absR < sE.row) {
+-                    sel = true;
+-                } else if (absR == sS.row && absR == sE.row) {
+-                    sel = (c >= sS.col && c <= sE.col);
+-                } else if (absR == sS.row) {
+-                    sel = (c >= sS.col);
+-                } else if (absR == sE.row) {
+-                    sel = (c <= sE.col);
+-                }
+-            }
+-            if (useCache && sel == m_selectedCache[r * cols + c] &&
+-                cellsEqual(cell, m_cellCache[r * cols + c])) {
+-                if (cell.width > 1) {
+-                    c += (cell.width - 1);
+-                }
+-                continue;
+-            }
++                vterm_screen_get_cell(m_vtermScreen, {absoluteRow - history, c}, &cell);
++            }
++            selected[c] = hasSelection &&
++                (absoluteRow > selectionStart.row || (absoluteRow == selectionStart.row && c >= selectionStart.col)) &&
++                (absoluteRow < selectionEnd.row || (absoluteRow == selectionEnd.row && c <= selectionEnd.col));
++            if (useCache && (!cellsEqual(cell, m_cellCache[r * cols + c]) ||
++                selected[c] != m_selectedCache[r * cols + c])) changed = true;
++        }
++        if (!changed) continue;
++        painter.fillRect(QRectF(0, r * m_cellSize.height(), cols * m_cellSize.width(), m_cellSize.height()), background);
++        for (int c = 0; c < cols; ++c) {
++            const VTermScreenCell &cell = cells[c];
++            QColor fg = VTERM_COLOR_IS_DEFAULT_FG(&cell.fg) ? foreground : mapColor(cell.fg, state);
++            QColor bg = VTERM_COLOR_IS_DEFAULT_BG(&cell.bg) ? background : mapColor(cell.bg, state);
++            if (cell.attrs.reverse ^ selected[c]) std::swap(fg, bg);
++            painter.fillRect(QRectF(c * m_cellSize.width(), r * m_cellSize.height(),
++                                   m_cellSize.width(), m_cellSize.height()), bg);
+             if (useCache) {
+                 m_cellCache[r * cols + c] = cell;
+-                m_selectedCache[r * cols + c] = sel;
+-            }
+-            QColor fg = defFg, bg = defBg;
+-            if (!VTERM_COLOR_IS_DEFAULT_FG(&cell.fg)) {
+-                fg = mapColor(cell.fg, state);
+-            }
+-            if (!VTERM_COLOR_IS_DEFAULT_BG(&cell.bg)) {
+-                bg = mapColor(cell.bg, state);
+-            }
+-            if (cell.attrs.reverse ^ sel) {
+-                std::swap(fg, bg);
+-            }
+-
++                m_selectedCache[r * cols + c] = selected[c];
++            }
++        }
++        for (int c = 0; c < cols; ++c) {
++            const VTermScreenCell &cell = cells[c];
++            if (cell.width == 0 || cell.chars[0] == 0 || cell.chars[0] == UINT32_MAX) continue;
++            QColor fg = VTERM_COLOR_IS_DEFAULT_FG(&cell.fg) ? foreground : mapColor(cell.fg, state);
++            QColor bg = VTERM_COLOR_IS_DEFAULT_BG(&cell.bg) ? background : mapColor(cell.bg, state);
++            if (cell.attrs.reverse ^ selected[c]) std::swap(fg, bg);
+             QRectF rect(c * m_cellSize.width(), r * m_cellSize.height(),
+                         cell.width * m_cellSize.width(), m_cellSize.height());
+-            painter.fillRect(rect, bg);
+-
+             if (m_config.customBoxDrawing && isBoxChar(cell.chars[0])) {
+                 drawBoxChar(painter, rect.toRect(), cell.chars[0], fg);
+-            } else if (cell.chars[0] != 0) {
+-                int n_chars = 0;
+-                while (n_chars < VTERM_MAX_CHARS_PER_CELL && cell.chars[n_chars]) {
+-                    n_chars++;
+-                }
++            } else {
++                int count = 0;
++                while (count < VTERM_MAX_CHARS_PER_CELL && cell.chars[count]) ++count;
+                 painter.setPen(fg);
+                 painter.drawText(rect, Qt::AlignCenter,
+-                                 QString::fromUcs4((const char32_t *)cell.chars, n_chars));
+-            }
+-
+-            if (cell.width > 1) {
+-                c += (cell.width - 1);
++                    QString::fromUcs4(reinterpret_cast<const char32_t *>(cell.chars), count));
+             }
+         }
+     }
+@@ -837,32 +818,9 @@
+ 
+     int cols, rows;
+     vterm_get_size(w->m_vterm, &rows, &cols);
+-    int h = s.end_row - s.start_row;
+-    if (d.start_row < s.start_row) {
+-        for (int r = 0; r < h; ++r) {
+-            int sr = s.start_row + r, dr = d.start_row + r;
+-            if (sr >= 0 && sr < rows && dr >= 0 && dr < rows) {
+-                std::copy(w->m_cellCache.begin() + sr * cols,
+-                          w->m_cellCache.begin() + sr * cols + cols,
+-                          w->m_cellCache.begin() + dr * cols);
+-                std::copy(w->m_selectedCache.begin() + sr * cols,
+-                          w->m_selectedCache.begin() + sr * cols + cols,
+-                          w->m_selectedCache.begin() + dr * cols);
+-            }
+-        }
+-    } else {
+-        for (int r = h - 1; r >= 0; --r) {
+-            int sr = s.start_row + r, dr = d.start_row + r;
+-            if (sr >= 0 && sr < rows && dr >= 0 && dr < rows) {
+-                std::copy(w->m_cellCache.begin() + sr * cols,
+-                          w->m_cellCache.begin() + sr * cols + cols,
+-                          w->m_cellCache.begin() + dr * cols);
+-                std::copy(w->m_selectedCache.begin() + sr * cols,
+-                          w->m_selectedCache.begin() + sr * cols + cols,
+-                          w->m_selectedCache.begin() + dr * cols);
+-            }
+-        }
+-    }
++    // The caches describe pixels already painted at each position. Moving only
++    // cached cells would make unchanged pixels look current and skip redraws.
++    // Keep them in place; render compares the moved screen against those pixels.
+ 
+     w->m_dirtyRect.start_row = std::min({w->m_dirtyRect.start_row, d.start_row, s.start_row});
+     w->m_dirtyRect.end_row = std::max({w->m_dirtyRect.end_row, d.end_row, s.end_row});
+@@ -913,6 +871,7 @@
+         break;
+     case VTERM_PROP_ALTSCREEN:
+         w->m_altScreen = v->boolean;
++        w->clearSelection();
+         if (w->m_altScreen) {
+             w->m_scrollBar->hide();
+         } else {
+@@ -1065,7 +1024,7 @@
+     m_lastClickPos = e->pos();
+     m_selecting = false;
+     VTermPos vp = mouseToPos(e->pos());
+-    int sb = (int)m_scrollback.size(), rows, cols;
++    int sb = visibleHistorySize(), rows, cols;
+     vterm_get_size(m_vterm, &rows, &cols);
+     QString line;
+     line.fill(' ', cols);
+@@ -1183,7 +1142,7 @@
+         return {0, 0};
+     }
+     int r = p.y() / m_cellSize.height(), c = p.x() / m_cellSize.width(),
+-        sb = (int)m_scrollback.size(), cur = m_scrollBar->value();
++        sb = visibleHistorySize(), cur = displayOffset();
+     VTermPos vp;
+     vp.row = cur + r;
+     vp.col = c;
+@@ -1218,15 +1177,18 @@
+         std::swap(s, e);
+     }
+     QString t;
+-    int sb = (int)m_scrollback.size(), rs, cs;
++    int sb = visibleHistorySize(), rs, cs;
+     vterm_get_size(m_vterm, &rs, &cs);
+     for (int r = s.row; r <= e.row; ++r) {
+         int sc = (r == s.row) ? s.col : 0, ec = (r == e.row) ? e.col : 1000;
+         if (r < sb) {
+             const SavedLine &l = m_scrollback[r];
+             for (int c = sc; c <= ec && c < (int)l.size(); ++c) {
++                if (l[c].chars[0] == UINT32_MAX) continue;
++                if (!l[c].chars[0]) t.append(' ');
+                 for (int i = 0; i < VTERM_MAX_CHARS_PER_CELL && l[c].chars[i]; ++i) {
+-                    t.append(QChar::fromUcs4(l[c].chars[i]));
++                    const char32_t codepoint = l[c].chars[i];
++                    t.append(QString::fromUcs4(&codepoint, 1));
+                 }
+             }
+         } else {
+@@ -1235,13 +1197,17 @@
+                 for (int c = sc; c <= ec && c < cs; ++c) {
+                     VTermScreenCell cell;
+                     vterm_screen_get_cell(m_vtermScreen, {vr, c}, &cell);
++                    if (cell.chars[0] == UINT32_MAX) continue;
++                    if (!cell.chars[0]) t.append(' ');
+                     for (int i = 0; i < VTERM_MAX_CHARS_PER_CELL && cell.chars[i]; ++i) {
+-                        t.append(QChar::fromUcs4(cell.chars[i]));
++                        const char32_t codepoint = cell.chars[i];
++                        t.append(QString::fromUcs4(&codepoint, 1));
+                     }
+                 }
+             }
+         }
+-        if (r < e.row) {
++        if (r < e.row && !continuesRow(r + 1)) {
++            while (t.endsWith(' ')) t.chop(1);
+             t.append('\n');
+         }
+     }
+@@ -1256,13 +1222,15 @@
+ void KodoTerm::pasteFromClipboard() {
+     QString t = QApplication::clipboard()->text();
+     if (!t.isEmpty()) {
++        vterm_keyboard_start_paste(m_vterm);
+         m_pty->write(t.toUtf8());
++        vterm_keyboard_end_paste(m_vterm);
+     }
+ }
+ void KodoTerm::selectAll() {
+     int rs, cs;
+     vterm_get_size(m_vterm, &rs, &cs);
+-    int sb = (int)m_scrollback.size();
++    int sb = visibleHistorySize();
+     m_selectionStart = {0, 0};
+     m_selectionEnd = {sb + rs - 1, cs - 1};
+     damageAll();
+@@ -1448,7 +1416,7 @@
+     if (m_restoring) {
+         return;
+     }
+-    int sb = (int)m_scrollback.size(), cur = m_scrollBar->value();
++    int sb = visibleHistorySize(), cur = displayOffset();
+     if (hasFocus() && m_cursorVisible && cur == sb && (!m_cursorBlink || m_cursorBlinkState)) {
+         QRect r(m_cursorCol * m_cellSize.width(), m_cursorRow * m_cellSize.height(),
+                 m_cellSize.width(), m_cellSize.height());
+@@ -1609,8 +1577,8 @@
+                 }
+                 vterm_keyboard_unichar(m_vterm, k - Qt::Key_A + 1, VTERM_MOD_NONE);
+             } else if (!e->text().isEmpty()) {
+-                for (const QChar &qc : e->text()) {
+-                    vterm_keyboard_unichar(m_vterm, qc.unicode(), m);
++                for (const auto codepoint : e->text().toUcs4()) {
++                    vterm_keyboard_unichar(m_vterm, codepoint, m);
+                 }
+             }
+             break;
+@@ -1845,3 +1813,82 @@
+     m_restoring = false;
+     update();
+ }
++
++bool KodoTerm::hasSelection() const {
++    return m_selectionStart.row >= 0 && m_selectionEnd.row >= 0;
++}
++void KodoTerm::clearSelection() {
++    m_selecting = false;
++    m_selectionStart = {-1, -1};m_selectionEnd = {-1, -1};damageAll();
++}
++QString KodoTerm::selectedText() {
++    return hasSelection() ? getTextRange(m_selectionStart,m_selectionEnd) : QString();
++}
++QString KodoTerm::allText() {
++    int rows,cols;vterm_get_size(m_vterm,&rows,&cols);
++    return getTextRange({0,0},{visibleHistorySize()+rows-1,cols-1});
++}
++bool KodoTerm::continuesRow(int row) const {
++    int history=visibleHistorySize();
++    if(row<history)return row>=0 && m_scrollback[row].continuation;
++    int rows,cols;vterm_get_size(m_vterm,&rows,&cols);
++    if(row-history>=rows)return false;
++    return vterm_state_get_lineinfo(vterm_obtain_state(m_vterm),row-history)->continuation;
++}
++void KodoTerm::pasteText(const QString &text) {
++    if(!text.isEmpty()) {
++        vterm_keyboard_start_paste(m_vterm);m_pty->write(text.toUtf8());vterm_keyboard_end_paste(m_vterm);
++    }
++}
++void KodoTerm::setFontPixels(int pixels) {
++    auto config=m_config;config.font.setPixelSize(qBound(8,pixels,64));setConfig(config);
++}
++QString KodoTerm::linkAt(const QPoint &point) {
++    auto pos=mouseToPos(point);int rows,cols;vterm_get_size(m_vterm,&rows,&cols);
++    int total=visibleHistorySize()+rows;
++    if(pos.row<0 || pos.row>=total)return {};
++    int first=pos.row,last=pos.row;
++    while(first>0 && continuesRow(first) && pos.row-first<128)--first;
++    while(last+1<total && continuesRow(last+1) && last-pos.row<128)++last;
++    QString line=getTextRange({first,0},{last,cols-1});
++    int offset=getTextRange({first,0},pos).size()-1;
++    QRegularExpression pattern(QStringLiteral("https?://[^\\s<>\"']+"));
++    auto matches=pattern.globalMatch(line);
++    while(matches.hasNext()) {
++        auto match=matches.next();
++        if(offset>=match.capturedStart() && offset<match.capturedEnd())return match.captured();
++    }
++    return {};
++}
++bool KodoTerm::findNext(const QString &needle) {
++    if(needle.isEmpty())return false;
++    int rows,cols;vterm_get_size(m_vterm,&rows,&cols);
++    int total=visibleHistorySize()+rows;
++    int first=hasSelection()?m_selectionEnd.row:0;
++    while(first>0 && continuesRow(first))--first;
++    for(int count=0;count<=total;++count) {
++        int row=(first+count)%total;
++        if(row>0 && continuesRow(row))continue;
++        int last=row;
++        while(last+1<total && continuesRow(last+1))++last;
++        QString line=getTextRange({row,0},{last,cols-1});
++        int from=(count==0 && hasSelection())?getTextRange({row,0},m_selectionEnd).size():0;
++        int index=line.indexOf(needle,from,Qt::CaseInsensitive);
++        if(index<0)continue;
++        int offset=0;VTermPos start={row,0},end={row,0};bool found=false;
++        for(int r=row;r<=last && !found;++r)for(int c=0;c<cols;++c) {
++            QString cell=getTextRange({r,c},{r,c});
++            if(cell.isEmpty())continue;
++            if(offset<=index)start={r,c};
++            offset+=cell.size();
++            if(offset>=index+needle.size()) {
++                int finalColumn=c;
++                if(c+1<cols && getTextRange({r,c+1},{r,c+1}).isEmpty())++finalColumn;
++                end={r,finalColumn};found=true;break;
++            }
++        }
++        m_selectionStart=start;m_selectionEnd=end;
++        m_scrollBar->setValue(qBound(0,start.row,m_scrollBar->maximum()));damageAll();return true;
++    }
++    return false;
++}
+--- upstream/KodoTerm.hpp
++++ winbox/KodoTerm.hpp
+@@ -51,6 +51,15 @@
+     QProcessEnvironment processEnvironment() const { return m_environment; }
+     bool start(bool reset = true);
+ 
++    QString selectedText();
++    QString allText();
++    QString linkAt(const QPoint &point);
++    bool findNext(const QString &text);
++    void clearSelection();
++    void pasteText(const QString &text);
++    void setFontPixels(int pixels);
++    bool hasSelection() const;
++    bool continuesRow(int row) const;
+     void saveState(const QString &path);
+     void loadState(const QString &path);
+ 
+@@ -115,6 +124,8 @@
+     void setAudibleBell(bool enable) { m_config.audibleBell = enable; }
+ 
+   private:
++    int visibleHistorySize() const { return m_altScreen ? 0 : int(m_scrollback.size()); }
++    int displayOffset() const { return m_altScreen ? 0 : m_scrollBar->value(); }
+     void setupPty();
+     void updateTerminalSize();
+     QColor mapColor(const VTermColor &c, const VTermState *state) const;
+@@ -132,7 +143,7 @@
+     static int onSbPopLine(int cols, VTermScreenCell *cells, void *user);
+     static int onOsc(int command, VTermStringFragment frag, void *user);
+ 
+-    int pushScrollback(int cols, const VTermScreenCell *cells);
++    int pushScrollback(int cols, const VTermScreenCell *cells, bool continuation = false);
+     int popScrollback(int cols, VTermScreenCell *cells);
+ 
+     struct SavedCell {
+@@ -141,7 +152,10 @@
+         VTermColor fg, bg;
+         int width;
+     };
+-    using SavedLine = std::vector<SavedCell>;
++    struct SavedLine : std::vector<SavedCell> {
++        using std::vector<SavedCell>::vector;
++        bool continuation = false;
++    };
+ 
+     PtyProcess *m_pty = nullptr;
+     VTerm *m_vterm = nullptr;

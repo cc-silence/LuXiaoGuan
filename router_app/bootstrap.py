@@ -1,5 +1,6 @@
 """\u72ec\u7acb\u5e94\u7528\u542f\u52a8\uff0c\u9694\u79bb\u5b9e\u4f8b\u3001\u914d\u7f6e\u4e0e\u9632\u706b\u5899\u5bbf\u4e3b\u3002"""
 from .identity import DISPLAY_NAME
+from modules.release_identity import PRODUCT_NAME
 import sys
 from modules import resources_rc
 from PySide6.QtWidgets import QApplication
@@ -30,7 +31,7 @@ def run(version):
     app = QApplication(sys.argv)
     from modules.common_widgets.button_focus_style import install_button_focus_style
     install_button_focus_style(app)
-    app.setApplicationName("RouterManager")
+    app.setApplicationName(PRODUCT_NAME)
     app.setApplicationVersion(version)
     app.setApplicationDisplayName(DISPLAY_NAME)
     app.setOrganizationName("RouterManager")

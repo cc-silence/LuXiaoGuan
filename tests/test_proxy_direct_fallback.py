@@ -43,6 +43,7 @@ class ReceiveFallbackTests(unittest.TestCase):
         response = MagicMock()
         response.__enter__.return_value = response
         response.status_code = 200
+        response.headers = {}
         response.iter_content.return_value = [b'direct data']
         session.get.side_effect = [first, response] if not bridge_error else [response]
         bridge = MagicMock()
@@ -190,6 +191,7 @@ class UpdateFileFallbackTests(unittest.TestCase):
         response = MagicMock()
         response.__enter__.return_value = response
         response.status_code = 200
+        response.headers = {}
         response.iter_content.return_value = [compressed]
         session.get.side_effect = [requests.exceptions.ProxyError('unavailable'), response]
         with TemporaryDirectory() as folder, \

@@ -143,13 +143,17 @@ class RouterPolicyActions:
                 key=page.manager.submit("policy_preview",kind=kind,options=options)
                 self.pending[key]=("preview",kind,identity)
                 self._show_progress(key,kind)
-                page._message("\u6b63\u5728\u6838\u5bf9\u8bbe\u5907\u80fd\u529b\u5e76\u751f\u6210\u9884\u89c8\u3002")
+                page._message("\u6b63\u5728\u68c0\u67e5\u5e76\u4fdd\u5b58\u9ed8\u8ba4\u9875\u9762\u3002" if kind=="homepage" else "\u6b63\u5728\u6838\u5bf9\u8bbe\u5907\u80fd\u529b\u5e76\u751f\u6210\u9884\u89c8\u3002")
             elif phase=="preview":
-                dialog=PolicyReviewDialog(result,page)
-                try:
-                    if dialog.exec()!=dialog.Accepted:return True
-                    backup_requested=dialog.backup_requested
-                finally:dialog.deleteLater()
+                if kind=="homepage" and not result.get("files"):
+                    raise ValueError("\n".join(result.get("skipped",[])) or "\u6ca1\u6709\u9700\u8981\u4fdd\u5b58\u7684\u9ed8\u8ba4\u9875\u9762\u4fee\u6539\u3002")
+                backup_requested=False
+                if kind!="homepage":
+                    dialog=PolicyReviewDialog(result,page)
+                    try:
+                        if dialog.exec()!=dialog.Accepted:return True
+                        backup_requested=dialog.backup_requested
+                    finally:dialog.deleteLater()
                 if not self._current(identity):return True
                 path,expected=None,None
                 if backup_requested:

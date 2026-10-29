@@ -15,6 +15,7 @@ _EXACT = {
     'Another update is downloading or installing': 'cache_in_use',
     'Invalid signed manifest envelope': 'invalid_manifest_envelope',
     'Unsupported RouterManager update manifest': 'invalid_product_or_platform',
+    'Unsupported LuXiaoGuan update manifest': 'invalid_product_or_platform',
     'Update URL must use HTTPS without credentials': 'unsafe_update_url',
     'Invalid update URL': 'invalid_update_url',
     'Invalid target catalog': 'invalid_target_catalog',

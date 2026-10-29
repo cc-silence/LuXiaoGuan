@@ -72,8 +72,25 @@ export default {
       key = url.pathname.slice(1);
     else return new Response("Not found", {status: 404});
     const isFile = key.startsWith("files/") || /^offline\/openwrt-(?:common|capture)\/files\//.test(key);
-    const ranged = isFile && request.method === "GET" && request.headers.has("Range");
-    const options = ranged ? {range: request.headers} : {};
+    const resumable = isFile || key.startsWith("blobs/");
+    let ranged = false;
+    let options = {};
+    const range = resumable && request.method === "GET" && request.headers.get("Range");
+    const match = range && /^bytes=(\d*)-(\d*)$/.exec(range);
+    if (match && (match[1] || match[2])) {
+      const info = await env.UPDATES.head(key);
+      if (!info) return new Response("Not found", {status: 404});
+      const ifRange = request.headers.get("If-Range");
+      if (!ifRange || ifRange === info.httpEtag) {
+        const first = match[1] ? Number(match[1]) : Math.max(0, info.size - Number(match[2]));
+        const last = match[1] && match[2] ? Math.min(Number(match[2]), info.size - 1) : info.size - 1;
+        if (!Number.isSafeInteger(first) || !Number.isSafeInteger(last) ||
+            first > last || first >= info.size || (!match[1] && Number(match[2]) === 0))
+          return new Response(null, {status: 416, headers: {"Content-Range": "bytes */" + info.size, "Accept-Ranges": "bytes"}});
+        options = {range: {offset: first, length: last - first + 1}};
+        ranged = true;
+      }
+    }
     const object = request.method === "HEAD"
       ? await env.UPDATES.head(key) : await env.UPDATES.get(key, options);
     if (!object) return new Response("Not found", {status: 404});
@@ -85,8 +102,8 @@ export default {
       ? "public, max-age=31536000, immutable" : "public, max-age=300");
     headers.set("Content-Type", isFile ? "application/zip" : key.startsWith("blobs/") ? "application/octet-stream" : "application/json; charset=utf-8");
     headers.set("Content-Length", String(ranged && object.range ? object.range.length : object.size));
+    if (resumable) headers.set("Accept-Ranges", "bytes");
     if (isFile) {
-      headers.set("Accept-Ranges", "bytes");
       headers.set("Content-Disposition", 'attachment; filename="' + key.split("/").pop() + '"');
     }
     let status = 200;

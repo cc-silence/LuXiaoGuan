@@ -1,31 +1,9 @@
 """信号行视图，结构不变时就地更新。"""
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QLabel, QPushButton
-from modules.display_privacy import PrivacyLabel
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QWidget
 from modules.ui_scale_manager import UiScaleManager
-
-
-def detail_text(row):
-    """只显示白名单数据，不支持与无设备分开说明。"""
-    d = row.details
-    if d is None:
-        return "详情尚未读取；请空闲后刷新信号列表。"
-    unknown = "未知"
-    channel = d.channel or unknown
-    if d.configured and d.channel:
-        channel += "（配置值）"
-    lines = [f"接口：{d.interface or unknown}    信道：{channel}    带宽配置：{d.bandwidth or unknown}    加密：{d.encryption or unknown}"]
-    if d.note: lines.append(d.note)
-    if d.clients_state == 'not_ap':
-        lines.append("连接上级网络的接口，不列出下级设备。")
-    elif d.clients_state == 'unavailable':
-        lines.append("已连接设备：固件未提供可读取的列表，无法判断数量。")
-    else:
-        lines.append(f"已连接设备：{len(d.clients)} 台" + ("（达到显示上限）" if d.clients_state == 'limited' else ''))
-        for c in d.clients:
-            signal = f"{c.signal} dBm" if c.signal is not None else "信号未知"
-            lines.append(f"{c.name or '名称未知'}  |  {c.ip or '地址未知'}  |  {c.mac}  |  {signal}")
-    return '\n'.join(lines)
+from .signal_runtime_details import runtime_detail_text
+from .signal_runtime_state import header_state, card_emphasis
 
 
 class SignalRowWidget(QFrame):
@@ -33,6 +11,8 @@ class SignalRowWidget(QFrame):
     def __init__(self, page, row):
         super().__init__(page.content)
         self.page, self.row = page, row
+        self._runtime_status = None
+        self._runtime_row = None
         self.setObjectName('captureSignalRow')
         self.setProperty('rowSection', row.section)
         outer = QVBoxLayout(self)
@@ -42,12 +22,25 @@ class SignalRowWidget(QFrame):
         line.setSpacing(8)
         self.name_label = QLabel(self)
         self.name_label.setObjectName('captureDescription')
+        self.name_label.setProperty('signalIdentity', True)
         self.name_label.setTextFormat(Qt.PlainText)
         self.band_label = QLabel(self)
         self.band_label.setObjectName('captureDescription')
-        self.state_label = QLabel(self)
+        state_group = QWidget(self)
+        state_layout = QHBoxLayout(state_group)
+        state_layout.setContentsMargins(0, 0, 0, 0)
+        state_layout.setSpacing(0)
+        self.state_label = QLabel(state_group)
         self.state_label.setObjectName('captureStatusValue')
+        self.state_label.setTextFormat(Qt.PlainText)
         self.state_label.setWordWrap(True)
+        self.network_label = QLabel(state_group)
+        self.network_label.setObjectName('captureStatusValue')
+        self.network_label.setTextFormat(Qt.PlainText)
+        self.network_label.setWordWrap(True)
+        state_layout.addWidget(self.state_label)
+        state_layout.addWidget(self.network_label)
+        state_layout.addStretch(1)
         self.button = QPushButton(self)
         self.button.setObjectName('captureSecondaryButton')
         self.button.setCursor(Qt.PointingHandCursor)
@@ -68,10 +61,10 @@ class SignalRowWidget(QFrame):
         self.delete_button.setToolTip("删除这条信号配置；开始前需要确认。")
         UiScaleManager.for_widget(page).bind_metrics(self.delete_button, fixed_height=26)
         self.delete_button.clicked.connect(lambda: self.page._request_delete(self.row))
-        for widget, stretch in ((self.name_label,1),(self.band_label,1),(self.state_label,2),(self.button,0),(self.edit_button,0),(self.delete_button,0)):
+        for widget, stretch in ((self.name_label,1),(self.band_label,1),(state_group,2),(self.button,0),(self.edit_button,0),(self.delete_button,0)):
             line.addWidget(widget,stretch)
         outer.addLayout(line)
-        self.detail_label = PrivacyLabel(self)
+        self.detail_label = QLabel(self)
         self.detail_label.setObjectName('captureDescription')
         self.detail_label.setTextFormat(Qt.PlainText)
         self.detail_label.setWordWrap(True)
@@ -87,18 +80,13 @@ class SignalRowWidget(QFrame):
         """编辑始终使用最新行模型，复用新增窗口。"""
         self.page._request_edit(self.row)
 
-    def update_row(self, row, snapshot, editable, show_details):
+    def update_row(self, row, snapshot, editable):
         """只更新变化的文本与状态，不重建控件。"""
         self.row = row
         page = self.page
         for label, text in ((self.name_label,page._shown_name(row)), (self.band_label,page._band_text(row)),
-                            (self.state_label,page._state_text(row)), (self.button,page._button_text(row))):
+                            (self.button,page._button_text(row))):
             if label.text() != text: label.setText(text)
-        kind = page._state_kind(row)
-        if self.state_label.property('captureStatus') != kind:
-            self.state_label.setProperty('captureStatus',kind)
-            self.state_label.style().unpolish(self.state_label)
-            self.state_label.style().polish(self.state_label)
         self.edit_button.setEnabled(bool(editable and row.mode in ("ap", "sta")
                                          and not snapshot.busy and not snapshot.stale))
         self.delete_button.setEnabled(bool(editable and row.mode in ("ap", "sta") and not snapshot.busy and not snapshot.stale))
@@ -107,7 +95,42 @@ class SignalRowWidget(QFrame):
         tip = "启停或重载此信号所属的无线网卡，可能短暂断网；开始前需要确认，建议通过网线连接。"
         self.button.setToolTip(tip)
         self.name_label.setToolTip(f"所属无线网卡：{row.radio}。同网卡的其他信号也可能短暂断网。")
-        self.detail_label.setVisible(show_details)
-        if show_details:
-            text = detail_text(row)
-            if self.detail_label.text() != text: self.detail_label.setText(text)
+
+        self._update_runtime(row, snapshot)
+
+    def _update_runtime(self, row, snapshot):
+        page = self.page
+        # A pending read has no new measurement. Preserve the last rendered result,
+        # including when a proof ages during the bounded read; publish changes on completion.
+        if (getattr(page.service, '_status_running', False) and snapshot.connected
+                and not snapshot.wireless_status_stale and self._runtime_row == row
+                and self._runtime_status is snapshot.wireless_status):
+            return
+        self._runtime_status = snapshot.wireless_status
+        self._runtime_row = row
+        text, kind, outcome, outcome_kind, explanation = header_state(
+            row, snapshot, page._state_text(row), page._state_kind(row))
+        for label, value, status in ((self.state_label, text, kind),
+                                     (self.network_label, outcome, outcome_kind)):
+            if label.text() != value:
+                label.setText(value)
+            label.setToolTip(explanation)
+            if label.property('captureStatus') != status:
+                label.setProperty('captureStatus', status)
+                label.style().unpolish(label)
+                label.style().polish(label)
+        self.network_label.setVisible(bool(outcome))
+        private = bool(page._privacy and page._privacy.enabled)
+        detail = runtime_detail_text(row, snapshot, private)
+        if self.detail_label.text() != detail:
+            self.detail_label.setText(detail)
+        self.detail_label.setVisible(bool(detail))
+
+        emphasis = card_emphasis(row, snapshot)
+        if self.property('signalEmphasis') != emphasis:
+            self.setProperty('signalEmphasis', emphasis)
+            # Descendant selectors must also update when a reused row changes state.
+            for widget in (self, *self.findChildren(QLabel), *self.findChildren(QPushButton)):
+                widget.style().unpolish(widget)
+                widget.style().polish(widget)
+                widget.update()

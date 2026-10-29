@@ -20,7 +20,7 @@ class StationBatchTests(unittest.TestCase):
                 self.assertEqual(d.config["network"]["oldrelay"],before["network"]["oldrelay"])
                 self.assertEqual(d.config["wireless"]["station"]["key"],before["wireless"]["station"]["key"])
                 self.assertNotEqual(d.config["network"]["wwan"]["hostname"],before["network"]["wwan"]["hostname"])
-                self.assertIn("rm_identity_backup",d.config["wireless"]["station"])
+                self.assertNotIn("rm_identity_backup",d.config["wireless"]["station"])
 
     def test_shared_network_with_non_station_peer_lists_actual_configuration(self):
         d=PolicyDevice()

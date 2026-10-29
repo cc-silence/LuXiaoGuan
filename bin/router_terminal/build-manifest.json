@@ -1,6 +1,6 @@
 {
-  "qt_version": "6.3.0",
-  "dll_sha256": "c0040b124c378164b6f71d0d5cc0cb5d4427b1210a14db2aa121304b78050ca1",
+  "qt_version": "6.3.2",
+  "dll_sha256": "7324ea20420789331b3f1ef6ba7c6c58845626d8e0a161b1f4b7bfd4d00f0234",
   "source_sha256": {
     "adaptations.patch": "40fc81f9becfc6914541e36dfa54afc32c2f73c06da17d05b8700c0a5ced15d3",
     "bridge.cpp": "708338d50fa0452ba6d1dfb9a462f40d9709432e55f007cc8952121a2ad7283f",

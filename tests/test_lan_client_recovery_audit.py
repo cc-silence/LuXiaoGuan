@@ -11,14 +11,14 @@ class RecoveryAuditTests(unittest.TestCase):
         return RenewalGate(client_plan(review(*(rows or (adapter(),))),NEW))
 
     def test_twenty_five_second_recovery_phase_accepts_bounded_request(self):
-        gate=self.gate();gate.start(time.monotonic()+25,restoring=True)
+        gate=self.gate();gate.start(time.monotonic()+25,restoring=True);gate.arm()
         claimed=gate.claim(adapter()['id'])
         self.assertIsNotNone(claimed)
         self.assertGreater(claimed[1],10);self.assertLess(claimed[1],17.1)
         gate.finish_renewal('done')
 
     def test_late_click_gives_reason_and_publishes_unavailable_state(self):
-        gate=self.gate();gate.start(time.monotonic()+12,restoring=True)
+        gate=self.gate();gate.start(time.monotonic()+12,restoring=True);gate.arm()
         self.assertIsNone(gate.claim(adapter()['id']))
         self.assertTrue(gate.message);self.assertFalse(gate.payload()['can_renew'])
         self.assertFalse(gate.busy)
@@ -65,7 +65,7 @@ class RecoveryAuditTests(unittest.TestCase):
         original=run.call_args.args[0][-1]
         self.assertIn(original,elevate.call_args.args[1])
         script=base64.b64decode(original).decode('utf-16-le')
-        self.assertNotIn('ReleaseDHCPLease',script)
+        self.assertLess(script.index('ReleaseDHCPLease'),script.index('RenewDHCPLease'))
         self.assertIn('RenewDHCPLease',script)
 
     def test_windows_expired_authorization_is_not_launched(self):
@@ -80,7 +80,7 @@ class RecoveryAuditTests(unittest.TestCase):
         from modules.capture_services.lan_recovery_service import LanRecoveryService
         class Service(Owner):configurationProgressChanged=Signal(str,object)
         owner=Service(Mock(),Mock());broker=LanRecoveryService(owner)
-        gate=self.gate();gate.start(time.monotonic()+12,restoring=True)
+        gate=self.gate();gate.start(time.monotonic()+12,restoring=True);gate.arm()
         owner._openwrt_workers['apply']=object();events=[]
         owner.configurationProgressChanged.connect(lambda key,value:events.append(value))
         broker.observe('apply',dict(configuration_apply=True,network_recovery=gate.payload()))

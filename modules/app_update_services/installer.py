@@ -80,7 +80,7 @@ def _run_install_locked(job_path,stage,root,notify):
             subprocess.Popen([str(installed_executable(root))],cwd=root,env=env,creationflags=subprocess.CREATE_NO_WINDOW)
         except OSError as exc:
             record('restart_failed', error_type=type(exc).__name__, chain=exception_chain(exc))
-            result={'status':'failed','error':'Unable to reopen RouterManager: '+str(exc)}
+            result={'status':'failed','error':'Unable to reopen LuXiaoGuan: '+str(exc)}
     if result['status'] in {'applied','recovered'}:
         from .cache import cleanup_stage
         try:result['cleanup_pending']=not cleanup_stage(stage)

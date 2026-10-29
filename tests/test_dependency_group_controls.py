@@ -10,7 +10,7 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout
 from modules.capture_services.dependency_service import OpenWrtDependencyService, DependencyTask
 from modules.capture_services.openwrt.models import DependencyInfo, DependencyState, OpenWrtSessionSnapshot, OpenWrtConnectionState
-from modules.capture_services.openwrt.dependency_groups import CAPTURE_KEYS, CAPTURE_PACKAGES, COMMON_ITEMS, missing_packages
+from modules.capture_services.openwrt.dependency_groups import CAPTURE_KEYS, CAPTURE_PACKAGES, COMMON_ITEMS, REQUIRED_COMMON_ITEMS, missing_packages
 from modules.main_pages.packet_capture.openwrt.dependency_actions import install_capture, operate_capture
 from modules.main_pages.packet_capture.openwrt.common_dependency_actions import install_common
 from tests.test_dependency_diagnostic_paths import Owner
@@ -39,9 +39,9 @@ class GroupTaskTests(unittest.TestCase):
         operation,event=owner.pending
         result=operation(event,Mock())
         self.assertFalse(result["error"])
-        self.assertEqual(set(service.task.items),set(COMMON_ITEMS))
+        self.assertEqual(set(service.task.items),set(REQUIRED_COMMON_ITEMS))
         call=service.manager.install_all.call_args
-        self.assertEqual(set(call.args[0]),set(COMMON_ITEMS)-{"sftp"})
+        self.assertEqual(set(call.args[0]),set(REQUIRED_COMMON_ITEMS)-{"sftp"})
         self.assertTrue(call.kwargs["include_sftp"])
         self.assertFalse(set(call.args[0]) & CAPTURE_KEYS)
         service._complete(service.task.session_id,result)
@@ -253,7 +253,7 @@ class ControlTests(unittest.TestCase):
         from modules.main_pages.packet_capture.openwrt.common_tool_section import CommonToolSection
         parent=QWidget();owner=ViewOwner()
         section=CommonToolSection(parent,owner)
-        self.assertEqual(section.install_all_button.text(),"检查并安装全部常用依赖")
+        self.assertEqual(section.install_all_button.text(),"\u68c0\u67e5\u5e76\u5b89\u88c5\u8def\u5c0f\u7ba1\u5fc5\u9700\u4f9d\u8d56")
         owner.dependency_service.task=DependencyTask("bulk","common_all",COMMON_ITEMS,"install","running")
         owner.is_busy=True
         section.apply_snapshot(owner.openwrt_snapshot)
