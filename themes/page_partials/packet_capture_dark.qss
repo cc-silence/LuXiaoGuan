@@ -8,6 +8,7 @@ QLabel#captureNotice { color: #f0b429; background: #332b18; border: 1px solid #6
 QLabel#captureStatusValue { color: #cfd6df; background: transparent; border: none; }
 QLabel#captureStatusValue[captureStatus="ready"] { color: #65d69b; }
 QLabel#captureStatusValue[captureStatus="blocked"] { color: #ef7777; }
+QLabel#captureStatusValue[captureStatus="warning"] { color: #e5bd62; }
 QLineEdit#captureLineEdit, QComboBox#captureComboBox { background: #1d2126; color: #f4f6f8; border: 1px solid #39414c; border-radius: 5px; min-height: 28px; padding: 2px 8px; }
 QLineEdit#captureLineEdit:focus, QComboBox#captureComboBox:focus { border-color: #0078d4; }
 QCheckBox#captureCheckBox, QCheckBox#captureRiskCheckBox { color: #d8dee8; spacing: 8px; }

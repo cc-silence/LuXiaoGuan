@@ -65,9 +65,9 @@ class RouterSettings(QFrame):
         layout.addWidget(create_separator(container))
         layout.addWidget(create_settings_section_title("\u884c\u4e3a\u8bbe\u7f6e", container))
         self.close_button_action_combo = CommonComboBox(container)
-        for text, value in (("\u9996\u6b21\u8be2\u95ee", "ask"), ("\u5173\u95ed\u8f6f\u4ef6", "exit"), ("\u6700\u5c0f\u5316\u5230\u6258\u76d8", "tray")):
+        for text, value in (("\u6bcf\u6b21\u8be2\u95ee", "ask"), ("\u5173\u95ed\u8f6f\u4ef6", "exit"), ("\u6700\u5c0f\u5316\u5230\u6258\u76d8", "tray")):
             self.close_button_action_combo.addItem(text, value)
-        action = normalize_close_action(owner.runtime.config.get("runtime", "close_button_action", fallback="tray"))
+        action = normalize_close_action(owner.runtime.config.get("runtime", "close_button_action", fallback="ask"))
         self.close_button_action_combo.setCurrentIndex(self.close_button_action_combo.findData(action))
         self.close_button_action_combo.setToolTip("\u63a7\u5236\u6807\u9898\u680f\u5173\u95ed\u6309\u94ae\u3002\u6258\u76d8\u6a21\u5f0f\u7ee7\u7eed\u540e\u53f0\u4efb\u52a1\uff0c\u53ef\u4ece\u6258\u76d8\u6062\u590d\u6216\u9000\u51fa\u3002")
         self._add_row(layout, container, "\u5173\u95ed\u6309\u94ae\u884c\u4e3a", self.close_button_action_combo)
@@ -111,7 +111,7 @@ class RouterSettings(QFrame):
         except (OSError, ValueError) as exc:
             values = (self.owner.scale_manager.global_scale, self.owner.scale_manager.font_family,
                       normalize_close_action(self.owner.runtime.config.get(
-                          "runtime", "close_button_action", fallback="tray")))
+                          "runtime", "close_button_action", fallback="ask")))
             for combo, value in zip((self.ui_scale_combo, self.ui_font_combo,
                                      self.close_button_action_combo), values):
                 with QSignalBlocker(combo):

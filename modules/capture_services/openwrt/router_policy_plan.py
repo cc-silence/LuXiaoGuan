@@ -318,12 +318,9 @@ class Builder:
             if lan.get("proto")!="static" or not lan.get("ipaddr") or pool.get(".type")!="dhcp" or shell_bool(pool.get("ignore"),default=False):
                 raise ValueError("\u5f53\u524d\u5c40\u57df\u7f51\u53ef\u80fd\u4f9d\u8d56\u4e0a\u7ea7\u5206\u914d\u5730\u5740\uff0c\u5173\u95ed\u540e\u5bb9\u6613\u5931\u53bb\u7ba1\u7406\u5165\u53e3\uff1b\u8bf7\u5148\u914d\u597d\u81ea\u5df1\u7684 LAN \u5730\u5740\u548c\u81ea\u52a8\u5206\u914d\u529f\u80fd\u3002")
         if not enabled:self.file("/etc/init.d/luxiaoguan-wifi-policy",BOOT_SCRIPT)
-        else:
-            for section,row in rows(self.s,"wireless","wifi-iface"):
-                if row.get("mode")=="sta" and row.get("lxg_boot_disabled")=="1":
-                    self.change("wireless",section,dict(disabled="0"));self.delete_option("wireless",section,"lxg_boot_disabled")
+        # Startup policy never overrides the currently saved interface switches.
         self.plan["boot_enabled"]=enabled
-        self.plan["steps"].append("\u5f00\u673a\u81ea\u52a8\u8fde\u63a5\u4e0a\u7ea7 Wi-Fi\uff1a"+("\u5f00\u542f\uff1b\u6062\u590d\u672c\u529f\u80fd\u505c\u7528\u7684\u8fde\u63a5\uff0c\u5f53\u524d\u8fde\u63a5\u53ef\u624b\u52a8\u542f\u7528\u6216\u91cd\u542f\u540e\u6062\u590d\u3002" if enabled else "\u5173\u95ed\uff1b\u4ee5\u540e\u5f00\u673a\u505c\u7528\u5df2\u4fdd\u5b58\u7684\u4e0a\u7ea7\u8fde\u63a5\uff0c\u540d\u79f0\u5bc6\u7801\u4fdd\u7559\uff0c\u81ea\u5df1\u7684\u70ed\u70b9\u4e0d\u53d8\u3002"))
+        self.plan["steps"].append("\u5f00\u673a\u81ea\u52a8\u8fde\u63a5\u4e0a\u7ea7 Wi-Fi\uff1a"+("开启；不再在开机时额外禁用上级连接，保留各信号当前的启用或禁用状态。" if enabled else "\u5173\u95ed\uff1b\u4ee5\u540e\u5f00\u673a\u505c\u7528\u5df2\u4fdd\u5b58\u7684\u4e0a\u7ea7\u8fde\u63a5\uff0c\u540d\u79f0\u5bc6\u7801\u4fdd\u7559\uff0c\u81ea\u5df1\u7684\u70ed\u70b9\u4e0d\u53d8\u3002"))
         self.plan["reboot"]=False
 
 

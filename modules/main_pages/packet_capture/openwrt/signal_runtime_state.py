@@ -30,7 +30,7 @@ def header_state(row, snapshot, default_text, default_kind):
     if any(p.state == 'not_verified' for p in proofs):
         return prefix, 'ready', ' \u00b7 \u7f51\u7edc\u4e0d\u901a', 'blocked', reason
     if any(p.state == 'limited' for p in proofs):
-        return prefix, 'ready', ' \u00b7 \u7f51\u7edc\u53d7\u9650', 'blocked', reason
+        return prefix, 'ready', ' \u00b7 \u7f51\u7edc\u53d7\u9650', 'warning', reason
     return prefix, 'ready', ' \u00b7 \u7f51\u7edc\u65e0\u6cd5\u786e\u8ba4', 'unknown', reason
 
 

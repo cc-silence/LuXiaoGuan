@@ -1,16 +1,15 @@
 """关闭按钮的配置策略和可恢复的托盘入口。"""
 from .identity import DISPLAY_NAME
-from copy import deepcopy
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QSystemTrayIcon
 from modules.dialog_theme import create_themed_menu, context_menu_stylesheet
 from modules.app_settings import is_light_theme
-from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
+from modules.common_widgets.common_dialogs import ConfirmDialog
 
 
 def normalize_close_action(value):
-    """无效配置与原版一致，回退到托盘。"""
-    return value if value in ('ask', 'exit', 'tray') else 'tray'
+    """Invalid or missing preferences always fall back to asking."""
+    return value if value in ('ask', 'exit', 'tray') else 'ask'
 
 
 class CloseBehavior(QObject):
@@ -25,28 +24,20 @@ class CloseBehavior(QObject):
     def request_close(self):
         """从已确认配置决定退出、隐藏或询问。"""
         window = self.window
-        action = normalize_close_action(window.runtime.config.get('runtime', 'close_button_action', fallback='tray'))
+        action = normalize_close_action(window.runtime.config.get('runtime', 'close_button_action', fallback='ask'))
         if action == 'ask':
             action = self._ask()
             if action is None:
                 return
-            config = deepcopy(window.runtime.config)
-            config.set('runtime', 'close_button_action', action)
-            try:
-                window.config_manager.save(config)
-            except (OSError, ValueError) as exc:
-                MessageDialog('\u4fdd\u5b58\u5931\u8d25', str(exc), window).exec()
-                return
-            window.runtime.config = config
         if action == 'exit':
             window.request_exit()
         else:
             self.hide_to_tray()
 
     def _ask(self):
-        """首次选择会记住；关闭询问框不执行动作。"""
+        """Ask for this close request only; dismissal performs no action."""
         dialog = ConfirmDialog('\u5173\u95ed' + DISPLAY_NAME,
-            '\u9009\u62e9\u5173\u95ed\u8f6f\u4ef6\u6216\u6700\u5c0f\u5316\u5230\u6258\u76d8\u7ee7\u7eed\u8fd0\u884c\u3002\n\u672c\u6b21\u9009\u62e9\u5c06\u4f5c\u4e3a\u4ee5\u540e\u7684\u9ed8\u8ba4\u884c\u4e3a\uff0c\u53ef\u5728\u5168\u5c40\u8bbe\u7f6e\u4e2d\u4fee\u6539\u3002', self.window)
+            '\u9009\u62e9\u5173\u95ed\u8f6f\u4ef6\u6216\u6700\u5c0f\u5316\u5230\u6258\u76d8\u7ee7\u7eed\u8fd0\u884c\u3002\n\u672c\u6b21\u9009\u62e9\u4ec5\u5bf9\u672c\u6b21\u5173\u95ed\u751f\u6548\u3002', self.window)
         choice = {'value': None}
         for button, text, value in ((dialog.yes_button, '\u5173\u95ed\u8f6f\u4ef6', 'exit'),
                                     (dialog.no_button, '\u6700\u5c0f\u5316\u5230\u6258\u76d8', 'tray')):
