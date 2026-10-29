@@ -39,8 +39,14 @@ class RuntimeProbeTests(unittest.TestCase):
                          ("iwinfo",'test "$1" = -h || exit 7; echo "Usage: iwinfo device info" >&2; exit 1')):
             with self.subTest(key=key):self.assertEqual(self.execute(key,body),"READY")
 
+    def test_hcx_probe_only_reads_help_and_does_not_broaden_capture_support(self):
+        for version in ('6.0.1','6.2.4','6.3.4','6.3.5','7.0.0'):
+            body='test "$#" = 1 && test "$1" = -h || exit 7; echo "hcxdumptool '+version+' (C) ZerBea"'
+            self.assertEqual(self.execute('hcxdumptool',body),'READY')
+        self.assertEqual(self.execute('hcxdumptool','echo unrelated; exit 0'),'BROKEN')
+
     def test_missing_is_distinct_from_loader_failure(self):
-        for key in ("iw","wpa_cli","iwinfo","curl"):
+        for key in ("iw","wpa_cli","iwinfo","curl","hcxdumptool"):
             with self.subTest(key=key):
                 self.assertEqual(self.execute(key),"MISSING")
                 self.assertEqual(self.execute(key,'echo "Error loading shared library" >&2; exit 127'),"BROKEN")
