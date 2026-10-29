@@ -4,3 +4,6 @@ tests/fixtures/official_apk_versions.data -text
 # Native terminal provenance requires exact upstream bytes on every checkout.
 native/router_terminal/** -text
 bin/router_terminal/** -text
+
+# Shell scripts must always use LF for OpenWrt/Linux execution
+*.sh text eol=lf

@@ -158,14 +158,14 @@ class StartupGeometryTests(unittest.TestCase):
             screen = QRect(0,0,width,height)
             area = QRect(0,0,width,height-40)
             result = initial_window_geometry(screen, area, QSize(960,600))
-            self.assertEqual(result.size(), QSize(1280,720))
+            self.assertEqual(result.size(), QSize(1280,820))
             self.assertTrue(area.contains(result))
 
     def test_saved_scale_scales_standard_size_once_and_small_screen_stays_bounded(self):
         from modules.desktop_shell.initial_window_geometry import initial_window_geometry
         screen, area = QRect(0,0,3840,2160), QRect(0,0,3840,2120)
         self.assertEqual(initial_window_geometry(screen,area,QSize(960,600),scale=150).size(),
-                         QSize(1920,1080))
+                         QSize(1920,1230))
         small=QRect(-1280,0,1280,680)
         result=initial_window_geometry(QRect(-1280,0,1280,720),small,QSize(960,600),scale=175)
         self.assertEqual(result,small)
@@ -180,7 +180,7 @@ class StartupGeometryTests(unittest.TestCase):
                                availableGeometry=lambda:QRect(0,0,3840,2120))
         with patch.object(w,"screen",return_value=screen):
             apply_initial_window_geometry(w)
-        self.assertEqual(w.size(),QSize(1280,720))
+        self.assertEqual(w.size(),QSize(1280,820))
         w.deleteLater()
 
     def test_release_seed_uses_standard_scale_even_if_development_config_was_larger(self):

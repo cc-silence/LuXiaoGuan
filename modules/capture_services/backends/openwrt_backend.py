@@ -455,7 +455,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         )
         return self.set_access_points(points)
 
-    def connect(self, settings, password, expected_fingerprint="", cancel_event=None):
+    def connect(self, settings, password, expected_fingerprint="", cancel_event=None, progress_callback=None):
         """建立 SSH，随后执行设备、SFTP 和依赖只读探测。
 
         参数：settings 是标准化 OpenWrt 配置；password 仅用于本次认证；expected_fingerprint
@@ -496,6 +496,11 @@ class OpenWrtCaptureBackend(CaptureBackend):
             )
         self.command_runner.radio_diagnostics.bind_connection(key_info.fingerprint)
         self.command_runner.operation_diagnostics.bind_connection(key_info.fingerprint)
+        if progress_callback is not None:
+            try:
+                progress_callback("正在读取路由器信息...")
+            except Exception:
+                pass
         try:
             recovery_note = self.reconnect_cleanup.recover(key_info.fingerprint, cancel_event)
             device = self.device_probe.probe(cancel_event)

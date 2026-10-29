@@ -74,9 +74,24 @@ def uci_radio_bands(text):
         fields = attributes.get(name, {})
         band = fields.get('band', '')
         if band:
-            result[name] = band if band in {'2g', '5g', '6g'} else ''
+            if '5g' in band or '5ghz' in band or band in {'5g', '5'}:
+                result[name] = '5g'
+            elif '2g' in band or '2ghz' in band or band in {'2g', '2', '2.4g', '2.4ghz'}:
+                result[name] = '2g'
+            elif '6g' in band or '6ghz' in band or band in {'6g', '6'}:
+                result[name] = '6g'
+            else:
+                result[name] = band if band in {'2g', '5g', '6g'} else ''
         else:
-            result[name] = {'11a': '5g', '11g': '2g'}.get(fields.get('hwmode', ''), '')
+            hw = fields.get('hwmode', '')
+            if any(k in hw for k in ('11a', '11ac', '11ax_5g', '5g')) or hw in {'a', 'ac'}:
+                result[name] = '5g'
+            elif any(k in hw for k in ('11g', '11b', '11n', '11ng', '2g')) or hw in {'b', 'g'}:
+                result[name] = '2g'
+            elif '6g' in hw:
+                result[name] = '6g'
+            else:
+                result[name] = ''
     return result
 
 
