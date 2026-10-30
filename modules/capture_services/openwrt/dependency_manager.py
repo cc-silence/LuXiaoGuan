@@ -39,6 +39,18 @@ def _removable_packages():
     return frozenset(names)
 
 
+def is_hcx_outdated(version: str) -> bool:
+    """判定 hcxdumptool 版本是否为旧版（< 6.3.4）。"""
+    if not version:
+        return True
+    m = re.search(r"(\d+)\.(\d+)(?:\.(\d+))?", str(version))
+    if not m:
+        return True
+    major = int(m.group(1))
+    minor = int(m.group(2))
+    patch = int(m.group(3)) if m.group(3) else 0
+    return (major, minor, patch) < (6, 3, 4)
+
 class OpenWrtDependencyManager:
     """集中管理 opkg/apk 依赖，不修改软件源协议、不在检测阶段安装软件。"""
 
@@ -57,6 +69,42 @@ class OpenWrtDependencyManager:
         "password": ("uci", "wifi", "ip"),
     }
 
+    def _is_modern_hcx_supported(self, device, cancel_event=None) -> bool:
+        """判定当前设备环境是否支持升级运行 6.3.4 现代版。"""
+        if device is not None:
+            kernel_str = str(getattr(device, "kernel_version", "") or "").strip()
+            km = re.match(r"^(\d+)\.(\d+)", kernel_str)
+            if km and (int(km.group(1)), int(km.group(2))) < (5, 15):
+                return False
+            version_str = str(getattr(device, "version", "") or "").strip()
+            vm = re.match(r"^(\d+)\.(\d+)", version_str)
+            if vm:
+                return (int(vm.group(1)), int(vm.group(2))) >= (23, 5)
+            if km and (int(km.group(1)), int(km.group(2))) >= (5, 15):
+                return True
+            return False
+        try:
+            res = self.command_runner.run(
+                "probe_env_for_modern_hcx",
+                "uname -r; . /etc/openwrt_release 2>/dev/null; echo \"$DISTRIB_RELEASE\"",
+                timeout=4,
+                cancel_event=cancel_event,
+            )
+            lines = [l.strip() for l in (res.stdout or "").splitlines() if l.strip()]
+            kernel_str = lines[0] if lines else ""
+            version_str = lines[1] if len(lines) > 1 else ""
+            km = re.match(r"^(\d+)\.(\d+)", kernel_str)
+            if km and (int(km.group(1)), int(km.group(2))) < (5, 15):
+                return False
+            vm = re.match(r"^(\d+)\.(\d+)", version_str)
+            if vm:
+                return (int(vm.group(1)), int(vm.group(2))) >= (23, 5)
+            if km and (int(km.group(1)), int(km.group(2))) >= (5, 15):
+                return True
+        except Exception:
+            pass
+        return False
+
     def __init__(self, command_runner):
         self.command_runner = command_runner
 
@@ -73,7 +121,7 @@ class OpenWrtDependencyManager:
     # 系统自带命令不查版本（无意义），只确认存在且可执行。
     _BASE_COMMANDS = frozenset({"uci", "wifi", "ip", "iw"})
 
-    def check(self, enabled_features, sftp_available, cancel_event=None):
+    def check(self, enabled_features, sftp_available, cancel_event=None, *, device=None):
         """检查启用功能的真实命令：存在、可执行、版本号。
 
         只认 `command -v` 找到且 `test -x` 通过的命令；版本号用 `--version`/`-v`
@@ -111,11 +159,24 @@ class OpenWrtDependencyManager:
                 elif state == "broken":
                     missing_commands.append(f"{command}（存在但不可执行）")
                     missing_names.append(command)
+                elif command == "hcxdumptool" and version and is_hcx_outdated(version):
+                    # 旧版 hcxdumptool 命令实际已安装，绝不归为缺少命令；在后续独立按系统兼容性判定可升级或旧版本
+                    versions.append(f"{command} {version} (旧版)")
                 elif state != "ready":
                     unknown_commands.append(command)
                 elif version:
                     versions.append(f"{command} {version}")
-            packages = list(self.FEATURE_PACKAGES.get(feature, ())) if any(name not in {"iw", "ip"} for name in missing_names) else []
+            # 系统已具备 iw / ip 时，不作为缺失包加入安装队列
+            iw_ok = probes.get("iw", ("missing", ""))[0] == "ready"
+            ip_ok = probes.get("ip", ("missing", ""))[0] == "ready"
+            raw_packages = list(self.FEATURE_PACKAGES.get(feature, ())) if any(name not in {"iw", "ip"} for name in missing_names) else []
+            packages = []
+            for pkg in raw_packages:
+                if pkg == "iw" and iw_ok:
+                    continue
+                if pkg == "ip-tiny" and ip_ok:
+                    continue
+                packages.append(pkg)
             for name, package in (("iw", "iw"), ("ip", "ip-tiny")):
                 if name in missing_names and package not in packages:
                     packages.append(package)
@@ -127,17 +188,29 @@ class OpenWrtDependencyManager:
                 detail = "命令可用：" + "、".join(versions)
             else:
                 detail = "命令可用"
+            feature_state = DependencyState.UNKNOWN if unknown_commands else DependencyState.MISSING if missing_commands else DependencyState.READY
             if feature == "pmkid" and not missing_commands:
-                detail += (
-                    "；已安装仅表示找到可执行命令；"
-                    "不代表 hcxdumptool 与当前路由器固件、无线驱动的无线 API 兼容性已验证。"
-                    + SUPPORT_NOTE
-                )
+                hcx_state, hcx_ver = probes.get("hcxdumptool", ("", ""))
+                if hcx_state == "ready":
+                    if is_hcx_outdated(hcx_ver):
+                        can_upgrade = self._is_modern_hcx_supported(device, cancel_event)
+                        if can_upgrade:
+                            feature_state = DependencyState.UPGRADABLE
+                            detail = f"已安装旧版 hcxdumptool {hcx_ver or ''}（不支持自动抓包），当前系统支持新版本，可升级至 6.3.4+"
+                            if "hcxdumptool" not in packages:
+                                packages.append("hcxdumptool")
+                        else:
+                            feature_state = DependencyState.OUTDATED
+                            detail = f"已安装旧版 hcxdumptool {hcx_ver or ''}，当前系统不支持新版本；常规抓包可正常使用"
+                            packages = [p for p in packages if p != "hcxdumptool"]
+                    else:
+                        feature_state = DependencyState.READY
+                        detail = f"命令可用：hcxdumptool {hcx_ver}，支持无损 Netlink 虚拟监听接口并发抓包。"
             results.append(
                 DependencyInfo(
                     feature,
                     display_name,
-                    DependencyState.UNKNOWN if unknown_commands else DependencyState.MISSING if missing_commands else DependencyState.READY,
+                    feature_state,
                     () if unknown_commands else tuple(packages),
                     detail,
                 )
@@ -194,14 +267,32 @@ class OpenWrtDependencyManager:
             return "unknown", ""
         if command in self._BASE_COMMANDS:
             return "ready", "系统自带"
-        version = self._probe_version(command, cancel_event)
+        try:
+            version = self._probe_version(command, cancel_event)
+        except Exception as exc:
+            return "broken", f"运行库缺失或执行失败({exc})"
         return "ready", version or "版本未知"
 
     def _probe_version(self, command, cancel_event):
         """hcxdumptool 单次读帮助且透传失败；其他工具沿用原版本显示探针。"""
 
         if command == "hcxdumptool":
-            return read_hcx_capabilities(self.command_runner, cancel_event).version
+            try:
+                return read_hcx_capabilities(self.command_runner, cancel_event).version
+            except Exception:
+                try:
+                    res = self.command_runner.run(
+                        "dependency_hcx_version_fallback",
+                        "(hcxdumptool -h 2>&1 || hcxdumptool --help 2>&1 || true) | head -n 5",
+                        timeout=5,
+                        cancel_event=cancel_event,
+                    )
+                    m = re.search(r"hcxdumptool\s+v?(\d+\.\d+(?:\.\d+)?)", res.stdout or "")
+                    if m:
+                        return m.group(1)
+                except Exception:
+                    pass
+                return ""
         try:
             result = self.command_runner.run(
                 f"dependency_{command}_version",
@@ -241,6 +332,15 @@ class OpenWrtDependencyManager:
             tell("依赖齐全，无需安装。", "success")
             return checked()
         tell("本次安装：" + "、".join(wanted) + "。", "info")
+        # 若需要安装 hcxdumptool 且设备内核满足要求，优先尝试从随包 hc_offline_pack 安装 6.3.4 现代版
+        if "hcxdumptool" in wanted:
+            if self._try_install_modern_hcxdumptool(device, sftp_available, cancel_event, tell, cache_dir, uploader):
+                initial = checked()
+                wanted = self._missing_packages(initial)
+                if not wanted:
+                    tell("抓包依赖已全部就绪（hcxdumptool 6.3.4 部署成功）！", "success")
+                    return initial
+
         from .common_bundle_installer import install_from_local
         from .installation_sources import install_with_sources, report_verified, package_batches
         sources = []
@@ -266,6 +366,40 @@ class OpenWrtDependencyManager:
         result = checked()
         report_verified(source, all(item.state in (DependencyState.READY, DependencyState.DISABLED)
                                     for item in result if item.key != "converter"), tell)
+
+        # 抓包工具兼容性与版本深度诊断报告
+        pmkid_item = next((item for item in result if item.key == "pmkid"), None)
+        if pmkid_item and pmkid_item.state == DependencyState.READY:
+            try:
+                hcx_cap = read_hcx_capabilities(self.command_runner, cancel_event)
+                hcx_ver = hcx_cap.version
+                dev_ver = getattr(device, "version", "") or ""
+                dev_kern = getattr(device, "kernel_version", "") or ""
+
+                vm = re.match(r"^(\d+)\.(\d+)", str(dev_ver))
+                km = re.match(r"^(\d+)\.(\d+)", str(dev_kern))
+                is_old_firmware = (vm and (int(vm.group(1)), int(vm.group(2))) < (23, 5)) or (km and (int(km.group(1)), int(km.group(2))) < (5, 15))
+
+                if "6.2." in hcx_ver or "6.0." in hcx_ver:
+                    if is_old_firmware:
+                        tell(
+                            f"【抓包工具兼容性诊断】当前固件版本 (OpenWrt {dev_ver or '旧版'} / 内核 {dev_kern or '旧版'}) 低于 23.05，"
+                            f"源内安装的为旧版 hcxdumptool {hcx_ver}。该版本因依赖已淘汰的 WEXT ioctl，"
+                            f"在自动抓包创建的虚拟监听口上运行会报错 Not a tty 导致秒退。"
+                            f"建议升级路由器固件至 OpenWrt 23.05+；在当前固件下请使用【常规抓包】模式（基于 airodump-ng）。",
+                            "warning"
+                        )
+                    else:
+                        tell(
+                            f"【版本提示】检测到系统安装了旧版 hcxdumptool {hcx_ver}。"
+                            f"若自动抓包报错，建议在【PMKID 工具】中升级为 6.3.4+ 现代版本。",
+                            "info"
+                        )
+                elif "6.3." in hcx_ver or "7." in hcx_ver:
+                    tell(f"已就绪现代版 hcxdumptool {hcx_ver}，支持无损 Netlink 虚拟监听接口并发抓包！", "success")
+            except Exception:
+                pass
+
         return result
 
     def uninstall_packages(self, enabled_features, sftp_available, cancel_event,
@@ -803,6 +937,12 @@ class OpenWrtDependencyManager:
             error.package_diagnostic=self._package_diagnostic(command_name+" exit="+str(result.exit_code),(result.stdout or "")+"\n"+(result.stderr or ""))
             raise error
         return (result.stdout or "") + "\n" + (result.stderr or "") if command_name.endswith("_plan") else result.stdout
+
+    def _try_install_modern_hcxdumptool(self, device, sftp_available, cancel_event, tell,
+                                      cache_dir=None, uploader=None):
+        from .hcx_primary_installer import install_primary
+        return install_primary(self, device, sftp_available, cancel_event, tell,
+                               cache_dir, uploader)
 
 
 def _looks_like_network(message):

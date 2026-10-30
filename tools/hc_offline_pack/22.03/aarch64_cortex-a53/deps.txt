@@ -1,0 +1,8 @@
+# 22.03.7 / aarch64_cortex-a53 / ipk
+# 源: OpenWrt 22.03.7 官方 feed（base + packages）
+# 安装顺序（依赖在前）：
+  libpcap1       1.10.1-4        116571 B  依赖: libc
+  libopenssl1.1  1.1.1w-1       1282975 B  依赖: libc
+  hcxdumptool    6.2.4-1          61683 B  依赖: libc, libpcap1, libopenssl1.1
+# 合计 3 个包 / 1461229 B
+# 注: libc/kernel 属固件自带，不打包

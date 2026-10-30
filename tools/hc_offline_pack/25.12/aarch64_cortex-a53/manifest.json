@@ -1,0 +1,35 @@
+{
+  "release": "25.12.6",
+  "branch": "25.12",
+  "arch": "aarch64_cortex-a53",
+  "mode": "apk",
+  "packages": [
+    {
+      "name": "libpcap1",
+      "version": "1.10.6-r1",
+      "file": "libpcap1-1.10.6-r1.apk",
+      "feed": "base",
+      "sha256": "cc4cc10a3dac23258f5cfe224c88767719d2956a28dfbe8afb2491578fc7cc6b",
+      "size": 120733,
+      "depends_recipe": ""
+    },
+    {
+      "name": "libopenssl3",
+      "version": "3.5.9-r1",
+      "file": "libopenssl3-3.5.9-r1.apk",
+      "feed": "base",
+      "sha256": "7ed6115051eafd6b474bbc600db110d4ac5e262baf3dd0abec1520ddeb2c2c29",
+      "size": 2023045,
+      "depends_recipe": ""
+    },
+    {
+      "name": "hcxdumptool",
+      "version": "6.3.4-r1",
+      "file": "hcxdumptool-6.3.4-r1.apk",
+      "feed": "packages",
+      "sha256": "3439568485cf912762b4e9b69dc0eb44379bde39fd2f55ce3c54f171d83f6d3a",
+      "size": 36836,
+      "depends_recipe": "libc,libpcap1,libopenssl3"
+    }
+  ]
+}

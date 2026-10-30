@@ -1,17 +1,135 @@
-"""OpenWrt 系统和无线能力探测。"""
-
+import json
 import re
 import time
 from dataclasses import replace
 
 from .device_identity import BOARD_COMMAND, PHY_COMMAND, board_identity, package_architecture, parse_phy_capabilities, writable_storage_mb
-from .radio_identity import snapshot_radio_mapping, status_radio_ifnames, uci_radio_bands
+from .radio_identity import IDENTITY_MARKER, STATUS_MARKER, snapshot_radio_mapping, status_radio_ifnames, uci_radio_bands
 
 from modules.capture_services.openwrt.command_builder import quote_argument
 from modules.capture_services.openwrt.models import OpenWrtDeviceInfo, OpenWrtRadioInfo
 
 
 _IWDEV_MARKER = "__WINBOX_IWDEV__"
+
+
+def parse_radio_idle_status(wireless_text: str) -> dict[str, bool]:
+    """与 hcx_autocap.sh detect_idle_radios 严格对齐，解析射频真实业务空闲状态。
+
+    判定准则：
+    1. 若 UCI 中射频设备被显式声明禁用 (disabled == '1')，直接判定为空闲 (True)；
+    2. 若 wifi status JSON 中该射频处于未启用或无任何活跃发射接口，直接判定为空闲 (True)；
+    3. 若属于该射频的所有业务接口 (wifi-iface) 均声明了 disabled == '1' 或未配置业务接口，判定为空闲 (True)；
+    4. 只有在明确存在未禁用的业务 Wi-Fi 且该接口处于活跃发射中时，才判定为正在使用 (False)。
+    """
+    free_map = {}
+
+    # 1. 扫描 UCI wireless 配置节声明与属性，坚决不用节名字串猜测类型
+    section_types = {}    # sec -> "wifi-device" | "wifi-iface"
+    section_props = {}    # sec -> {prop: val}
+    anon_device_map = {}  # "@wifi-device[0]" -> "radio0"
+
+    device_idx = 0
+    for line in str(wireless_text or "").splitlines():
+        line = line.strip()
+        if not line.startswith("wireless."):
+            continue
+        m_decl = re.match(r"^wireless\.([A-Za-z0-9_@\[\]-]+)=['\"]?([A-Za-z0-9_-]+)['\"]?$", line)
+        if m_decl:
+            sec, stype = m_decl.groups()
+            section_types[sec] = stype
+            if stype == "wifi-device" and sec.startswith("@"):
+                anon_device_map[sec] = f"radio{device_idx}"
+                device_idx += 1
+            continue
+        m_prop = re.match(r"^wireless\.([A-Za-z0-9_@\[\]-]+)\.([A-Za-z0-9_]+)=(.*)$", line)
+        if m_prop:
+            sec, prop, val = m_prop.groups()
+            val = val.strip().strip('"\'')
+            if sec not in section_props:
+                section_props[sec] = {}
+            section_props[sec][prop] = val
+
+    # 2. 扫描 wifi status JSON
+    wifi_status_data = {}
+    if STATUS_MARKER in str(wireless_text or ""):
+        try:
+            payload = re.split(r"(?m)^__WINBOX_", wireless_text.split(STATUS_MARKER, 1)[1], maxsplit=1)[0]
+            data = json.loads(payload)
+            if isinstance(data, dict):
+                wifi_status_data = data
+        except Exception:
+            pass
+
+    # 3. 收集所有 radio 名称
+    all_radios = set(wifi_status_data.keys())
+    for sec, stype in section_types.items():
+        if stype == "wifi-device":
+            all_radios.add(anon_device_map.get(sec, sec))
+    for sec, props in section_props.items():
+        if "device" in props:
+            dev = props["device"]
+            all_radios.add(anon_device_map.get(dev, dev))
+        elif sec.startswith("radio") or (sec in section_types and section_types[sec] == "wifi-device"):
+            all_radios.add(anon_device_map.get(sec, sec))
+
+    def _is_disabled(val) -> bool:
+        return str(val).lower() in {"1", "true", "yes", "on", "disabled"}
+
+    for r in all_radios:
+        if not r or not re.match(r"^[A-Za-z0-9_]+$", r):
+            continue
+
+        # 规则 1: 检查 UCI 中 radio 设备本身是否被整卡禁用
+        r_sec_candidates = [r] + [sec for sec, mapped in anon_device_map.items() if mapped == r]
+        radio_disabled_in_uci = any(
+            _is_disabled(section_props.get(s, {}).get("disabled", "0"))
+            for s in r_sec_candidates
+        )
+        if radio_disabled_in_uci:
+            free_map[r] = True
+            continue
+
+        # 规则 2: 检查 wifi status JSON
+        st = wifi_status_data.get(r)
+        if isinstance(st, dict):
+            is_dis = _is_disabled(st.get("disabled", False))
+            is_up = st.get("up", True)
+            interfaces = st.get("interfaces", [])
+            has_running_iface = any(
+                isinstance(ifc, dict)
+                and ifc.get("up", True)
+                and not _is_disabled(ifc.get("config", {}).get("disabled", False))
+                for ifc in interfaces
+            )
+            # 若 radio 被禁用、未启动，或者根本没有正在发射的业务接口，直接视为空闲
+            if (is_dis or not is_up) or not has_running_iface:
+                free_map[r] = True
+                continue
+
+        # 规则 3: 检查属于该 radio 的所有 wifi-iface 业务接口
+        bound_ifaces = []
+        for sec, props in section_props.items():
+            dev = props.get("device", "")
+            mapped_dev = anon_device_map.get(dev, dev)
+            if mapped_dev == r:
+                bound_ifaces.append(sec)
+
+        if bound_ifaces:
+            # 如果配置在该 radio 上的所有 wifi-iface 都声明了 disabled='1'
+            if all(_is_disabled(section_props.get(sec, {}).get("disabled", "0")) for sec in bound_ifaces):
+                free_map[r] = True
+                continue
+        else:
+            # 根本没有配置任何业务接口且运行时也没有活动接口
+            if not st or not st.get("interfaces"):
+                free_map[r] = True
+                continue
+
+        # 默认存在未禁用的接口
+        free_map[r] = False
+
+    return free_map
 
 
 def _iwdev_text(wireless_text):
@@ -388,7 +506,9 @@ class OpenWrtDeviceProbe:
             "uci show wireless 2>/dev/null; "
             "iwinfo 2>/dev/null; "
             "ip -o link 2>/dev/null; "
-            "printf '\\n__WINBOX_SNAP_WIFISTATUS__\\n'; wifi status 2>/dev/null",
+            "printf '\\n__WINBOX_SNAP_WIFISTATUS__\\n'; wifi status 2>/dev/null; "
+            "printf '\\n__WINBOX_PHY_PATHS__\\n'; "
+            "for _p in /sys/class/ieee80211/phy*; do [ -d \"$_p\" ] && echo \"$(basename \"$_p\")|$(readlink -f \"$_p/device\" 2>/dev/null || ls -l \"$_p/device\" 2>/dev/null)\"; done",
             cancel_event,
         )
         storage = self._run("storage_info", "df -k /overlay 2>/dev/null || df -k / 2>/dev/null", cancel_event)
@@ -512,17 +632,57 @@ class OpenWrtDeviceProbe:
         mapping = snapshot_radio_mapping(wireless_text, phy_interfaces)
         radios = []
         radio_bands = uci_radio_bands(wireless_text)
+        radio_free_map = parse_radio_idle_status(wireless_text)
+
+        # 解析 sysfs 物理设备总线路径 (与 hcx_autocap.sh 的 path 比对算法完全对齐)
+        phy_device_paths = {}
+        if "__WINBOX_PHY_PATHS__" in str(wireless_text or ""):
+            chunk = wireless_text.split("__WINBOX_PHY_PATHS__", 1)[1].split("__WINBOX_", 1)[0]
+            for line in chunk.splitlines():
+                line = line.strip()
+                if not line or line.startswith("__"):
+                    continue
+                if "|" in line:
+                    p_name, p_target = line.split("|", 1)
+                    if re.match(r"^phy\d+$", p_name.strip()):
+                        phy_device_paths[p_name.strip()] = p_target.strip()
+
         for name in radio_names:
             band = radio_bands.get(name, "")
             normalized_bands = {"2g": ("2.4G",), "5g": ("5G",), "6g": ("6G",)}.get(band, ())
-            # 配置序号与硬件枚举顺序无关；无唯一运行接口归属时保留未知。
+            # 配置序号与硬件枚举顺序无关；三级动态解析物理 phy:
+            # 1. 运行态 mapping
+            # 2. uci wireless.<r>.path 对比 sysfs 设备路径
+            # 3. uci wireless.<r>.phy
+            # Unresolved or conflicting ownership remains unknown; never use numbering.
             phy = mapping.get(name, "")
+            if not phy and IDENTITY_MARKER not in wireless_text:
+                dev_path_match = re.search(rf"(?m)^wireless\.{re.escape(name)}\.path=['\"]?([^'\"\s]+)", wireless_text)
+                if dev_path_match:
+                    dev_path = dev_path_match.group(1).strip()
+                    candidates = [p_name for p_name, p_target in phy_device_paths.items()
+                                  if p_target.rstrip("/").endswith("/" + dev_path.strip("/"))]
+                    if len(candidates) == 1:
+                        phy = candidates[0]
+                if not phy:
+                    phy_match = re.search(rf"(?m)^wireless\.{re.escape(name)}\.phy=['\"]?([^'\"\s]+)", wireless_text)
+                    if phy_match:
+                        candidate = phy_match.group(1).strip()
+                        phy = candidate if candidate in phy_device_paths else ""
             interfaces = tuple(phy_interfaces.get(phy, ()))
             channel = int(phy_channels.get(phy, 0) or 0)
-            is_free = not interfaces if phy in phy_interfaces else None
+            if not normalized_bands and channel > 0:
+                normalized_bands = ("5G",) if channel > 14 else ("2.4G",)
+            if interfaces:
+                is_free = False
+            elif not phy:
+                is_free = None
+            else:
+                is_free = radio_free_map.get(name)
             radios.append(
                 OpenWrtRadioInfo(
                     name=name,
+                    interface=phy,
                     bands=tuple(normalized_bands),
                     monitor_supported=None,
                     interfaces=interfaces,

@@ -111,6 +111,9 @@ class CaptureService(QObject):
         self.router_terminal.activityChanged.connect(self._terminal_activity_changed)
         from .router_connection_state import RouterConnectionState
         self.router_connection_state = RouterConnectionState(self)
+        from .openwrt.auto_capture_service import AutoCaptureService
+        self.auto_capture = AutoCaptureService(self)
+        self.auto_capture.messageGenerated.connect(self.messageGenerated)
         from modules.cache_maintenance import CacheMaintenance
         self._shutdown_maintenance = CacheMaintenance(self)
         self._shutdown_maintenance.warning.connect(self.messageGenerated)
@@ -122,7 +125,7 @@ class CaptureService(QObject):
         """返回探测、启动、抓包或停止是否正在进行，无副作用。"""
 
         return ((self._shutting_down and self.router_terminal.active) or self._shutdown_maintenance.active or bool(self._openwrt_workers)
-                or bool(self._probe_thread and self._probe_thread.is_alive())) or self.state in {
+                or bool(self._probe_thread and self._probe_thread.is_alive()) or (hasattr(self, "auto_capture") and self.auto_capture.is_busy)) or self.state in {
             CaptureSessionState.CHECKING,
             CaptureSessionState.STARTING,
             CaptureSessionState.CAPTURING,
@@ -347,6 +350,14 @@ class CaptureService(QObject):
         snapshot = self.openwrt_backend.set_access_points(access_points)
         self.openwrtSnapshotChanged.emit(snapshot)
 
+    def update_openwrt_radio_idle_status(self, free_map):
+        """同步更新 OpenWrt 射频业务状态并向外广播快照变更。"""
+        old_snapshot = self.openwrt_snapshot
+        snapshot = self.openwrt_backend.update_radio_idle_status(free_map)
+        if snapshot != old_snapshot:
+            self.openwrtSnapshotChanged.emit(snapshot)
+        return snapshot
+
     def set_openwrt_selected_bssids(self, bssids):
         """更新共享目标集合并广播快照；后端任务只读取该稳定选择。"""
 
@@ -387,7 +398,7 @@ class CaptureService(QObject):
             # 登录任务与连接状态必须同步发布，避免页面按旧的未连接状态清空当次密码。
             connection_changes = dict(
                 connection_state=OpenWrtConnectionState.CONNECTING,
-                connection_detail="正在连接 OpenWrt...",
+                connection_detail="正在登录路由器...",
                 last_error="",
             )
         self.openwrt_backend.snapshot = replace(
@@ -439,7 +450,7 @@ class CaptureService(QObject):
             return False
         network_ready = getattr(self, "network_ready", None)
 
-        def operation(event):
+        def operation(event, progress=None):
             if network_ready is not None:
                 network_ready(event)
             return self.openwrt_backend.connect(
@@ -447,6 +458,7 @@ class CaptureService(QObject):
                 password,
                 expected_fingerprint=expected_fingerprint,
                 cancel_event=event,
+                progress_callback=progress,
             )
 
         self._start_openwrt_worker(
@@ -454,6 +466,7 @@ class CaptureService(QObject):
             operation,
             cancel_event,
             self._on_openwrt_connect_succeeded,
+            progress_slot=self._on_openwrt_connect_progress,
         )
         return True
 
@@ -1536,6 +1549,15 @@ class CaptureService(QObject):
             success_slot, failure_slot or self._on_openwrt_worker_failed,
             progress_slot, message_slot,
         )
+
+    def _on_openwrt_connect_progress(self, progress_text):
+        """主线程接收连接子阶段进度通知并更新快照。"""
+        if self.openwrt_backend.snapshot.connection_state == OpenWrtConnectionState.CONNECTING:
+            self.openwrt_backend.snapshot = replace(
+                self.openwrt_backend.snapshot,
+                connection_detail=str(progress_text),
+            )
+            self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
 
     def _on_openwrt_connect_succeeded(self, result):
         """在主线程处理连接结果；两种指纹确认都不视为失败。"""

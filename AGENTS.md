@@ -111,3 +111,12 @@
 - PR 必须通过 collaboration-gate，包括源码检查和 Windows 完整离线回归。CI 不持有路由器或发布凭证，不执行正式发布；真实屏幕绘制和路由器真机验证按交付范围另外记录。
 - main 禁止强制覆盖和删除。负责人自己的 PR 可免去自己审核自己的要求，但仍须通过全部自动检查。
 - GitHub 规则的版本化配置位于 .github/rulesets/；修改后由负责人核对并同步后台设置，不能只改文档宣称规则已生效。
+
+
+## Owner-authorized hcx automatic capture exception (2026-10-30)
+
+- The owner explicitly permits the designated hcxdumptool 6.3.4 installation path for automatic capture, with force options restricted to the hcx package itself. Existing libpcap1/libopenssl3 must be retained; missing libraries use the standard dependency installer. Do not force-install the whole bundle. This is a narrow exception to the general dependency-installation restrictions; it must not be generalized to other features or packages.
+- A cross-release hcx package is not by itself a merge blocker under this authorization. This authorization is not proof of compatibility: verify the exact CPU/package architecture, package identity and hashes, runtime library requirements, available space, cancellation, failure reporting and post-install execution. Do not claim all supported OpenWrt versions are verified.
+- The Python path must install only the hcx archive, verify its hash and execution, and retain existing shared-library versions; apk must pin those installed versions and reject plans that change another package. Do not treat permission for hcx as permission to replace arbitrary system components.
+- The owner accepts the existing automatic-capture hcxmon interface-name cleanup for this merge and does not require that concern to block it. This exception does not authorize broad process killing or unrelated interface cleanup elsewhere.
+- Unresolved or conflicting radio-to-phy ownership remains a blocker: do not guess the physical radio from its number.

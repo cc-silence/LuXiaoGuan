@@ -1,0 +1,44 @@
+{
+  "release": "24.10.8",
+  "branch": "24.10",
+  "arch": "aarch64_cortex-a53",
+  "mode": "ipk",
+  "packages": [
+    {
+      "name": "libpcap1",
+      "version": "1.10.5-r2",
+      "file": "libpcap1_1.10.5-r2_aarch64_cortex-a53.ipk",
+      "feed": "base",
+      "sha256": "cd1a0ef16c17289cce57908e3fef745a5197d723b08db8cc6d74251dd1e33b87",
+      "sha256_index": "cd1a0ef16c17289cce57908e3fef745a5197d723b08db8cc6d74251dd1e33b87",
+      "sha_ok": true,
+      "depends_index": "libc",
+      "depends_control": "",
+      "size": 120613
+    },
+    {
+      "name": "libopenssl3",
+      "version": "3.0.22-r1",
+      "file": "libopenssl3_3.0.22-r1_aarch64_cortex-a53.ipk",
+      "feed": "base",
+      "sha256": "c7d6ddbf392755599eae1bae1198a1949e747e781ec767fd4e49668bde028eba",
+      "sha256_index": "c7d6ddbf392755599eae1bae1198a1949e747e781ec767fd4e49668bde028eba",
+      "sha_ok": true,
+      "depends_index": "libc",
+      "depends_control": "",
+      "size": 1759618
+    },
+    {
+      "name": "hcxdumptool",
+      "version": "6.3.4-r1",
+      "file": "hcxdumptool_6.3.4-r1_aarch64_cortex-a53.ipk",
+      "feed": "packages",
+      "sha256": "30a38937afafa9f62ea98abd2b1b7ce4d1458a8413349f67a630ffb76852a21c",
+      "sha256_index": "30a38937afafa9f62ea98abd2b1b7ce4d1458a8413349f67a630ffb76852a21c",
+      "sha_ok": true,
+      "depends_index": "libc, libpcap1, libopenssl3",
+      "depends_control": "",
+      "size": 37681
+    }
+  ]
+}

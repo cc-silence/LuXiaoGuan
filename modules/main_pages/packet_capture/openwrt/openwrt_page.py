@@ -189,7 +189,7 @@ class OpenWrtPage(QWidget):
         )
         self._created_pages = {}
         pages = (("common", "\u5e38\u7528\u8bbe\u7f6e"), ("signal", "信号管理"), ("files", "文件管理"),
-                 ("terminal", "路由器终端"), ("capture", "抓包"), ("settings", "抓包设置"))
+                 ("terminal", "路由器终端"), ("auto_capture", "自动抓包"), ("capture", "抓包"), ("settings", "抓包设置"))
         self._page_indices = {name: index for index, (name, _title) in enumerate(pages, 1)}
         self._panels = {"common": common_info_panel, "capture": info_panel, "signal": signal_info_panel, "files": file_info_panel}
         for panel in self._panels.values():
@@ -209,6 +209,10 @@ class OpenWrtPage(QWidget):
     @property
     def common_page(self):
         return self._ensure_subpage("common")
+
+    @property
+    def auto_capture_page(self):
+        return self._ensure_subpage("auto_capture")
 
     @property
     def capture_page(self):
@@ -240,6 +244,10 @@ class OpenWrtPage(QWidget):
             page.settingsChanged.connect(self.settingsChanged)
             page.columnWidthsChanged.connect(self._column_widths_changed)
             page.advancedWpsRequested.connect(self._on_advanced_wps_requested)
+        elif name == "auto_capture":
+            from .auto_capture_page import AutoCapturePage
+            page = AutoCapturePage(self.service, self.settings, self.tabs)
+            page.set_light_theme(self._light_theme)
         elif name == "settings":
             from .capture_settings_page import CaptureSettingsPage
             page = CaptureSettingsPage(self.service, self.settings, self.tabs)
@@ -290,7 +298,7 @@ class OpenWrtPage(QWidget):
         name = next((name for name, number in self._page_indices.items() if number == index), None)
         if name is not None:
             page = self._ensure_subpage(name)
-            if name in ("files", "terminal"):
+            if name in ("files", "terminal", "auto_capture"):
                 page.enter()
         self.settingsChanged.emit()
 
@@ -340,7 +348,7 @@ class OpenWrtPage(QWidget):
     def set_light_theme(self, enabled):
         """由父页面统一切换主题；具体颜色由页面 QSS 负责。"""
         self._light_theme = bool(enabled)
-        for name in ("files", "terminal"):
+        for name in ("files", "terminal", "auto_capture"):
             if name in self._created_pages:
                 self._created_pages[name].set_light_theme(enabled)
         self.login_page.compatible_tools.set_light_theme(enabled)

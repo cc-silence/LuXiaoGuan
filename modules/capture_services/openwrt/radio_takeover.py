@@ -70,7 +70,7 @@ class OpenWrtRadioTakeover:
         if supported is not True:
             raise RuntimeError("当前无线驱动的监听能力未通过检查，未接管无线：" + reason)
         record = RadioTakeoverRecord(str(session_id), radio, phy,
-            self._phy_interfaces(phy, "read_takeover_before", cancel_event), uuid4().hex)
+            self._phy_interfaces(phy, "read_takeover_before", cancel_event, missing_as_empty=True), uuid4().hex)
         from .management_link import require_management_link
         require_management_link(self.command_runner, record.phy, cancel_event)
         self._config_command("takeover_prepare", record, cancel_event)

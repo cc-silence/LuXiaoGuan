@@ -1,0 +1,8 @@
+# 25.12.6 / mipsel_24kc / apk
+# 源: OpenWrt 25.12.6 官方 feed（base + packages）
+# 安装顺序（依赖在前）：
+  libpcap1       1.10.6-r1       111421 B  依赖: -
+  libopenssl3    3.5.9-r1       1753304 B  依赖: -
+  hcxdumptool    6.3.4-r1         39429 B  依赖: libc,libpcap1,libopenssl3
+# 合计 3 个包 / 1904154 B
+# 注: libc/kernel 属固件自带，不打包

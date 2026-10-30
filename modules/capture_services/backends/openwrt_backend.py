@@ -445,6 +445,27 @@ class OpenWrtCaptureBackend(CaptureBackend):
         self.snapshot = replace(self.snapshot, access_points=tuple(access_points))
         return self.snapshot
 
+    def update_radio_idle_status(self, free_map):
+        """更新快照中射频的业务空闲/使用中状态。"""
+        if not self.snapshot or not getattr(self.snapshot, "device", None):
+            return self.snapshot
+        device = self.snapshot.device
+        if not getattr(device, "radios", None):
+            return self.snapshot
+
+        radios = []
+        changed = False
+        for r in device.radios:
+            if r.name in free_map and r.free != free_map[r.name]:
+                changed = True
+                radios.append(replace(r, free=free_map[r.name]))
+            else:
+                radios.append(r)
+
+        if changed:
+            self.snapshot = replace(self.snapshot, device=replace(device, radios=tuple(radios)))
+        return self.snapshot
+
     def set_selected_bssids(self, bssids):
         """按 BSSID 更新 AP 选择状态，供多个动作共用同一目标集合。"""
 
@@ -455,7 +476,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         )
         return self.set_access_points(points)
 
-    def connect(self, settings, password, expected_fingerprint="", cancel_event=None):
+    def connect(self, settings, password, expected_fingerprint="", cancel_event=None, progress_callback=None):
         """建立 SSH，随后执行设备、SFTP 和依赖只读探测。
 
         参数：settings 是标准化 OpenWrt 配置；password 仅用于本次认证；expected_fingerprint
@@ -496,6 +517,11 @@ class OpenWrtCaptureBackend(CaptureBackend):
             )
         self.command_runner.radio_diagnostics.bind_connection(key_info.fingerprint)
         self.command_runner.operation_diagnostics.bind_connection(key_info.fingerprint)
+        if progress_callback is not None:
+            try:
+                progress_callback("正在读取路由器信息...")
+            except Exception:
+                pass
         try:
             recovery_note = self.reconnect_cleanup.recover(key_info.fingerprint, cancel_event)
             device = self.device_probe.probe(cancel_event)
@@ -504,7 +530,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
             device = replace(device, sftp_available=sftp_available)
             dependencies = self.dependency_manager.check(
                 dict(settings.get("enabled_features", {})),
-                sftp_available, cancel_event)
+                sftp_available, cancel_event, device=device)
             from modules.capture_services.openwrt.common_tool_dependencies import REQUIRED_TOOL_KEYS, check_tools
             dependencies=tuple(sftp if item.key=="sftp" else item for item in dependencies)
             dependencies += check_tools(self.command_runner, REQUIRED_TOOL_KEYS, cancel_event)

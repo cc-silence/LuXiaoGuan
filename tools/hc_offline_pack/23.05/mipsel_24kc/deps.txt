@@ -1,0 +1,8 @@
+# 23.05.6 / mipsel_24kc / ipk
+# 源: OpenWrt 23.05.6 官方 feed（base + packages）
+# 安装顺序（依赖在前）：
+  libpcap1       1.10.4-1        107944 B  依赖: libc
+  libopenssl3    3.0.16-1       1399662 B  依赖: libc, libatomic1
+  hcxdumptool    6.2.4-1          56935 B  依赖: libc, libpcap1, libopenssl3
+# 合计 3 个包 / 1564541 B
+# 注: libc/kernel 属固件自带，不打包

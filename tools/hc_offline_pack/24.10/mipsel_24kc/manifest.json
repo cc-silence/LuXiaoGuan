@@ -1,0 +1,44 @@
+{
+  "release": "24.10.8",
+  "branch": "24.10",
+  "arch": "mipsel_24kc",
+  "mode": "ipk",
+  "packages": [
+    {
+      "name": "libpcap1",
+      "version": "1.10.5-r2",
+      "file": "libpcap1_1.10.5-r2_mipsel_24kc.ipk",
+      "feed": "base",
+      "sha256": "2af799b8ad87febf9cb506a7d49f3303b6b361a32a24fd9e4ba72393c1531b1b",
+      "sha256_index": "2af799b8ad87febf9cb506a7d49f3303b6b361a32a24fd9e4ba72393c1531b1b",
+      "sha_ok": true,
+      "depends_index": "libc",
+      "depends_control": "",
+      "size": 109427
+    },
+    {
+      "name": "libopenssl3",
+      "version": "3.0.22-r1",
+      "file": "libopenssl3_3.0.22-r1_mipsel_24kc.ipk",
+      "feed": "base",
+      "sha256": "0815f833f63bbb57a0f43f29a789f10953815c58cf2924f03c10ba1e5a6e64b4",
+      "sha256_index": "0815f833f63bbb57a0f43f29a789f10953815c58cf2924f03c10ba1e5a6e64b4",
+      "sha_ok": true,
+      "depends_index": "libc, libatomic1",
+      "depends_control": "",
+      "size": 1393933
+    },
+    {
+      "name": "hcxdumptool",
+      "version": "6.3.4-r1",
+      "file": "hcxdumptool_6.3.4-r1_mipsel_24kc.ipk",
+      "feed": "packages",
+      "sha256": "779a4735089bf05dbc76c4df1a6ce1bce655f3f531129003fee80c2868f56641",
+      "sha256_index": "779a4735089bf05dbc76c4df1a6ce1bce655f3f531129003fee80c2868f56641",
+      "sha_ok": true,
+      "depends_index": "libc, libpcap1, libopenssl3",
+      "depends_control": "",
+      "size": 40043
+    }
+  ]
+}

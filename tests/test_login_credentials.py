@@ -25,7 +25,7 @@ class LoginCredentialTests(unittest.TestCase):
         self.operations = []
         # Page construction now starts offline-bundle inspection; never launch a real
         # QThread in a fixture that later deletes its service directly.
-        self.service._start_openwrt_worker = lambda sid, operation, *args: self.operations.append(operation)
+        self.service._start_openwrt_worker = lambda sid, operation, *args, **kwargs: self.operations.append(operation)
         self.page = RouterLoginPage(self.service, self.settings)
         self.service.openwrt_backend.connect = Mock()
         self.states = []

@@ -3,7 +3,7 @@ from PySide6.QtCore import QRect, QSize
 from PySide6.QtWidgets import QLayout
 from modules.ui_scale_manager import UiScaleManager
 
-STANDARD_WINDOW_SIZE = (1280, 720)
+STANDARD_WINDOW_SIZE = (1280, 820)
 
 
 def initial_window_geometry(screen_rect, available_rect, minimum_size, *, scale=100):

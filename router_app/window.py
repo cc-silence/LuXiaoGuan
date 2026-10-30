@@ -38,7 +38,7 @@ class RouterWindow(FramelessDialog):
         self.title_label.setText(WINDOW_TITLE)
         self.setWindowIcon(QIcon(str(BASE_DIR / APPLICATION_ICON)))
         self.scale_manager.publish(self)
-        self.resize(1280, 720)
+        self.resize(1280, 850)
         self.setMinimumSize(960, 600)
         self.frame = self.window_frame
         layout = self.content_layout

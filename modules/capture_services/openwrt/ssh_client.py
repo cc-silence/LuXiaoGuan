@@ -221,6 +221,8 @@ class OpenWrtSshClient:
 
         try:
             import paramiko
+            from .ssh_compatibility import ensure_ssh_compatibility
+            ensure_ssh_compatibility()
         except ImportError as exc:
             raise RuntimeError("缺少 Paramiko 依赖，请重新安装 \u8def\u5c0f\u7ba1 运行依赖。") from exc
 
@@ -289,6 +291,11 @@ class OpenWrtSshClient:
                     message = "\u767b\u5f55\u68c0\u67e5\u672a\u5b8c\u6210\uff0c\u672c\u6b21\u672a\u767b\u5f55\u6210\u529f\u3002\u8fde\u63a5\u53ef\u80fd\u5728\u767b\u5f55\u8fc7\u7a0b\u4e2d\u65ad\u5f00\uff0c\u76ee\u524d\u65e0\u6cd5\u786e\u5b9a\u662f\u5426\u5bc6\u7801\u9519\u8bef\u3002\u8bf7\u68c0\u67e5\u8fde\u63a5\u540e\u91cd\u8bd5\u3002"
             elif isinstance(exc, TimeoutError):
                 message = "\u8fde\u63a5\u6216\u7b49\u5f85\u8def\u7531\u5668\u56de\u5e94\u8d85\u65f6\uff0c\u672c\u6b21\u672a\u767b\u5f55\u6210\u529f\u3002\u8bf7\u68c0\u67e5\u7535\u8111\u662f\u5426\u8fde\u7740\u8fd9\u53f0\u8def\u7531\u5668\uff0c\u4ee5\u53ca\u8def\u7531\u5668\u5730\u5740\u548c\u7aef\u53e3\u662f\u5426\u6b63\u786e\u3002\u8fd9\u4e0d\u662f\u5df2\u786e\u8ba4\u7684\u5bc6\u7801\u9519\u8bef\u3002"
+            elif isinstance(exc, paramiko.ssh_exception.IncompatiblePeer):
+                message = (
+                    "\u4e0e\u8def\u7531\u5668\u7684 SSH \u5b89\u5168\u7b97\u6cd5\u534f\u5546\u5931\u8d25\uff08\u6ca1\u6709\u5171\u540c\u652f\u6301\u7684\u4e3b\u673a\u516c\u94a5\u6216\u52a0\u5bc6\u7b97\u6cd5\uff09\u3002\n"
+                    "\u8bf7\u68c0\u67e5\u8def\u7531\u5668 SSH \u914d\u7f6e\uff0c\u6216\u786e\u8ba4\u8bbe\u5907\u56fa\u4ef6\u7248\u672c\u662f\u5426\u652f\u6301\u517c\u5bb9\u7684\u52a0\u5bc6\u7b97\u6cd5\u3002"
+                )
             if message:
                 raise RuntimeError(message) from exc
             raise

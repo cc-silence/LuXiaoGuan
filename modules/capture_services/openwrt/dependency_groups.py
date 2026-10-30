@@ -2,9 +2,11 @@
 from .common_tool_dependencies import TOOLS, TOOL_KEYS, REQUIRED_TOOL_KEYS
 
 CAPTURE_PACKAGES = {
-    "scan": ("aircrack-ng",), "handshake": ("aircrack-ng",),
-    "pmkid": ("hcxdumptool", "aircrack-ng"),
-    "wps": ("reaver", "aircrack-ng"), "password": (),
+    "scan": ("aircrack-ng", "iw", "ip-tiny"),
+    "handshake": ("aircrack-ng", "iw", "ip-tiny"),
+    "pmkid": ("hcxdumptool", "aircrack-ng", "iw", "ip-tiny"),
+    "wps": ("reaver", "aircrack-ng", "iw", "ip-tiny"),
+    "password": (),
 }
 CAPTURE_KEYS = frozenset(CAPTURE_PACKAGES)
 COMMON_ITEMS = ("sftp", "terminal", *(tool.key for tool in TOOLS))
