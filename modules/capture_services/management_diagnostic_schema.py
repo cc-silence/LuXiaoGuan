@@ -7,7 +7,7 @@ CODES=frozenset({"pending","changed","official","common_values","common_section"
     "read","response","transport","timeout","disconnected","dependencies","cancelled","save_commit","save_backup",
     "save_recovery","save_unsupported","save_large","files","file_recovery","session","section","values",
     "identity","identity_shared_settings","identity_duplicate","identity_changed","identity_backup","identity_network",
-    "orphan_runtime","orphan_selection","orphan_large","move_system","move_management","move_dhcp","pending_commit",
+    "orphan_runtime","orphan_selection","orphan_large","move_system","move_management","move_ap_support","move_dhcp","pending_commit",
     "pending_recovery","internal","network","radio","dhcp_changed","recovery"})
 
 SITE_MODULES=frozenset({"router_policy_plan","upstream_firewall_zones","common_settings","router_backup",

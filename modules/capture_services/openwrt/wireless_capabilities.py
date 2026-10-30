@@ -30,6 +30,16 @@ local function option_support(schema)
  end
  return out
 end
+local function runtime_mac(iface)
+ if type(iface)~="string" or #iface>128 or iface=="." or iface==".." or not iface:match("^[%w_.:%-]+$") then return nil end
+ local f=io.open("/sys/class/net/"..iface.."/address","r")
+ if not f then return nil end
+ local value=f:read(32);f:close()
+ if type(value)~="string" then return nil end
+ value=value:match("^([%x:]+)%s*$")
+ if not value or #value~=17 or not value:match("^%x%x:%x%x:%x%x:%x%x:%x%x:%x%x$") then return nil end
+ return value:lower()
+end
 local function ap_ready(iface,ssid)
  if type(ssid)~="string" or #ssid==0 then return false end
  local device=optional("network.device","status",{name=iface})

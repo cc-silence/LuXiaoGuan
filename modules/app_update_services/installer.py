@@ -55,8 +55,14 @@ def _run_install_locked(job_path,stage,root,notify):
             report('checking')
             release=verify_manifest((stage/'manifest.json').read_bytes(),PUBLIC_KEY)
             record('install_release_verified', version=release.version, revision=release.catalog_sha256)
-            if release.catalog_sha256!=stage.name:raise ValueError('Staging identity differs from signature')
-            catalog=parse_catalog((stage/'catalog.json').read_bytes(),release)
+            if release.catalog_url:
+                if release.catalog_sha256!=stage.name:raise ValueError('Staging identity differs from signature')
+                catalog=parse_catalog((stage/'catalog.json').read_bytes(),release)
+            else:
+                if release.sha256!=stage.name:raise ValueError('Full package identity differs from signature')
+                from .full_package import prepare_package
+                catalog=prepare_package(stage/'package.zip',release,stage,root)
+
             def validate():
                 environment=os.environ.copy();environment['PYINSTALLER_RESET_ENVIRONMENT']='1'
                 check=subprocess.run([str(installed_executable(root)),'--smoke-test'],cwd=root,env=environment,

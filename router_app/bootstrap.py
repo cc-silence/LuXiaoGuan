@@ -54,7 +54,7 @@ def run(version):
         window.show()
         window.openSettingsWindow()
         settings = window.settings_window
-        for index in range(6):
+        for index in range(window.packet_capture_page.openwrt_tab.tabs.count()):
             window.packet_capture_page.openwrt_tab.tabs.setCurrentIndex(index)
             app.processEvents()
         settings.reject()

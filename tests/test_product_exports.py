@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 import zipfile
 from modules.log_services import build_export_filename, export_logs
 from modules.error_logs import ErrorFileHandler
@@ -12,8 +13,9 @@ from modules.release_identity import PACKAGE_DIRECTORY
 
 class ProductExportTests(unittest.TestCase):
     def test_export_name_readme_and_redaction(self):
-        name=build_export_filename("router/login")
-        self.assertTrue(name.startswith("LuXiaoGuan_router_login_"))
+        with patch('modules.log_services.getpass.getuser',return_value='CC'):
+            name=build_export_filename("router/login")
+        self.assertTrue(name.startswith("CC_LuXiaoGuan_router_login_"))
         with tempfile.TemporaryDirectory() as folder:
             destination=Path(folder)/name
             export_logs(destination,"router/login",[("password=do-not-export","error"),("diagnostic fixture","info")],app_version="1.0.2_alpha")

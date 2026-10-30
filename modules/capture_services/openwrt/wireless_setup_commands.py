@@ -98,7 +98,8 @@ local function inspect(readonly)
    if type(iface.ifname)=="string" and iface.ifname:match("^[%w_.:%-]+$") then
     ifnames[#ifnames+1]=iface.ifname
     local ds=optional("network.device","status",{name=iface.ifname})
-    if type(iface.section)=="string" and type(ds.macaddr)=="string" and #ds.macaddr==17 then runtime_macs[iface.section]=ds.macaddr end
+    local mac=runtime_mac(iface.ifname)
+    if type(iface.section)=="string" and mac then runtime_macs[iface.section]=mac end
     if rs.up==true and not rs.pending and ds.up==true then active[#active+1]=iface.section end
    end
   end
@@ -374,21 +375,24 @@ local function status()
  local rs=rpc("network.wireless","status",{})[req.radio] or {}
  local iface=nil
  for _,v in ipairs(rs.interfaces or {}) do if v.section==req.section then iface=v.ifname end end
- if type(iface)~="string" or not iface:match("^[%w_.:%-]+$") or rs.pending or rs.up~=true then return {ready=false} end
+ if type(iface)~="string" or not iface:match("^[%w_.:%-]+$") or rs.pending or rs.up~=true then return {ready=false,reason="wireless_interface_pending"} end
  local loaded=uci.cursor()
- if not loaded:load("wireless") or not wireless_loaded(loaded,rs,req.section) then return {ready=false,configuration_pending=true} end
+ if not loaded:load("wireless") then return {ready=false,configuration_pending=true} end
+ local loaded_ok,loaded_reason=wireless_loaded(loaded,rs,req.section)
+ if not loaded_ok then return {ready=false,configuration_pending=true,reason=loaded_reason} end
  if req.mode=="ap" then
   local c=uci.cursor()
   if not c:load("wireless") then return {ready=false} end
   local expected=req.expected_mac or c:get("wireless",req.section,"macaddr")
   if identity_mac(expected) then
-   local actual=optional("network.device","status",{name=iface}).macaddr
+   local actual=runtime_mac(iface)
    if type(actual)~="string" or actual:lower()~=expected:lower() then return {ready=false,identity_pending=true} end
   end
-  return {ready=ap_ready(iface,c:get("wireless",req.section,"ssid"))}
+  local ready=ap_ready(iface,c:get("wireless",req.section,"ssid"))
+  return {ready=ready,reason=not ready and "wireless_ap_pending" or nil}
  end
  if req.expected_mac and req.expected_mac~="" then
-  local actual=optional("network.device","status",{name=iface}).macaddr
+  local actual=runtime_mac(iface)
   if type(actual)~="string" or actual:lower()~=req.expected_mac:lower() then return {ready=false,identity_pending=true} end
  end
  if req.require_connection==false then return {ready=true,association_not_required=true} end

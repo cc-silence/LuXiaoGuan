@@ -16,11 +16,10 @@ from modules.main_pages.page_action_buttons import create_page_text_button
 from modules.common_widgets.combo_box import CommonComboBox as QComboBox
 
 
-from .ui_features import PMKID_UI_VISIBLE
 
 
 class CaptureToolPanel(QWidget):
-    """集中展示扫描、握手、PMKID、WPS 和猜密码入口。
+    """集中展示扫描、握手、WPS 和猜密码入口。
 
     当前架构阶段只发出动作信号。OpenWrtPage 根据连接、依赖和任务快照控制按钮状态，
     不在本组件执行命令或创建 worker。
@@ -75,19 +74,6 @@ class CaptureToolPanel(QWidget):
         handshake_layout.addWidget(self.handshake_button)
         root.addWidget(handshake_group)
 
-        pmkid_group, pmkid_layout = self._group("PMKID 抓包")
-        self.mode_combo = QComboBox(pmkid_group)
-        self.mode_combo.setObjectName("captureComboBox")
-        self.mode_combo.addItem("全局自动", "global")
-        self.mode_combo.addItem("手动过滤", "filter")
-        self.mode_combo.setToolTip("手动过滤只处理勾选目标，6.3.4 可开启主动请求 PMKID。全局自动被动采集当前频段，无需勾选，必须关闭主动请求。常规抓包仍按勾选目标执行。")
-        pmkid_layout.addWidget(self.mode_combo)
-        self.pmkid_button = self._button(pmkid_group, "开始 PMKID 抓包", "pmkid")
-        pmkid_layout.addWidget(self.pmkid_button)
-        root.addWidget(pmkid_group)
-        self.pmkid_group=pmkid_group
-        pmkid_group.setVisible(PMKID_UI_VISIBLE)
-
         other_group, other_layout = self._group("其他方式")
         other_layout.addWidget(self._subsection_label("WPS / Pin", other_group))
         # 秒 Pin 和高级 Pin 放一排，省出空间给下面的猜密码按钮。
@@ -119,7 +105,6 @@ class CaptureToolPanel(QWidget):
         root.addStretch(1)
 
         self.load_settings(settings)
-        self.mode_combo.currentIndexChanged.connect(lambda _index: self.settingsChanged.emit())
         self.band_combo.currentTextChanged.connect(lambda _text: self.settingsChanged.emit())
         self.scan_seconds.lineEdit().editingFinished.connect(self.settingsChanged)
         self.capture_seconds.lineEdit().editingFinished.connect(self.settingsChanged)
@@ -136,7 +121,6 @@ class CaptureToolPanel(QWidget):
         tips = {
             "scan": "查找所选频段的 Wi-Fi 和连接设备，运行中再点一次可停止。先登录路由器。",
             "handshake": "先勾选自有或已授权的信号，再开始抓取连接数据。是否让目标设备断网重连，由“允许主动断连”设置决定；运行中可点此按钮停止。",
-            "pmkid": "采集可用于跑包的数据，部分路由器不支持这种方式。手动过滤模式下先勾选目标；开始前会检查兼容性，运行中再点可停止。",
             "wps": "仅适用于自有或已授权且开启 WPS 的网络。尝试常见 Pin 码，不保证成功；频繁尝试可能让目标暂时锁定 WPS。",
             "open_output_dir": "打开已保存抓包结果的文件夹，按钮变绿表示已有可用结果。",
         }
@@ -178,8 +162,6 @@ class CaptureToolPanel(QWidget):
     def load_settings(self, settings):
         """从 OpenWrt 配置回显工具栏公共参数。"""
 
-        mode = str(settings.get("mode", "filter"))
-        self.mode_combo.setCurrentIndex(max(0, self.mode_combo.findData(mode)))
         self.band_combo.setCurrentText(str(settings.get("band", "2.4G")))
         self.scan_seconds.setValue(int(settings.get("scan_seconds", 24)))
         self.capture_seconds.setValue(int(settings.get("idle_timeout_seconds", 180)))
@@ -188,7 +170,6 @@ class CaptureToolPanel(QWidget):
         """返回工具栏控制的配置字段。"""
 
         return {
-            "mode": self.mode_combo.currentData(),
             "band": self.band_combo.currentText(),
             "scan_seconds": self.scan_seconds.value(),
             "idle_timeout_seconds": self.capture_seconds.value(),
@@ -202,7 +183,6 @@ class CaptureToolPanel(QWidget):
         mapping = {
             self.scan_button: "scan",
             self.handshake_button: "handshake",
-            self.pmkid_button: "pmkid",
             self.wps_button: "wps",
             self.advanced_wps_button: "wps",
             self.password_button: "password",
@@ -210,7 +190,6 @@ class CaptureToolPanel(QWidget):
         # 扫描进行中保留同一入口作为停止按钮，避免用户只能等待超时或关闭程序。
         # 其他高风险抓包入口仍保持禁用，确保无线环境始终只有一个任务所有者。
         scan_running = busy and task_type == "wifi_scan"
-        pmkid_running = busy and task_type in {"pmkid_global", "pmkid_filter"}
         handshake_running = busy and task_type == "handshake"
         password_running = busy and task_type == "password_verify"
         self.password_pause_button.setVisible(password_running)
@@ -230,7 +209,7 @@ class CaptureToolPanel(QWidget):
             password_running and task_state != "stopping" and pause_state in {"running", "paused"},
         )
         for button, feature in mapping.items():
-            if button in {self.scan_button, self.pmkid_button, self.handshake_button, self.password_button}:
+            if button in {self.scan_button, self.handshake_button, self.password_button}:
                 continue
             self._set_button_enabled(button, enabled and bool(enabled_features.get(feature, False)))
         if scan_running:
@@ -244,18 +223,6 @@ class CaptureToolPanel(QWidget):
             self._set_button_enabled(
                 self.scan_button,
                 not connected or (not busy and bool(enabled_features.get("scan", False))),
-            )
-        if pmkid_running:
-            self.pmkid_button.setText("停止 PMKID")
-            self.pmkid_button.setProperty("captureAction", "stop")
-            self._set_button_enabled(self.pmkid_button, bool(connected))
-        else:
-            self.pmkid_button.setText("开始 PMKID 抓包")
-            self.pmkid_button.setProperty("captureAction", "pmkid")
-            # 与扫描入口一致：未登录时允许点击并解释前置条件；登录后再检查依赖。
-            self._set_button_enabled(
-                self.pmkid_button,
-                not connected or (not busy and bool(enabled_features.get("pmkid", False))),
             )
         if handshake_running:
             self.handshake_button.setText("停止定向任务")
@@ -288,7 +255,6 @@ class CaptureToolPanel(QWidget):
         # 复用 SweepButton 引导模式的视觉；状态未变化时不重复调用，避免每次快照
         # 刷新都重启扫光动画导致扫光冻结在起始位置。
         self._sync_running_visual(self.scan_button, scan_running)
-        self._sync_running_visual(self.pmkid_button, pmkid_running)
         self._sync_running_visual(self.handshake_button, handshake_running)
         self._sync_running_visual(self.password_button, password_running)
 

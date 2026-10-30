@@ -31,8 +31,6 @@ class AppUpdatePresenter(QObject):
         self.error = ""
         self.last_checked = ""
         self.plan = None
-        from modules.app_update_services.planner import FingerprintCache
-        self._fingerprints = FingerprintCache()
         self._download_requested = False
         self._worker = None
         self._maintenance = None
@@ -62,9 +60,6 @@ class AppUpdatePresenter(QObject):
         worker,self._maintenance=self._maintenance,None
         if worker is not None:worker.deleteLater()
         self.activityChanged.emit()
-        if (not self.runtime._exiting and self._release is not None
-                and self._release.catalog is not None and self.plan is None):
-            self.prepare_plan()
 
 
     def eventFilter(self, watched, event):
@@ -166,38 +161,23 @@ class AppUpdatePresenter(QObject):
             self._message("\u5f53\u524d\u5df2\u662f\u6700\u65b0\u7248\u672c\u3002")
         self._manual_owner = None
         self._inline_check = False
-        if release is not None and release.catalog is not None:
-            self.prepare_plan()
 
     @property
     def latest_release(self):
         return self.checker.latest or self._release
 
     def prepare_plan(self, download=False):
-        """计划和下载共用后台所有者，不在页面打开时扫描磁盘。"""
-        if download and self._worker is not None and not self._worker.download:
-            self._download_requested = True
-            self.stateChanged.emit()
-            return
-        if self.active or self._release is None or self._release.catalog is None:
-            return
-        from modules.app_update_services.transfer import UpdateTransfer
-        self._cancelled = False
-        self.error = ""
-        self.state = "downloading" if download else "planning"
-        self.download_completed = 0
-        self.download_total = 0
-        self.progress_text = ""
-        worker = UpdateTransfer(BASE_DIR, self._release.catalog, self.checker.manifest_data, download, self, cache=self._fingerprints)
-        self._worker = worker
-        worker.preview.connect(self._transfer_preview)
+        if not download or self.active or self._release is None:return
+        from modules.app_update_services.full_package_transfer import FullPackageTransfer
+        self._cancelled=False;self.error="";self.state="downloading"
+        self.download_completed=0;self.download_total=self._release.size;self.progress_text=""
+        worker=FullPackageTransfer(BASE_DIR,self.checker.manifest_data,self)
+        self._worker=worker
         worker.result.connect(self._transfer_result)
         worker.failed.connect(self._transfer_failed)
         worker.progress.connect(self._transfer_progress)
         worker.finished.connect(self._transfer_finished)
-        worker.start()
-        self.stateChanged.emit()
-        self.activityChanged.emit()
+        worker.start();self.stateChanged.emit();self.activityChanged.emit()
 
     def _transfer_preview(self, plan):
         self.plan = plan
@@ -219,7 +199,7 @@ class AppUpdatePresenter(QObject):
     def _transfer_progress(self, done, total, path):
         self.download_completed = max(0,done)
         self.download_total = max(0,total)
-        self.progress_text = f"{done / 1024 / 1024:.1f} / {total / 1024 / 1024:.1f} MB"
+        self.progress_text = ("\u6b63\u5728\u6821\u9a8c\u5e76\u89e3\u538b\u5b8c\u6574\u5305\u2026" if path=="extract" else f"{done / 1024 / 1024:.1f} / {total / 1024 / 1024:.1f} MB")
         self.stateChanged.emit()
 
     def _transfer_finished(self):
@@ -232,6 +212,8 @@ class AppUpdatePresenter(QObject):
         self.stateChanged.emit()
         self.activityChanged.emit()
 
+        if not self._cancelled and self.state=="ready" and self.plan and self.plan.get("full_package"):
+            self.install_update(self._owner(), confirmed=True)
         requested, self._download_requested = self._download_requested, False
         if requested and not self._cancelled and self.state == 'available' and self.plan and not self.plan['conflicts']:
             self.prepare_plan(download=True)
@@ -242,7 +224,7 @@ class AppUpdatePresenter(QObject):
             self._cancelled = True
             self._worker.cancel()
 
-    def install_update(self, owner):
+    def install_update(self, owner, confirmed=False):
         """只在用户确认且无其他任务时启动独立替换。"""
         if self.active or self.state != "ready" or not self.plan:
             return
@@ -251,10 +233,11 @@ class AppUpdatePresenter(QObject):
             self.error = "\u8bf7\u5148\u5b8c\u6210\u6216\u505c\u6b62\u5176\u4ed6\u4efb\u52a1\uff1a" + "\uff1b".join(blockers)
             self.stateChanged.emit()
             return
-        from modules.common_widgets.common_dialogs import ConfirmDialog
-        dialog = ConfirmDialog("\u91cd\u542f\u5e76\u5b89\u88c5\u66f4\u65b0", f"\u5c06\u9000\u51fa {DISPLAY_NAME}\uff0c\u66ff\u6362\u5df2\u6838\u5bf9\u7684\u6587\u4ef6\u540e\u81ea\u52a8\u91cd\u65b0\u6253\u5f00\u3002\n\u5df2\u4fdd\u5b58\u7684\u7528\u6237\u914d\u7f6e\u548c\u6570\u636e\u4f1a\u4fdd\u7559\uff1b\u8bf7\u5148\u4fdd\u5b58\u5c1a\u672a\u786e\u8ba4\u7684\u8bbe\u7f6e\u3002", owner)
-        if not dialog.exec():
-            return
+        if not confirmed:
+            from modules.common_widgets.common_dialogs import ConfirmDialog
+            dialog = ConfirmDialog("\u91cd\u542f\u5e76\u5b89\u88c5\u66f4\u65b0", f"\u5c06\u9000\u51fa {DISPLAY_NAME}\uff0c\u66ff\u6362\u5df2\u6838\u5bf9\u7684\u6587\u4ef6\u540e\u81ea\u52a8\u91cd\u65b0\u6253\u5f00\u3002\n\u5df2\u4fdd\u5b58\u7684\u7528\u6237\u914d\u7f6e\u548c\u6570\u636e\u4f1a\u4fdd\u7559\uff1b\u8bf7\u5148\u4fdd\u5b58\u5c1a\u672a\u786e\u8ba4\u7684\u8bbe\u7f6e\u3002", owner)
+            if not dialog.exec():
+                return
         from modules.app_update_services.diagnostics import record, exception_chain
         record("install_launch_started")
         try:
@@ -328,9 +311,7 @@ class AppUpdatePresenter(QObject):
         notes.setReadOnly(True)
         notes.setPlainText(release.notes or "\u6b64\u7248\u672c\u672a\u63d0\u4f9b\u66f4\u65b0\u8bf4\u660e\u3002")
         dialog.content_layout.addWidget(notes, 1)
-        hint_text = ("\u53ef\u5728\u66f4\u65b0\u4e2d\u5fc3\u67e5\u770b\u5168\u90e8\u8de8\u7248\u672c\u53d8\u5316\u548c\u4e0b\u8f7d\u5927\u5c0f\uff0c\u786e\u8ba4\u540e\u518d\u4e0b\u8f7d\u3002\n"
-                     "\u7528\u6237\u914d\u7f6e\u548c\u6570\u636e\u4f1a\u4fdd\u7559\u3002" if release.catalog else
-                     f"\u5b8c\u6574\u5305 {release.size / 1024 / 1024:.1f} MB\uff1b\u8bf7\u524d\u5f80\u66f4\u65b0\u4e2d\u5fc3\u4e0b\u8f7d\u3002")
+        hint_text = f"\u5b8c\u6574\u5305 {release.size / 1024 / 1024:.1f} MB\uff1b\u4e0b\u8f7d\u6821\u9a8c\u5b8c\u6210\u540e\u81ea\u52a8\u5b89\u88c5\u5e76\u91cd\u542f\uff0c\u4fdd\u7559\u7528\u6237\u914d\u7f6e\u3002"
         hint = QLabel(hint_text, dialog)
         hint.setWordWrap(True)
         dialog.content_layout.addWidget(hint)

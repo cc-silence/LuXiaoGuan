@@ -35,6 +35,11 @@ class LanRecoveryService(QObject):
         if isinstance(payload,dict) and isinstance(payload.get('control'),RenewalGate):
             self.offers[key]=(payload['control'],dict(value))
         elif key in self.offers:self.offers[key]=(self.offers[key][0],dict(value))
+        if key not in self.standalone and key in self.offers and key in self.owner._openwrt_workers:
+            gate=self.offers[key][0]
+            if not any(row['id'] in self.adapter_jobs for row in gate.adapters):
+                identity=gate.take_automatic()
+                if identity is not None:self.request(key,identity,automatic=True)
     def release(self,key):
         self.standalone.discard(key)
         item=self.offers.pop(key,None)
@@ -46,7 +51,7 @@ class LanRecoveryService(QObject):
             if any(row['id']==identity for row in gate.adapters):
                 self.owner.configurationProgressChanged.emit(key,dict(current[1],network_recovery=self.payload(key)))
 
-    def request(self,key,identity):
+    def request(self,key,identity,*,automatic=False):
         item=self.offers.get(key)
         if getattr(self.owner,"_shutting_down",False):return False
         if item is None or (key not in self.standalone and key not in self.owner._openwrt_workers):return False
@@ -86,7 +91,9 @@ class LanRecoveryService(QObject):
                       '\u6b63\u5728\u5c1d\u8bd5\u8fde\u63a5\u8def\u7531\u5668\u3002')
             finish(message,result)
         def failed(message,detail):
-            finish('\u91cd\u65b0\u83b7\u53d6\u672a\u5b8c\u6210\uff1a'+message)
+            prefix='\u81ea\u52a8\u91cd\u65b0\u83b7\u53d6\u5730\u5740\u5931\u8d25\uff1a' if automatic else '\u91cd\u65b0\u83b7\u53d6\u672a\u5b8c\u6210\uff1a'
+            retry='\n\u8bf7\u5728\u5269\u4f59\u65f6\u95f4\u5185\u70b9\u51fb\u201c\u91cd\u65b0\u83b7\u53d6\u7f51\u7edc\u5730\u5740\u201d\u91cd\u8bd5\uff1bWi-Fi \u8bf7\u5148\u786e\u8ba4\u5df2\u8fde\u56de\u8be5\u8def\u7531\u5668\u3002' if gate.payload().get('can_renew') else '\n\u5269\u4f59\u65f6\u95f4\u4e0d\u8db3\uff0c\u8bf7\u7b49\u5f85\u6062\u590d\u7ed3\u679c\u3002'
+            finish(prefix+message+retry)
         self._notify_adapter(identity)
         from .task_completion import start_capture_task
         try:

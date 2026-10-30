@@ -66,6 +66,7 @@ class LuaDevice:
         g.bridge_get = self.get
         g.bridge_foreach = self.foreach
         g.bridge_read = self.read
+        g.bridge_kernel_mac = self.kernel_mac
         g.bridge_write = lambda text: self._output.append(text)
         self.lua.execute("""
 package.preload["luci.jsonc"]=function() return {parse=bridge_json_parse,stringify=bridge_json_stringify} end
@@ -80,9 +81,21 @@ package.preload["uci"]=function() return {cursor=function() return cursor end} e
 package.preload["ubus"]=function() return {connect=function() return {
  call=function(self,object,method,args) return bridge_call(object,method,args) end,
  close=function() end} end} end
+local native_open=io.open
+io.open=function(path,mode)
+ local iface=path:match("^/sys/class/net/([^/]+)/address$")
+ if not iface then return native_open(path,mode) end
+ local mac=bridge_kernel_mac(iface)
+ if not mac then return nil end
+ return {read=function() return mac..string.char(10) end,close=function() return true end}
+end
 io.write=bridge_write
 io.popen=function(command) return {read=function() return bridge_read(command) end,close=function() return true end} end
 """)
+
+    def kernel_mac(self, iface):
+        value, error=self.call("network.device", "status", self.wrap(dict(name=iface)))
+        return None if error else self.unwrap(value).get("macaddr")
 
     def wrap(self, value):
         if isinstance(value, dict):

@@ -384,9 +384,14 @@ exit 1
                 raise InterruptedError("无线操作已取消。")
         raise SignalError("authentication", "未在时限内确认信号启动，请检查信道、加密及驱动兼容性。" if request.mode == "ap" else "未在时限内完成无线连接；请检查密码、信号强度及加密兼容性，不能据此断定密码错误。")
 
-    def _restore(self, sid, env, radio):
+    def _restore(self, sid, env, radio, *, failure=None):
         """取消也给恢复独立期限；断线时由设备端 90 秒回滚保护兜底。"""
-        phase("\u6b63\u5728\u6062\u590d\u539f\u65e0\u7ebf\u914d\u7f6e", seconds=40, rollback=True)
+        stage="\u6b63\u5728\u6062\u590d\u539f\u65e0\u7ebf\u914d\u7f6e"
+        if failure is not None:
+            prefix="\u64cd\u4f5c\u5df2\u53d6\u6d88" if isinstance(failure,InterruptedError) else "\u4fee\u6539\u5931\u8d25"
+            reason=str(failure) if isinstance(failure,SignalError) else "\u672c\u6b21\u64cd\u4f5c\u672a\u80fd\u5b8c\u6210\u786e\u8ba4\u3002"
+            stage=prefix+"\uff1a"+reason+"\n"+stage
+        phase(stage, seconds=40, rollback=True)
         cleanup = threading.Event()
         self._call("finish", cleanup, sid=sid, confirm=False, unapplied=True, timeout=15)
         wanted = {r["section"] for r in env.data["rows"] if r.get("device") == radio} & set(env.data["active"])
@@ -467,7 +472,7 @@ exit 1
         finally:
             if not confirmed:
                 try:
-                    self._restore(sid, env, request.radio)
+                    self._restore(sid, env, request.radio, failure=error)
                 except Exception as recovery:
                     raise SignalError("recovery", "操作未能确认完成；恢复状态也未确认。请等待 90 秒后重新登录核对，勿连续重试。") from recovery
         if error is not None:

@@ -137,5 +137,23 @@ class StorageAPI:
         finally:
             self.session.proxies=original
 
+    def clone(self):
+        """Reuse verified identity with a separate session for bounded workers."""
+        clone=type(self).__new__(type(self))
+        clone.base=self.base
+        clone.session=requests.Session();clone.session.trust_env=False
+        clone.session.headers.update(self.session.headers)
+        clone.session.proxies=dict(self.session.proxies)
+        return clone
+
+    def delete_retired_update_object(self,row):
+        key=row['key']
+        if not re.fullmatch(r'(?:blobs/[a-f0-9]{64}\.z|catalog/[a-f0-9]{64}\.json)',key):
+            raise ValueError('Only retired incremental objects may use this deletion interface')
+        etag=row.get('etag')
+        if not isinstance(etag,str) or not re.fullmatch(r'[A-Za-z0-9._-]+',etag.strip('"')):
+            raise ValueError('Retired object lacks a usable immutable ETag')
+        self._request('DELETE',self._key(key),headers={'If-Match':'"'+etag.strip('"')+'"'})
+
     def close(self):
         self.session.close()

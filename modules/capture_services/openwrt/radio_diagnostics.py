@@ -173,7 +173,8 @@ def sanitized_radio_evidence(data, masker):
             if isinstance(value, str):
                 limit = MAX_TEXT_BYTES if key in ('stdout', 'stderr') else 2048
                 value = bounded_text(value, limit)[0]
-                result[key] = sanitized_text(value, masker)
+                from modules.diagnostic_redaction import valid_timestamp
+                result[key] = value if key in ('started_at','finished_at') and valid_timestamp(value) else sanitized_text(value, masker)
         for key in numbers:
             value = source.get(key)
             if value is None or isinstance(value, (bool, int, float)):

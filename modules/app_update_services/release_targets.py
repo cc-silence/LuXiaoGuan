@@ -8,6 +8,19 @@ APPLICATION_CHANNELS = {
 }
 
 
+COMPATIBILITY_CHANNELS = {
+    "channel/compat-win-x64-alpha.json": ("win-x64", "alpha"),
+    "channel/compat-win-x64-stable.json": ("win-x64", "stable"),
+}
+RETAINED_APPLICATION_CHANNELS = {**APPLICATION_CHANNELS, **COMPATIBILITY_CHANNELS}
+
+
+def compatibility_key(platform,channel):
+    for key,identity in COMPATIBILITY_CHANNELS.items():
+        if identity==(platform,channel):return key
+    raise ValueError('No legacy compatibility bridge for this platform/channel')
+
+
 def validate_platform(value):
     if value not in PLATFORMS:
         raise ValueError("Unsupported release platform")

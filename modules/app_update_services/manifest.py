@@ -58,9 +58,9 @@ class Release:
 
 def parse_payload(payload: dict, *, expected_platform=None) -> Release:
     """\u9a8c\u8bc1\u53d1\u5e03\u5bf9\u8c61\u548c\u5927\u5c0f\uff0c\u62d2\u7edd\u9519\u8bef\u6e05\u5355\u3002"""
-    from modules.platform_services.app_update_support import require_native_updater
+    from modules.platform_services.app_update_support import require_package_platform
     from .release_targets import validate_platform, release_channel
-    expected_platform = require_native_updater() if expected_platform is None else validate_platform(expected_platform)
+    expected_platform = require_package_platform() if expected_platform is None else validate_platform(expected_platform)
     if (not isinstance(payload, dict) or payload.get("schema") != 1
             or payload.get("product") != "RouterManager" or payload.get("platform") != expected_platform):
         raise ValueError("Unsupported LuXiaoGuan update manifest")

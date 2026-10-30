@@ -71,18 +71,28 @@ def client_plan(review,values):
 class RenewalGate:
     def __init__(self,plan):
         self.plan=copy.deepcopy(plan);self.adapters=copy.deepcopy(self.plan["adapters"]);self.lock=threading.Lock();self.busy=False;self.closed=False
-        self.selected_id=None;self.armed=False;self.deadline=0;self.message='';self.attempted=set();self.restoring=False
+        self.selected_id=None;self.armed=False;self.deadline=0;self.message='';self.attempted=set();self.restoring=False;self.automatic_started=False;self.automatic_enabled=False
     def payload(self):
         with self.lock:
             return dict(control=self,guide=self.restore_guide() if self.restoring else self.plan['guide'],adapters=copy.deepcopy(self.adapters),used=list(self.attempted),
                         busy=self.busy,can_renew=self.armed and not self.closed and self.deadline-time.monotonic()>=15,closed=self.closed or not self.armed,message=self.message,selection_required=self.plan.get("selection_required",False))
     def start(self,deadline,restoring=False):
         with self.lock:
-            self.deadline=deadline;self.closed=False;self.armed=False;self.attempted.clear();self.restoring=restoring
+            self.deadline=deadline;self.closed=False;self.armed=False;self.attempted.clear();self.restoring=restoring;self.automatic_started=False;self.automatic_enabled=False
         return self.payload()
-    def arm(self):
-        with self.lock:self.armed=True
+    def arm(self,*,automatic=False):
+        with self.lock:self.armed=True;self.automatic_enabled=bool(automatic)
         return self.payload()
+    def take_automatic(self):
+        """Automatically renew only the unique proven route, once per apply phase."""
+        with self.lock:
+            if not self.automatic_enabled or self.automatic_started or not self.armed or self.closed or self.busy or self.deadline-time.monotonic()<15:return None
+            routed=[row for row in self.adapters if row.get('route') and row.get('connected')]
+            if len(routed)!=1:return None
+            row=routed[0]
+            if row.get('dhcp') is not True or row.get('renewable') is not True:return None
+            self.automatic_started=True
+            return row['id']
     def claim(self,identity):
         with self.lock:
             if not self.armed or self.closed or self.busy or identity in self.attempted:return None

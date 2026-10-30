@@ -1,7 +1,8 @@
 """Plan removal of old wireless networks as one relocation transaction."""
 NETWORK_CLEANUP = r'''
-local function move_cleanup_networks(c,owners,wireless_networks)
+local function move_cleanup_networks(c,owners,wireless_networks,preserved_networks)
  local protected={loopback=true,lan=true,wan=true,wan6=true}
+ for section in pairs(preserved_networks) do protected[section]=true end
  local removed={}
  c:foreach("network","interface",function(n)
   local section=n[".name"]

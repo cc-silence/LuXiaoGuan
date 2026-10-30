@@ -38,7 +38,7 @@ class HcxPrimaryTests(unittest.TestCase):
         return SimpleNamespace(exit_code=1 if name == "install_modern_hcx" and self.fail_install else 0,
                                stdout=outputs.get(name, ""), stderr="failure")
 
-    def install(self, pm="opkg"):
+    def install(self, pm="opkg", sftp_available=True):
         branch = "24.10" if pm == "opkg" else "25.12"
         bundle = self.root / "tools/hc_offline_pack" / branch / "mipsel_24kc"
         (bundle / "pkgs").mkdir(parents=True)
@@ -52,11 +52,11 @@ class HcxPrimaryTests(unittest.TestCase):
         }), encoding="utf-8")
         device = SimpleNamespace(package_manager=pm, package_architecture="mipsel_24kc")
         with patch("modules.config_manager.BASE_DIR", self.root):
-            return install_primary(self.manager, device, True, self.cancel, MagicMock(), None, None)
+            return install_primary(self.manager, device, sftp_available, self.cancel, MagicMock(), None, None)
 
     def test_opkg_only_uploads_primary_and_does_not_force_libraries(self):
         self.assertTrue(self.install())
-        puts = self.manager.command_runner.ssh_client.open_sftp.return_value.put.call_args_list
+        puts = self.manager._package_uploader.return_value.call_args_list
         self.assertEqual(len(puts), 1)
         command = dict(self.calls)["install_modern_hcx"]
         self.assertIn("--nodeps", command)
@@ -65,6 +65,13 @@ class HcxPrimaryTests(unittest.TestCase):
         self.assertNotIn("*", command)
         self.assertNotIn("--force-overwrite", command)
         self.manager._install_online.assert_not_called()
+
+    def test_missing_sftp_uses_shared_package_uploader(self):
+        self.install(sftp_available=False)
+        self.manager._package_uploader.assert_called_once_with(False, self.cancel, unittest.mock.ANY)
+        upload = self.manager._package_uploader.return_value
+        upload.assert_called_once()
+        self.assertTrue(upload.call_args.args[1].endswith('.ipk'))
 
     def test_apk_pins_existing_library_versions(self):
         self.assertTrue(self.install("apk"))

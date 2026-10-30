@@ -62,7 +62,7 @@ class AppUpdatePage(QWidget):
         from modules.ui_scale_manager import UiScaleManager
         UiScaleManager.for_widget(parent).bind_metrics(self.notes,min_height=150)
         layout.addWidget(self.notes,1)
-        self.hint=create_hint_label("\u6b63\u5f0f\u7248\u542f\u52a8\u540e\u81ea\u52a8\u68c0\u67e5\u5e76\u63d0\u9192\u3002\u53ea\u4e0b\u8f7d\u53d8\u5316\u7684\u7a0b\u5e8f\u6587\u4ef6\uff0c\u4fdd\u7559 config\u3001\u7528\u6237\u6570\u636e\u548c\u81ea\u5df1\u6dfb\u52a0\u7684\u8d44\u6e90\u3002\n\u672c\u5730\u4fee\u6539\u4e0e\u5b98\u65b9\u66f4\u65b0\u51b2\u7a81\u65f6\u4f1a\u6682\u505c\u5b89\u88c5\uff1b\u4e0b\u8f7d\u5b8c\u6210\u540e\u9700\u70b9\u51fb\u91cd\u542f\u5b89\u88c5\u3002",container)
+        self.hint=create_hint_label("\u5728\u8f6f\u4ef6\u5185\u4e0b\u8f7d\u5b8c\u6574\u5b89\u88c5\u5305\uff0c\u6821\u9a8c\u6210\u529f\u540e\u81ea\u52a8\u5b89\u88c5\u5e76\u91cd\u542f\u3002\u4fdd\u7559\u7528\u6237\u914d\u7f6e\u548c\u6570\u636e\uff0c\u5b89\u88c5\u5931\u8d25\u4f1a\u56de\u6eda\u3002",container)
         layout.addWidget(self.hint)
         access_row=QHBoxLayout()
         self.test_code_input=QLineEdit(container);self.test_code_input.setObjectName("settingsLineEdit")
@@ -148,8 +148,7 @@ class AppUpdatePage(QWidget):
         presenter=self.presenter
         if presenter is None:return
         if presenter.state=="ready":presenter.install_update(self)
-        elif presenter.release is not None and presenter.release.catalog is not None:presenter.prepare_plan(download=True)
-        else:presenter.download_release()
+        else:presenter.prepare_plan(download=True)
 
     def _cancel(self):
         if self.presenter is not None:self.presenter.cancel_transfer()
@@ -179,7 +178,7 @@ class AppUpdatePage(QWidget):
         self.check_button.setEnabled(p is not None and not busy)
         self.check_button.setText("\u6b63\u5728\u68c0\u67e5\u2026" if p and p.state=="checking" else "\u68c0\u67e5\u66f4\u65b0")
         self.download_button.setVisible(release is not None)
-        incremental=bool(release and release.catalog)
+        incremental=False
         queueable=bool(p and p.state=="planning" and plan and not p._download_requested)
         self.download_button.setEnabled(p is not None and (not busy or queueable) and (not incremental or (plan is not None and not plan["conflicts"])))
         action_ready=bool(release is not None and self.download_button.isEnabled())
@@ -188,7 +187,7 @@ class AppUpdatePage(QWidget):
             self.download_button.style().unpolish(self.download_button)
             self.download_button.style().polish(self.download_button)
             self.download_button.update()
-        self.download_button.setText("\u91cd\u542f\u5e76\u5b89\u88c5\u66f4\u65b0" if p and p.state=="ready" else "\u4e0b\u8f7d\u66f4\u65b0" if incremental else "\u4e0b\u8f7d\u5b8c\u6574\u5305")
+        self.download_button.setText("\u91cd\u542f\u5e76\u5b89\u88c5\u66f4\u65b0" if p and p.state=="ready" else "\u4e0b\u8f7d\u5e76\u5b89\u88c5\u65b0\u7248")
         self.cancel_button.setVisible(bool(p and p._worker is not None))
         self.version_label.setText("\u5f53\u524d\u7248\u672c\uff1a"+(p.checker.current_version if p else "\u672a\u77e5")+(f"  (\u8d44\u6e90\u66f4\u65b0 {p.checker.resource_revision})" if p and p.checker.resource_revision else ""))
         messages={"idle":"\u5c1a\u672a\u68c0\u67e5\u66f4\u65b0\u3002","checking":"\u6b63\u5728\u68c0\u67e5\u66f4\u65b0\u2026",

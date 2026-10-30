@@ -127,8 +127,10 @@ def _run_checked(channel, stage, verify, cancel, *, candidates, original_host, p
         if progress:progress(dict(uncancellable=True))
         attempted=True
         evidence.emit("apply")
+        apply_acknowledged=False
         try:
             outcome=channel.call("checked_apply",sid=sid,hashes=baseline,timeout=15)
+            apply_acknowledged=outcome.get("applied") is True
             evidence.emit("apply","progress","unchanged" if outcome.get("unchanged") is True else "accepted")
             if outcome.get("unchanged") is True:
                 attempted=False
@@ -147,6 +149,9 @@ def _run_checked(channel, stage, verify, cancel, *, candidates, original_host, p
         # rpcd already emits config.change for each applied package; procd
         # reloads its registered services. Reloading after reconnect can sever it again.
         channel.ssh.close()
+        # A successful native apply reply permits client-side DHCP recovery.
+        # It is not final readiness: keep the router rollback until verification.
+        if client_recovery and apply_acknowledged:client_recovery.arm(automatic=True)
         extra=dict(network_recovery=client_recovery.payload()) if client_recovery else {}
         phase("正在重连并核对配置",deadline=deadline,rollback=True,**extra)
         while time.monotonic()<deadline-8:
@@ -199,7 +204,7 @@ def _run_checked(channel, stage, verify, cancel, *, candidates, original_host, p
             if attempted:
                 recovery_deadline=max(deadline or 0,time.monotonic())+25
                 extra=dict(network_recovery=client_recovery.start(recovery_deadline,restoring=True)) if client_recovery else {}
-                phase("正在等待原配置恢复",deadline=recovery_deadline,rollback=True,**extra)
+                phase("修改失败："+last_issue+"\n正在恢复原配置，请勿断电。",deadline=recovery_deadline,rollback=True,**extra)
                 restored=False
                 while time.monotonic()<recovery_deadline:
                     for host in tuple(dict.fromkeys((original_host,*candidates))):

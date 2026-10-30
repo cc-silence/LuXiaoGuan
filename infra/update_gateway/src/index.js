@@ -34,9 +34,12 @@ export default {
         if (code.length>96 || !env.TEST_CODE_SHA256 || hex!==env.TEST_CODE_SHA256)
           return new Response("Invalid testing code",{status:403,headers:{"Cache-Control":"no-store"}});
       }
-      let object=await env.UPDATES.get(code ? alphaKey : stableKey);
+      let object=null;
+      if(platform==="win-x64" && request.headers.get("X-RouterManager-Update-Mode")!=="full-package")
+        object=await env.UPDATES.get(code ? "channel/compat-win-x64-alpha.json" : "channel/compat-win-x64-stable.json");
+      if(!object)object=await env.UPDATES.get(code ? alphaKey : stableKey);
       if (!object && !code) object=await env.UPDATES.get(alphaKey);
-      const headers={"Cache-Control":"no-store","Vary":"X-RouterManager-Test-Code","X-Content-Type-Options":"nosniff"};
+      const headers={"Cache-Control":"no-store","Vary":"X-RouterManager-Test-Code, X-RouterManager-Update-Mode","X-Content-Type-Options":"nosniff"};
       if (!object) return new Response(null,{status:204,headers});
       if (object.size>65536) return new Response("Invalid manifest",{status:503,headers});
       const text=await object.text();

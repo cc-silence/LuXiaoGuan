@@ -12,7 +12,6 @@ from modules.config_services.capture_settings_manager import CaptureSettingsMana
 from modules.main_pages.info_panel import InfoPanel
 from modules.main_pages.packet_capture.capture_page_styles import CapturePageStyleManager
 from modules.main_pages.packet_capture.openwrt.openwrt_page import OpenWrtPage
-from modules.main_pages.packet_capture.openwrt.ui_features import PMKID_UI_VISIBLE
 from modules.common_widgets.common_dialogs import MessageDialog
 from modules.main_pages.packet_capture.openwrt.confirmation_helpers import confirm_host_fingerprint
 from modules.main_pages.packet_capture.openwrt.confirmation_helpers import confirm_fingerprint_change
@@ -133,7 +132,9 @@ class PacketCapturePage(QFrame):
             color_success_messages=True,
             log_category=log_category,
             export_context_provider=self._router_export_context,
-            diagnostic_references=lambda: self.capture_service.dependency_service.diagnostic_references(),
+            diagnostic_references=lambda: (
+                *self.capture_service.dependency_service.diagnostic_references(),
+                *self.capture_service.auto_capture.diagnostic_references()),
         )
 
 
@@ -231,9 +232,6 @@ class PacketCapturePage(QFrame):
             return
         if action == "scan":
             self._start_openwrt_scan()
-            return
-        if action == "pmkid":
-            self._start_openwrt_pmkid()
             return
         if action == "handshake":
             self._start_openwrt_handshake()

@@ -27,7 +27,8 @@ def apply_operations(owner, snapshot, operations, cancel, report):
         return dict(snapshot["hashes"])
     def verify(remote,sid):
         readiness=remote.call("policy_applied",operations=operations)
-        if readiness.get("ready") is not True:return False
+        if readiness.get("ready") is not True:
+            evidence.mismatch("saved_values");return False
         current=remote.call("snapshot")
         if desired and not network_ready(readiness.get("network_state"),current["configs"]["network"]["lan"],snapshot["configs"]["network"]["lan"],evidence=evidence):return False
         removed={op["section"] for op in operations if op.get("config")=="wireless" and op.get("action")=="delete_section"}
@@ -54,7 +55,12 @@ def apply_operations(owner, snapshot, operations, cancel, report):
             state=wireless._call("status",Event(),radio=row["device"],section=section,mode=row["mode"],
                 expected_mac=row.get("macaddr"),network=row.get("network", ""),bridge_mode="routed",timeout=8,
                 require_connection=row.get("mode")!="sta" or section in associated or section in added)
-            if state.get("ready") is not True:return False
+            if state.get("ready") is not True:
+                reason=state.get("reason")
+                if state.get("configuration_pending") and reason not in {"wireless_config_"+key for key in ("mode","ssid","encryption","key","macaddr","channel","htmode","country","txpower")}:reason="wireless_configuration_pending"
+                elif state.get("identity_pending"):reason="wireless_identity_pending"
+                evidence.mismatch(reason if reason in {"wireless_config_"+key for key in ("mode","ssid","encryption","key","macaddr","channel","htmode","country","txpower")} | {"wireless_interface_pending","wireless_configuration_pending","wireless_identity_pending","wireless_ap_pending","wireless_association_pending"} else "wireless_runtime_pending")
+                return False
         final=remote.call("snapshot")
         if final["hashes"]!=current["hashes"] or final["files"]!=current["files"]:
             raise ApplyConflict("\u6838\u9a8c\u671f\u95f4\u914d\u7f6e\u88ab\u5176\u4ed6\u5de5\u5177\u4fee\u6539\uff0c\u5df2\u4fdd\u7559\u5f53\u524d\u914d\u7f6e\u5e76\u505c\u6b62\u540e\u7eed\u64cd\u4f5c\uff0c\u8bf7\u91cd\u65b0\u8bfb\u53d6\u6838\u5bf9\u3002")
@@ -74,7 +80,8 @@ def apply_operations(owner, snapshot, operations, cancel, report):
             values={key:row[key] for key in keys if key in row and key in op.get("values",{})}
             if values:previous.append(dict(action="set",config=config,section=section,values=values))
         readiness=remote.call("policy_applied",operations=previous)
-        if readiness.get("ready") is not True:return False
+        if readiness.get("ready") is not True:
+            evidence.mismatch("saved_values");return False
         return not desired or network_ready(readiness.get("network_state"),snapshot["configs"]["network"]["lan"],evidence=evidence)
     result=run_checked(channel,stage,verify,cancel,candidates=targets,original_host=owner._apply_host,progress=report,close_channel=False,restore_verify=restore_verify,
         client_recovery=recovery,evidence=evidence)

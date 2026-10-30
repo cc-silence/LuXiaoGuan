@@ -1,6 +1,6 @@
 """Dependency confirmations only; execution stays in the resident service."""
-from modules.common_widgets.common_dialogs import ConfirmDialog
-from modules.capture_services.openwrt.dependency_groups import CAPTURE_KEYS, CAPTURE_PACKAGES, missing_packages
+from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
+from modules.capture_services.openwrt.dependency_groups import CAPTURE_KEYS, CAPTURE_PACKAGES, CAPTURE_REMOVABLE_PACKAGES, missing_packages
 from .package_select_dialog import PackageSelectDialog
 
 
@@ -47,15 +47,21 @@ def install_capture(page, key=None):
     if not missing and all(name in rows and rows[name].state.value == "ready" for name in keys):
         page.settings_info_panel.append_info("选中的抓包依赖齐全，无需安装。", "success")
         return
+    upgrade = key == "pmkid" and rows.get(key) is not None and rows[key].state.value == "upgradable"
     preview = "、".join(missing) if missing else "先重新检查选中的抓包功能，再列出实际缺项"
     text = ("将检查以下路由器软件，仅安装缺失项：" + preview + "。\n\n"
             "只检查选中的抓包功能；常用工具由下方分组单独管理。"
             "扫描和抓包共用 iw、ip，缺少时按系统实际情况补装 iw、ip-tiny。\n\n"
             "复用统一安装流程：本地离线包 → 路由器在线软件源 → 电脑下载转装。"
             "只补必要缺项，不升级已有软件；安装期间不要断电或重启路由器。")
+    if upgrade:
+        text = "\u5c06\u5347\u7ea7 hcxdumptool \u81f3 6.3.4\uff0c\u4fdd\u7559\u73b0\u6709\u516c\u5171\u8fd0\u884c\u5e93\uff0c\u5b89\u88c5\u540e\u91cd\u65b0\u68c0\u6d4b\u3002"
     if ConfirmDialog("安装抓包依赖", text, page, yes_text="确认安装", no_text="取消").exec() != ConfirmDialog.Accepted:
         return
-    service.install_async(features, scope="capture", items=(key,) if key else None)
+    if upgrade:
+        service.upgrade_hcx_async()
+    else:
+        service.install_async(features, scope="capture", items=(key,) if key else None)
 
 
 def uninstall_capture(page, key=None):
@@ -64,9 +70,11 @@ def uninstall_capture(page, key=None):
         return
     service, features, keys, snapshot = context
     if key is None:
-        packages = service.installed_packages(snapshot.dependencies, include_sftp=False)
+        allowed = {package for values in CAPTURE_REMOVABLE_PACKAGES.values() for package in values}
+        packages = [package for package in service.installed_packages(snapshot.dependencies, include_sftp=False)
+                    if package in allowed]
     else:
-        packages = list(CAPTURE_PACKAGES[key])
+        packages = list(CAPTURE_REMOVABLE_PACKAGES[key])
     if not packages:
         page.settings_info_panel.append_info("没有可卸载的独立抓包软件包。", "info")
         return
@@ -80,4 +88,9 @@ def uninstall_capture(page, key=None):
         return
     selected = dialog.selected_packages()
     if selected:
-        service.uninstall_async(features, selected, scope="capture", items=(key,) if key else None)
+        try:
+            service.uninstall_async(features, selected, scope="capture", items=(key,) if key else None)
+        except ValueError as exc:
+            import logging
+            logging.getLogger("routermanager.dependency").exception("Capture uninstall request rejected")
+            MessageDialog("\u65e0\u6cd5\u5378\u8f7d", str(exc), page).exec()

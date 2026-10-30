@@ -11,7 +11,7 @@ from modules.app_update_services.trust import PUBLIC_KEY
 from modules.capture_services.openwrt.common_bundle_manifest import verify_bundle_manifest
 from .cloudflare import ROOT
 from .storage_api import StorageAPI
-from modules.app_update_services.release_targets import APPLICATION_CHANNELS, release_channel
+from modules.app_update_services.release_targets import RETAINED_APPLICATION_CHANNELS as APPLICATION_CHANNELS, release_channel
 
 class StorageQuotaError(ValueError):
     """Safe ordinary reclamation cannot fit the proposed immutable upload."""
@@ -105,7 +105,7 @@ def protected_releases(api, inventory):
                     or archive.split("/")[-2] != release.sha256):
                 raise ValueError("Current application archive is missing or differs from its signature")
             protected.add(archive)
-            ceilings[(platform, channel)] = version_key(release.version)
+            ceilings[(platform, channel)] = max(ceilings.get((platform, channel),version_key(release.version)),version_key(release.version))
         else:
             payload = verify_bundle_manifest(raw, kind=kind)
             protected.add(urlsplit(payload["url"]).path.lstrip("/"))

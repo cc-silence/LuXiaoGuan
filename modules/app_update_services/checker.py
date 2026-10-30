@@ -9,7 +9,7 @@ from PySide6.QtCore import QObject, QTimer, Signal, QUrl
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkProxy, QNetworkRequest, QNetworkReply
 from .manifest import MAX_MANIFEST_BYTES, https_url, verify_manifest, version_key
 from .trust import PUBLIC_KEY
-from modules.platform_services.app_update_support import update_unavailable_reason, require_native_updater
+from modules.platform_services.app_update_support import package_unavailable_reason, require_package_platform
 from .diagnostics import record, endpoint_host, exception_chain, begin_operation, response_trace, route_identity
 
 
@@ -36,7 +36,7 @@ class UpdateChecker(QObject):
         self.resource_revision = 0
         self._load_revision()
         from modules.platform_services.app_update_access import read_code
-        self.test_code = "" if update_unavailable_reason() else read_code()
+        self.test_code = "" if package_unavailable_reason() else read_code()
         self.latest = None
         self.manifest_data = b""
         self._stage = "manifest"
@@ -71,13 +71,18 @@ class UpdateChecker(QObject):
         begin_operation("check", self.current_version)
         record("check_started", version=self.current_version, manual=manual, testing=bool(self.test_code))
         try:
-            require_native_updater()
+            package_platform = require_package_platform()
             if self.config_path.stat().st_size > 4096:
                 raise ValueError("Update channel configuration is too large")
             config = json.loads(self.config_path.read_text(encoding="utf-8"))
             if config.get("schema") != 1 or config.get("enabled") is not True or not self.public_key:
                 raise ValueError("\u81ea\u52a8\u66f4\u65b0\u670d\u52a1\u5c1a\u672a\u542f\u7528\u3002")
             self._url = https_url(config.get("manifest_url"))
+            if package_platform == "linux-x64":
+                from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+                parts = urlsplit(self._url)
+                query = dict(parse_qsl(parts.query));query["platform"] = package_platform
+                self._url = urlunsplit(parts._replace(query=urlencode(query)))
             from modules.network_policy import allowed_channels
             mode = config.get("network_mode", "auto")
             if mode not in {"auto", "proxy", "direct"}:
@@ -131,6 +136,7 @@ class UpdateChecker(QObject):
         request = QNetworkRequest(QUrl(self._url))
         request.setRawHeader(b"User-Agent", ("RouterManager/" + self.current_version).encode("ascii"))
         request.setRawHeader(b"Accept", b"application/json")
+        request.setRawHeader(b"X-RouterManager-Update-Mode", b"full-package")
         if self._stage == "manifest" and self.test_code:
             request.setRawHeader(b"X-RouterManager-Test-Code", self.test_code.encode("ascii"))
         request.setAttribute(QNetworkRequest.RedirectPolicyAttribute, QNetworkRequest.ManualRedirectPolicy)
@@ -219,15 +225,8 @@ class UpdateChecker(QObject):
                 self._finish(error="\u66f4\u65b0\u4fe1\u606f\u6821\u9a8c\u5931\u8d25\uff0c\u5df2\u505c\u6b62\u4f7f\u7528\u5176\u4e0b\u8f7d\u5730\u5740\u3002")
             else:
                 record("release_verified", version=release.version, revision=release.catalog_sha256 or "")
-                if self._stage == "manifest" and release.catalog_url:
-                    self._candidate = release
-                    self._stage = "catalog"
-                    self._url = release.catalog_url
-                    self._deadline.start(self.TIMEOUT_MS * (len(self._channels) + 2))
-                    self._request()
-                else:
-                    self.latest = release
-                    self._finish(release=release if (version_key(release.version), release.resource_revision) > (version_key(self.current_version), self.resource_revision) else None)
+                self.latest = release
+                self._finish(release=release if version_key(release.version) > version_key(self.current_version) else None)
 
     def _timeout(self):
         record("deadline_failed", stage=self._stage, error="timeout")

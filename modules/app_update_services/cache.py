@@ -24,12 +24,22 @@ def _json(path, limit=MAX_CATALOG_BYTES):
 
 def _verified(stage):
     manifest=stage/"manifest.json";catalog=stage/"catalog.json"
-    if linked(manifest) or manifest.stat().st_size>65536 or linked(catalog) or catalog.stat().st_size>MAX_CATALOG_BYTES:
+    if linked(manifest) or manifest.stat().st_size>65536:
         raise ValueError("Invalid signed cache metadata")
     release=verify_manifest(manifest.read_bytes(),PUBLIC_KEY)
-    if release.catalog_sha256!=stage.name:
-        raise ValueError("Cache identity mismatch")
+    if not release.catalog_url:
+        if stage.name!=release.sha256:raise ValueError("Cache package identity mismatch")
+        archive=stage/'package.zip'
+        if linked(archive):raise ValueError("Linked full-package cache")
+        if not archive.exists() or archive.stat().st_size<release.size:
+            if (stage/'journal.json').exists():raise ValueError('Incomplete package with an install journal')
+            return release,dict(files=[])
+        from .full_package import prepare_package
+        return release,prepare_package(archive,release,stage,stage.parent.parent,extract=False)
+    if linked(catalog) or catalog.stat().st_size>MAX_CATALOG_BYTES:raise ValueError('Invalid catalog metadata')
+    if release.catalog_sha256!=stage.name:raise ValueError('Cache identity mismatch')
     return release,parse_catalog(catalog.read_bytes(),release)
+
 
 
 def cleanup_stage(stage,remove_metadata=False,*,obsolete=False,cancel=lambda:False):
@@ -45,12 +55,12 @@ def cleanup_stage(stage,remove_metadata=False,*,obsolete=False,cancel=lambda:Fal
         entries=journal.get("entries")
         if not isinstance(entries,list) or len(entries)>12005:
             raise ValueError("Invalid update journal inventory")
-    _,catalog=_verified(stage)
+    release,catalog=_verified(stage)
     from modules.platform_services.app_update_runtime import cleanup_runtime
     if cancel():return False
     pending=not cleanup_runtime(stage)
     pending=not cleanup_runtime(stage,True) or pending
-    paths=[]
+    paths=[stage/"extracting.part"] if not release.catalog_url else []
     for item in catalog["files"]:
         paths.extend((stage/(item["sha256"]+".file"),stage/(item["blob_sha256"]+".z"),
                       stage/(item["sha256"]+".part"),stage/(item["blob_sha256"]+".part")))
@@ -67,6 +77,10 @@ def cleanup_stage(stage,remove_metadata=False,*,obsolete=False,cancel=lambda:Fal
     if backup.is_dir():
         try:backup.rmdir()
         except OSError:pending=True
+    if remove_metadata and not pending and not release.catalog_url:
+        archive=stage/'package.zip'
+        if linked(archive):raise ValueError('Linked full-package cache')
+        archive.unlink(missing_ok=True)
     if remove_metadata and not pending:
         # Preserve unknown content and its evidence; never recursively delete it.
         if any(p.name not in METADATA for p in stage.iterdir()):return False
@@ -104,14 +118,14 @@ def prune_completed(root,current_version=None,*,keep_stage=None,cancel=lambda:Fa
                         journal=stage/"journal.json"
                         if journal.is_file():
                             if _json(journal).get("state") in {"complete","rolled_back"}:
-                                completed.append((version_key(release.version),stage.stat().st_mtime,stage))
+                                completed.append((version_key(release.version),stage.stat().st_mtime,stage,not bool(release.catalog_url)))
                         elif current_key is not None and version_key(release.version)<=current_key:
                             drafts.append(stage)
                     except (OSError,ValueError,KeyError,TypeError):
                         LOG.warning("Skipped unverified update cache %s",stage.name)
-                for index,(_,_,stage) in enumerate(sorted(completed,reverse=True)):
+                for index,(_,_,stage,full_package) in enumerate(sorted(completed,reverse=True)):
                     if cancel():return
-                    try:cleanup_stage(stage,remove_metadata=name==LEGACY_CACHE_DIRECTORY or index>=2,cancel=cancel)
+                    try:cleanup_stage(stage,remove_metadata=full_package or name==LEGACY_CACHE_DIRECTORY or index>=2,cancel=cancel)
                     except (OSError,ValueError,KeyError,TypeError):LOG.warning("Update cache cleanup deferred: %s",stage.name)
                 for stage in drafts:
                     if cancel():return

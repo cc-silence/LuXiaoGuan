@@ -62,14 +62,15 @@ def install_primary(manager, device, sftp_available, cancel, tell, cache_dir, up
     from .installation_sources import install_with_sources
     from .apk_plan import parse_actions
     from .package_space import ipk_installed_size, required_kb
-    if device is None or not sftp_available:
+    if device is None:
         return False
     pm = getattr(device, "package_manager", "")
     arch = str(getattr(device, "package_architecture", "") or "")
     if pm not in {"opkg", "apk"} or arch not in {"mipsel_24kc", "aarch64_cortex-a53"}:
         return False
     branch = "25.12" if pm == "apk" else "24.10"
-    bundle = Path(BASE_DIR) / "tools" / "hc_offline_pack" / branch / arch
+    from modules.platform_services.bundled_tools import bundled_tools
+    bundle = bundled_tools(BASE_DIR) / "hc_offline_pack" / branch / arch
     if not (bundle / "manifest.json").is_file():
         return False
     manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
@@ -102,12 +103,8 @@ def install_primary(manager, device, sftp_available, cancel, tell, cache_dir, up
     remote = directory + "/" + package.name
     checked_run(manager, "hcx_prepare", "mkdir -m 700 " + q(directory), cancel)
     try:
-        with ssh.transfer(cancel, timeout=60):
-            sftp = ssh.open_sftp(timeout=10, cancel_event=cancel)
-            try:
-                sftp.put(str(package), remote)
-            finally:
-                sftp.close()
+        push = uploader or manager._package_uploader(sftp_available, cancel, tell)
+        push(str(package), remote)
         output = checked_run(manager, "hcx_uploaded_hash", "sha256sum " + q(remote), cancel)
         if not output.split() or output.split()[0] != row["sha256"]:
             raise RuntimeError("Uploaded hcx checksum mismatch")
