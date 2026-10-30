@@ -123,6 +123,8 @@ class FullPackageFlowTests(unittest.TestCase):
  def test_transfer_downloads_one_whole_zip_and_stages_without_cloud_catalog(self):
   from modules.app_update_services.full_package_transfer import FullPackageTransfer
   stage,release=self.archive();raw=signed(dict(PAYLOAD,size=release.size,sha256=release.sha256))
+  (stage/'package.zip').unlink();stage.rmdir();stage.parent.rmdir()
+  self.assertFalse(stage.parent.exists())
   worker=FullPackageTransfer(self.root,raw);results=[];errors=[]
   worker.result.connect(results.append);worker.failed.connect(errors.append)
   def receive(url,target,limit,cancel,progress,deadline,**kwargs):

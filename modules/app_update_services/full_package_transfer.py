@@ -25,7 +25,6 @@ class FullPackageTransfer(QThread):
             require_native_updater()
             release=verify_manifest(self.manifest,PUBLIC_KEY)
             stage=validate_stage(self.root/CACHE_DIRECTORY/release.sha256,self.root)
-            stage.parent.mkdir(parents=True,exist_ok=True)
             from .cache import prune_completed
             prune_completed(self.root,current_version=release.version,keep_stage=stage,cancel=self.cancel_event.is_set)
             with cache_lock(stage.parent) as acquired:

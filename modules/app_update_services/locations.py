@@ -37,6 +37,10 @@ def cache_lock(cache):
     lock_path = cache / "install.lock"
     if cache.name not in CACHE_DIRECTORIES or linked(cache.parent) or linked(cache) or linked(lock_path):
         raise ValueError("Invalid update cache lease")
+    # The lease owns its container, including first download after cache removal.
+    cache.mkdir(exist_ok=True)
+    if linked(cache) or linked(lock_path):
+        raise ValueError("Invalid update cache lease")
     handle = lock_path.open("a+b")
     acquired = False
     try:

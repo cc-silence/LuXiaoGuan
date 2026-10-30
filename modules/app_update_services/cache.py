@@ -142,9 +142,7 @@ def prune_completed(root,current_version=None,*,keep_stage=None,cancel=lambda:Fa
                     if cancel():return
                     try:cleanup_stage(stage,remove_metadata=True,obsolete=True,cancel=cancel)
                     except (OSError,ValueError,KeyError,TypeError):LOG.warning("Obsolete update download cleanup deferred: %s",stage.name)
-            # Retire an empty legacy/current container after releasing its lease.
-            if not any(p.name!="install.lock" for p in cache.iterdir()):
-                (cache/"install.lock").unlink(missing_ok=True)
-                cache.rmdir()
+            # Keep the shared lease inode stable for download, install and cleanup.
+            # Removing it after unlock can split concurrent owners across two locks.
         except OSError:
             LOG.warning("Update cache is busy or unavailable: %s",name)
