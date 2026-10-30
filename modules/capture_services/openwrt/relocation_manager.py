@@ -7,6 +7,7 @@ from .signal_manager import SignalError
 from ..configuration_progress import phase
 from .wireless_setup_commands import PROBE
 from .relocation_identity import generate_relocation_hostname
+from .relocation_access_points import relocation_identities
 
 
 class RelocationManager:
@@ -20,6 +21,7 @@ class RelocationManager:
             return self.wireless._call(action, cancel, **values)
         except SignalError as exc:
             messages = {
+                "move_ap_support": "无法确认自建热点支持更换名称和无线地址，未执行清理。",
                 "move_system": "无法唯一确认系统主机名配置，未执行清理。",
                 "move_management": "局域网或基础有线网络依赖待清理接口，无法在保留登录配置的同时清理。",
                 "move_shared": "保留接口的 MAC 修改目标无法唯一确认，未执行清理。",
@@ -28,7 +30,9 @@ class RelocationManager:
                 raise SignalError(exc.code, messages[exc.code]) from None
             raise
 
-    def preview(self, cancel):
+    def preview(self, cancel, *, preserve_access_points=True):
+        if type(preserve_access_points) is not bool:
+            raise ValueError("Invalid relocation choice.")
         base = self.wireless.signal.probe_dependencies(cancel)
         if not all(base.get(k) for k in ("lua", "uci", "ubus", "jsonc", "root", "sha256sum")):
             raise SignalError("dependencies", "缺少安全清理所需组件或管理员权限。")
@@ -37,8 +41,8 @@ class RelocationManager:
         flags = dict(line.split("=", 1) for line in probe.splitlines() if "=" in line)
         if any(flags.get(k) != "1" for k in ("bus_uci", "bus_session", "rollback")):
             raise SignalError("dependencies", "当前系统不支持完整的配置自动回滚，未执行清理。")
-        review = self._call("move_preview", cancel)
-        for key in ("rows", "targets", "removed", "skipped", "related"):
+        review = self._call("move_preview", cancel, preserve_access_points=preserve_access_points)
+        for key in ("rows", "targets", "removed", "skipped", "related", "access_points", "addresses"):
             if review.get(key) == {}:
                 review[key] = []
         review.setdefault("skip_reasons", {})
@@ -47,7 +51,7 @@ class RelocationManager:
             review["skip_reasons"] = {}
         self._validate(review)
         review["plan"] = {"hostname": generate_relocation_hostname(review["hostname"]), "macs": []}
-        used = {t["old_mac"].lower() for t in review["targets"]}
+        used = set(review["addresses"]) | {t["old_mac"].lower() for t in review["targets"]}
         for _ in review["targets"]:
             while True:
                 raw = bytearray(secrets.token_bytes(6))
@@ -57,6 +61,7 @@ class RelocationManager:
                     used.add(mac)
                     review["plan"]["macs"].append(mac)
                     break
+        review["plan"]["access_points"] = relocation_identities(review)
         return review
 
     @staticmethod
@@ -64,13 +69,28 @@ class RelocationManager:
         def text(v, limit):
             return isinstance(v, str) and len(v) <= limit and not any(ord(c) < 32 for c in v)
         valid = isinstance(review, dict) and bool(re.fullmatch(r"[a-fA-F0-9]{320}", str(review.get("token", ""))))
+        valid = valid and type(review.get("preserve_access_points")) is bool
         valid = valid and text(review.get("hostname"), 253) and bool(re.fullmatch(r"[A-Za-z0-9_]+", str(review.get("system", ""))))
-        for key in ("rows", "targets", "removed", "skipped", "related"):
+        for key in ("rows", "targets", "removed", "skipped", "related", "access_points", "addresses"):
             valid = valid and isinstance(review.get(key), list) and len(review[key]) <= 256
         if not valid:
             raise SignalError("response", "搬家清理预览无效，未执行修改。")
+        if not review["preserve_access_points"] and review["access_points"]:
+            raise SignalError("response", "Invalid relocation preservation plan.")
         for row in review["rows"]:
             valid = valid and isinstance(row, dict) and all(text(row.get(k), limit) for k, limit in (("section", 128), ("ssid", 128), ("mode", 32)))
+        sections = set()
+        for row in review['access_points']:
+            valid = valid and isinstance(row, dict)
+            if not valid:break
+            valid = (row.get('mode') == 'ap'
+                     and all(text(row.get(k), n) for k,n in (('section',128),('ssid',128),('device',128),('macaddr',17),('runtime_mac',17)))
+                     and bool(re.fullmatch(r"[A-Za-z0-9_]+", row['section']))
+                     and row['section'] not in sections
+                     and type(row.get('disabled')) is bool and type(row.get('radio_disabled')) is bool)
+            if not valid:break
+            sections.add(row['section'])
+        valid = valid and all(isinstance(mac,str) and re.fullmatch(r'(?:[a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}',mac) for mac in review['addresses'])
         for target in review["targets"]:
             valid = valid and isinstance(target, dict) and all(text(target.get(k), limit) for k, limit in (("device", 64), ("section", 128), ("old_mac", 17)))
             valid = valid and bool(re.fullmatch(r"(?:[a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}", str(target.get("old_mac", "")))) and type(target.get("legacy")) is bool
@@ -113,6 +133,10 @@ class RelocationManager:
 
     def _apply(self, review, cancel, message):
         self._validate(review)
+        try:
+            relocation_identities(review, review['plan']['access_points'])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise SignalError('identity', str(exc)) from None
         if cancel.is_set():
             raise InterruptedError("清理已取消。")
         sid = self._call("session", cancel, relocation=True).get("sid", "")
@@ -128,7 +152,8 @@ class RelocationManager:
             stage_attempted = True
             if self._reconnect:self._reconnect.deadline=time.monotonic()+82
             applied = self._call("move_stage", cancel, timeout=30, sid=sid, review_token=review["token"],
-                                 review_targets=review["targets"], dhcp_revision=review["token"][192:256], token=secrets.token_hex(8), plan=review["plan"])
+                                 review_targets=review["targets"], review_rows=review["rows"],
+                                 preserve_access_points=review["preserve_access_points"], dhcp_revision=review["token"][192:256], token=secrets.token_hex(8), plan=review["plan"])
             if self._reconnect:self._reconnect.fresh()
             deadline = self._reconnect.deadline if self._reconnect else time.monotonic()+40
             phase("\u6b63\u5728\u6838\u5bf9\u6e05\u7406\u548c\u65b0\u8eab\u4efd",deadline=deadline,rollback=True)
@@ -153,12 +178,13 @@ class RelocationManager:
                 if status.get("ready") is True:
                     break
                 if time.monotonic() >= deadline:
-                    raise SignalError("unconfirmed", "新身份或无线停止状态未确认，正在恢复。")
+                    raise SignalError("unconfirmed", "新身份或保留热点的运行状态未确认，正在恢复。")
                 cancel.wait(min(1, max(0, deadline-time.monotonic())))
             phase("\u6b63\u5728\u786e\u8ba4\u4fdd\u7559\u65b0\u914d\u7f6e",seconds=10,rollback=True)
             self._call("finish", cancel, timeout=10, sid=sid, confirm=True, unapplied=False)
             confirmed = True
-            return {"hostname": review["plan"]["hostname"], "removed": len(review["rows"]), "macs": len(review["targets"]), "skipped": review["skipped"]}
+            return {"hostname": review["plan"]["hostname"], "removed": len(review["rows"]), "macs": len(review["targets"]), "skipped": review["skipped"], "access_points": review["plan"]["access_points"], "preserve_access_points": review["preserve_access_points"],
+                    "removed_access_points": sum(row["mode"]=="ap" for row in review["rows"])}
         except Exception as exc:
             failure = exc
             raise
@@ -186,7 +212,7 @@ class RelocationManager:
                                 self._reconnect.fresh()
                             uncertain=not isinstance(failure,SignalError) or failure.code in ("transport","timeout","disconnected","response")
                             if applied is not None or (stage_attempted and uncertain):
-                                restored=self._call("move_preview",cleanup,timeout=8)
+                                restored=self._call("move_preview",cleanup,timeout=8,preserve_access_points=review["preserve_access_points"])
                                 if restored.get("token")!=review["token"]:
                                     if finish_error is not None:raise finish_error
                                     raise ValueError("Recovery revision differs")

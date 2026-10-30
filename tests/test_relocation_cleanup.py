@@ -33,7 +33,7 @@ class RelocationCleanupTests(unittest.TestCase):
         self.assertFalse(any(n.startswith("wwan") for n in self.device.config["network"]))
         self.assertEqual(self.device.config["firewall"]["zone_wan"]["network"],["wan"])
         self.assertEqual(self.device.config["network"]["lan"]["ipaddr"],"192.168.8.1")
-        self.assertFalse(any(r.get(".type")=="wifi-iface" for r in self.device.config["wireless"].values()))
+        self.assertEqual([r["mode"] for r in self.device.config["wireless"].values() if r.get(".type")=="wifi-iface"], ["ap"])
 
     def test_shared_relays_routes_and_address_pools_are_removed_together(self):
         self.seed_old_networks()

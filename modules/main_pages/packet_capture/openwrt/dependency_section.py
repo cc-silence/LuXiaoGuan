@@ -76,6 +76,12 @@ class DependencySection:
         self.layout.addWidget(self.install_button)
         self.install_button.setProperty("dependencyInstallPrimary", True)
         self.install_button.setEnabled(False)
+        self.task_progress = None
+        if dependency_service is not None:
+            from .capture_dependency_progress import CaptureDependencyProgress
+            self.task_progress = CaptureDependencyProgress(
+                self.card, dependency_service,
+                lambda task: task.group == "capture" and self.card.isVisible())
 
     def _row_clicked(self,key):
         session=self.tool_buttons[key].property("dependencyStopSession")
@@ -99,6 +105,8 @@ class DependencySection:
 
     def dispose(self):
         """\u91ca\u653e\u9875\u9762\u8ba2\u9605\uff0c\u5e38\u9a7b\u4e0b\u8f7d\u4efb\u52a1\u7ee7\u7eed\u3002"""
+        if self.task_progress is not None:
+            self.task_progress.dispose()
         if self.offline_controls is not None:
             self.offline_controls.dispose()
 

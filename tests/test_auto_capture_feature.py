@@ -581,6 +581,8 @@ __WINBOX_KERNEL__=5.15.137
                 return RemoteCommandResult(name, 0, "wireless.radio0=wifi-device\nwireless.radio0.band='2g'\n__WINBOX_SNAP_IWDEV__\nphy#0\n__WINBOX_SNAP_WIFISTATUS__\n{}", "")
             if name == "radio_identity_probe":
                 return RemoteCommandResult(name, 0, '__RM_PHYS__\nphy0\n__RM_PHYS_OK__\n__RM_RADIO__radio0\n{"phyname":"phy0"}\n__RM_END__\n', "")
+            if name == "sweep_stale":
+                return RemoteCommandResult(name, 0, "ABSENT", "")
             if name == "ensure_phy_stubs":
                 return RemoteCommandResult(name, 0, "STUB_CREATED:hcxstub1\n", "")
             if name == "probe_hcx_dialect":

@@ -8,7 +8,7 @@ from .openwrt.dependency_manager import OpenWrtDependencyManager
 from .openwrt.common_tool_dependencies import TOOL_BY_KEY, TOOL_KEYS, check_tools
 from .openwrt.models import CaptureProgress, CaptureTaskType, DependencyInfo, DependencyState
 from .openwrt.signal_package_feed import default_cache_dir
-from .openwrt.dependency_groups import CAPTURE_KEYS, CAPTURE_PACKAGES, COMMON_ITEMS, COMMON_KEYS, REQUIRED_COMMON_ITEMS, REQUIRED_COMMON_KEYS
+from .openwrt.dependency_groups import CAPTURE_KEYS, CAPTURE_PACKAGES, CAPTURE_REMOVABLE_PACKAGES, COMMON_ITEMS, COMMON_KEYS, REQUIRED_COMMON_ITEMS, REQUIRED_COMMON_KEYS
 
 
 @dataclass(frozen=True)
@@ -32,6 +32,7 @@ class OpenWrtDependencyService(QObject):
         self.owner=owner
         self.manager=OpenWrtDependencyManager(owner.openwrt_backend.command_runner)
         self._active=False
+        self.last_rejection_reason=""
         self.task=None
         self._binding=None
         self._login_prompt_binding=None
@@ -60,6 +61,10 @@ class OpenWrtDependencyService(QObject):
     def install_async(self,enabled_features,*,sftp_only=False,scope="all",items=None):
         """保留旧调用兼容；抓包入口显式使用 capture，文件传输使用 sftp_only。"""
         return self._start("install","common" if sftp_only else scope,enabled_features,items=items)
+
+    def upgrade_hcx_async(self):
+        return self._start("install", "capture", {"pmkid": True},
+                           items=("pmkid",), upgrade_hcx=True)
 
     def uninstall_async(self,enabled_features,packages=None,*,scope="all",items=None):
         return self._start("uninstall",scope,enabled_features,packages,items=items)
@@ -106,6 +111,7 @@ class OpenWrtDependencyService(QObject):
         return ssh.connected and ssh._client is binding[0] and ssh.host_fingerprint==binding[1]
 
     def _reject(self, reason, action="", group=""):
+        self.last_rejection_reason = str(reason)
         from .workflow_diagnostics import record_workflow
         record_workflow(self.owner, "dependency_request", "blocked", reason=reason, stage=action, kind=group)
         self.owner.settingsMessageGenerated.emit(reason, "warning")
@@ -113,6 +119,7 @@ class OpenWrtDependencyService(QObject):
         return False
 
     def ensure_available(self, action="", group=""):
+        self.last_rejection_reason = ""
         reject = lambda reason: self._reject(reason, action, group)
         if self.owner._shutting_down:
             return reject("\u8f6f\u4ef6\u6b63\u5728\u9000\u51fa\uff0c\u4f9d\u8d56\u4efb\u52a1\u672a\u5f00\u59cb\u3002")
@@ -125,9 +132,11 @@ class OpenWrtDependencyService(QObject):
             return reject("\u65e0\u6cd5\u786e\u8ba4\u5f53\u524d\u8bbe\u5907\u8eab\u4efd\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55\u540e\u518d\u64cd\u4f5c\u3002")
         return True
 
-    def _start(self,action,group,enabled_features,packages=None,*,items=None):
+    def _start(self,action,group,enabled_features,packages=None,*,items=None,upgrade_hcx=False):
         if group not in {"all","capture","common","common_all","login_all","terminal"} | TOOL_KEYS:raise ValueError("未知依赖分组。")
         selection = tuple(items) if items is not None else None
+        if upgrade_hcx and (action != "install" or group != "capture" or selection != ("pmkid",)):
+            raise ValueError("Explicit hcx upgrades require the pmkid capture selection")
         if selection is not None and (group != "capture" or not selection or set(selection) - CAPTURE_KEYS):
             raise ValueError("抓包依赖选择无效。")
         if group == "login_all" and (action != "install" or selection is not None or packages is not None):
@@ -141,8 +150,9 @@ class OpenWrtDependencyService(QObject):
             allowed=TOOL_BY_KEY[group].package_names
             if packages is not None and tuple(packages)!=allowed:raise ValueError("常用工具项只能卸载自己的软件包。")
             packages=allowed
-        if group=="capture" and packages and set(packages).intersection(package for tool in TOOL_BY_KEY.values() for package in tool.package_names):
-            raise ValueError("常用工具不能从抓包分组卸载。")
+        if group == "capture" and packages and set(packages) - {
+                package for key in (selection or CAPTURE_KEYS) for package in CAPTURE_REMOVABLE_PACKAGES[key]}:
+            raise ValueError("\u6293\u5305\u5206\u7ec4\u53ea\u80fd\u5378\u8f7d\u6240\u9009\u529f\u80fd\u7684\u72ec\u7acb\u5de5\u5177\uff0c\u4e0d\u5378\u8f7d\u7cfb\u7edf\u5171\u7528\u7ec4\u4ef6\u3002")
         if group=="terminal" and action=="uninstall":
             if packages is not None and tuple(packages)!=("tmux",):raise ValueError("Terminal scope only removes tmux.")
             packages=("tmux",)
@@ -198,6 +208,9 @@ class OpenWrtDependencyService(QObject):
                 if action=="check" and group=="capture":checked=self.manager.check(features, device.sftp_available, cancel)
                 elif action=="check" and group in TOOL_KEYS:checked=check_tools(self.manager.command_runner,TOOL_KEYS,cancel)
                 elif action=="check":checked=(self.manager.check_terminal(cancel),) if group=="terminal" else (self.manager.check_sftp(cancel,fresh=True),)
+                elif action=="install" and upgrade_hcx:
+                    from .openwrt.hcx_upgrade import upgrade_hcx as run_upgrade
+                    checked=run_upgrade(self.manager, device, default_cache_dir(), cancel, message)
                 elif action=="install":
                     checked=self.manager.install_all(features,device.sftp_available,device,
                         default_cache_dir(),cancel,message,include_sftp=group in {"all","common","common_all","login_all"})

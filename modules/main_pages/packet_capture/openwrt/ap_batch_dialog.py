@@ -1,4 +1,5 @@
 """Editable access-point identities; no router IO until confirmed preview."""
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QFrame
 from modules.common_widgets.frameless_dialog import FramelessDialog
 from modules.common_widgets.common_dialogs import apply_common_dialog_theme
@@ -9,12 +10,15 @@ from .signal_setup_forms import text_input,add_field,hint
 
 
 class AccessPointBatchDialog(FramelessDialog):
-    def __init__(self,snapshot,parent=None):
-        super().__init__("批量更换自建 Wi-Fi 名称和地址",parent,inherit_parent_stylesheet=False)
+    Discarded = 2
+
+    def __init__(self,snapshot,parent=None,*,mac_editable=True,description=None,
+                 title=None,continue_text=None,discard_text=None):
+        super().__init__(title or "批量更换自建 Wi-Fi 名称和地址",parent,inherit_parent_stylesheet=False)
         apply_common_dialog_theme(self,parent)
         self.set_scaled_size((720,650),(900,720))
         self.snapshot=snapshot;self.rows={}
-        self.content_layout.addWidget(hint("可手动修改每个热点的新名称和 MAC（无线地址），或点击随机同时重新生成两项。密码、频段和其他设置保留；下一步先预览。",self))
+        self.content_layout.addWidget(hint(description or "可手动修改每个热点的新名称和 MAC（无线地址），或点击随机同时重新生成两项。密码、频段和其他设置保留；下一步先预览。",self))
         self.random_all=create_settings_button("全部重新随机",self,"secondary")
         self.content_layout.addWidget(self.random_all)
         scroll=BounceScrollArea(self);scroll.setWidgetResizable(True);scroll.setFrameShape(QFrame.NoFrame)
@@ -22,17 +26,31 @@ class AccessPointBatchDialog(FramelessDialog):
         for row in build_access_point_identities(snapshot):
             section=row["section"]
             panel=QWidget(body);fields=QVBoxLayout(panel)
-            title=QHBoxLayout();title.addWidget(hint(row["old"]+" ["+section+"]",panel),1)
+            title=QHBoxLayout()
+            old_name = row["old"]+" ["+section+"]" if mac_editable else "旧 Wi-Fi 名称："+row["old"]
+            label=hint(old_name,panel);label.setTextFormat(Qt.PlainText)
+            title.addWidget(label,1)
             button=create_settings_button("随机",panel,"secondary");title.addWidget(button);fields.addLayout(title)
             name=text_input(panel,row["name"]);mac=text_input(panel,row["mac"])
             add_field(fields,panel,"新 Wi-Fi 名称",name,"")
-            add_field(fields,panel,"新 MAC 地址",mac,"")
+            mac.setReadOnly(not mac_editable)
+            if mac_editable:
+                add_field(fields,panel,"新 MAC 地址",mac,"")
+            else:
+                mac.hide()
             self.rows[section]=(name,mac,button)
             button.clicked.connect(lambda checked=False,key=section:self.randomize(key))
             layout.addWidget(panel)
         layout.addStretch(1);scroll.setWidget(body);self.content_layout.addWidget(scroll,1)
         self.error=hint("",self);self.error.hide();self.content_layout.addWidget(self.error)
-        self.continue_button,cancel=create_dialog_ok_cancel_buttons(self,"读取并预览","取消")
+        self.continue_button,cancel=create_dialog_ok_cancel_buttons(self,continue_text or "读取并预览","取消")
+        self.discard_button=None
+        if discard_text is not None:
+            self.discard_button=create_settings_button(discard_text,self,"secondary")
+            self.discard_button.setProperty("riskAction",True)
+            self.discard_button.setToolTip("不保留自建热点；下一步先列出待删除项，最后确认后才清理。")
+            self.discard_button.clicked.connect(lambda:self.done(self.Discarded))
+            self.button_layout.addWidget(self.discard_button)
         self.button_layout.addWidget(self.continue_button);self.button_layout.addWidget(cancel)
         self.continue_button.clicked.connect(self.accept);cancel.clicked.connect(self.reject)
         self.random_all.clicked.connect(lambda:self.randomize())

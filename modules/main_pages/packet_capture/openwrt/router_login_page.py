@@ -85,8 +85,8 @@ class RouterLoginPage(QWidget):
         self.dependencies = DependencySection(content, settings, self._request,service.dependency_service, owner=service)
         root.addWidget(self.dependencies.card)
         from .compatible_tool_section import CompatibleToolSection
-        self.compatible_tools=CompatibleToolSection(content,service.router_management)
-        root.addWidget(self.compatible_tools.card)
+        self.compatible_tools=CompatibleToolSection(self.dependencies.card,service.router_management)
+        self.dependencies.layout.addWidget(self.compatible_tools.card)
         from .common_tool_section import CommonToolSection
         self.common_tools=CommonToolSection(content,service)
         root.addWidget(self.common_tools.card)

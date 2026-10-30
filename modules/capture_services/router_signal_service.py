@@ -59,6 +59,8 @@ class RouterSignalService(QObject):
         self.dependencies_missing = False
         self._status_connection = None
         self._status_running = False
+        self._status_cancel_event = None
+        self._pending_foreground = None
         self._status_request_connection = None
         self._refresh_after_status = False
         owner.openwrtSnapshotChanged.connect(self._connection_changed)
@@ -74,7 +76,9 @@ class RouterSignalService(QObject):
         本模块数据已核实就自动解锁，不用手动刷新。改无线配置的任务（V）
         结束时清核实位，照样锁住。
         """
-        busy = bool(self.owner.task_controller.busy)
+        # Runtime sampling owns the transport, but does not invalidate configuration.
+        background = self._status_running and self._pending_foreground is None
+        busy = bool(self.owner.task_controller.busy and not background)
         stale = bool(busy or not self._verified)
         installing = bool(busy and self.snapshot.installing)
         changed = bool(
@@ -167,6 +171,56 @@ class RouterSignalService(QObject):
         ssh = getattr(self.owner.openwrt_backend, 'ssh_client', None)
         return getattr(ssh, '_client', None)
 
+    def defer_foreground(self, start, rejected=None, *, request_owner=None):
+        """Yield a read to one user request; resume only after worker completion.
+
+        None means no read owns the slot. True accepts one bounded request;
+        False rejects a duplicate. No remote commands run concurrently.
+        """
+        if not self._status_running:
+            return None
+        if self._pending_foreground is not None or self._status_cancel_event is None:
+            return False
+        self._pending_foreground = (
+            self._current_status_connection(), self.snapshot.inventory, start, rejected, request_owner)
+        self._refresh_after_status = False
+        self._status_cancel_event.set()
+        self._sync_transient()
+        self.snapshotChanged.emit(self.snapshot)
+        return True
+
+    def cancel_deferred(self, request_owner):
+        """An editor can cancel only its own accepted, not-yet-started request."""
+        pending = self._pending_foreground
+        if pending is None or pending[4] is not request_owner:
+            return False
+        return self.cancel()
+
+    def _finish_status_handoff(self):
+        """Called by the existing completion bridge after the read thread exits."""
+        pending = self._pending_foreground
+        if pending is None:
+            return False
+        identity, inventory, start, rejected, _request_owner = pending
+        self.owner.task_controller.finish()
+        self._status_running = self._active = False
+        self._status_cancel_event = None
+        self._pending_foreground = None
+        self._sync_transient()
+        valid = (not self.owner._shutting_down and self.snapshot.connected
+                 and identity is self._current_status_connection()
+                 and inventory is self.snapshot.inventory and not self.snapshot.stale)
+        record_workflow(self.owner, 'wireless_status', 'cancelled', reason='foreground_request')
+        if not valid or not start():
+            if rejected is not None:
+                rejected()
+            else:
+                self._message("\u64cd\u4f5c\u672a\u5f00\u59cb\uff1a\u8fde\u63a5\u6216\u4fe1\u53f7\u5217\u8868\u5df2\u53d8\u5316\uff0c\u8bf7\u91cd\u65b0\u64cd\u4f5c\u3002", 'warning')
+        self._sync_transient()
+        self.snapshotChanged.emit(self.snapshot)
+        self._dispatch_pending_refresh()
+        return True
+
     def refresh_status(self, force_internet=True):
         if self.active or self.owner.task_controller.busy:
             return False
@@ -217,7 +271,11 @@ class RouterSignalService(QObject):
         """仅取消本模块任务；返回是否发出请求，不阻塞或强制杀线程。"""
         if not self._active:
             return self.setup.cancel()
-        accepted = self.owner.cancel_openwrt_task()
+        pending = self._pending_foreground
+        self._pending_foreground = None
+        accepted = self.owner.cancel_openwrt_task() or pending is not None
+        if pending is not None and pending[3] is not None:
+            pending[3]()
         if accepted:
             self._auto_refresh_blocked = True
             self.setup._pending = False
@@ -280,6 +338,10 @@ class RouterSignalService(QObject):
         (section, enabled)=单行启停，("__repair__", section)=运行态修复。
         SignalError 转结构化结果，错误码才能穿过 worker 的字符串通道回到主线程。
         """
+        if request != ("__status__",):
+            deferred = self.defer_foreground(lambda: self._start(request))
+            if deferred is not None:
+                return deferred
         if self.owner._shutting_down or not self.snapshot.connected or self.owner.task_controller.busy:
             return False
         self._active = True
@@ -290,6 +352,7 @@ class RouterSignalService(QObject):
             self._status_running = False
             self._active = False
             return False
+        self._status_cancel_event = event if self._status_running else None
         inventory = self.snapshot.inventory
         if request is None:
             operation = self._guarded(
@@ -336,7 +399,8 @@ class RouterSignalService(QObject):
         if request not in (None, ("__status__",)):
             self.snapshot = replace(self.snapshot, wireless_status_stale=True)
         self.snapshot = replace(
-            self.snapshot, busy=True, stale=True,
+            self.snapshot, busy=not self._status_running,
+            stale=not self._status_running or not self._verified,
             installing=(request == ("__install__",)), detail=detail, detail_level="info",
         )
         self.snapshotChanged.emit(self.snapshot)
@@ -349,10 +413,13 @@ class RouterSignalService(QObject):
 
     @Slot(object)
     def _status_succeeded(self, result):
+        if self._finish_status_handoff():
+            return
         if isinstance(result, SignalFailure):
             self._status_failed(result.message, result.code)
             return
         self._status_running = False
+        self._status_cancel_event = None
         same = self.snapshot.connected and self._status_request_connection is self._current_status_connection()
         if same:
             self.snapshot = replace(self.snapshot, wireless_status=result, wireless_status_stale=False, detail_level="info",
@@ -367,7 +434,10 @@ class RouterSignalService(QObject):
 
     @Slot(str, str)
     def _status_failed(self, summary, detail):
+        if self._finish_status_handoff():
+            return
         self._status_running = False
+        self._status_cancel_event = None
         self.snapshot = replace(self.snapshot, wireless_status_stale=True, detail=summary, detail_level="warning")
         self.owner.task_controller.finish(failed=True)
         self._active = False

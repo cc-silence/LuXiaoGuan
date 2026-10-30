@@ -33,6 +33,9 @@ class MovingDevice(LuaDevice):
             if self.break_status:
                 return None, 4
             device = args.get("name")
+            if isinstance(device, str) and device.startswith('iface-'):
+                row = self.config['wireless'].get(device[6:], {})
+                return self.wrap(dict(up=True, macaddr=row.get('macaddr', '00:11:22:33:44:66'))), None
             if device is None:
                 return self.wrap({"br-lan": {"macaddr": "00:11:22:33:44:55"}, "eth1": {"macaddr": "00:11:22:33:44:56"}}), None
             for row in self.config["network"].values():
@@ -91,8 +94,13 @@ class RelocationTests(unittest.TestCase):
     def test_apply_preserves_management_system_and_radio_hardware(self):
         review = self.manager.preview(self.cancel)
         result = self.manager.apply(review, self.cancel, Mock())
-        self.assertEqual(result["removed"], 1)
-        self.assertNotIn("home", self.device.config["wireless"])
+        self.assertEqual(result["removed"], 0)
+        hotspot = self.device.config['wireless']['home']
+        expected = review['plan']['access_points'][0]
+        self.assertEqual(hotspot['ssid'], expected['name'])
+        self.assertEqual(hotspot['macaddr'], expected['mac'])
+        self.assertEqual(hotspot['key'], 'original-password')
+        self.assertNotIn('disabled', hotspot)
         self.assertEqual(self.device.config["wireless"]["radio7"], self.device.original["wireless"]["radio7"])
         self.assertEqual(self.device.config["network"]["lan"]["ipaddr"], "192.168.8.1")
         self.assertEqual(self.device.config["network"]["lan_dev"]["ports"], ["lan1", "lan2"])
@@ -151,7 +159,8 @@ class RelocationTests(unittest.TestCase):
         self.assertEqual(self.device.config["firewall"]["zone_wan"]["network"], ["wan"])
 
     def test_old_network_and_shared_relay_are_removed_together(self):
-        self.device.config["network"]["old"] = {".type": "interface", "proto": "dhcp", "rm_owner": "home"}
+        self.device.config["wireless"]["oldsta"] = {".type":"wifi-iface", "mode":"sta", "ssid":"Old", "device":"radio7", "network":"old"}
+        self.device.config["network"]["old"] = {".type": "interface", "proto": "dhcp", "rm_owner": "oldsta"}
         self.device.config["network"]["shared"] = {".type": "interface", "proto": "relay", "network": ["lan", "old"]}
         original = copy.deepcopy(self.device.config)
         review = self.manager.preview(self.cancel)

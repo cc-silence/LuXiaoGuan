@@ -115,6 +115,10 @@ def record(event, **fields):
             _omitted += 1
         _events.append(row)
         context = tuple(_events)[-32:] if event.endswith('failed') else None
+    from modules.log_history import current_history
+    history = current_history()
+    if history is not None:
+        history.append('application-update', json.dumps(row, ensure_ascii=True))
     if context:
         logging.getLogger('routermanager.update').error(_encoded_context(context))
 

@@ -7,7 +7,7 @@ function object(body) {return {body,size:Buffer.byteLength(body),httpEtag:'"etag
 function env(version="2.0.14_alpha",stable=null) {
   const calls=[];const manifest=object(JSON.stringify({payload:{version}}));
   const store={calls,TEST_CODE_SHA256:createHash("sha256").update("fixture-code").digest("hex"),UPDATES:{
-    async get(key,options) {calls.push([key,options]);return key==="channel/manifest.json" ? manifest : key==="channel/stable.json" ? stable && object(JSON.stringify({payload:{version:stable}})) : object("payload");},
+    async get(key,options) {calls.push([key,options]);return key.startsWith("channel/compat-") ? null : key==="channel/manifest.json" ? manifest : key==="channel/stable.json" ? stable && object(JSON.stringify({payload:{version:stable}})) : object("payload");},
     async head(key) {calls.push([key]);return object("payload");}
   }};return store;
 }
@@ -21,7 +21,7 @@ test("no code cannot receive alpha or beta, including HEAD and legacy manifest",
 test("valid code receives preview, wrong code or absent secret fails closed",async()=>{
  const store=env();
  let r=await get("/manifest",store,{headers:{"X-RouterManager-Test-Code":"fixture-code"}});
- assert.equal(r.status,200);assert.equal(JSON.parse(await r.text()).payload.version,"2.0.14_alpha");assert.equal(r.headers.get("Cache-Control"),"no-store");assert.equal(r.headers.get("Vary"),"X-RouterManager-Test-Code");
+ assert.equal(r.status,200);assert.equal(JSON.parse(await r.text()).payload.version,"2.0.14_alpha");assert.equal(r.headers.get("Cache-Control"),"no-store");assert.equal(r.headers.get("Vary"),"X-RouterManager-Test-Code, X-RouterManager-Update-Mode");
  for(const code of ["wrong-code", "x".repeat(97)])assert.equal((await get("/manifest",store,{headers:{"X-RouterManager-Test-Code":code}})).status,403);
  delete store.TEST_CODE_SHA256;assert.equal((await get("/manifest",store,{headers:{"X-RouterManager-Test-Code":"fixture-code"}})).status,403);
 });
@@ -170,4 +170,16 @@ test("update blobs resume with bounded ranges, suffixes and unsatisfied ranges",
  }
  const head=await get(path,store,{method:"HEAD",headers:{Range:"bytes=3-"}});
  assert.equal(head.status,200);assert.equal(head.headers.get("Content-Length"),"7");assert.equal(await head.text(),"");
+});
+
+
+test("legacy clients use a persistent bridge while new clients use full packages",async()=>{
+ const store=env("1.0.26_alpha");const read=store.UPDATES.get;
+ store.UPDATES.get=async(key,options)=>key==="channel/compat-win-x64-alpha.json" ? object(JSON.stringify({payload:{version:"1.0.25_alpha",platform:"win-x64"}})) : read(key,options);
+ const headers={"X-RouterManager-Test-Code":"fixture-code"};
+ const old=await get("/manifest",store,{headers});assert.equal(JSON.parse(await old.text()).payload.version,"1.0.25_alpha");
+ const modern=await get("/manifest",store,{headers:{...headers,"X-RouterManager-Update-Mode":"full-package"}});
+ assert.equal(JSON.parse(await modern.text()).payload.version,"1.0.26_alpha");
+ assert.equal((await get("/manifest",store)).status,204);
+ assert.equal((await get("/manifest",store,{headers:{"X-RouterManager-Test-Code":"wrong-code"}})).status,403);
 });

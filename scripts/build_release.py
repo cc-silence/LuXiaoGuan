@@ -90,6 +90,7 @@ def main():
         report["frozen_smoke_checks"]=["ssh-dependencies","six-pages-and-settings","native-terminal","update-worker","local-gpo-self-test"]
         report.update(verify_files(package,version))
         archive=ROOT/"dist"/(ARCHIVE_PREFIX+version+"_"+stamp+".zip")
+        archive.parent.mkdir(parents=True,exist_ok=True)
         report.update(make_zip(package,archive))
         from scripts.app_update_release import write_release_descriptor,file_sha256
         descriptor=write_release_descriptor(archive,version)

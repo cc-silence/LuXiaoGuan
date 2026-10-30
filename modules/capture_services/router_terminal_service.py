@@ -209,11 +209,13 @@ class RouterTerminalService(QObject):
     def _set_state(self,state):
         self.state=state
         self.statusChanged.emit(state)
+        self._persist_diagnostic('state: ' + str(state))
 
     @Slot(str)
     def _status(self,state):
         if state in {"plain","plain_missing","plain_unavailable","persistent"}:
             self.session_mode=state
+            self._persist_diagnostic('session mode: ' + state)
             return
         self._set_state(state)
 
@@ -222,12 +224,25 @@ class RouterTerminalService(QObject):
         """记录本轮失败原因并转发；页面据此显示具体卡在哪一步。"""
         self.failure_reason=str(reason or "")
         self.failureDetail.emit(self.failure_reason)
+        self._persist_diagnostic(self.failure_reason)
 
     @Slot(str)
     def _history_diagnostic(self,reason):
         """保存本次历史回放的有界诊断，供页面重建后导出。"""
         if self.sender() is self.worker:
             self.history_diagnostic=reason
+            self._persist_diagnostic(reason)
+
+    def _persist_diagnostic(self, text):
+        from modules.log_history import current_history
+        history = current_history()
+        if history is not None:
+            history.append('router-terminal', text, 'diagnostic')
+            try:
+                from modules.capture_services.local_capture_diagnostics import context_for
+                history.context('router-terminal', context_for(self.owner, history.masker))
+            except Exception as exc:
+                history.last_error = type(exc).__name__
 
     def report_component_failure(self,exc):
         """Retain safe local component failures alongside remote session failures."""

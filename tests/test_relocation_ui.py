@@ -22,6 +22,11 @@ class RelocationUiTests(unittest.TestCase):
         setup.relocate = Mock(return_value=True)
         page, service = self.create_page(light, setup)
         review = RelocationManager(WirelessSetupManager(MovingDevice())).preview(threading.Event())
+        editor = patch("modules.main_pages.packet_capture.openwrt.signal_relocation_actions.AccessPointBatchDialog").start()
+        self.addCleanup(patch.stopall)
+        editor.return_value.Accepted = ConfirmDialog.Accepted
+        editor.return_value.exec.return_value = ConfirmDialog.Accepted
+        editor.return_value.values.return_value = {"identities": review["plan"]["access_points"]}
         return page, service, setup, review
 
     def test_relocation_cancel_and_accept(self):

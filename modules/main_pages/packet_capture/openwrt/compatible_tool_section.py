@@ -6,7 +6,6 @@ from modules.main_pages.page_action_buttons import create_page_text_button
 from modules.main_pages.packet_capture.ui_helpers import create_capture_card
 
 
-from .ui_features import PMKID_UI_VISIBLE
 
 
 class CompatibleToolSection(QObject):
@@ -17,7 +16,6 @@ class CompatibleToolSection(QObject):
         self.pending={}
         self.card,self.layout=create_capture_card(parent,'PMKID 工具',
             '按当前固件和架构查找官方兼容包，并存安装，不替换原工具或系统依赖。')
-        self.card.setVisible(PMKID_UI_VISIBLE)
         self.current_tool=PrivacyLabel('',self.card)
         self.current_tool.setObjectName('captureStatusValue')
         self.layout.addWidget(self.current_tool)

@@ -8,7 +8,7 @@ import re
 import shutil
 import time
 from dataclasses import dataclass, replace
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from modules.capture_services.backends.base import CaptureBackend, CaptureBackendError
 from modules.capture_services.openwrt.command_builder import quote_argument
@@ -56,7 +56,7 @@ from modules.capture_services.openwrt.ssh_client import HostKeyConfirmationRequi
 from modules.capture_services.openwrt.wifi_scanner import OpenWrtWifiScanner
 from modules.capture_services.openwrt.wps_capture import OpenWrtWpsCapture
 from modules.capture_services.openwrt.wps_capture import WpsTargetResult
-from modules.capture_services.openwrt.workspace import CaptureWorkspaceFactory, CaptureWorkspaceManager
+from modules.capture_services.openwrt.workspace import CaptureWorkspace, CaptureWorkspaceFactory, CaptureWorkspaceManager
 from modules.capture_services.openwrt.workspace import local_session_root
 
 
@@ -645,6 +645,12 @@ class OpenWrtCaptureBackend(CaptureBackend):
             return "远端残留清理未完成，下次连接重试。"
         return ""
 
+    def note_capture_finished(self, session_id):
+        self._finished_sessions.add(str(session_id))
+        if len(self._finished_sessions) > 256:
+            self._finished_sessions.clear()
+            self._finished_sessions.add(str(session_id))
+
     def _is_own_finished_session(self, journal_path):
         """判断 journal 是否属于本机已结束任务；是则新鲜也不用等 10 分钟。
 
@@ -686,8 +692,6 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 journal_fresh = now - path.stat().st_mtime < 600
             except OSError:
                 continue
-            if journal_fresh and not self._is_own_finished_session(path):
-                continue
             try:
                 journal = SessionJournal.from_dict(
                     json.loads(path.read_text(encoding="utf-8", errors="replace"))
@@ -704,6 +708,11 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 continue
             if journal.device_fingerprint != self.ssh_client.host_fingerprint:
                 continue
+            observer = getattr(self, "capture_diagnostic_callback", None)
+            if journal.task_type == "auto_capture" and callable(observer):
+                observer(CaptureWorkspace(journal.session_id, path.parent, PurePosixPath(journal.remote_work_dir)))
+            if journal_fresh and not self._is_own_finished_session(path):
+                continue
             recovery_journal = journal
             if journal.config_token and journal.backup_path:
                 snapshot_name = Path(journal.backup_path).name
@@ -717,12 +726,13 @@ class OpenWrtCaptureBackend(CaptureBackend):
                             journal, phy=recovered_phy, interfaces=tuple(recovered_ifaces))
                     except (OSError, UnicodeError, RuntimeError, ValueError):
                         pass
-            error = self._recover_single_takeover(recovery_journal, cancel_event)
+            error = self._recover_single_takeover(recovery_journal, cancel_event, journal_path=path)
             if error is None:
                 recovered += 1
-                note = self._audit_recovered_takeover(recovery_journal, path, cancel_event)
+                note = "" if recovery_journal.config_token else self._audit_recovered_takeover(recovery_journal, path, cancel_event)
                 if note:
                     problems.append(note)
+                    continue
                 try:
                     path.unlink()
                 except OSError:
@@ -738,7 +748,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
             note += "恢复异常：" + "；".join(problems)
         return note
 
-    def _recover_single_takeover(self, journal, cancel_event):
+    def _recover_single_takeover(self, journal, cancel_event, journal_path=None):
         """恢复单个接管：wifi up 后 30 秒内核对接口名回来，返回错误或 None。"""
 
         if not journal.device_fingerprint or journal.device_fingerprint != self.ssh_client.host_fingerprint:
@@ -746,11 +756,20 @@ class OpenWrtCaptureBackend(CaptureBackend):
         if journal.config_token:
             from modules.capture_services.openwrt.radio_takeover import RadioTakeoverRecord
             try:
-                self.radio_takeover.restore(RadioTakeoverRecord(journal.session_id,
-                    journal.radio, journal.phy, journal.interfaces, journal.config_token), cancel_event)
+                record = RadioTakeoverRecord(journal.session_id, journal.radio, journal.phy,
+                                             journal.interfaces, journal.config_token)
+                if journal_path is not None:
+                    from modules.capture_services.openwrt.capture_takeover import restore_takeover
+                    workspace = CaptureWorkspace(journal.session_id, journal_path.parent, PurePosixPath(journal.remote_work_dir))
+                    if journal.task_type == "auto_capture" and journal.monitor_section:
+                        from modules.capture_services.openwrt.auto_capture_recovery import check_reconnect_resources
+                        check_reconnect_resources(self.command_runner, journal)
+                    errors = restore_takeover(self.radio_takeover, self.ssh_client, workspace, record, cancel_event)
+                    return "; ".join(errors) if errors else None
+                self.radio_takeover.restore(record, cancel_event)
                 return None
             except Exception as exc:
-                return f"{journal.radio} 信号配置恢复未完成：{exc}"
+                return f"{journal.radio} \u4fe1\u53f7\u914d\u7f6e\u6062\u590d\u672a\u5b8c\u6210: {exc}"
         try:
             result = self.command_runner.run(
                 "recover_wifi_up",
@@ -1830,49 +1849,10 @@ class OpenWrtCaptureBackend(CaptureBackend):
         时禁用对应 radio 原本启用的信号。任一步失败都直接抛异常，不进入抓包。
         """
 
-        device_fingerprint = self.ssh_client.host_fingerprint
-        if not device_fingerprint:
-            raise RuntimeError("无法核实接管设备身份，拒绝修改无线配置。")
-        snapshot_text = self.radio_takeover.snapshot_wireless(cancel_event)
-        radio = self.radio_takeover.resolve_radio(
-            phy, snapshot_text, cancel_event, expected_band=expected_band)
-        safe_tag = "".join(char for char in str(tag) if char.isalnum())[:8]
-        snapshot_name = f"wireless-snapshot-{safe_tag}.txt" if safe_tag else "wireless-snapshot.txt"
-        journal_name = f"takeover-journal-{safe_tag}.json" if safe_tag else "takeover-journal.json"
-        try:
-            workspace.local_dir.mkdir(parents=True, exist_ok=True)
-            # 快照含路由器无线明文密码，落盘前脱敏；内存原文仅用于本次映射，不再外传。
-            redacted = re.sub(r"\.key='[^']*'", ".key='***'", snapshot_text)
-            (workspace.local_dir / snapshot_name).write_text(
-                redacted, encoding="utf-8", errors="replace"
-            )
-        except OSError as exc:
-            raise RuntimeError(f"无线快照本地落盘失败，拒绝接管无线网卡：{exc}") from exc
-        record = self.radio_takeover.prepare_config_takeover(phy, radio, session_id, cancel_event)
-        journal = SessionJournal(
-            session_id=str(session_id),
-            task_type=str(task_type or CaptureTaskType.HANDSHAKE.value),
-            remote_work_dir=str(workspace.remote_dir),
-            monitor_section="",
-            backup_path=snapshot_name,
-            cleanup_stage=f"takeover:{radio}",
-            radio=radio,
-            interfaces=tuple(record.interfaces),
-            phy=record.phy,
-            config_token=record.config_token,
-            device_fingerprint=device_fingerprint,
-        )
-        try:
-            (workspace.local_dir / journal_name).write_text(
-                json.dumps(journal.to_dict(), ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-        except (OSError, TypeError, ValueError) as exc:
-            raise RuntimeError(f"接管记录本地落盘失败，拒绝继续抓包：{exc}") from exc
-        self.radio_takeover.takeover_prepared(record, cancel_event)
-        if not self._notify_signal_changed(cancel_event):
-            raise RuntimeError("接管后信号列表未完成同步，已停止启动抓包并进入恢复。")
-        return record
+        from modules.capture_services.openwrt.capture_takeover import prepare_takeover
+        return prepare_takeover(self.radio_takeover, self.ssh_client, workspace,
+            session_id, phy, cancel_event, self._notify_signal_changed,
+            tag=tag, task_type=task_type, expected_band=expected_band)
 
     def _restore_task_wireless(self, workspace, takeover_record, message_callback=None, cancel_event=None):
         """恢复本任务 monitor 与接管 radio，返回清理错误列表，不抛异常。
@@ -1913,45 +1893,9 @@ class OpenWrtCaptureBackend(CaptureBackend):
             return errors
         if takeover_record is not None:
             _say("正在恢复被接管的无线…")
-            try:
-                self.radio_takeover.restore(takeover_record, cancel_event=cancel_event)
-            except Exception as exc:
-                diag_name = collect_tool_failure_diagnostics(
-                    self.command_runner,
-                    workspace,
-                    self.workspace_manager,
-                    "restore",
-                    cancel_event=cancel_event,
-                ) if self.ssh_client.connected else ""
-                note = "；无线诊断已一并保留。" if diag_name else ""
-                errors.append(f"无线恢复：{exc}{note}")
-            else:
-                if getattr(takeover_record, "config_token", ""):
-                    try:
-                        for path in workspace.local_dir.glob("takeover-journal*.json"):
-                            data = json.loads(path.read_text(encoding="utf-8"))
-                            if data.get("config_token") != takeover_record.config_token:
-                                continue
-                            data["cleanup_stage"] = "restored"
-                            temporary = path.with_suffix(".json.part")
-                            temporary.write_text(json.dumps(data, ensure_ascii=True), encoding="utf-8")
-                            temporary.replace(path)
-                    except (OSError, ValueError, TypeError) as exc:
-                        errors.append(f"信号已恢复，但恢复记录更新失败：{type(exc).__name__}")
-                try:
-                    audit_note = self.radio_takeover.audit_restore(
-                        takeover_record, cancel_event=cancel_event
-                    )
-                except Exception:
-                    audit_note = ""
-                if audit_note:
-                    try:
-                        (workspace.local_dir / "takeover-restore-audit.txt").write_text(
-                            audit_note + "\n", encoding="utf-8", errors="replace"
-                        )
-                    except OSError:
-                        pass
-                    errors.append(audit_note)
+            from modules.capture_services.openwrt.capture_takeover import restore_takeover
+            errors.extend(restore_takeover(self.radio_takeover, self.ssh_client,
+                                           workspace, takeover_record, cancel_event))
         if self.ssh_client.connected:
             self._notify_signal_changed(cancel_event=cancel_event)
         return errors

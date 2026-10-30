@@ -50,7 +50,7 @@ class PolicyDevice(CommonDevice):
         self.policy_removed=[]
         self.lua.globals().policy_remove=self.remove_policy_file
         self.lua.execute("os.remove=function(path) return policy_remove(path) end")
-        self.lua.globals().file_read=lambda path:self.files.get(path)
+        self.lua.globals().file_read=lambda path:(self.kernel_mac(path.split("/")[-2])+"\n") if path.startswith("/sys/class/net/") and self.kernel_mac(path.split("/")[-2]) else self.files.get(path)
         self.lua.globals().file_write=lambda path,data:self.files.__setitem__(path,data) or True
         self.lua.globals().file_rename=self.rename
         self.lua.execute(r'''

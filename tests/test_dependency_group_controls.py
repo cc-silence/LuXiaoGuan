@@ -65,6 +65,19 @@ class GroupTaskTests(unittest.TestCase):
         self.assertEqual(next(item for item in owner.openwrt_backend.snapshot.dependencies if item.key=="wpa_cli").state,DependencyState.MISSING)
         self.assertEqual(next(item for item in owner.openwrt_backend.snapshot.dependencies if item.key=="handshake").state,DependencyState.READY)
 
+    def test_hcx_shared_with_common_catalog_is_removable_from_pmkid(self):
+        owner, service = self.service((info("pmkid"),))
+        self.assertTrue(service.uninstall_async(
+            {"pmkid": True}, ("hcxdumptool",), scope="capture", items=("pmkid",)))
+        service.manager.uninstall_packages = Mock(return_value=())
+        service.manager.check = Mock(return_value=(info("pmkid", "missing", ("hcxdumptool",)),))
+        operation, event = owner.pending
+        result = operation(event, Mock())
+        self.assertFalse(result["error"])
+        self.assertEqual(service.manager.uninstall_packages.call_args.args[4], ("hcxdumptool",))
+        service._complete(service.task.session_id, result)
+        self.assertFalse(owner.task_controller.busy)
+
     def test_capture_scope_rejects_foreign_or_unselected_packages(self):
         for package in ("wpa-cli","tmux","iw","reaver"):
             owner,service=self.service()
@@ -156,6 +169,37 @@ class ConfirmationTests(unittest.TestCase):
             install_capture(page)
             dialog.assert_not_called()
         service.install_async.assert_not_called()
+
+    def test_upgradable_row_uses_explicit_hcx_upgrade_after_confirmation(self):
+        page, service = self.page((info("pmkid", "upgradable", ("hcxdumptool",)),))
+        target = "modules.main_pages.packet_capture.openwrt.dependency_actions.ConfirmDialog"
+        with patch(target) as dialog:
+            dialog.return_value.exec.return_value = dialog.Accepted
+            operate_capture(page, "pmkid")
+            self.assertIn("hcxdumptool", dialog.call_args.args[1])
+            self.assertIn("6.3.4", dialog.call_args.args[1])
+        service.upgrade_hcx_async.assert_called_once_with()
+        service.install_async.assert_not_called()
+        service.uninstall_async.assert_not_called()
+
+    def test_cancelled_upgrade_does_not_submit_installation(self):
+        page, service = self.page((info("pmkid", "upgradable", ("hcxdumptool",)),))
+        target = "modules.main_pages.packet_capture.openwrt.dependency_actions.ConfirmDialog"
+        with patch(target) as dialog:
+            dialog.return_value.exec.return_value = object()
+            operate_capture(page, "pmkid")
+        service.upgrade_hcx_async.assert_not_called()
+        service.install_async.assert_not_called()
+
+    def test_missing_pmkid_keeps_standard_installation_path(self):
+        page, service = self.page((info("pmkid", "missing", ("hcxdumptool",)),))
+        target = "modules.main_pages.packet_capture.openwrt.dependency_actions.ConfirmDialog"
+        with patch(target) as dialog:
+            dialog.return_value.exec.return_value = dialog.Accepted
+            operate_capture(page, "pmkid")
+        service.upgrade_hcx_async.assert_not_called()
+        service.install_async.assert_called_once_with(
+            {"scan": True, "handshake": False}, scope="capture", items=("pmkid",))
 
     def test_system_row_only_checks_and_never_uninstalls(self):
         page,service=self.page((info("password"),))

@@ -22,12 +22,17 @@ SAFE_VALUES["operation"] |= ACTIONS | {"configuration_apply"}
 SAFE_VALUES["stage"] |= {"queue","progress","preflight","commit","download","publish","reboot","validation","connect","capabilities","session","stage","apply","verify","confirm","rollback","restore_verify","discard","finish"}
 SAFE_VALUES["reason"] |= {"accepted","unchanged","reply_lost","verified","verification_false","native_rpc_error","exception","restored","restore_unconfirmed","renewal_busy",
     "saved_values","runtime_missing","runtime_pending","runtime_up","runtime_proto","runtime_device","runtime_ipv4","runtime_ipv4_mask","runtime_gateway4","runtime_gateway6","runtime_ipv6","runtime_old_ipv6","runtime_prefix6","runtime_invalid"}
+SAFE_VALUES["reason"] |= {"wireless_interface_pending","wireless_configuration_pending","wireless_identity_pending","wireless_ap_pending","wireless_association_pending","wireless_runtime_pending"}
+SAFE_VALUES["reason"] |= {"wireless_config_"+key for key in ("mode","ssid","encryption","key","macaddr","channel","htmode","country","txpower")}
 SAFE_VALUES["kind"] = KINDS
 SAFE_VALUES["outcome"] = frozenset({"reconnect","uncertain","saved","applied","restored"})
 SAFE_VALUES["reason"] |= CODES
 
 
 def _safe_protocol_value(name,value):
+    if name == 'timestamp':
+        from modules.diagnostic_redaction import valid_timestamp
+        return valid_timestamp(value)
     if value in SAFE_VALUES.get(name,()):return True
     if name=="last_stage" and value in SAFE_VALUES["stage"]:return True
     if name=="cause_reason" and value in SAFE_VALUES["reason"]:return True

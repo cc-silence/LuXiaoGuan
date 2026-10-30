@@ -255,9 +255,8 @@ local function policy_ap_ready()
  if not radio.up or radio.pending then return {ready=false} end
  for _,iface in ipairs(radio.interfaces or {}) do
   if iface.section==ap.section and type(iface.ifname)=="string" then
-   local dev=optional("network.device","status",{name=iface.ifname})
    local info=optional("iwinfo","info",{device=iface.ifname})
-   if dev.macaddr and dev.macaddr:lower()==ap.mac:lower() and info.frequency and info.frequency>=2400 and info.frequency<2500 and ap_ready(iface.ifname,ap.ssid) then return {ready=true} end
+   if runtime_mac(iface.ifname)==ap.mac:lower() and info.frequency and info.frequency>=2400 and info.frequency<2500 and ap_ready(iface.ifname,ap.ssid) then return {ready=true} end
   end
  end
  return {ready=false}

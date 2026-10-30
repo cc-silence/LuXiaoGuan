@@ -96,9 +96,9 @@ class WirelessSetupService(QObject):
     def read_password(self, section, revision):
         return self._start("password", lambda cancel, message: self.manager.read_password(section, revision, cancel))
 
-    def relocation_preview(self):
+    def relocation_preview(self, *, preserve_access_points=True):
         from .openwrt.relocation_manager import RelocationManager
-        return self._start("move_preview", lambda cancel, message: RelocationManager(self.manager).preview(cancel))
+        return self._start("move_preview", lambda cancel, message: RelocationManager(self.manager).preview(cancel, preserve_access_points=preserve_access_points))
 
     def relocate(self, review):
         from copy import deepcopy
@@ -162,7 +162,10 @@ class WirelessSetupService(QObject):
 
     def cancel(self):
         """仅取消自己的任务，恢复仍由后台线程负责。"""
-        if not self.active or self.snapshot.action == "pending_commit":
+        if not self.active:
+            cancel_deferred = getattr(self.signals, 'cancel_deferred', None)
+            return bool(cancel_deferred and cancel_deferred(self))
+        if self.snapshot.action == "pending_commit":
             return False
         accepted = self.owner.cancel_openwrt_task()
         if accepted:
@@ -172,6 +175,15 @@ class WirelessSetupService(QObject):
         return accepted
 
     def _start(self, action, operation, *, scan_radio="", relocation_fingerprint=None):
+        defer = getattr(self.signals, 'defer_foreground', None)
+        if defer is not None:
+            deferred = defer(
+                lambda: self._start(action, operation, scan_radio=scan_radio,
+                                    relocation_fingerprint=relocation_fingerprint),
+                lambda: self.completed.emit(WirelessTaskResult(action,
+                    error="\u8fde\u63a5\u6216\u4fe1\u53f7\u5217\u8868\u5df2\u53d8\u5316\uff0c\u8bf7\u91cd\u65b0\u64cd\u4f5c\u3002", code="request_rejected")), request_owner=self)
+            if deferred is not None:
+                return deferred
         from .management_diagnostics import ManagementTrace
         diagnostic_action = action if action in {"move_preview","relocate","orphan_preview","orphan_cleanup"} else "wireless_"+action
         runner=getattr(getattr(self.owner,"openwrt_backend",None),"command_runner",None)
@@ -256,7 +268,11 @@ class WirelessSetupService(QObject):
                     self._pending = True
                     self._checkRequested.emit()
                 elif not result.error and action == "relocate":
-                    detail = "\u642c\u5bb6\u6e05\u7406\u5df2\u5b8c\u6210\uff1a\u5df2\u5220\u9664 %d \u4e2a\u65e0\u7ebf\u914d\u7f6e\uff0c\u66f4\u6362 %d \u4e2a\u7f51\u7edc MAC\uff0c\u4e3b\u673a\u540d\u4e3a %s\u3002" % (result.value["removed"], result.value["macs"], result.value["hostname"])
+                    detail = "已清理 %d 个上级 Wi-Fi，保留并更新 %d 个自建热点；已更换 %d 个网络地址，新主机名为 %s。" % (result.value["removed"], len(result.value.get("access_points", ())), result.value["macs"], result.value["hostname"])
+                    if not result.value.get("preserve_access_points", True):
+                        detail = "已清理 %d 个上级 Wi-Fi 和 %d 个自建热点；新主机名为 %s。" % (
+                            result.value["removed"]-result.value["removed_access_points"],
+                            result.value["removed_access_points"], result.value["hostname"])
                     self.snapshot = replace(self.snapshot, environment=None, networks=(), scan_radio="", pending_changes=False, detail=detail)
                     self.signals._message(detail, "success")
                     self.signals.refresh()

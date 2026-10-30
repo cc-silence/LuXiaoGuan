@@ -29,7 +29,7 @@ class BrowserFallbackTests(unittest.TestCase):
 
     def test_failed_download_keeps_verified_link_and_copy_uses_signed_url(self):
         release=verify_manifest(signed(),PUBLIC)
-        self.presenter._release=release;self.presenter._transfer_failed('offline fixture')
+        self.presenter._release=release;self.presenter.state='error';self.presenter.error='offline fixture';self.page.refresh()
         self.assertFalse(self.page.package_link_area.isHidden())
         self.assertTrue(self.page.package_link.isReadOnly())
         self.assertFalse(hasattr(self.page,"browser_download_button"))

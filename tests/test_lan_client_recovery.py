@@ -176,7 +176,7 @@ class BrokerLifecycleTests(unittest.TestCase):
         self.assertEqual(threads,[False]);self.assertFalse(owner._openwrt_workers)
         self.assertFalse(broker.offers);owner.deleteLater()
 
-    def test_lua_transaction_stays_locked_through_apply_and_confirmation(self):
+    def test_lua_transaction_unlocks_client_recovery_after_apply_reply(self):
         from tests.test_checked_apply import CheckedApplyTests,run_checked,LuaRuntime
         from modules.capture_services.configuration_progress import reporting
         if not LuaRuntime:self.skipTest('Lua unavailable')
@@ -190,5 +190,5 @@ class BrokerLifecycleTests(unittest.TestCase):
                 if not payload['closed']:self.assertIn('checked_apply',channel.calls)
         with patch('modules.platform_services.lan_network.inspect',return_value=dict(adapters=[fresh])),reporting(progress):
             result=run_checked(channel,stage,verify,event,candidates=('192.168.22.1',),original_host='192.168.8.1',client_recovery=gate)
-        self.assertEqual(states[:2],[True,True]);self.assertTrue(result['applied'])
+        self.assertEqual(states[:2],[True,False]);self.assertTrue(result['applied'])
         self.assertIn(('uci','confirm'),device.calls);self.assertTrue(gate.closed)

@@ -1,5 +1,6 @@
 """\u65e5\u5fd7\u5bfc\u51fa\uff1a\u6709\u754c\u5feb\u7167\u3001\u8131\u654f\u9644\u4ef6\u548c\u539f\u5b50\u53d1\u5e03\u3002"""
 import hashlib
+import getpass
 import json
 import os
 import re
@@ -22,7 +23,7 @@ MAX_ATTACHMENTS = 256
 MAX_REFERENCES = 4096
 MAX_TOTAL_BYTES = 20 * 1024 * 1024
 _SECRET = re.compile(r'\b(?:token|authorization|api[_-]?key|secret)\b[\s\"\']*[:=]|--(?:token|authorization|api[_-]?key|secret)\b|\b(?:e?ssid|ssid_hex)\b[\s\"\']*[:=]|\bssid\s+\S+|\bkey\b[\s\"\']*[:=]|password|passwd|passphrase|wpa[ _-]?psk|(?:^|[\s"\'])psk[\s"\':=]|(?:^|[\s"\'])key[\s"\':=]|(?:^|\s)pin\s*[:=]|candidate|argv|command(?:_line)?\s*[:=]|--(?:password|key|pin)\b|\u5bc6\u7801\s*[:=\uff1a]|\u5019\u9009\s*[:=\uff1a]', re.I)
-_URL_SECRET = re.compile(r'([a-z][a-z0-9+.-]*://)[^\s/]+:[^\s/]+@', re.I)
+_URL_SECRET = re.compile(r'([a-z][a-z0-9+.-]{0,31}://)[^\s/]+:[^\s/]+@', re.I)
 _TOKEN = re.compile(r'((?:token|authorization|api[_-]?key|secret)\s*[:=]\s*)\S+', re.I)
 
 
@@ -44,7 +45,8 @@ def sanitized_text(text, masker):
         else:
             line = _URL_SECRET.sub(r'\1[credentials omitted]@', line)
             line = _TOKEN.sub(r'\1[omitted]', line)
-            lines.append(masker.text(line))
+            from modules.diagnostic_redaction import mask_diagnostic_literals
+            lines.append(mask_diagnostic_literals(line, masker))
     return '\n'.join(lines)
 
 
@@ -200,6 +202,15 @@ def _router_context_bytes(text, masker):
             raise ValueError("invalid router diagnostic object")
         result={key:sanitized_text(source[key],masker) for key in strings
                 if isinstance(source.get(key),str)}
+        for key in ('captured_at','device_observed_at'):
+            if key in strings and isinstance(source.get(key),str):
+                try:
+                    datetime.fromisoformat(source[key])
+                    result[key] = source[key]
+                except ValueError:
+                    pass
+        if 'feature' in strings and re.fullmatch(r'[a-z_]{1,48}', str(source.get('feature',''))):
+            result['feature'] = source['feature']
         result.update({key:source[key] for key in numbers if key in source
                        and (source[key] is None or isinstance(source[key],(int,float,bool)))})
         return result
@@ -246,9 +257,12 @@ def _router_context_bytes(text, masker):
 
 
 def export_logs(destination, category, entries, masker=None, references=(), omitted=0,
-                cancel=None, app_version='', timeout=60, router_context=''):
+                cancel=None, app_version='', timeout=60, router_context='', history_device=None):
     """\u540e\u53f0\u5bfc\u51fa\u51bb\u7ed3\u5feb\u7167\uff0c\u5931\u8d25\u4e0d\u8986\u76d6\u539f\u76ee\u6807\u3002"""
-    masker = masker or Masker()
+    from modules.log_history import HistoryMasker
+    export_masker = HistoryMasker()
+    export_masker.identities = masker or Masker()
+    masker = export_masker
     deadline = time.monotonic() + timeout
     def check():
         if cancel is not None and cancel.is_set():
@@ -302,13 +316,25 @@ def export_logs(destination, category, entries, masker=None, references=(), omit
             if isinstance(exc, (InterruptedError, TimeoutError)):
                 raise
             skipped.append({'file': alias, 'reason': sanitized_text(str(exc), masker)})
+    from modules.log_history import current_history
+    from modules.log_history_export import history_attachments
+    if category == 'auto-capture' and history_device is None:
+        history_device = getattr(current_history(), 'auto_capture_device', '')
+    for name, data in history_attachments(current_history(), category, history_device, masker):
+        check()
+        if used + len(data) > MAX_TOTAL_BYTES or len(attachments) >= MAX_ATTACHMENTS:
+            skipped.append({'file': name, 'reason': 'history export budget exceeded'})
+            continue
+        attachments.append((name, data))
+        index.append({'file': name, 'aliases': ['run_history'], 'references': 1})
+        used += len(data)
     # Reserve bounds apply to metadata as well; never emit arbitrary source paths.
     metadata = json.dumps({'attachments': index, 'skipped': skipped,
                            'references_omitted': omitted,
                            'router_information': 'router-info.json' if context_bytes else None}, ensure_ascii=False, indent=2).encode('utf-8')
     if len(metadata) > 1024 * 1024:
         raise ValueError('diagnostic index exceeds metadata budget')
-    readme = (f'{PACKAGE_DIRECTORY} {app_version}\nCategory: {sanitized_text(category, masker)}\n'
+    readme = (f'{PACKAGE_DIRECTORY} {app_version}\nCategory: {log_category_label(category)}\n'
               'Export is always redacted. Only explicitly referenced diagnostics are included.\n').encode('utf-8')
     if len(payload) + len(context_bytes) + sum(len(data) for _, data in attachments) + len(metadata) + len(readme) > MAX_TOTAL_BYTES:
         raise ValueError('total export budget exceeded')
@@ -334,9 +360,19 @@ def export_logs(destination, category, entries, masker=None, references=(), omit
             'diagnostics_included': len(attachments), 'skipped': skipped}
 
 
+def log_category_label(category):
+    return '\u81ea\u52a8\u6293\u5305' if category == 'auto-capture' else str(category)
+
+
 def build_export_filename(category):
+    category = log_category_label(category)
     category = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', str(category))[:48]
-    return f'{PACKAGE_DIRECTORY}_{category}_{datetime.now():%Y%m%d_%H%M%S}.zip'
+    try:
+        username = getpass.getuser()
+    except (OSError, KeyError, ImportError):
+        username = 'user'
+    username = re.sub(r'[<>:"/\\\\|?*\x00-\x1f]', '_', str(username)).strip(' .')[:48] or 'user'
+    return f'{username}_{PACKAGE_DIRECTORY}_{category}_{datetime.now():%Y%m%d_%H%M%S}.zip'
 
 
 class ExportWorker(QThread):

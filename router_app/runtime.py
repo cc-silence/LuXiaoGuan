@@ -1,5 +1,5 @@
 """\u8def\u7531\u670d\u52a1\u548c\u66f4\u65b0\u670d\u52a1\u7684\u751f\u547d\u5468\u671f\u6240\u6709\u8005\u3002"""
-from PySide6.QtCore import QObject, Qt
+from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtWidgets import QApplication
 from modules.config_manager import ConfigManager
 from modules.capture_services.capture_service import CaptureService
@@ -10,6 +10,8 @@ from modules.display_privacy import DisplayPrivacy
 
 class RouterRuntime(QObject):
     """\u6301\u6709\u540e\u53f0\u4efb\u52a1\uff0c\u9000\u51fa\u65f6\u7b49\u5f85\u8d44\u6e90\u6536\u5c3e\uff0c\u4e0d\u963b\u585e\u754c\u9762\u3002"""
+    logHistoryClosed = Signal()
+
     def __init__(self, version, parent=None):
         super().__init__(parent)
         self.main_window = None
@@ -17,12 +19,21 @@ class RouterRuntime(QObject):
         self._ready_to_close = False
         self._log_export_service = None
         self._desktop_shortcuts = None
+        self._history_closing = False
+        self._history_closed = False
+        self.logHistoryClosed.connect(self._history_close_finished)
+        from modules.log_history import LogHistory, install_history
+        self.log_history = LogHistory(version=version)
+        install_history(self.log_history)
+        QApplication.instance().aboutToQuit.connect(self._close_log_history)
         self.config_manager = ConfigManager()
         self.config = self.config_manager.load()
         self.capture_service = CaptureService(self)
         self.display_privacy = DisplayPrivacy(self)
         self.capture_service.openwrtSnapshotChanged.connect(self.display_privacy.register_snapshot)
         self.capture_service.router_signals.snapshotChanged.connect(self.display_privacy.register_snapshot)
+        self.capture_service.openwrtSnapshotChanged.connect(self._update_log_privacy)
+        self.capture_service.router_signals.snapshotChanged.connect(self._update_log_privacy)
         self._startup_firewall_controller = StartupFirewallController(self)
         self.capture_service.network_ready = self._startup_firewall_controller.wait_ready
         self.app_updates = AppUpdatePresenter(version, self)
@@ -31,6 +42,27 @@ class RouterRuntime(QObject):
         self.app_updates.activityChanged.connect(self._maybe_finish_exit)
         self._startup_firewall_controller.activity_changed.connect(self._maybe_finish_exit)
         self._startup_firewall_controller.finished.connect(self._firewall_finished)
+
+    def _history_close_finished(self):
+        self._history_closed = True
+        self._maybe_finish_exit()
+
+    def _drain_log_history(self):
+        try:
+            self.log_history.close()
+        finally:
+            self.logHistoryClosed.emit()
+
+    def _update_log_privacy(self, snapshot):
+        self.log_history.masker.identities = self.display_privacy.snapshot()
+
+    def _close_log_history(self):
+        from modules.log_history import install_history
+        try:
+            self.log_history.close()
+        except (OSError, TimeoutError):
+            pass
+        install_history(None)
 
     @property
     def desktop_shortcuts(self):
@@ -99,6 +131,12 @@ class RouterRuntime(QObject):
             return
         if (self.idle_blockers() or self.app_updates.active
                 or not self.capture_service._shutdown_started):
+            return
+        if not self._history_closed:
+            if not self._history_closing:
+                import threading
+                self._history_closing = True
+                threading.Thread(target=self._drain_log_history, name='log-history-exit', daemon=True).start()
             return
         self._ready_to_close = True
         if self.main_window is not None:

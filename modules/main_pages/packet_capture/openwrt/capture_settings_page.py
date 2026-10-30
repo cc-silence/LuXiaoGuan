@@ -12,7 +12,6 @@ from .password_dictionary_editor import PasswordDictionaryEditor
 from modules.capture_services.openwrt.password_verification import dictionary_paths
 
 
-from .ui_features import PMKID_UI_VISIBLE
 
 
 class CaptureSettingsPage(QWidget):
@@ -51,7 +50,6 @@ class CaptureSettingsPage(QWidget):
 
         self._build_common_options(content, root, settings)
         self._build_handshake_options(content, root, settings)
-        self._build_pmkid_options(content, root, settings)
         self._build_password_options(content, root, settings)
         root.addStretch(1)
 
@@ -59,9 +57,9 @@ class CaptureSettingsPage(QWidget):
         self._apply_snapshot(service.openwrt_snapshot)
 
     def _build_common_options(self, parent, root, settings):
-        """创建通用设置：扫描、常规抓包、PMKID、WPS 都用；猜密码不受影响。"""
+        """创建通用设置：扫描、常规抓包、WPS 都用；猜密码不受影响。"""
 
-        card, layout = create_capture_card(parent, "通用设置", "扫描、常规抓包、PMKID、WPS 都用这些；落盘文件（原始包、22000、打开目录）也是常规抓包和 PMKID 共用。在线密码验证（猜密码）走独立设置，不受影响。" if PMKID_UI_VISIBLE else "扫描、常规抓包和 WPS 使用这些设置。猜密码使用下方的独立设置。")
+        card, layout = create_capture_card(parent, "通用设置", "扫描、常规抓包和 WPS 使用这些设置。猜密码使用下方的独立设置。")
         self.output_dir = QLineEdit(card)
         self.output_dir.setObjectName("captureLineEdit")
         self.output_dir_button = create_page_icon_button(
@@ -76,10 +74,8 @@ class CaptureSettingsPage(QWidget):
         self.keep_raw = QCheckBox("保留原始 PCAPNG", card)
         self.keep_raw.setObjectName("captureCheckBox")
         self.keep_raw.setToolTip(
-            "建议勾选，方便以后重新转换或检查原始包。关闭后，常规抓包成功转换的原包和无法识别的包不会保留，可能丢失后续可用的数据；转换失败时仍保留原包。PMKID 原始包始终保留。"
+            "建议勾选，方便以后重新转换或检查原始包。关闭后，常规抓包成功转换的原包和无法识别的包不会保留，可能丢失后续可用的数据；转换失败时仍保留原包。"
         )
-        if not PMKID_UI_VISIBLE:
-            self.keep_raw.setToolTip(self.keep_raw.toolTip().replace("PMKID 原始包始终保留。", ""))
         self.generate_22000 = QCheckBox("生成 Hashcat 22000", card)
         self.generate_22000.setObjectName("captureCheckBox")
         self.generate_22000.setToolTip(
@@ -88,11 +84,9 @@ class CaptureSettingsPage(QWidget):
         self.auto_open = QCheckBox("任务完成后打开结果目录", card)
         self.auto_open.setObjectName("captureCheckBox")
         self.auto_open.setToolTip(
-            "开启后，定向抓包和 PMKID 任务成功、且确实有文件落盘时，自动打开结果目录。\n"
+            "开启后，定向抓包任务成功、且确实有文件落盘时，自动打开结果目录。\n"
             "不勾选也不丢文件，自己点“打开包存储目录”就行。"
         )
-        if not PMKID_UI_VISIBLE:
-            self.auto_open.setToolTip(self.auto_open.toolTip().replace("和 PMKID ",""))
         layout.addLayout(create_path_row(card, "保存目录", self.output_dir, self.output_dir_button, "选择电脑上空间充足、容易找到的文件夹。软件会在下面创建 \u8def\u5c0f\u7ba1\u6293\u5305 文件夹存放结果。"))
         layout.addLayout(create_form_row(card, "刷新间隔", self.refresh_seconds, "建议保留 10 秒。数值越小，列表和结果更新越及时，但会增加路由器和连接的负担；连接慢或不稳定时可调大。"))
         layout.addWidget(self.keep_raw)
@@ -129,7 +123,7 @@ class CaptureSettingsPage(QWidget):
     def _build_handshake_options(self, parent, root, settings):
         """创建常规抓包专用设置：只管手动「常规抓包」按钮。"""
 
-        card, layout = create_capture_card(parent, "常规抓包", "用于勾选目标后的常规抓包；不影响 PMKID。" if PMKID_UI_VISIBLE else "用于勾选目标后的常规抓包。")
+        card, layout = create_capture_card(parent, "常规抓包", "用于勾选目标后的常规抓包。")
         self.handshake_rounds_mode = CommonComboBox(card)
         self.handshake_rounds_mode.setObjectName("captureComboBox")
         self.handshake_rounds_mode.addItem("按固定轮数", "fixed")
@@ -162,49 +156,6 @@ class CaptureSettingsPage(QWidget):
         self.handshake_rounds.lineEdit().editingFinished.connect(self.settingsChanged)
         self.handshake_rounds_mode.currentIndexChanged.connect(self._sync_rounds_mode)
         self.active_deauth.toggled.connect(lambda _checked: self.settingsChanged.emit())
-
-    def _build_pmkid_options(self, parent, root, settings):
-        """创建 PMKID 抓包专用设置：只管「PMKID 抓包」按钮。"""
-
-        card, layout = create_capture_card(parent, "PMKID 抓包", "只管「PMKID 抓包」按钮；不管常规抓包。")
-        self.pmkid_duration_seconds = QSpinBox(card)
-        self.pmkid_duration_seconds.setObjectName("captureSpinBox")
-        self.pmkid_duration_seconds.setRange(0,3600)
-        self.pmkid_duration_seconds.setSuffix(" 秒")
-        self.pmkid_duration_seconds.setSpecialValueText("不限时")
-        self.pmkid_duration_seconds.setToolTip(
-            "只控制 PMKID 总采集时长，与常规抓包时间无关。设为 0 表示不限时；"
-            "手动过滤在所有目标已有可用结果时结束，全局模式等待手动停止。"
-            "无新数据超时仍独立生效；连接失效或临时数据达到安全上限时会明确报错并收尾。")
-        layout.addLayout(create_form_row(card,"PMKID 总采集时长",
-            self.pmkid_duration_seconds,self.pmkid_duration_seconds.toolTip()))
-        self.pmkid_idle_seconds = QSpinBox(card)
-        self.pmkid_idle_seconds.setObjectName("captureSpinBox")
-        self.pmkid_idle_seconds.setRange(0, 3600)
-        self.pmkid_idle_seconds.setSuffix(" 秒")
-        self.pmkid_idle_seconds.setSpecialValueText("关闭")
-        self.pmkid_idle_seconds.setToolTip(
-            "建议保留 180 秒。收到过数据后，连续这么久没有新增数据就提前结束，避免空等。"
-            "想等久一些就调高；设为 0 关闭这项提前结束规则。全程没收到数据时，仍按任务总时长等待。"
-        )
-        self.pmkid_beacon = QCheckBox("主动请求 PMKID（默认关闭）", card)
-        self.pmkid_beacon.setObjectName("captureCheckBox")
-        self.pmkid_beacon.setToolTip(
-            "关闭时只监听。开启时向手动过滤中勾选的授权目标发送认证和关联请求，尝试获取 PMKID；"
-            "不发送断连帧或全局信标，不诱导客户端。当前仅适配 hcxdumptool 6.3.4，"
-            "需要驱动支持发送，开始前需确认目标授权。不保证目标返回 PMKID，全局模式需关闭。"
-        )
-        layout.addLayout(create_form_row(card, "PMKID 无新数据超时", self.pmkid_idle_seconds, self.pmkid_idle_seconds.toolTip()))
-        layout.addWidget(self.pmkid_beacon)
-        root.addWidget(card)
-        self.pmkid_card=card
-        card.setVisible(PMKID_UI_VISIBLE)
-        self.pmkid_duration_seconds.setValue(int(settings.get("pmkid_duration_seconds",0)))
-        self.pmkid_duration_seconds.lineEdit().editingFinished.connect(self.settingsChanged)
-        self.pmkid_idle_seconds.setValue(int(settings.get("pmkid_idle_timeout_seconds", 180)))
-        self.pmkid_beacon.setChecked(bool(settings.get("pmkid_active_beacon", False)))
-        self.pmkid_idle_seconds.lineEdit().editingFinished.connect(self.settingsChanged)
-        self.pmkid_beacon.toggled.connect(lambda _checked: self.settingsChanged.emit())
 
     def _apply_rounds_mode_visible(self):
         """按当前轮数模式显示或隐藏轮数输入框整行，不触发保存。"""
@@ -329,9 +280,6 @@ class CaptureSettingsPage(QWidget):
             "generate_22000": self.generate_22000.isChecked(),
             "auto_open_dir": self.auto_open.isChecked(),
             "active_deauth": self.active_deauth.isChecked(),
-            "pmkid_active_beacon": self.pmkid_beacon.isChecked(),
-            "pmkid_idle_timeout_seconds": self.pmkid_idle_seconds.value(),
-            "pmkid_duration_seconds": self.pmkid_duration_seconds.value(),
             "password_dictionaries": list(self._dictionary_paths()),
             "password_dictionary": next(iter(self._dictionary_paths()), ""),
         }

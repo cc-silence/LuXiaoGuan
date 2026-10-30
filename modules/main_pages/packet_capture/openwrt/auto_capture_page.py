@@ -1398,6 +1398,11 @@ class AutoCapturePage(QWidget):
         self.open_output_dir_btn.setToolTip("打开本地抓包成果目录")
         self.open_output_dir_btn.clicked.connect(self._on_open_output_dir_clicked)
         guard_layout.addWidget(self.open_output_dir_btn)
+        self.export_logs_btn = QPushButton("\u5bfc\u51fa\u65e5\u5fd7", self.guard_card)
+        self.export_logs_btn.setObjectName("captureSecondaryButton")
+        guard_layout.addWidget(self.export_logs_btn)
+        from .auto_capture_log_export import AutoCaptureLogExport
+        self._log_export = AutoCaptureLogExport(self, self.export_logs_btn)
 
         guard_layout.addSpacing(8)
 
@@ -2040,6 +2045,8 @@ class AutoCapturePage(QWidget):
 
     def dispose(self):
         """释放页面时断开信号连接与停止定时器。"""
+        if getattr(self, "_upgrade_progress", None) is not None:
+            self._upgrade_progress.dispose()
         try:
             self._bg_status_timer.stop()
         except Exception:
@@ -2074,8 +2081,11 @@ class AutoCapturePage(QWidget):
         if dep_service is None:
             MessageDialog("操作失败", "抓包依赖服务未就绪，请在【路由器登录】页面重试。", self).exec()
             return
-        if not dep_service.ensure_available("capture_dependency", "capture"):
-            MessageDialog("任务正忙", "当前有其他依赖任务正在运行，请稍候再试。", self).exec()
+        if getattr(self, "_upgrade_progress", None) is None:
+            from .capture_upgrade_progress import CaptureUpgradeProgress
+            self._upgrade_progress = CaptureUpgradeProgress(self, dep_service)
+        if not self._upgrade_progress.start():
+            reason = dep_service.last_rejection_reason or "依赖任务未能启动，请在【路由器登录】页面查看详情。"
+            MessageDialog("无法开始升级", reason, self).exec()
             return
         self.service.messageGenerated.emit("正在为当前路由器自动部署现代版 hcxdumptool 6.3.4...", "info")
-        dep_service.install_async({"pmkid": True, "scan": True, "handshake": True}, scope="capture", items=("pmkid",))

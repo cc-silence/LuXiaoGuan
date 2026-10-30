@@ -26,7 +26,10 @@ class CaptureTaskCompletion(QObject):
         signal = getattr(self._owner, "configurationProgressChanged", None)
         if signal is not None and isinstance(value, dict) and value.get("configuration_apply"):
             recovery=getattr(self._owner,"lan_recovery",None)
-            if recovery is not None:recovery.observe(self._session_id,value)
+            if recovery is not None:
+                recovery.observe(self._session_id,value)
+                if isinstance(value.get("network_recovery"),dict):
+                    value=dict(value,network_recovery=recovery.payload(self._session_id))
             signal.emit(self._session_id, value)
 
     @Slot(object)

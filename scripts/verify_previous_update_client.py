@@ -11,7 +11,7 @@ ROOT=Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:sys.path.insert(0,str(ROOT))
 
 
-def verify(executable, manifest=None, catalog=None, *, live=False, current_version='1.0.8_alpha'):
+def verify(executable, manifest=None, catalog=None, *, live=False, current_version='1.0.8_alpha', require_newer=True):
     archive=CArchiveReader(str(executable))
     pyz=archive.open_embedded_archive(next(k for k in archive.toc if k.endswith('.pyz')))
     names=['modules.release_identity','modules.app_update_services.manifest','modules.app_update_services.trust',
@@ -30,13 +30,18 @@ def verify(executable, manifest=None, catalog=None, *, live=False, current_versi
         result={'client_executable':str(executable),'current_version':current_version}
         if manifest is not None:
             release=contract.verify_manifest(Path(manifest).read_bytes(),trust.PUBLIC_KEY)
-            checked=parser.parse_catalog(Path(catalog).read_bytes(),release)
             if contract.version_key(release.version)<=contract.version_key(current_version):
                 raise ValueError('No newer release was offered')
-            result.update(catalog_verified=True,target_version=release.version,files=len(checked['files']))
-            plan=loaded['modules.app_update_services.planner'].make_plan(Path(executable).parent,checked)
-            if plan['conflicts']:raise ValueError('Old client plan has conflicts')
-            result.update(plan_verified=True,changed_files=len(plan['files']),download_bytes=plan['download_bytes'])
+            result['target_version']=release.version
+            if release.catalog_url:
+                if catalog is None:raise ValueError('An incremental release requires its catalog')
+                checked=parser.parse_catalog(Path(catalog).read_bytes(),release)
+                result.update(catalog_verified=True,files=len(checked['files']))
+                plan=loaded['modules.app_update_services.planner'].make_plan(Path(executable).parent,checked)
+                if plan['conflicts']:raise ValueError('Old client plan has conflicts')
+                result.update(plan_verified=True,changed_files=len(plan['files']),download_bytes=plan['download_bytes'])
+            else:
+                result.update(manual_package_verified=True,download_bytes=release.size)
         if live:
             os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
             from PySide6.QtWidgets import QApplication
@@ -53,8 +58,11 @@ def verify(executable, manifest=None, catalog=None, *, live=False, current_versi
             if not events:raise ValueError('Old client network check timed out')
             kind,value=events[0]
             if kind!='ok':raise ValueError('Old client check failed: '+value)
-            if value is None:raise ValueError('Old client did not detect a newer release')
-            result.update(live_verified=True,target_version=value.version)
+            available=value is not None
+            if value is None and require_newer:raise ValueError('Old client did not detect a newer release')
+            if value is None:value=checker.latest
+            if value is None:raise ValueError('Client did not accept release metadata')
+            result.update(live_verified=True,target_version=value.version,update_available=available,manual_package_verified=not bool(value.catalog_url),catalog_loaded=value.catalog is not None)
         return result
     finally:
         for name, module in saved.items():
@@ -68,7 +76,7 @@ def main():
     p.add_argument('--manifest',type=Path);p.add_argument('--catalog',type=Path)
     p.add_argument('--live',action='store_true');p.add_argument('--report',type=Path)
     args=p.parse_args()
-    if bool(args.manifest)!=bool(args.catalog):p.error('manifest and catalog are required together')
+    if args.catalog and not args.manifest:p.error('catalog requires a manifest')
     result=verify(args.executable,args.manifest,args.catalog,live=args.live)
     if args.report:
         args.report.parent.mkdir(parents=True,exist_ok=True)
