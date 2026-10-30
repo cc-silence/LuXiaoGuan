@@ -87,7 +87,7 @@ def main():
             request.write_text('{"operation":"self_test"}',encoding="utf-8")
             run([package/APPLICATION_EXECUTABLE,"--local-gpo-firewall",request,result],stage/"gpo-smoke.log",smoke_env,30)
             if json.loads(result.read_text(encoding="utf-8")).get("success") is not True:raise ValueError("LocalGPO worker self-test failed")
-        report["frozen_smoke_checks"]=["ssh-dependencies","six-pages-and-settings","native-terminal","update-worker","local-gpo-self-test"]
+        report["frozen_smoke_checks"]=["ssh-dependencies","all-pages-and-settings","native-terminal","update-worker","local-gpo-self-test"]
         report.update(verify_files(package,version))
         archive=ROOT/"dist"/(ARCHIVE_PREFIX+version+"_"+stamp+".zip")
         archive.parent.mkdir(parents=True,exist_ok=True)
