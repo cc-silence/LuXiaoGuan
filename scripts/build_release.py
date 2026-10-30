@@ -77,17 +77,8 @@ def main():
         from scripts.app_update_catalog import write_baseline
         write_baseline(package,version)
         report.update(verify_files(package,version))
-        with tempfile.TemporaryDirectory(prefix="routermanager-release-smoke-") as user:
-            smoke_env=env.copy();smoke_env["ROUTERMANAGER_USER_CONFIG_DIR"]=user;smoke_env["QT_QPA_PLATFORM"]="offscreen"
-            run([package/APPLICATION_EXECUTABLE,"--smoke-test-ssh-dependencies"],stage/"ssh-smoke.log",smoke_env,60)
-            run([package/APPLICATION_EXECUTABLE,"--smoke-test"],stage/"gui-smoke.log",smoke_env,60)
-            run([package/APPLICATION_EXECUTABLE,"--smoke-test-terminal"],stage/"terminal-smoke.log",smoke_env,30)
-            run([resources/"RouterManagerUpdateWorker.exe","--self-test"],stage/"updater-smoke.log",smoke_env,60)
-            request=stage/"gpo-self-test.json";result=stage/"gpo-result.json"
-            request.write_text('{"operation":"self_test"}',encoding="utf-8")
-            run([package/APPLICATION_EXECUTABLE,"--local-gpo-firewall",request,result],stage/"gpo-smoke.log",smoke_env,30)
-            if json.loads(result.read_text(encoding="utf-8")).get("success") is not True:raise ValueError("LocalGPO worker self-test failed")
-        report["frozen_smoke_checks"]=["ssh-dependencies","all-pages-and-settings","native-terminal","update-worker","local-gpo-self-test"]
+        from scripts.release_smoke import verify_package_smoke
+        report["frozen_smoke_checks"]=verify_package_smoke(package,stage,env,run)
         report.update(verify_files(package,version))
         archive=ROOT/"dist"/(ARCHIVE_PREFIX+version+"_"+stamp+".zip")
         archive.parent.mkdir(parents=True,exist_ok=True)
