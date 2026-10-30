@@ -174,6 +174,9 @@ class LoginInstallPipelineTests(unittest.TestCase):
             consent.Accepted=1;consent.return_value.exec.return_value=int(accepted)
             stack.enter_context(patch('modules.capture_services.openwrt.common_bundle_installer.CommonBundleRepository',side_effect=lambda kind='common':repos[kind]))
             stack.enter_context(patch('modules.capture_services.dependency_service.default_cache_dir',return_value=root/'cache'))
+            # This fixture covers signed repositories, not developer-local embedded hcx assets.
+            # The embedded primary-only path has its own installer regression suite.
+            stack.enter_context(patch('modules.config_manager.BASE_DIR',root/'application'))
             if old_batching:
                 stack.enter_context(patch('modules.capture_services.openwrt.installation_sources.package_batches',side_effect=lambda wanted:(tuple(wanted),)))
             prompt = LoginDependencyPrompt(page)
