@@ -32,7 +32,10 @@ def _verified(stage):
         archive=stage/'package.zip'
         if linked(archive):raise ValueError("Linked full-package cache")
         if not archive.exists() or archive.stat().st_size<release.size:
-            if (stage/'journal.json').exists():raise ValueError('Incomplete package with an install journal')
+            journal=stage/'journal.json'
+            if journal.exists():
+                if archive.exists() or _json(journal).get('state') not in {'complete','rolled_back'}:
+                    raise ValueError('Incomplete package with an install journal')
             return release,dict(files=[])
         from .full_package import prepare_package
         return release,prepare_package(archive,release,stage,stage.parent.parent,extract=False)
@@ -67,20 +70,28 @@ def cleanup_stage(stage,remove_metadata=False,*,obsolete=False,cancel=lambda:Fal
     backup=stage/"backup"
     if linked(backup):raise ValueError("Linked backup cache")
     paths.extend(backup/str(index) for index in range(len(entries)))
-    # Helpers are transient too, including when two small history records are kept.
-    paths.extend(stage/name for name in TRANSIENT)
-    for path in paths:
-        if cancel():return False
-        if linked(path):raise ValueError("Linked cache file")
-        try:path.unlink(missing_ok=True)
-        except OSError:pending=True
+    bulk_pending=False
+    # A running helper may keep its small EXE locked after replacement succeeds.
+    # It must not retain the verified ZIP or extracted payload for another launch.
+    for bulk,group in ((True,paths),(False,(stage/name for name in TRANSIENT))):
+        for path in group:
+            if cancel():return False
+            if linked(path):raise ValueError("Linked cache file")
+            try:path.unlink(missing_ok=True)
+            except OSError:
+                pending=True
+                bulk_pending=bulk_pending or bulk
     if backup.is_dir():
         try:backup.rmdir()
-        except OSError:pending=True
-    if remove_metadata and not pending and not release.catalog_url:
+        except OSError:
+            pending=True
+            bulk_pending=True
+    if not bulk_pending and not release.catalog_url:
+        if cancel():return False
         archive=stage/'package.zip'
         if linked(archive):raise ValueError('Linked full-package cache')
-        archive.unlink(missing_ok=True)
+        try:archive.unlink(missing_ok=True)
+        except OSError:pending=True
     if remove_metadata and not pending:
         # Preserve unknown content and its evidence; never recursively delete it.
         if any(p.name not in METADATA for p in stage.iterdir()):return False

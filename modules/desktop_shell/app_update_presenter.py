@@ -212,8 +212,6 @@ class AppUpdatePresenter(QObject):
         self.stateChanged.emit()
         self.activityChanged.emit()
 
-        if not self._cancelled and self.state=="ready" and self.plan and self.plan.get("full_package"):
-            self.install_update(self._owner(), confirmed=True)
         requested, self._download_requested = self._download_requested, False
         if requested and not self._cancelled and self.state == 'available' and self.plan and not self.plan['conflicts']:
             self.prepare_plan(download=True)
@@ -311,7 +309,7 @@ class AppUpdatePresenter(QObject):
         notes.setReadOnly(True)
         notes.setPlainText(release.notes or "\u6b64\u7248\u672c\u672a\u63d0\u4f9b\u66f4\u65b0\u8bf4\u660e\u3002")
         dialog.content_layout.addWidget(notes, 1)
-        hint_text = f"\u5b8c\u6574\u5305 {release.size / 1024 / 1024:.1f} MB\uff1b\u4e0b\u8f7d\u6821\u9a8c\u5b8c\u6210\u540e\u81ea\u52a8\u5b89\u88c5\u5e76\u91cd\u542f\uff0c\u4fdd\u7559\u7528\u6237\u914d\u7f6e\u3002"
+        hint_text = f"\u5b8c\u6574\u5305 {release.size / 1024 / 1024:.1f} MB\uff1b\u4e0b\u8f7d\u6821\u9a8c\u5b8c\u6210\u540e\uff0c\u70b9\u51fb\u201c\u91cd\u542f\u5e76\u5b89\u88c5\u66f4\u65b0\u201d\u624d\u4f1a\u5b89\u88c5\u5e76\u91cd\u542f\uff0c\u4fdd\u7559\u7528\u6237\u914d\u7f6e\u3002"
         hint = QLabel(hint_text, dialog)
         hint.setWordWrap(True)
         dialog.content_layout.addWidget(hint)

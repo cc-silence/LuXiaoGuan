@@ -20,7 +20,9 @@ offline package directories because those reports are used to verify publication
 
 The application downloads the entire signed ZIP in the background, verifies its
 size and SHA-256, safely extracts managed program files, and derives an install
-inventory locally. An independent Windows helper re-verifies the archive before
+inventory locally. Download completion must stop in the ready state: only the
+user clicking restart/install and confirming may launch replacement or exit the
+running application. An independent Windows helper re-verifies the archive before
 transactional backup/replacement, startup validation, rollback on failure and
 restart. User configuration and custom files remain protected. Active capture,
 terminal and file-transfer tasks block installation rather than being killed.
@@ -29,6 +31,9 @@ Publications upload only a complete ZIP and small signed version metadata.
 No blobs/catalogs are generated or uploaded. The local baseline and installation
 inventory are recovery data, not separately hosted update files. Downloads can
 be cancelled/resumed and obsolete verified stages are reclaimed in the background.
+After a completed or rolled-back installation, reclaim the complete ZIP and
+extracted payload independently of any still-locked helper executable. Preserve
+active recovery data; retry only small helper/metadata cleanup on the next launch.
 
 Retire old cloud content with `scripts/manage_publishing.py retire-incremental`
 (preview), then `--apply`. The migration verifies all channels, backs up signed

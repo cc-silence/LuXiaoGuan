@@ -198,7 +198,9 @@ class WirelessSetupService(QObject):
         identity = self._connection_identity()
         self._identity = identity
         session = uuid4().hex
-        kind = {"inspect": "wireless_inspect", "apply_check": "wireless_apply_check"}.get(action, "wireless_setup")
+        read_only = {"password", "move_preview", "orphan_preview", "pending_review"}
+        kind = ("wireless_inspect" if action == "inspect" else
+                "router_inspect" if action in read_only else "wireless_apply_check" if action == "apply_check" else "wireless_setup")
         event = self.owner.task_controller.begin(kind, session)
         if event is None:
             self.active = False
