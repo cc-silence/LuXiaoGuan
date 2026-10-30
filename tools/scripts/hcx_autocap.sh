@@ -871,20 +871,35 @@ detect_idle_radios() {
     do
         idx=${r#radio}
         # 动态解析 radio 对应的真实底层内核 phy (优先 uci .phy, 次选根据 .path 比对 sysfs, 彻底修复双频卡错配)
-        _real_phy=$(uci get wireless.${r}.phy 2>/dev/null)
+        _real_phy=$(ubus -S -t 2 call iwinfo phyname "{\"section\":\"${r}\"}" 2>/dev/null | jsonfilter -e '@.phyname' 2>/dev/null)
+        _configured_phy=$(uci get wireless.${r}.phy 2>/dev/null)
+        if [ -n "${_real_phy}" ] && [ -n "${_configured_phy}" ] && [ "${_real_phy}" != "${_configured_phy}" ]; then
+            log "Cannot confirm physical radio for ${r}: conflicting identities; skipped"
+            continue
+        fi
+        [ -n "${_real_phy}" ] || _real_phy="${_configured_phy}"
         if [ -z "${_real_phy}" ]; then
             _dev_path=$(uci get wireless.${r}.path 2>/dev/null)
+            _matches=0
             if [ -n "${_dev_path}" ]; then
                 for _p in /sys/class/ieee80211/phy*; do
                     [ -d "${_p}" ] || continue
-                    _target=$(readlink -f "${_p}/device" 2>/dev/null || ls -l "${_p}/device" 2>/dev/null)
+                    _target=$(readlink -f "${_p}/device" 2>/dev/null)
                     case "${_target}" in
-                        *"${_dev_path}"*) _real_phy=$(basename "${_p}"); break ;;
+                        */"${_dev_path}") _real_phy=$(basename "${_p}"); _matches=$((_matches + 1)) ;;
                     esac
                 done
             fi
+            [ "${_matches}" = 1 ] || _real_phy=""
         fi
-        [ -z "${_real_phy}" ] && _real_phy="phy${idx}"
+        case "${_real_phy}" in
+            phy*) _phy_number=${_real_phy#phy} ;;
+            *) _phy_number="" ;;
+        esac
+        case "${_phy_number}" in
+            ''|*[!0-9]*) log "Cannot confirm physical radio for ${r}; skipped"; continue ;;
+        esac
+        [ -d "/sys/class/ieee80211/${_real_phy}" ] || continue
         eval "PHY_${r}=\"${_real_phy}\""
 
         # 优先检测 radio 自身是否被整体禁用(如 LuCI 中关闭该频段): 整卡禁用直接视为空闲
@@ -908,7 +923,7 @@ detect_idle_radios() {
             for d in $(ls /sys/class/net 2>/dev/null)
             do
                 case "${d}" in
-                    ${_real_phy}-*|phy${idx}-*)       busy=1; break ;;
+                    ${_real_phy}-*)       busy=1; break ;;
                     hcxmon${idx}|hcxmon${idx}-*)     busy=1; break ;;
                 esac
             done
@@ -995,13 +1010,14 @@ create_raw_monitor() {
     r="$1"
     idx=${r#radio}
     eval "_use_phy=\$PHY_${r}"
-    [ -z "${_use_phy}" ] && _use_phy="phy${idx}"
+    [ -n "${_use_phy}" ] && [ -d "/sys/class/ieee80211/${_use_phy}" ] || return 1
+    _phy_idx=${_use_phy#phy}
     band=$(uci get wireless.${r}.band 2>/dev/null)
     [ -z "${band}" ] && band=$(uci get wireless.${r}.hwmode 2>/dev/null)
     mac_name
     name="hcxmon${idx}"
     # 清理该空闲射频上残留的旧接口(防止 AP 接口锁定信道导致 hcxdumptool 报 failed to arm interface)
-    for _stale in $(iw dev 2>/dev/null | grep -E "phy#${idx}\b" -A 10 | grep 'Interface ' | awk '{print $2}')
+    for _stale in $(iw dev 2>/dev/null | grep -E "phy#${_phy_idx}\b" -A 10 | grep 'Interface ' | awk '{print $2}')
     do
         case "${_stale}" in
             hcxmon*|hcxstub*|${name}) : ;;

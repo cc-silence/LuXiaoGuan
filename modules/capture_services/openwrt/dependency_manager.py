@@ -334,7 +334,7 @@ class OpenWrtDependencyManager:
         tell("本次安装：" + "、".join(wanted) + "。", "info")
         # 若需要安装 hcxdumptool 且设备内核满足要求，优先尝试从随包 hc_offline_pack 安装 6.3.4 现代版
         if "hcxdumptool" in wanted:
-            if self._try_install_modern_hcxdumptool(device, sftp_available, cancel_event, tell):
+            if self._try_install_modern_hcxdumptool(device, sftp_available, cancel_event, tell, cache_dir, uploader):
                 initial = checked()
                 wanted = self._missing_packages(initial)
                 if not wanted:
@@ -938,106 +938,12 @@ class OpenWrtDependencyManager:
             raise error
         return (result.stdout or "") + "\n" + (result.stderr or "") if command_name.endswith("_plan") else result.stdout
 
-    def _try_install_modern_hcxdumptool(self, device, sftp_available, cancel_event, tell):
-        """优先从随包内置的 hc_offline_pack 部署 6.3.4 全套现代版及运行库 (libpcap1/libopenssl3)。"""
-        import logging
-        logger = logging.getLogger("routermanager.dependency")
-        if not device:
-            return False
-        kernel_str = str(getattr(device, "kernel_version", "") or "").strip()
-        km = re.match(r"^(\d+)\.(\d+)", kernel_str)
-        if km and (int(km.group(1)), int(km.group(2))) < (5, 15):
-            msg = f"路由器内核 ({kernel_str}) 低于 5.15，无法支持 hcxdumptool 6.3.4 的 Netlink 原生套接字，将保留基础版本。"
-            logger.info(msg)
-            tell(msg, "info")
-            return False
+    def _try_install_modern_hcxdumptool(self, device, sftp_available, cancel_event, tell,
+                                      cache_dir=None, uploader=None):
+        from .hcx_primary_installer import install_primary
+        return install_primary(self, device, sftp_available, cancel_event, tell,
+                               cache_dir, uploader)
 
-        from modules.config_manager import BASE_DIR
-        base_dir = Path(BASE_DIR)
-        pack_dir = base_dir / "tools" / "hc_offline_pack"
-        if not pack_dir.is_dir():
-            logger.warning("未找到本地 hc_offline_pack 目录：%s", pack_dir)
-            return False
-
-        pkg_manager = getattr(device, "package_manager", "opkg")
-        candidates = []
-        for raw_a in [
-            str(getattr(device, "package_architecture", "") or "").strip(),
-            str(getattr(device, "architecture", "") or "").strip(),
-        ]:
-            if not raw_a:
-                continue
-            if raw_a in {"mipsel", "mips"} or "mt7621" in str(getattr(device, "target", "")):
-                candidates.append("mipsel_24kc")
-            elif "aarch64" in raw_a or "filogic" in str(getattr(device, "target", "")):
-                candidates.append("aarch64_cortex-a53")
-            candidates.append(raw_a)
-
-        target_dir = None
-        target_arch = ""
-        for a in candidates:
-            p_ipk = pack_dir / "24.10" / a / "pkgs"
-            p_apk = pack_dir / "25.12" / a / "pkgs"
-            if pkg_manager == "apk" and p_apk.is_dir() and (p_apk / "hcxdumptool-6.3.4-r1.apk").is_file():
-                target_dir = p_apk
-                target_arch = a
-                break
-            if p_ipk.is_dir() and (p_ipk / f"hcxdumptool_6.3.4-r1_{a}.ipk").is_file():
-                target_dir = p_ipk
-                target_arch = a
-                break
-
-        arch = target_arch or getattr(device, "package_architecture", "未知架构")
-        if not target_dir:
-            logger.info("未在本地离线包找到匹配当前架构 (%s) 的 hcxdumptool 6.3.4 套件", arch)
-            return False
-
-        ext = ".apk" if pkg_manager == "apk" else ".ipk"
-        pkg_files = sorted([p for p in target_dir.glob(f"*{ext}") if p.is_file()],
-                           key=lambda p: 1 if "hcxdumptool" in p.name else 0)
-        if not pkg_files:
-            return False
-
-        tell(f"正在从本地随包离线库部署现代版 hcxdumptool 6.3.4 及运行库 ({arch})…", "info")
-        logger.info("开始向路由器部署现代版 hcxdumptool 6.3.4 套件 (%s 个包): %s", len(pkg_files), [f.name for f in pkg_files])
-        try:
-            ssh = getattr(self.command_runner, "ssh_client", None)
-            if not ssh or not getattr(ssh, "connected", False):
-                logger.error("SSH 未连接，无法传输安装包")
-                return False
-
-            self.command_runner.run("mkdir_hcx_tmp", "mkdir -p /tmp/hcx_pkgs", timeout=10, cancel_event=cancel_event)
-            with ssh.transfer(cancel_event, timeout=60):
-                sftp = ssh.open_sftp(timeout=10, cancel_event=cancel_event)
-                for f in pkg_files:
-                    sftp.put(str(f), f"/tmp/hcx_pkgs/{f.name}")
-            logger.info("成功传输全套离线包到 /tmp/hcx_pkgs")
-
-            if pkg_manager == "apk":
-                cmd = "apk add --allow-untrusted /tmp/hcx_pkgs/*.apk ; rm -rf /tmp/hcx_pkgs"
-            else:
-                cmd = "opkg install --force-overwrite --force-reinstall /tmp/hcx_pkgs/*.ipk || opkg install --nodeps --force-overwrite /tmp/hcx_pkgs/*.ipk ; rm -rf /tmp/hcx_pkgs"
-            
-            res = self.command_runner.run("install_modern_hcx", cmd, timeout=60, cancel_event=cancel_event)
-            logger.info("部署命令执行完成 exit_code=%s, stdout=%s, stderr=%s", res.exit_code, res.stdout, res.stderr)
-
-            # 验证二进制是否实际安装并可用
-            verify_res = self.command_runner.run("verify_hcx", "/usr/sbin/hcxdumptool -v 2>&1 || hcxdumptool -v 2>&1", timeout=10, cancel_event=cancel_event)
-            verify_out = (verify_res.stdout or "") + (verify_res.stderr or "")
-            logger.info("hcxdumptool 验证结果 exit=%s output=%s", verify_res.exit_code, verify_out.strip())
-
-            if "6.3.4" in verify_out:
-                tell(f"成功部署现代版 hcxdumptool 6.3.4 ({arch})！", "success")
-                return True
-            else:
-                err_msg = f"离线包部署 6.3.4 库验证未通过(exit={verify_res.exit_code}): {verify_out.strip()}"
-                logger.error(err_msg)
-                tell(f"离线包部署 6.3.4 库验证未通过，将继续尝试常规源安装。", "info")
-            return False
-        except Exception as exc:
-            logger.exception("优先部署 6.3.4 异常：%s", exc)
-            tell(f"优先部署 6.3.4 遇到非阻断异常: {exc}，继续常规流程。", "info")
-            return False
 
 def _looks_like_network(message):
     """仅明确联网错误才转代下载，不用离线重试掩盖签名或依赖冲突。"""

@@ -574,11 +574,13 @@ __WINBOX_KERNEL__=5.15.137
         captured_states = []
 
         # 模拟命令执行返回
-        def fake_run(name, cmd, timeout=None, cancel_event=None):
+        def fake_run(name, cmd, timeout=None, cancel_event=None, **kwargs):
             if name == "find_hcx_bin":
                 return RemoteCommandResult(name, 0, "/usr/bin/hcxdumptool", "")
-            if name == "resolve_real_phy":
-                return RemoteCommandResult(name, 0, "phy0", "")
+            if name == "snapshot_wireless":
+                return RemoteCommandResult(name, 0, "wireless.radio0=wifi-device\nwireless.radio0.band='2g'\n__WINBOX_SNAP_IWDEV__\nphy#0\n__WINBOX_SNAP_WIFISTATUS__\n{}", "")
+            if name == "radio_identity_probe":
+                return RemoteCommandResult(name, 0, '__RM_PHYS__\nphy0\n__RM_PHYS_OK__\n__RM_RADIO__radio0\n{"phyname":"phy0"}\n__RM_END__\n', "")
             if name == "ensure_phy_stubs":
                 return RemoteCommandResult(name, 0, "STUB_CREATED:hcxstub1\n", "")
             if name == "probe_hcx_dialect":

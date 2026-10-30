@@ -95,7 +95,7 @@ class AutoCaptureRadioSession:
         idx_match = re.search(r"\d+", self.radio_name)
         self.idx = idx_match.group(0) if idx_match else "0"
         self.mon_iface = f"hcxmon{self.idx}"
-        self.phy = radio_info.interface or f"phy{self.idx}"
+        self.phy = radio_info.interface or ""
         self._hcx_bin = "hcxdumptool"
         self.remote_cap_file = ""
         self.local_log_file: Optional[Path] = None
@@ -185,26 +185,8 @@ class AutoCaptureRadioSession:
             )
 
             # 动态核准该射频对应的真实底层物理 phy (对齐 hcx_autocap.sh 三级动态探测)
-            default_phy = self.phy if (self.phy and re.fullmatch(r"phy\d+", self.phy)) else f"phy{self.idx}"
-            resolve_phy_script = (
-                f"_real_phy=$(uci get wireless.{self.radio_name}.phy 2>/dev/null); "
-                f"if [ -z \"$_real_phy\" ]; then "
-                f"  _dev_path=$(uci get wireless.{self.radio_name}.path 2>/dev/null); "
-                f"  if [ -n \"$_dev_path\" ]; then "
-                f"    for _p in /sys/class/ieee80211/phy*; do "
-                f"      [ -d \"$_p\" ] || continue; "
-                f"      _target=$(readlink -f \"$_p/device\" 2>/dev/null || ls -l \"$_p/device\" 2>/dev/null); "
-                f"      case \"$_target\" in *\"$_dev_path\"*) _real_phy=$(basename \"$_p\"); break ;; esac; "
-                f"    done; "
-                f"  fi; "
-                f"fi; "
-                f"[ -z \"$_real_phy\" ] && _real_phy=\"{default_phy}\"; "
-                f"printf '%s' \"$_real_phy\""
-            )
-            phy_res = self.runner.run("resolve_real_phy", resolve_phy_script, timeout=6, cancel_event=self._stop_event)
-            resolved_phy = (phy_res.stdout or "").strip()
-            if re.fullmatch(r"phy\d+", resolved_phy):
-                self.phy = resolved_phy
+            snapshot = takeover.snapshot_wireless(self._stop_event)
+            self.phy, live_interfaces = takeover.resolve_phy(self.radio_name, snapshot)
             self.service.radioStreamOutput.emit(
                 self.radio_name,
                 f"📡 [射频绑定] 物理设备: {self.phy} (对应配置: wireless.{self.radio_name})\n",
@@ -212,8 +194,8 @@ class AutoCaptureRadioSession:
 
             # 1. 如果射频正在承载实际业务接口，且用户允许接管，才执行无线安全接管事务；
             # 若当前没有任何业务接口（例如重置后未开启无线或处于空闲），本身即无需接管
-            has_running_ifaces = bool(self.radio_info.interfaces)
-            is_free = bool(self.radio_info.free) or not has_running_ifaces
+            has_running_ifaces = bool(live_interfaces)
+            is_free = not has_running_ifaces
             if not is_free:
                 if not allow_takeover:
                     raise RuntimeError(f"射频 {self.radio_name} 当前正在使用，且未勾选允许接管，已拒绝启动。")

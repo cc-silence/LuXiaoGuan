@@ -4,7 +4,7 @@ import time
 from dataclasses import replace
 
 from .device_identity import BOARD_COMMAND, PHY_COMMAND, board_identity, package_architecture, parse_phy_capabilities, writable_storage_mb
-from .radio_identity import STATUS_MARKER, snapshot_radio_mapping, status_radio_ifnames, uci_radio_bands
+from .radio_identity import IDENTITY_MARKER, STATUS_MARKER, snapshot_radio_mapping, status_radio_ifnames, uci_radio_bands
 
 from modules.capture_services.openwrt.command_builder import quote_argument
 from modules.capture_services.openwrt.models import OpenWrtDeviceInfo, OpenWrtRadioInfo
@@ -54,7 +54,7 @@ def parse_radio_idle_status(wireless_text: str) -> dict[str, bool]:
     wifi_status_data = {}
     if STATUS_MARKER in str(wireless_text or ""):
         try:
-            payload = wireless_text.split(STATUS_MARKER, 1)[1].split("__WINBOX_IWDEV__", 1)[0]
+            payload = re.split(r"(?m)^__WINBOX_", wireless_text.split(STATUS_MARKER, 1)[1], maxsplit=1)[0]
             data = json.loads(payload)
             if isinstance(data, dict):
                 wifi_status_data = data
@@ -654,32 +654,31 @@ class OpenWrtDeviceProbe:
             # 1. 运行态 mapping
             # 2. uci wireless.<r>.path 对比 sysfs 设备路径
             # 3. uci wireless.<r>.phy
-            # 4. 兜底数字索引 phy{idx}
+            # Unresolved or conflicting ownership remains unknown; never use numbering.
             phy = mapping.get(name, "")
-            if not phy:
+            if not phy and IDENTITY_MARKER not in wireless_text:
                 dev_path_match = re.search(rf"(?m)^wireless\.{re.escape(name)}\.path=['\"]?([^'\"\s]+)", wireless_text)
                 if dev_path_match:
                     dev_path = dev_path_match.group(1).strip()
-                    for p_name, p_target in phy_device_paths.items():
-                        if dev_path in p_target:
-                            phy = p_name
-                            break
+                    candidates = [p_name for p_name, p_target in phy_device_paths.items()
+                                  if p_target.rstrip("/").endswith("/" + dev_path.strip("/"))]
+                    if len(candidates) == 1:
+                        phy = candidates[0]
                 if not phy:
                     phy_match = re.search(rf"(?m)^wireless\.{re.escape(name)}\.phy=['\"]?([^'\"\s]+)", wireless_text)
                     if phy_match:
-                        phy = phy_match.group(1).strip()
-                if not phy:
-                    idx_match = re.search(r"\d+", name)
-                    if idx_match:
-                        phy = f"phy{idx_match.group(0)}"
+                        candidate = phy_match.group(1).strip()
+                        phy = candidate if candidate in phy_device_paths else ""
             interfaces = tuple(phy_interfaces.get(phy, ()))
             channel = int(phy_channels.get(phy, 0) or 0)
             if not normalized_bands and channel > 0:
                 normalized_bands = ("5G",) if channel > 14 else ("2.4G",)
-            if name in radio_free_map:
-                is_free = radio_free_map[name]
+            if interfaces:
+                is_free = False
+            elif not phy:
+                is_free = None
             else:
-                is_free = not interfaces
+                is_free = radio_free_map.get(name)
             radios.append(
                 OpenWrtRadioInfo(
                     name=name,
