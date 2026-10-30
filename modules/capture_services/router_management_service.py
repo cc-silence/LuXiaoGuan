@@ -10,6 +10,7 @@ from modules.platform_services.local_file_operations import recycle_local_entry,
 
 class RouterManagementService(QObject):
     """主线程持有队列，写操作占用公共任务槽。"""
+    INSPECTIONS = frozenset({'policy_preview', 'maintenance_preview', 'tool_check'})
     READ_ONLY = frozenset({'local_list', 'local_upload_selection', 'list', 'common_read', 'policy_read', 'policy_status'})
     completed = Signal(str, object)
     failed = Signal(str, str)
@@ -116,7 +117,8 @@ class RouterManagementService(QObject):
             return
         writer_cancel = None
         if not readonly:
-            writer_cancel = self.owner.task_controller.begin('router_management', key)
+            task_kind = 'router_inspect' if action in self.INSPECTIONS else 'router_management'
+            writer_cancel = self.owner.task_controller.begin(task_kind, key)
             if writer_cancel is None:
                 return
             cancel = writer_cancel

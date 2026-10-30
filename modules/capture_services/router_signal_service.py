@@ -15,7 +15,9 @@ from .workflow_diagnostics import record_workflow
 # 唯一会改路由器无线配置的其他任务；它结束后必须重新核实，不能自动解锁。
 _WIRELESS_WRITERS = frozenset({CaptureTaskType.PASSWORD_VERIFY.value, "wireless_setup"})
 # 他任务执行中的状态行文案；没列到的抓包类任务统一说抓包中。
+_READ_ONLY_TASKS = frozenset({"wireless_inspect", "router_inspect"})
 _BUSY_COPY = {
+    "router_inspect": "\u8def\u7531\u5668\u8bbe\u7f6e\u68c0\u67e5\u4e2d",
     "wireless_apply_check": "管理连接检查中",
     "wireless_inspect": "\u65e0\u7ebf\u73af\u5883\u68c0\u6d4b\u4e2d",
     "wireless_setup": "无线设置中",
@@ -54,6 +56,7 @@ class RouterSignalService(QObject):
         self._active = False
         self._auto_refresh_blocked = False
         self._foreign_task_active = False
+        self._foreign_read_detail = None
         self._refreshRequested.connect(self._try_auto_refresh, Qt.QueuedConnection)
         self._verified = False
         self.dependencies_missing = False
@@ -104,8 +107,12 @@ class RouterSignalService(QObject):
                 self.snapshotChanged.emit(self.snapshot)
             return
         if state not in ("idle", "failed"):
+            if task_type in _READ_ONLY_TASKS:
+                if not self._foreign_task_active:
+                    self._foreign_read_detail = (self.snapshot.detail, self.snapshot.detail_level)
+            else:
+                self.snapshot = replace(self.snapshot, wireless_status_stale=True)
             self._foreign_task_active = True
-            self.snapshot = replace(self.snapshot, wireless_status_stale=True)
             label = _BUSY_COPY.get(task_type, "抓包中")
             detail = f"{label}，当前功能不可用；结束自动恢复。"
             changed = self._sync_transient()
@@ -127,7 +134,13 @@ class RouterSignalService(QObject):
         if self.snapshot.busy_label:
             self.snapshot = replace(self.snapshot, busy_label="")
             self.snapshotChanged.emit(self.snapshot)
-        if was_busy and task_type != "wireless_apply_check":
+        prior_detail, self._foreign_read_detail = self._foreign_read_detail, None
+        read_only_task = task_type in _READ_ONLY_TASKS
+        if read_only_task and prior_detail is not None:
+            self.snapshot = replace(self.snapshot, detail=prior_detail[0], detail_level=prior_detail[1])
+            self.snapshotChanged.emit(self.snapshot)
+        explicit_recheck = task_type == "wireless_inspect" and not self._verified
+        if was_busy and task_type != "wireless_apply_check" and (not read_only_task or explicit_recheck):
             self._refreshRequested.emit()
 
     def _try_auto_refresh(self):

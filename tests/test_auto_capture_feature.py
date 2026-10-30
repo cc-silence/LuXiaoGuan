@@ -48,6 +48,14 @@ class AutoCaptureFeatureTests(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
+    def ui_service(self, owner):
+        service = AutoCaptureService(owner)
+        for name in ('refresh_boot_status', 'refresh_radio_idle_status'):
+            probe_patch = patch.object(service, name, return_value=False)
+            probe_patch.start()
+            self.addCleanup(probe_patch.stop)
+        return service
+
     def test_local_script_version_read(self):
         ver = read_local_script_version()
         self.assertTrue(ver.startswith("v"), f"Local version should start with 'v', got {ver}")
@@ -202,7 +210,7 @@ init_bpf_filter
         service.openwrt_backend.ssh_client = MagicMock()
         service.settings = {}
 
-        auto_cap_service = AutoCaptureService(service)
+        auto_cap_service = self.ui_service(service)
         service.auto_capture = auto_cap_service
 
         r0 = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",), free=True)
@@ -316,7 +324,7 @@ init_bpf_filter
         service.openwrt_backend.ssh_client = MagicMock()
         service.settings = {}
 
-        auto_cap_service = AutoCaptureService(service)
+        auto_cap_service = self.ui_service(service)
         service.auto_capture = auto_cap_service
 
         r0 = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",), free=False)
@@ -669,7 +677,7 @@ __WINBOX_KERNEL__=5.15.137
         service.openwrt_backend.ssh_client = MagicMock()
         service.settings = {}
 
-        auto_cap_service = AutoCaptureService(service)
+        auto_cap_service = self.ui_service(service)
         service.auto_capture = auto_cap_service
 
         r0 = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",), free=True)
@@ -812,7 +820,7 @@ __WINBOX_KERNEL__=5.15.137
         service.openwrt_backend.ssh_client = MagicMock()
         service.settings = {}
 
-        auto_cap_service = AutoCaptureService(service)
+        auto_cap_service = self.ui_service(service)
         # This test supplies boot snapshots explicitly; no asynchronous probe may replace them.
         auto_cap_service.refresh_boot_status = MagicMock()
         service.auto_capture = auto_cap_service
@@ -1096,7 +1104,7 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         service.openwrt_backend.ssh_client = MagicMock()
         service.settings = {}
 
-        auto_cap_service = AutoCaptureService(service)
+        auto_cap_service = self.ui_service(service)
         service.auto_capture = auto_cap_service
 
         page = AutoCapturePage(service, {})
@@ -1196,7 +1204,7 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         service.openwrt_backend.ssh_client = MagicMock()
         service.settings = {}
 
-        auto_cap_service = AutoCaptureService(service)
+        auto_cap_service = self.ui_service(service)
         service.auto_capture = auto_cap_service
 
         r0 = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",), free=True)
@@ -1282,7 +1290,7 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         service.openwrt_backend.ssh_client = MagicMock()
         service.settings = {}
 
-        auto_cap_service = AutoCaptureService(service)
+        auto_cap_service = self.ui_service(service)
         service.auto_capture = auto_cap_service
 
         # 初始状态: radio0 正在使用 (free=False)
@@ -1321,7 +1329,7 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         service.openwrt_backend.ssh_client = MagicMock()
         service.settings = {}
 
-        auto_cap_service = AutoCaptureService(service)
+        auto_cap_service = self.ui_service(service)
         service.auto_capture = auto_cap_service
 
         r0 = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",), free=True)
@@ -1383,7 +1391,7 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         service.settings = {}
         service.openwrt_snapshot = snap_2305
         service.current_device = dev_2305
-        auto_cap_service = AutoCaptureService(service)
+        auto_cap_service = self.ui_service(service)
         service.auto_capture = auto_cap_service
 
         page = AutoCapturePage(service, {})
@@ -1585,7 +1593,7 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         service = MagicMock()
         service.openwrt_backend = MagicMock()
         service.settings = {}
-        auto_cap_service = AutoCaptureService(service)
+        auto_cap_service = self.ui_service(service)
         service.auto_capture = auto_cap_service
 
         page = AutoCapturePage(service, {})

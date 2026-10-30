@@ -1,5 +1,5 @@
 """Full ZIP integrity, safe extraction, preservation and transactional rollback."""
-import hashlib,json,tempfile,unittest,zipfile
+import hashlib,json,tempfile,unittest,zipfile,os
 from pathlib import Path
 from unittest.mock import patch
 from tests.test_app_updates import signed,PUBLIC,PAYLOAD
@@ -55,6 +55,68 @@ class FullPackageTests(unittest.TestCase):
   with patch.object(cache,'PUBLIC_KEY',PUBLIC):self.assertTrue(cache.cleanup_stage(stage,remove_metadata=True))
   self.assertFalse(stage.exists())
 
+
+ def terminal_stage(self):
+  from modules.app_update_services import cache
+  stage,release=self.archive();catalog=prepare_package(stage/'package.zip',release,stage,self.root)
+  (stage/'manifest.json').write_bytes(signed(dict(PAYLOAD,size=release.size,sha256=release.sha256)))
+  atomic_json(stage/'catalog.json',catalog);atomic_json(stage/'journal.json',dict(state='complete',entries=[]))
+  (stage/'RouterManagerUpdateWorker.exe').write_bytes(b'helper')
+  return stage,catalog
+ def test_locked_helper_does_not_keep_complete_zip_until_next_launch(self):
+  from modules.app_update_services import cache
+  stage,_=self.terminal_stage();original=Path.unlink
+  def unlink(path,*args,**kwargs):
+   if path.name=='RouterManagerUpdateWorker.exe':raise PermissionError('in use')
+   return original(path,*args,**kwargs)
+  with patch.object(cache,'PUBLIC_KEY',PUBLIC),patch.object(Path,'unlink',autospec=True,side_effect=unlink):
+   self.assertFalse(cache.cleanup_stage(stage,remove_metadata=True))
+  self.assertFalse((stage/'package.zip').exists());self.assertTrue((stage/'manifest.json').exists())
+  with patch.object(cache,'PUBLIC_KEY',PUBLIC):self.assertTrue(cache.cleanup_stage(stage,remove_metadata=True))
+  self.assertFalse(stage.exists())
+ @unittest.skipUnless(os.name=='nt','Windows file sharing semantics')
+ def test_real_windows_helper_lock_still_reclaims_zip(self):
+  import ctypes
+  from ctypes import wintypes
+  from modules.app_update_services import cache
+  stage,_=self.terminal_stage()
+  kernel=ctypes.WinDLL('kernel32',use_last_error=True)
+  kernel.CreateFileW.argtypes=(wintypes.LPCWSTR,wintypes.DWORD,wintypes.DWORD,wintypes.LPVOID,wintypes.DWORD,wintypes.DWORD,wintypes.HANDLE)
+  kernel.CreateFileW.restype=wintypes.HANDLE
+  kernel.CloseHandle.argtypes=(wintypes.HANDLE,);kernel.CloseHandle.restype=wintypes.BOOL
+  handle=kernel.CreateFileW(str(stage/'RouterManagerUpdateWorker.exe'),0x80000000,0,None,3,0,None)
+  self.assertNotEqual(handle,ctypes.c_void_p(-1).value)
+  try:
+   with patch.object(cache,'PUBLIC_KEY',PUBLIC):self.assertFalse(cache.cleanup_stage(stage,remove_metadata=True))
+   self.assertFalse((stage/'package.zip').exists())
+   self.assertTrue((stage/'manifest.json').exists())
+  finally:kernel.CloseHandle(handle)
+  with patch.object(cache,'PUBLIC_KEY',PUBLIC):self.assertTrue(cache.cleanup_stage(stage,remove_metadata=True))
+  self.assertFalse(stage.exists())
+ def test_locked_payload_keeps_zip_for_authenticated_cleanup_retry(self):
+  from modules.app_update_services import cache
+  stage,catalog=self.terminal_stage();name=catalog['files'][0]['sha256']+'.file';original=Path.unlink
+  def unlink(path,*args,**kwargs):
+   if path.name==name:raise PermissionError('in use')
+   return original(path,*args,**kwargs)
+  with patch.object(cache,'PUBLIC_KEY',PUBLIC),patch.object(Path,'unlink',autospec=True,side_effect=unlink):
+   self.assertFalse(cache.cleanup_stage(stage,remove_metadata=True))
+  self.assertTrue((stage/'package.zip').exists())
+  with patch.object(cache,'PUBLIC_KEY',PUBLIC):self.assertTrue(cache.cleanup_stage(stage,remove_metadata=True))
+ def test_active_recovery_keeps_complete_package(self):
+  from modules.app_update_services import cache
+  stage,_=self.terminal_stage();atomic_json(stage/'journal.json',dict(state='applying',entries=[]))
+  with patch.object(cache,'PUBLIC_KEY',PUBLIC):self.assertFalse(cache.cleanup_stage(stage,remove_metadata=True))
+  self.assertTrue((stage/'package.zip').exists())
+ def test_completed_cleanup_releases_zip_even_when_retaining_small_records(self):
+  from modules.app_update_services import cache
+  stage,_=self.terminal_stage()
+  with patch.object(cache,'PUBLIC_KEY',PUBLIC):self.assertTrue(cache.cleanup_stage(stage))
+  self.assertFalse((stage/'package.zip').exists());self.assertTrue((stage/'manifest.json').exists())
+  (stage/'user.txt').write_bytes(b'preserve')
+  with patch.object(cache,'PUBLIC_KEY',PUBLIC):self.assertFalse(cache.cleanup_stage(stage,remove_metadata=True))
+  self.assertEqual((stage/'user.txt').read_bytes(),b'preserve')
+
 class FullPackageFlowTests(unittest.TestCase):
  setUp=FullPackageTests.setUp
  archive=FullPackageTests.archive
@@ -79,14 +141,21 @@ class FullPackageFlowTests(unittest.TestCase):
   with patch.object(installer,'PUBLIC_KEY',PUBLIC),patch('modules.platform_services.app_update_install.wait_for_parent'),patch.object(installer.subprocess,'run',return_value=type('Result',(),{'returncode':0})()),patch.object(installer.subprocess,'Popen'),patch('modules.app_update_services.transaction.migrate_defaults'),patch('modules.app_update_services.cache.cleanup_stage',return_value=True):
    result=installer.run_install(stage/'job.json')
   self.assertEqual(result['status'],'applied');self.assertEqual((self.root/'LuXiaoGuan.exe').read_bytes(),b'new app')
- def test_finished_transfer_requests_install_without_opening_browser(self):
+ def test_finished_transfer_waits_for_explicit_restart_action(self):
   from PySide6.QtCore import QObject
   from modules.desktop_shell.app_update_presenter import AppUpdatePresenter
   runtime=QObject();runtime._exiting=False;runtime.main_window=None
   with patch('modules.platform_services.app_update_access.read_code',return_value=''):presenter=AppUpdatePresenter('2.0.8_alpha',runtime)
   presenter.state='ready';presenter.plan={'full_package':True};presenter._worker=type('Worker',(),{'deleteLater':lambda self:None})()
   with patch.object(presenter,'install_update') as install:presenter._transfer_finished()
-  install.assert_called_once_with(None,confirmed=True)
+  install.assert_not_called()
+  self.assertEqual(presenter.state,'ready');self.assertIsNone(presenter._worker)
+  self.assertTrue(presenter.plan['full_package'])
+  from types import SimpleNamespace
+  from modules.settings_pages.app_update_page import AppUpdatePage
+  page=SimpleNamespace(presenter=presenter)
+  with patch.object(presenter,'install_update') as install:AppUpdatePage._download(page)
+  install.assert_called_once_with(page)
   presenter.stop();presenter.deleteLater();runtime.deleteLater()
 
 if __name__=='__main__':unittest.main()

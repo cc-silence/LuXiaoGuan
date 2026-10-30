@@ -703,8 +703,15 @@ class AutoCapturePage(QWidget):
     def _on_signals_snapshot_changed(self, snapshot):
         """当在信号管理页面修改了信号状态后，自动触发前台射频业务状态异步刷新。"""
         conn_state = getattr(self.service.openwrt_snapshot, "connection_state", None)
-        if getattr(conn_state, "value", conn_state) == "connected":
-            self.auto_capture_service.refresh_radio_idle_status()
+        if getattr(conn_state, "value", conn_state) != "connected":
+            self._last_signal_inventory = None
+            return
+        inventory = getattr(snapshot, "inventory", None)
+        if (inventory is None or getattr(snapshot, "busy", False) or getattr(snapshot, "stale", False)
+                or inventory is getattr(self, "_last_signal_inventory", None)):
+            return
+        self._last_signal_inventory = inventory
+        self.auto_capture_service.refresh_radio_idle_status()
 
     def _on_radio_idle_status_updated(self, free_map: dict):
         """远端射频业务状态异步返回后，立即精准刷新射频卡片的空闲/使用中徽章与接管复选框。"""

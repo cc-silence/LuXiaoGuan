@@ -992,6 +992,8 @@ class AutoCaptureService(QObject):
 
         self._boot_status: Optional[AutoCaptureBootStatus] = None
         self._is_probing_boot = False
+        self._boot_probe_lock = threading.Lock()
+        self._boot_connection = None
         self._diagnostic_lock = threading.Lock()
         self._recovery_diagnostics = deque(maxlen=32)
         backend.capture_diagnostic_callback = self.record_recovery_diagnostic
@@ -1095,21 +1097,40 @@ class AutoCaptureService(QObject):
 
     def refresh_boot_status(self):
         """在后台异步刷新开机自启状态。"""
-        self._is_probing_boot = True
+        connection = getattr(self.ssh, "_client", None)
+        controller = getattr(self.owner, "task_controller", None)
+        if (self._disposed or connection is None or not self.ssh.connected
+                or getattr(controller, "busy", False) is True):
+            return False
+        with self._boot_probe_lock:
+            if self._is_probing_boot:
+                return False
+            self._is_probing_boot = True
+            self._boot_connection = connection
         self.bootStatusChecking.emit()
 
         def _task():
             try:
                 status = self.boot_manager.probe_boot_status()
-                self._boot_status = status
-                self._is_probing_boot = False
-                self.bootStatusChanged.emit(status)
+                if not self._disposed and getattr(self.ssh, "_client", None) is connection and self.ssh.connected:
+                    self._boot_status = status
+                    self.bootStatusChanged.emit(status)
             except Exception as exc:
-                self._is_probing_boot = False
                 LOGGER.warning("Probe boot status failed: %s", exc)
+            finally:
+                with self._boot_probe_lock:
+                    self._is_probing_boot = False
 
         t = threading.Thread(target=_task, name="ProbeBootStatus", daemon=True)
-        t.start()
+        try:
+            t.start()
+        except Exception:
+            with self._boot_probe_lock:
+                self._is_probing_boot = False
+                if self._boot_connection is connection:
+                    self._boot_connection = None
+            raise
+        return True
 
     def start_boot_script(self):
         """异步手动启动后台抓包脚本。"""
@@ -1286,8 +1307,10 @@ class AutoCaptureService(QObject):
 
     def refresh_radio_idle_status(self):
         """异步读取远端最新无线配置与运行状态，更新各射频业务空闲/使用中状态。"""
-        if getattr(self, "_is_probing_idle", False):
+        if (self._disposed or getattr(self, "_is_probing_idle", False)
+                or getattr(getattr(self.owner, "task_controller", None), "busy", False) is True):
             return
+        connection = getattr(self.ssh, "_client", None)
         snapshot = getattr(self.owner, "openwrt_snapshot", None)
         conn_state = getattr(snapshot, "connection_state", None)
         if getattr(conn_state, "value", conn_state) != "connected":
@@ -1304,7 +1327,8 @@ class AutoCaptureService(QObject):
                     "printf '\\n__WINBOX_IWDEV__\\n'"
                 )
                 res = self.runner.run("probe_radio_idle", cmd, timeout=6)
-                if res.exit_code == 0 and res.stdout:
+                if (res.exit_code == 0 and res.stdout and not self._disposed
+                        and getattr(self.ssh, "_client", None) is connection and self.ssh.connected):
                     from .device_probe import parse_radio_idle_status
                     free_map = parse_radio_idle_status(res.stdout)
                     if free_map:
@@ -1328,7 +1352,10 @@ class AutoCaptureService(QObject):
 
         state_val = getattr(snapshot.connection_state, "value", "")
         if state_val == "connected":
-            self.refresh_boot_status()
+            connection = getattr(self.ssh, "_client", None)
+            if connection is not self._boot_connection and self.refresh_boot_status():
+                self._boot_connection = connection
         elif state_val in {"disconnected", "failed"}:
+            self._boot_connection = None
             self.stop_all()
             self._boot_status = None

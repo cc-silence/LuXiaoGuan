@@ -62,7 +62,7 @@ class AppUpdatePage(QWidget):
         from modules.ui_scale_manager import UiScaleManager
         UiScaleManager.for_widget(parent).bind_metrics(self.notes,min_height=150)
         layout.addWidget(self.notes,1)
-        self.hint=create_hint_label("\u5728\u8f6f\u4ef6\u5185\u4e0b\u8f7d\u5b8c\u6574\u5b89\u88c5\u5305\uff0c\u6821\u9a8c\u6210\u529f\u540e\u81ea\u52a8\u5b89\u88c5\u5e76\u91cd\u542f\u3002\u4fdd\u7559\u7528\u6237\u914d\u7f6e\u548c\u6570\u636e\uff0c\u5b89\u88c5\u5931\u8d25\u4f1a\u56de\u6eda\u3002",container)
+        self.hint=create_hint_label("\u5728\u8f6f\u4ef6\u5185\u4e0b\u8f7d\u5b8c\u6574\u5b89\u88c5\u5305\uff0c\u6821\u9a8c\u6210\u529f\u540e\uff0c\u7b49\u5f85\u4f60\u70b9\u51fb\u201c\u91cd\u542f\u5e76\u5b89\u88c5\u66f4\u65b0\u201d\u3002\u4fdd\u7559\u7528\u6237\u914d\u7f6e\u548c\u6570\u636e\uff0c\u5b89\u88c5\u5931\u8d25\u4f1a\u56de\u6eda\u3002",container)
         layout.addWidget(self.hint)
         access_row=QHBoxLayout()
         self.test_code_input=QLineEdit(container);self.test_code_input.setObjectName("settingsLineEdit")
@@ -187,7 +187,7 @@ class AppUpdatePage(QWidget):
             self.download_button.style().unpolish(self.download_button)
             self.download_button.style().polish(self.download_button)
             self.download_button.update()
-        self.download_button.setText("\u91cd\u542f\u5e76\u5b89\u88c5\u66f4\u65b0" if p and p.state=="ready" else "\u4e0b\u8f7d\u5e76\u5b89\u88c5\u65b0\u7248")
+        self.download_button.setText("\u91cd\u542f\u5e76\u5b89\u88c5\u66f4\u65b0" if p and p.state=="ready" else "\u4e0b\u8f7d\u65b0\u7248")
         self.cancel_button.setVisible(bool(p and p._worker is not None))
         self.version_label.setText("\u5f53\u524d\u7248\u672c\uff1a"+(p.checker.current_version if p else "\u672a\u77e5")+(f"  (\u8d44\u6e90\u66f4\u65b0 {p.checker.resource_revision})" if p and p.checker.resource_revision else ""))
         messages={"idle":"\u5c1a\u672a\u68c0\u67e5\u66f4\u65b0\u3002","checking":"\u6b63\u5728\u68c0\u67e5\u66f4\u65b0\u2026",
