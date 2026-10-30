@@ -74,3 +74,11 @@ clients sending `X-RouterManager-Update-Mode: full-package`. Testing-code and
 platform restrictions remain enforced. Keep this bridge until the owner confirms
 legacy migration is finished; normal retention and incremental cleanup must not
 delete it. It temporarily adds one protected package to the regular four slots.
+
+
+Bundled capture scripts and hcx packages are staged under bin/tools, which is
+inside the managed program roots accepted by already shipped full-ZIP clients.
+Source checkouts continue to use tools. All consumers resolve this through the
+shared bundled_tools helper. Never copy downloaded offline_packages caches into
+an application ZIP. Verify the complete new archive with shipped client code,
+not only its version notification, before publication.

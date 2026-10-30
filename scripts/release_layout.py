@@ -12,12 +12,13 @@ ROOT=Path(__file__).resolve().parents[1]
 
 def seed_assets(target):
     target=Path(target); target.mkdir(parents=True,exist_ok=True)
-    for name in ("images","themes","bin","tools"):
+    for name in ("images","themes","bin"):
         if not (ROOT/name).is_dir(): continue
         shutil.copytree(ROOT/name,target/name,ignore=shutil.ignore_patterns("__pycache__","*.pyc","*.log","*.tmp","update_launcher"))
     config=target/"config";config.mkdir()
-    if (ROOT/"offline_packages").is_dir():
-        shutil.copytree(ROOT/"offline_packages",target/"offline_packages",ignore=shutil.ignore_patterns("__pycache__","*.pyc","*.log","*.tmp"))
+    if (ROOT/"tools").is_dir():
+        shutil.copytree(ROOT/"tools",target/"bin/tools",
+                        ignore=shutil.ignore_patterns("__pycache__","*.pyc","*.log","*.tmp"))
     from modules.config_manager import ConfigManager
     settings=configparser.ConfigParser();settings.read_dict(ConfigManager.DEFAULTS)
     settings.remove_section("winbox_meta")
@@ -39,7 +40,7 @@ def verify_files(package,version):
         "bin/router_terminal/winbox_terminal.dll","themes/dark.qss","themes/light.qss",
         "config/app_update.json","config/settings.ini",APPLICATION_ICON]
     if (ROOT/"tools/scripts/hcx_autocap.sh").is_file():
-        required.append("tools/scripts/hcx_autocap.sh")
+        required.append("bin/tools/scripts/hcx_autocap.sh")
     for relative in required:
         if not (package/relative).is_file():raise ValueError("Missing release file: "+relative)
     from scripts.qt_runtime_contract import require_qt_runtime

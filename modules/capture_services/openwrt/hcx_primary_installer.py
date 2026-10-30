@@ -69,7 +69,8 @@ def install_primary(manager, device, sftp_available, cancel, tell, cache_dir, up
     if pm not in {"opkg", "apk"} or arch not in {"mipsel_24kc", "aarch64_cortex-a53"}:
         return False
     branch = "25.12" if pm == "apk" else "24.10"
-    bundle = Path(BASE_DIR) / "tools" / "hc_offline_pack" / branch / arch
+    from modules.platform_services.bundled_tools import bundled_tools
+    bundle = bundled_tools(BASE_DIR) / "hc_offline_pack" / branch / arch
     if not (bundle / "manifest.json").is_file():
         return False
     manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))

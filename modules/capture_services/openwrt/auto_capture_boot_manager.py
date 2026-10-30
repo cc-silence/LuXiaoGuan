@@ -116,19 +116,8 @@ class AutoCaptureBootStatus:
 
 def get_local_script_path() -> Path:
     """定位本地内置的 hcx_autocap.sh 脚本路径。"""
-    candidate = BASE_DIR / "tools" / "scripts" / "hcx_autocap.sh"
-    if candidate.is_file():
-        return candidate
-    repo_root = Path(__file__).resolve().parents[3]
-    candidate = repo_root / "tools" / "scripts" / "hcx_autocap.sh"
-    if candidate.is_file():
-        return candidate
-    if getattr(sys, "frozen", False):
-        exe_dir = Path(sys.executable).resolve().parent
-        candidate = exe_dir / "tools" / "scripts" / "hcx_autocap.sh"
-        if candidate.is_file():
-            return candidate
-    return candidate
+    from modules.platform_services.bundled_tools import bundled_tools
+    return bundled_tools(BASE_DIR) / "scripts" / "hcx_autocap.sh"
 
 
 def read_local_script_content() -> str:
