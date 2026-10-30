@@ -813,6 +813,8 @@ __WINBOX_KERNEL__=5.15.137
         service.settings = {}
 
         auto_cap_service = AutoCaptureService(service)
+        # This test supplies boot snapshots explicitly; no asynchronous probe may replace them.
+        auto_cap_service.refresh_boot_status = MagicMock()
         service.auto_capture = auto_cap_service
 
         r0 = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",), free=True)

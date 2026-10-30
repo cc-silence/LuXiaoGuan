@@ -52,11 +52,15 @@ class CommonSettingsSecondAuditTests(unittest.TestCase):
         from modules.main_pages.packet_capture.openwrt.signal_orphan_actions import OrphanInterfaceActions
         from modules.capture_services.openwrt.wireless_setup_models import WirelessTaskResult
         for targets in ([],[{}]):
-            context=NS(_waiting=True,page=NS(),_sync=Mock(),summary=Mock(return_value='review'))
+            identity=object()
+            context=NS(_waiting=True,_preview_preserve=True,_identity=identity,
+                       service=NS(_connection_identity=lambda:identity),
+                       page=NS(service=NS(snapshot=NS(connected=True))),
+                       _sync=Mock(),summary=Mock(return_value='review'))
             name='ConfirmDialog' if targets else 'MessageDialog'
             with patch('modules.main_pages.packet_capture.openwrt.signal_relocation_actions.'+name) as factory:
                 factory.return_value.exec.return_value=0;factory.Accepted=1
-                RelocationActions._completed(context,WirelessTaskResult('move_preview',dict(targets=targets)))
+                RelocationActions._completed(context,WirelessTaskResult('move_preview',dict(targets=targets,preserve_access_points=True,access_points=[])))
             factory.return_value.deleteLater.assert_called_once_with()
         context=NS(_waiting=True,page=NS(),_sync=Mock(),_current=Mock(return_value=True))
         with patch('modules.main_pages.packet_capture.openwrt.signal_orphan_actions.MessageDialog') as factory:

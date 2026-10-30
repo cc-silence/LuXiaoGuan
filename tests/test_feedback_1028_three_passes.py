@@ -198,6 +198,8 @@ class PassThreeTransactionTests(unittest.TestCase):
             def call(obj,method,arguments):
                 if obj=='network.device':return d.wrap(dict(up=True,macaddr='02:00:00:00:00:01')),None
                 return native(obj,method,arguments)
+            # The fixture kernel-MAC reader also calls d.call; simulate the driver there.
+            d.call=call
             d.lua.globals().bridge_call=call
             review=d.policy.preview('station',{},d.cancel);before=copy.deepcopy(d.config)
             with fast_deadlines(),self.assertRaises(RuntimeError):d.policy.apply(review,None,None,d.cancel,Mock())
