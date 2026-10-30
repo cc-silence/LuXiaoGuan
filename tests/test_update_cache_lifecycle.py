@@ -50,7 +50,7 @@ class UpdateCacheLifecycleTests(unittest.TestCase):
             stage=fixture(folder,"1.0.6_alpha",None)
             cache.prune_completed(folder,current_version="1.0.8_alpha")
             self.assertFalse(stage.exists())
-            self.assertFalse((Path(folder)/LEGACY_CACHE_DIRECTORY).exists())
+            self.assertEqual({p.name for p in (Path(folder)/LEGACY_CACHE_DIRECTORY).iterdir()},{"install.lock"})
 
     def test_repeated_updates_keep_only_two_small_records(self):
         with TemporaryDirectory() as folder,patch.object(cache,"PUBLIC_KEY",PUBLIC):
@@ -237,6 +237,18 @@ class UpdateCacheLifecycleTests(unittest.TestCase):
                 self.assertEqual(validate_stage(stage,folder),stage)
             with self.assertRaises(ValueError):validate_stage(Path(folder)/"other"/("a"*64))
             with self.assertRaises(ValueError):validate_stage(Path(folder)/CACHE_DIRECTORY/"../outside")
+
+    def test_missing_cache_is_created_and_empty_cleanup_keeps_lock_identity(self):
+        with TemporaryDirectory() as folder:
+            directory=Path(folder)/CACHE_DIRECTORY
+            with cache_lock(directory) as acquired:
+                self.assertTrue(acquired)
+            identity=(directory/"install.lock").stat().st_ino
+            cache.prune_completed(folder,current_version="1.0.8_alpha")
+            self.assertEqual((directory/"install.lock").stat().st_ino,identity)
+            with cache_lock(directory) as acquired:
+                self.assertTrue(acquired)
+                with cache_lock(directory) as competing:self.assertFalse(competing)
 
     def test_cache_lease_never_waits_for_another_owner(self):
         with TemporaryDirectory() as folder:
