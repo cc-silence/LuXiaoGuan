@@ -67,21 +67,29 @@ class HcxBundleTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 validate_variants(value)
 
-    def test_missing_unified_bundle_never_uses_legacy_tools_or_old_system_version(self):
+    def test_missing_unified_bundle_uses_online_primary_without_legacy_tools(self):
         repo = CommonBundleRepository(self.root / "missing", kind="capture")
         device = NS(package_manager="opkg", package_architecture="mipsel_24kc")
-        with patch("modules.capture_services.openwrt.common_bundle_repository.CommonBundleRepository", return_value=repo):
-            with self.assertRaises(SignalError):
-                with primary_package(device, Event()):
-                    self.fail("Missing capture bundle must stop installation")
+        cancel = Event()
+        selected = (self.root / "primary.ipk", {"version": "6.3.4-r1"})
+        with patch("modules.capture_services.openwrt.common_bundle_repository.CommonBundleRepository", return_value=repo), \
+             patch("modules.capture_services.openwrt.hcx_online.online_primary_package") as online:
+            online.return_value.__enter__.return_value = selected
+            with primary_package(device, cancel) as package:
+                self.assertEqual(package, selected)
+            online.assert_called_once()
+            self.assertIs(online.call_args.args[0], device)
+            self.assertIs(online.call_args.args[1], cancel)
 
-    def test_old_capture_bundle_requires_update(self):
+    def test_old_signed_capture_bundle_uses_online_primary(self):
         f = fixture(self.root / "old", kind="capture")
         repo = prepare_hcx(f, self.root / "repository")
-        with patch("modules.capture_services.openwrt.common_bundle_repository.CommonBundleRepository", return_value=repo):
-            with self.assertRaises(SignalError):
-                with primary_package(f.device, Event()):
-                    self.fail("Old bundle has no designated hcx payload")
+        with patch("modules.capture_services.openwrt.common_bundle_repository.CommonBundleRepository", return_value=repo), \
+             patch("modules.capture_services.openwrt.hcx_online.online_primary_package") as online:
+            online.return_value.__enter__.return_value = (self.root / "primary.ipk", {"version": "6.3.4-r1"})
+            with primary_package(f.device, Event()) as (_, row):
+                self.assertEqual(row["version"], "6.3.4-r1")
+            online.assert_called_once()
 
     def test_corrupt_designated_object_prevents_materialization(self):
         f = hcx_fixture(self.root)

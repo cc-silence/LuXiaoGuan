@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .signal_package_feed import fetch_bytes
+from .firmware_profile import release_kind, canonical_release, package_directory, repository_paths
 from .package_cache import prepare_cache_directory, checked_cache_target
 
 _MIRRORS = ("https://downloads.openwrt.org", "https://archive.openwrt.org")
@@ -40,7 +41,7 @@ _SHA256 = re.compile(r"[a-fA-F0-9]{64}")
 
 @dataclass(frozen=True)
 class ApkProfile:
-    """已校验的 apk 设备档案；SNAPSHOT、非 apk、不安全字符直接拒绝。"""
+    """Validated APK firmware profile, including RC and development releases."""
 
     release: str
     package_arch: str
@@ -61,15 +62,14 @@ class ApkPackage:
 
 
 def normalize_apk_profile(version, package_arch, package_manager):
-    """校验 apk 设备档案；非 apk、缺字段、SNAPSHOT 或不安全字符直接拒绝。"""
+    """Validate firmware identity before constructing official APK URLs."""
     release = str(version or "").strip()
     arch = str(package_arch or "").strip()
     if str(package_manager or "").strip() != "apk":
         raise ValueError("当前设备不是 apk 包管理器，未按 apk 处理。")
     if not release or not arch:
         raise ValueError("设备版本或软件包架构信息不完整。")
-    if "SNAPSHOT" in release.upper():
-        raise ValueError("SNAPSHOT 版本软件源每日变化，不支持 \u8def\u5c0f\u7ba1 下载安装。")
+    release = canonical_release(release)
     if ".." in release or ".." in arch:
         raise ValueError("设备档案含不安全字符，已拒绝。")
     if not _SAFE_SEGMENT.fullmatch(release) or not _SAFE_SEGMENT.fullmatch(arch):
@@ -84,8 +84,9 @@ def index_sources(profile, feeds=_ARCH_FEEDS):
     sources = []
     for feed in feeds:
         for mirror in _MIRRORS:
-            base = f"{mirror}/releases/{profile.release}/packages/{profile.package_arch}/{feed}/"
-            sources.append((feed, base, base + "index.json"))
+            for path in package_directory(profile.release, profile.package_arch, feed):
+                base = f"{mirror}/{path}/"
+                sources.append((feed, base, base + "index.json"))
     return sources
 
 
@@ -100,12 +101,15 @@ def adb_sources(profile, target=""):
         if not all(part and part != ".." and _SAFE_SEGMENT.fullmatch(part) for part in parts):
             raise ValueError("设备 target 含不安全字符，已拒绝。")
         for mirror in _MIRRORS:
-            base = f"{mirror}/releases/{profile.release}/targets/{target}/packages/"
-            sources.append(("target", base, base + "packages.adb"))
+            for path in repository_paths(profile.release):
+                if not path.startswith("releases/packages-"):
+                    base = f"{mirror}/{path}/targets/{target}/packages/"
+                    sources.append(("target", base, base + "packages.adb"))
     for feed in _ARCH_FEEDS:
         for mirror in _MIRRORS:
-            base = f"{mirror}/releases/{profile.release}/packages/{profile.package_arch}/{feed}/"
-            sources.append((feed, base, base + "packages.adb"))
+            for path in package_directory(profile.release, profile.package_arch, feed):
+                base = f"{mirror}/{path}/"
+                sources.append((feed, base, base + "packages.adb"))
     return sources
 
 
@@ -220,9 +224,10 @@ def fetch_sha256sums(fetch, profile, cancel_event=None):
     官方格式为 ``<sha256> *<feed>/<文件名>``，这里只保留文件名为键。
     """
     last_error = None
-    for mirror in _MIRRORS:
+    urls = (f"{mirror}/{path.rstrip('/')}/sha256sums" for mirror in _MIRRORS
+            for path in package_directory(profile.release, profile.package_arch, ""))
+    for url in urls:
         _check_cancel(cancel_event)
-        url = f"{mirror}/releases/{profile.release}/packages/{profile.package_arch}/sha256sums"
         try:
             raw = fetch(url, timeout=60, cancel_event=cancel_event, limit=_MAX_INDEX_BYTES)
         except RuntimeError as exc:

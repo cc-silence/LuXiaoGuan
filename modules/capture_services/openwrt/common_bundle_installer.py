@@ -41,7 +41,7 @@ def install_from_local(manager, wanted, device, cache_dir, sftp_available, cance
             raise InterruptedError("Local bundle matching cancelled")
         repository = retain(repository or CommonBundleRepository(kind=kind))
         profile = repository.profile(device)
-        from .snapshot_bundle import candidate_profiles, select_profile, SnapshotBundleMismatch
+        from .snapshot_bundle import candidate_profiles
         from .candidate_policy import requires_candidate
         installed = None
         compare = lambda a, op, b: compare_opkg_versions(manager.command_runner, a, op, b, cancel)
@@ -51,19 +51,16 @@ def install_from_local(manager, wanted, device, cache_dir, sftp_available, cance
             if not candidate_profiles(repository, device):
                 identity = " / ".join(str(getattr(device, key, "")) for key in
                                       ("distribution", "version", "target", "package_architecture", "package_manager"))
-                reason = ("未开放此衍生固件的候选安装" if getattr(device, "distribution", "") not in {"OpenWrt", "Kwrt"}
-                          else "未找到同系列、同平台和架构的候选包")
+                reason = "未找到匹配当前系列、平台、架构和包管理器的候选包"
                 tell("本地离线包未匹配当前设备：" + identity + "。" + reason +
                      "；继续尝试路由器自身的软件源。", "info")
                 return False
-            text = manager._execute_stage("dependency_list_installed", "opkg list-installed",
-                                          30, cancel, "\u8bfb\u53d6\u5df2\u88c5\u8f6f\u4ef6\u5305")
-            installed = parse_installed(text)
-            try:
-                profile = select_profile(repository, device, wanted, installed, compare, cancel, tell)
-            except SnapshotBundleMismatch as exc:
-                tell(str(exc) + "继续尝试路由器自身的软件源。", "info")
-                return False
+            if getattr(device, "package_manager", "") == "opkg":
+                text = manager._execute_stage("dependency_list_installed", "opkg list-installed",
+                                              30, cancel, "读取已装软件包")
+                installed = parse_installed(text)
+            profile = candidate_profiles(repository, device)[0]
+
         if profile is None and kind == "common" and set(wanted).issubset(CAPTURE_ROOTS):
             repository = retain(CommonBundleRepository(kind="capture"))
             profile = repository.profile(device)
@@ -82,14 +79,19 @@ def install_from_local(manager, wanted, device, cache_dir, sftp_available, cance
                     text = manager._execute_stage("dependency_list_installed", "opkg list-installed",
                                                    30, cancel, "\u8bfb\u53d6\u5df2\u88c5\u8f6f\u4ef6\u5305")
                     installed = parse_installed(text)
-                selected = repository.ipk_selection(profile, wanted, installed, compare)
-                rows = {row["name"]: row for row in profile["packages"]}
-                paths = tuple(repository.materialize(rows[p.name], directory, cancel) for p in selected)
-                if paths:
-                    manager._install_offline(wanted, device, cache_dir, sftp_available, cancel, tell,
-                                             uploader, local_paths=paths,
-                                             local_packages={p.name: p.version for p in selected},
-                                             candidate_trial=requires_candidate(device))
+                if requires_candidate(device):
+                    from .candidate_installer import install_ipk_candidates
+                    install_ipk_candidates(manager, wanted, device, repository, directory, installed,
+                        compare, cache_dir, sftp_available, cancel, tell, uploader)
+                else:
+                    selected = repository.ipk_selection(profile, wanted, installed, compare)
+                    rows = {row["name"]: row for row in profile["packages"]}
+                    paths = tuple(repository.materialize(rows[p.name], directory, cancel) for p in selected)
+                    if paths:
+                        manager._install_offline(wanted, device, cache_dir, sftp_available, cancel, tell,
+                                                 uploader, local_paths=paths,
+                                                 local_packages={p.name: p.version for p in selected},
+                                                 candidate_trial=requires_candidate(device))
             else:
                 from .apk_offline import ApkOfflineInstaller
                 package_manager = manager._preflight(0, cancel)
@@ -102,9 +104,12 @@ def install_from_local(manager, wanted, device, cache_dir, sftp_available, cance
                     from .package_space import check_plan_space
                     check_plan_space(manager, package_manager, plan, cancel,
                                      repositories="/tmp/winbox-apk/repos.list")
-                ApkOfflineInstaller(stage, tell=tell, uploader=push, space_check=check_space,
-                                    cleanup_execute=manager._execute).install_local(
-                    wanted, profile, repository, directory, cancel)
+                from .candidate_installer import install_local_candidates
+                install_local_candidates(
+                    ApkOfflineInstaller(stage, tell=tell, uploader=push, space_check=check_space,
+                                        cleanup_execute=manager._execute),
+                    wanted, device, profile, repository, directory, cancel, tell)
+
         from .bundle_archive_cleanup import cleanup_repository_archive
         cleanup_repository_archive(repository, cancel, tell)
         return True
