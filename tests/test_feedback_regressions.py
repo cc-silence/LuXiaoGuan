@@ -180,12 +180,12 @@ class SnapshotTests(unittest.TestCase):
         device=copy.copy(f.device);device.version="24.10-SNAPSHOT"
         return repo,device,profile
 
-    def test_other_family_platform_arch_and_bare_snapshot_are_not_guessed(self):
+    def test_other_family_platform_arch_and_package_manager_do_not_match(self):
         repo,device,_=self.repository()
         self.assertEqual(len(candidate_profiles(repo,device)),1)
-        for field,value in (("version","22.03-SNAPSHOT"),("version","SNAPSHOT"),
+        for field,value in (("version","22.03-SNAPSHOT"),
                             ("target","ramips/mt7621"),("package_architecture","mipsel_24kc"),
-                            ("distribution","ImmortalWrt"),("package_manager","apk")):
+                            ("package_manager","apk")):
             other=copy.copy(device);setattr(other,field,value)
             self.assertEqual(candidate_profiles(repo,other),())
 

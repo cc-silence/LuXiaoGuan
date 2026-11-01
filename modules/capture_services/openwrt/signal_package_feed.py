@@ -26,6 +26,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 
 from .dependency_resolution import InstalledPackages, resolve_packages
+from .firmware_profile import release_kind, canonical_release, package_directory
 from .offline_cleanup import report_cleanup_warning
 from .package_download_diagnostics import AttemptDiagnostics, configuration_lines
 from .package_cache import prepare_cache_directory, checked_cache_target
@@ -165,10 +166,10 @@ def normalize_profile(version, package_arch, package_manager, *, distribution="O
         raise ValueError("\u8def\u5c0f\u7ba1 下载安装只支持 opkg 设备。")
     if not release or not arch:
         raise ValueError("设备版本或软件包架构信息不完整。")
-    snapshot = "SNAPSHOT" in release.upper()
-    if snapshot and not re.fullmatch(r"(19\.07|21\.02|22\.03|23\.05|24\.10|25\.12)-SNAPSHOT", release):
-        raise ValueError("无法确认 SNAPSHOT 所属系统系列，未猜测下载版本。")
-    trial = "kwrt" if str(distribution).strip().casefold() == "kwrt" else "snapshot" if snapshot else ""
+    release = canonical_release(release)
+    kind = release_kind(release)
+    trial = ("kwrt" if str(distribution).strip().casefold() != "openwrt"
+             else "snapshot" if kind in {"snapshot", "branch"} else "rc" if kind == "rc" else "")
     if not _SAFE_SEGMENT.fullmatch(release) or not _SAFE_SEGMENT.fullmatch(arch):
         raise ValueError("设备档案含不安全字符，已拒绝。")
     return DeviceProfile(release, arch, trial)
@@ -179,11 +180,8 @@ def index_urls(profile):
     urls = []
     for feed in _FEEDS:
         for mirror in _MIRRORS:
-            urls.append((
-                feed,
-                f"{mirror}/releases/{profile.release}/packages/"
-                f"{profile.package_arch}/{feed}/Packages",
-            ))
+            for path in package_directory(profile.release, profile.package_arch, feed):
+                urls.append((feed, f"{mirror}/{path}/Packages"))
     return urls
 
 
@@ -518,12 +516,8 @@ def fetch_index(profile, fetch=fetch_bytes, cancel_event=None, *, feeds=_FEEDS, 
         _download_message(f"正在读取软件源目录（{position}/{len(feeds)}，{feed}）…")
         loaded = False
         errors = []
-        for mirror in _MIRRORS:
+        for url in (url for name, url in index_urls(profile) if name == feed):
             _check_cancel(cancel_event)
-            url = (
-                f"{mirror}/releases/{profile.release}/packages/"
-                f"{profile.package_arch}/{feed}/Packages"
-            )
             try:
                 raw = fetch(url, timeout=60, cancel_event=cancel_event,
                             limit=_MAX_INDEX_BYTES)

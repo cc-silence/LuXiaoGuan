@@ -47,6 +47,8 @@ class ApkOfflineInstaller:
             raise ValueError("没有需要安装的 apk 依赖。")
         if self.uploader is None:
             raise ValueError("缺少向路由器传文件的通道，未执行 apk 安装。")
+        from .candidate_policy import requires_candidate
+        self.candidate_trial = requires_candidate(device)
         profile = feed.normalize_apk_profile(
             getattr(device, "version", ""),
             getattr(device, "package_architecture", ""),
@@ -77,7 +79,7 @@ class ApkOfflineInstaller:
         return planned
 
 
-    def install_local(self, wanted, profile, repository, cache_dir, cancel_event=None):
+    def install_local(self, wanted, profile, repository, cache_dir, cancel_event=None, *, candidate_trial=False):
         """\u4f7f\u7528\u5df2\u9a8c\u7b7e\u7684\u672c\u5730\u7d22\u5f15\u548c\u5b89\u88c5\u5305\uff0c\u7981\u6b62\u4efb\u4f55\u7f51\u7edc\u83b7\u53d6\u3002"""
         _check_cancel(cancel_event)
         root = Path(cache_dir)
@@ -87,14 +89,26 @@ class ApkOfflineInstaller:
         try:
             self._upload_indexes(adb_files, root, cancel_event=cancel_event)
             self._write_repos_file(adb_files)
-            planned = self._simulate(tuple(wanted))
-            rows = {row["name"]: row for row in profile["packages"]}
-            resolved = []
-            for name, version in planned:
-                row = rows.get(name)
-                if row is None or row["version"] != version:
-                    raise ValueError("\u79bb\u7ebf\u5305\u4e0d\u5305\u542b\u8bbe\u5907\u8ba1\u5212\u9700\u8981\u7684\u51c6\u786e\u7248\u672c\uff1a" + name + " " + version)
-                resolved.append(row)
+            try:
+                planned = self._simulate(tuple(wanted))
+                if candidate_trial:
+                    from .candidate_policy import verify_candidate_names
+                    verify_candidate_names(name for name, _version in planned)
+                rows = {row["name"]: row for row in profile["packages"]}
+                resolved = []
+                for name, version in planned:
+                    row = rows.get(name)
+                    if row is None or row["version"] != version:
+                        raise ValueError("\u79bb\u7ebf\u5305\u4e0d\u5305\u542b\u8bbe\u5907\u8ba1\u5212\u9700\u8981\u7684\u51c6\u786e\u7248\u672c\uff1a" + name + " " + version)
+                    resolved.append(row)
+            except Exception as exc:
+                from .signal_manager import SignalError
+                from .candidate_policy import CandidatePlanRejected
+                if candidate_trial and (isinstance(exc, ValueError) or
+                        isinstance(exc, SignalError) and exc.code != "cancelled"
+                        and getattr(exc, "package_diagnostic", "")):
+                    raise CandidatePlanRejected(exc) from exc
+                raise
             # Validate the complete plan before the first package is uploaded.
             paths = [repository.materialize(row, root / "apk", cancel_event) for row in resolved]
             from .apk_package_feed import ApkPackage
@@ -144,6 +158,9 @@ class ApkOfflineInstaller:
         if not actions and any(line.startswith("OK:") for line in output.splitlines()):
             return []
         planned = feed.parse_simulate_plan(output)
+        if getattr(self, "candidate_trial", False):
+            from .candidate_policy import verify_candidate_names
+            verify_candidate_names(name for name, _version in planned)
         if self.space_check is not None:
             self.space_check(output)
         return planned

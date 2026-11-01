@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 
 from .bundle_storage_lock import bundle_lock
 
+# Original supplemental objects keep their schema; install selection has no architecture whitelist.
 ARCHITECTURES = ("aarch64_cortex-a53", "mipsel_24kc")
 RELEASES = {"22.03": "22.03.7", "23.05": "23.05.6",
             "24.10": "24.10.8", "25.12": "25.12.6"}
@@ -46,19 +47,21 @@ def validate_variants(variants):
 
 
 @contextmanager
-def primary_package(device, cancel):
-    """Hold the repository lock until upload and verification have completed."""
+def primary_package(device, cancel, tell=None):
+    """Use the signed local body first, otherwise fetch the same pinned body online."""
     from .common_bundle_repository import CommonBundleRepository
     from .signal_manager import SignalError
     repo = CommonBundleRepository(kind="capture")
     with bundle_lock(repo.root):
         if cancel is not None and cancel.is_set():
             raise SignalError("cancelled", "Installation cancelled")
-        if not repo._load() or "hcx_variants" not in repo.catalog:
-            raise SignalError("dependencies", "\u8bf7\u5148\u4e0b\u8f7d\u6216\u66f4\u65b0\u7edf\u4e00\u6293\u5305\u4f9d\u8d56\u79bb\u7ebf\u5305\uff08\u9700\u5305\u542b\u81ea\u52a8\u6293\u5305\u4e13\u7528 hcx 6.3.4\uff09\uff0c\u518d\u5b89\u88c5\u6216\u5347\u7ea7\u3002")
-        branch = "25.12" if device.package_manager == "apk" else "24.10"
-        variant = next(v for v in repo.catalog["hcx_variants"]
-                       if v["branch"] == branch and v["architecture"] == device.package_architecture)
-        row = next(r for r in variant["packages"] if r["name"] == "hcxdumptool")
-        with TemporaryDirectory(prefix="routermanager-hcx-") as directory:
-            yield repo.materialize(row, directory, cancel), row
+        if repo._load():
+            from .hcx_sources import local_primary_row
+            row = local_primary_row(repo.catalog, device)
+            if row is not None:
+                with TemporaryDirectory(prefix="routermanager-hcx-") as directory:
+                    yield repo.materialize(row, directory, cancel), row
+                return
+    from .hcx_online import online_primary_package
+    with online_primary_package(device, cancel, tell or (lambda *_: None)) as package:
+        yield package

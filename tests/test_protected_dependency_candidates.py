@@ -40,16 +40,15 @@ class LocalCandidateTests(unittest.TestCase):
         d=self.kwrt()
         self.assertEqual(len(candidate_profiles(self.repo,d)),1)
         for key,value in (("target","x86/64"),("package_architecture","mips_24kc"),
-                          ("version","23.05-SNAPSHOT"),("version","SNAPSHOT"),
-                          ("distribution","OtherFirmware"),("package_manager","apk"),("version","24.10.1")):
+                          ("version","23.05-SNAPSHOT"),("package_manager","apk"),("version","24.10.1")):
             other=copy.copy(d);setattr(other,key,value)
             self.assertEqual(candidate_profiles(self.repo,other),())
 
-    def test_new_system_library_skips_candidate_without_upload(self):
+    def test_missing_compatible_library_uses_protected_candidate(self):
         manager=NS(command_runner=Mock(), _execute_stage=Mock(return_value="libc - 1\n"), _install_offline=Mock())
-        self.assertFalse(install_from_local(manager, ("libuci-lua",), self.kwrt(),
+        self.assertTrue(install_from_local(manager, ("libuci-lua",), self.kwrt(),
             self.root/"work", True, Event(), Mock(), repository=self.repo))
-        manager._install_offline.assert_not_called()
+        self.assertTrue(manager._install_offline.call_args.kwargs["candidate_trial"])
 
     def test_incompatible_dependency_does_not_replace_existing_library(self):
         profile=self.repo.profile(self.f.device)
@@ -100,7 +99,7 @@ class LocalCandidateTests(unittest.TestCase):
         online.assert_not_called();computer.assert_not_called()
 
     def test_unsafe_new_components_are_rejected(self):
-        for name in ("libc","kmod-mt76","wpad-basic","hostapd-common","wpa-supplicant","netifd","lua","luci-app-commands"):
+        for name in ("libc","kmod-mt76","wpad-basic","hostapd-common","wpa-supplicant","netifd"):
             with self.subTest(name=name),self.assertRaises(ValueError):
                 verify_candidate_packages((NS(name=name),),InstalledPackages({"libc":"1"}),kwrt=True)
 
@@ -114,20 +113,22 @@ class DownloadCandidateTests(unittest.TestCase):
         for family in ("19.07","21.02","22.03","23.05","24.10","25.12"):
             p=normalize_profile(family+"-SNAPSHOT","aarch64_cortex-a53","opkg")
             self.assertEqual(p.compatibility_trial,"snapshot")
-            self.assertTrue(all("/releases/"+family+"-SNAPSHOT/" in url for _,url in index_urls(p)))
-        with self.assertRaises(ValueError):
-            normalize_profile("SNAPSHOT","aarch64_cortex-a53","opkg")
+            urls = [url for _, url in index_urls(p)]
+            self.assertTrue(any("/releases/"+family+"-SNAPSHOT/" in url for url in urls))
+            self.assertTrue(any("/releases/packages-"+family+"/" in url for url in urls))
+        p = normalize_profile("SNAPSHOT","aarch64_cortex-a53","opkg")
+        self.assertTrue(all("/snapshots/packages/" in url for _,url in index_urls(p)))
 
     def test_stable_official_profile_keeps_existing_policy(self):
         self.assertEqual(normalize_profile("24.10.4","aarch64_cortex-a53","opkg").compatibility_trial,"")
         self.assertEqual(normalize_profile("24.10.4","aarch64_cortex-a53","opkg",distribution="Kwrt").compatibility_trial,"kwrt")
 
-    def test_missing_required_library_is_rejected_before_package_download(self):
+    def test_missing_core_library_is_rejected_before_package_download(self):
         profile=normalize_profile("24.10-SNAPSHOT","aarch64_cortex-a53","opkg",distribution="Kwrt")
-        dep=FeedPackage("libextra","1","libextra.ipk","a"*64,1,"https://example.invalid/libextra.ipk")
-        root=FeedPackage("wpa-cli","1","wpa-cli.ipk","b"*64,1,"https://example.invalid/wpa-cli.ipk",("libextra",))
+        dep=FeedPackage("libc","1","libextra.ipk","a"*64,1,"https://example.invalid/libextra.ipk")
+        root=FeedPackage("wpa-cli","1","wpa-cli.ipk","b"*64,1,"https://example.invalid/wpa-cli.ipk",("libc (>= 2)",))
         fetch=Mock()
-        with TemporaryDirectory() as folder,patch("modules.capture_services.openwrt.signal_package_feed.fetch_index",return_value={"wpa-cli":root,"libextra":dep}):
+        with TemporaryDirectory() as folder,patch("modules.capture_services.openwrt.signal_package_feed.fetch_index",return_value={"wpa-cli":root,"libc":dep}):
             with self.assertRaises(ValueError):
                 download_profile_packages(profile,InstalledPackages({"libc":"1"}),folder,fetch=fetch,wanted=("wpa-cli",))
         fetch.assert_not_called()

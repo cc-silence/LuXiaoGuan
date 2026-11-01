@@ -60,14 +60,15 @@ def install_primary(manager, device, sftp_available, cancel, tell, cache_dir, up
     if device is None:
         return False
     pm = getattr(device, "package_manager", "")
-    arch = str(getattr(device, "package_architecture", "") or "")
-    if pm not in {"opkg", "apk"} or arch not in {"mipsel_24kc", "aarch64_cortex-a53"}:
+    if pm not in {"opkg", "apk"}:
         return False
     from .hcx_policy import supports_modern_hcx
     if not supports_modern_hcx(device):
         tell("\u5f53\u524d\u8bbe\u5907\u4e0d\u6ee1\u8db3 hcx 6.3.4 \u5347\u7ea7\u6761\u4ef6\uff0c\u6539\u7528\u8be5\u56fa\u4ef6\u5b98\u65b9\u63d0\u4f9b\u7684\u9002\u914d\u7248\u672c\u3002", "info")
         return False
-    with primary_package(device, cancel) as (package, row):
+    from .hcx_sources import checked_architecture
+    checked_architecture(device)
+    with primary_package(device, cancel, tell) as (package, row):
         return _install_package(manager, device, package, row, sftp_available,
                                 cancel, tell, cache_dir, uploader)
 
@@ -78,6 +79,10 @@ def _install_package(manager, device, package, row, sftp_available, cancel, tell
     from .apk_plan import parse_actions
     from .package_space import ipk_installed_size, required_kb
     pm = device.package_manager
+    from .hcx_sources import is_primary_version, checked_architecture
+    if (row.get("name") != "hcxdumptool" or not is_primary_version(row.get("version", ""))
+            or row.get("architecture") != checked_architecture(device)):
+        raise SignalError("dependencies", "所选 hcx 安装包的版本或架构与设备不匹配，未执行安装。")
     versions = parse_libraries(checked_run(manager, "hcx_library_probe", library_probe(pm), cancel))
     existing_versions = dict(versions)
     missing = tuple(name for name in LIBRARIES if name not in versions)
@@ -96,7 +101,7 @@ def _install_package(manager, device, package, row, sftp_available, cancel, tell
         manager._preflight(required_kb((ipk_installed_size(package),)), cancel)
     ssh = getattr(manager.command_runner, "ssh_client", None)
     if ssh is None or not ssh.connected:
-        return False
+        raise SignalError("transport", "安装 hcx 前路由器连接已断开，请重新登录。")
     directory = "/tmp/routermanager-hcx-" + uuid4().hex
     remote = directory + "/" + package.name
     try:
