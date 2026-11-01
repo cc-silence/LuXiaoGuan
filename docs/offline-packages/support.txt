@@ -1,13 +1,13 @@
 RouterManager 离线依赖包支持清单
-2026-10-23T16:19:15+08:00
+2026-10-31T15:35:36+08:00
 由真实离线包目录自动生成；每次构建交付和发布时自动更新。
 固件：官方 OpenWrt；不将 ImmortalWrt/iStoreOS/SNAPSHOT 当作已验证支持。
 已核对软件包与依赖，不代表每台路由器的真机功能验收。
 排除平台: ramips/mt76x8, rockchip/armv8, x86/generic
 
 capture / published-and-client-verified
-文件: RouterManager_OpenWrt_Capture_Offline_20261023_155210.zip
-SHA256: b7d064a69bff3acae58d6253e8b8fd3de2493c18d61938ba917e8bff8bc2bfe9
+文件: RouterManager_OpenWrt_Capture_Offline_20261031_124420.zip
+SHA256: 5a47383812dfec5e12142e33deb97b800a06363658c0f736287fd89dbc3d44cf
 系统精确版本: 19.07.0, 19.07.1, 19.07.2, 19.07.3, 19.07.4, 19.07.5, 19.07.6, 19.07.7, 19.07.8, 19.07.9, 19.07.10, 21.02.0, 21.02.1, 21.02.2, 21.02.3, 21.02.4, 21.02.5, 21.02.6, 21.02.7, 22.03.0, 22.03.1, 22.03.2, 22.03.3, 22.03.4, 22.03.5, 22.03.6, 22.03.7, 23.05.0, 23.05.1, 23.05.2, 23.05.3, 23.05.4, 23.05.5, 23.05.6, 24.10.0, 24.10.1, 24.10.2, 24.10.3, 24.10.4, 24.10.5, 24.10.6, 24.10.7, 24.10.8, 25.12.0, 25.12.1, 25.12.2, 25.12.3, 25.12.4, 25.12.5, 25.12.6
 支持组合: 634
 架构 -> 固件平台:
@@ -24,8 +24,9 @@ SHA256: b7d064a69bff3acae58d6253e8b8fd3de2493c18d61938ba917e8bff8bc2bfe9
 主依赖: aircrack-ng, hcxdumptool, ip-tiny, iw, reaver
 附属依赖（各版本并集）: libatomic1, libgcc1, libmnl0, libnl-core200, libnl-genl200, libnl-tiny, libnl-tiny1, libopenssl1.1, libopenssl3, libpcap1, libpcre, libpcre2, libstdcpp6, uclibcxx, zlib
 上游未提供的组合: 19.07.0/bcm27xx/bcm2711, 19.07.0/mediatek/filogic, 19.07.0/qualcommax/ipq807x, 19.07.1/bcm27xx/bcm2711, 19.07.1/mediatek/filogic, 19.07.1/qualcommax/ipq807x, 19.07.10/bcm27xx/bcm2711, 19.07.10/mediatek/filogic, 19.07.10/qualcommax/ipq807x, 19.07.2/bcm27xx/bcm2711, 19.07.2/mediatek/filogic, 19.07.2/qualcommax/ipq807x, 19.07.3/bcm27xx/bcm2711, 19.07.3/mediatek/filogic, 19.07.3/qualcommax/ipq807x, 19.07.4/bcm27xx/bcm2711, 19.07.4/mediatek/filogic, 19.07.4/qualcommax/ipq807x, 19.07.5/bcm27xx/bcm2711, 19.07.5/mediatek/filogic, 19.07.5/qualcommax/ipq807x, 19.07.6/bcm27xx/bcm2711, 19.07.6/mediatek/filogic, 19.07.6/qualcommax/ipq807x, 19.07.7/bcm27xx/bcm2711, 19.07.7/mediatek/filogic, 19.07.7/qualcommax/ipq807x, 19.07.8/bcm27xx/bcm2711, 19.07.8/mediatek/filogic, 19.07.8/qualcommax/ipq807x, 19.07.9/bcm27xx/bcm2711, 19.07.9/mediatek/filogic, 19.07.9/qualcommax/ipq807x, 21.02.0/mediatek/filogic, 21.02.0/qualcommax/ipq807x, 21.02.1/mediatek/filogic, 21.02.1/qualcommax/ipq807x, 21.02.2/mediatek/filogic, 21.02.2/qualcommax/ipq807x, 21.02.3/mediatek/filogic, 21.02.3/qualcommax/ipq807x, 21.02.4/mediatek/filogic, 21.02.4/qualcommax/ipq807x, 21.02.5/mediatek/filogic, 21.02.5/qualcommax/ipq807x, 21.02.6/bcm27xx/bcm2711, 21.02.6/mediatek/filogic, 21.02.6/qualcommax/ipq807x, 21.02.7/mediatek/filogic, 21.02.7/qualcommax/ipq807x
+Designated automatic-capture hcx: 8 variants; installation/upgrade selects 6.3.4 and retains installed shared libraries.
 Manifest: https://routermanager-updates.routermanager-update-gateway.workers.dev/offline/openwrt-capture/manifest
-Download: https://routermanager-updates.routermanager-update-gateway.workers.dev/offline/openwrt-capture/files/b7d064a69bff3acae58d6253e8b8fd3de2493c18d61938ba917e8bff8bc2bfe9/RouterManager_OpenWrt_Capture_Offline_20261023_155210.zip
+Download: https://routermanager-updates.routermanager-update-gateway.workers.dev/offline/openwrt-capture/files/5a47383812dfec5e12142e33deb97b800a06363658c0f736287fd89dbc3d44cf/RouterManager_OpenWrt_Capture_Offline_20261031_124420.zip
 PMKID 限制: 19.07.0, 19.07.1, 19.07.10, 19.07.2, 19.07.3, 19.07.4, 19.07.5, 19.07.6, 19.07.7, 19.07.8, 19.07.9, 21.02.0, 21.02.1, 21.02.2, 21.02.3, 21.02.4, 21.02.5, 21.02.6, 21.02.7; 官方 hcxdumptool 较旧，当前软件未适配其 API，不代表已支持 PMKID 采集。
 
 common / published-and-client-verified

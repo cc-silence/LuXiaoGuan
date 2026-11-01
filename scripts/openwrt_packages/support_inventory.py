@@ -34,6 +34,10 @@ def write_inventory(kind,archive,coverage=None,publication=None,docs=DOCS):
         unavailable_dependencies=catalog.get("unavailable_dependencies",[]),
         exact_profiles=[{k:r[k] for k in ["release","target","architecture","package_manager"]} for r in catalog["profiles"]],
         status="built-not-published")
+    if catalog.get("hcx_variants"):
+        row["designated_hcx_variants"] = catalog["hcx_variants"]
+        row["unique_package_files"] = len({p["sha256"] for r in
+            catalog["profiles"] + catalog["hcx_variants"] for p in r["packages"]})
     row["tool_versions"]={name:sorted({p["version"] for r in catalog["profiles"] for p in r["packages"] if p["name"]==name}) for name in catalog["roots"]}
     if kind=="capture":
         import re
@@ -107,6 +111,9 @@ def render(data,path):
         lines += ["  "+arch+" -> "+", ".join(targets) for arch,targets in row["architecture_targets"].items()]
         lines += ["\u4e3b\u4f9d\u8d56: "+", ".join(row["roots"]),"\u9644\u5c5e\u4f9d\u8d56\uff08\u5404\u7248\u672c\u5e76\u96c6\uff09: "+", ".join(row["ancillary_package_names"])]
         lines += ["\u4e0a\u6e38\u672a\u63d0\u4f9b\u7684\u7ec4\u5408: "+", ".join(r["release"]+"/"+r["target"] for r in row["unavailable_profiles"])]
+        if row.get("designated_hcx_variants"):
+            lines += ["Designated automatic-capture hcx: " + str(len(row["designated_hcx_variants"])) +
+                      " variants; installation/upgrade selects 6.3.4 and retains installed shared libraries."]
         if row.get("unavailable_dependencies"):
             lines += ["\u5b98\u65b9\u6e90\u7f3a\u5c11\u4f9d\u8d56\u7684\u7ec4\u5408: " + "; ".join(
                 r["release"] + "/" + r["target"] + " (missing: " + ", ".join(r["missing_packages"]) + ")"

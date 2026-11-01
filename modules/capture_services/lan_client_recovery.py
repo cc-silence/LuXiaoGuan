@@ -18,10 +18,14 @@ def _addresses(values):
 def attach_inventory(review,ssh):
     from modules.platform_services.lan_network import inspect
     peer=getattr(ssh,'_host','')
-    try:peer=ssh._client.get_transport().getpeername()[0]
-    except (AttributeError,TypeError,IndexError,OSError):pass
+    local_address=None
+    try:
+        transport=ssh._client.get_transport()
+        peer=transport.getpeername()[0]
+        local_address=transport.sock.getsockname()[0]
+    except (AttributeError,TypeError,IndexError,OSError,NotImplementedError):pass
     result=dict(review)
-    result['client_network']=inspect(peer)
+    result['client_network']=inspect(peer,local_address=local_address)
     return result
 
 
@@ -65,7 +69,7 @@ def client_plan(review,values):
         if any(str(v.ip) in row.get('gateways',[])+row.get('dns',[]) for v in old):
             lines.append('电脑的网关或 DNS 如果填的是旧路由器地址，也要改为 '+str(new[0].ip)+'。')
     lines.append('如果应用失败并恢复了原地址，请把电脑的网络设置也改回去。')
-    return dict(guide='\n'.join(lines),adapters=selected,selection_required=len(routed)!=1,old_addresses=[str(v) for v in old],new_addresses=[str(v) for v in new])
+    return dict(guide='\n'.join(lines),adapters=selected,selection_required=len(routed)!=1,selection_source=inventory.get('selection_source','unknown'),automatic_allowed=inventory.get('selection_source')=='ssh_socket' and len(routed)==1 and routed[0].get('dhcp') is True and routed[0].get('renewable') is True,old_addresses=[str(v) for v in old],new_addresses=[str(v) for v in new])
 
 
 class RenewalGate:
@@ -86,7 +90,7 @@ class RenewalGate:
     def take_automatic(self):
         """Automatically renew only the unique proven route, once per apply phase."""
         with self.lock:
-            if not self.automatic_enabled or self.automatic_started or not self.armed or self.closed or self.busy or self.deadline-time.monotonic()<15:return None
+            if self.plan.get('automatic_allowed') is False or not self.automatic_enabled or self.automatic_started or not self.armed or self.closed or self.busy or self.deadline-time.monotonic()<15:return None
             routed=[row for row in self.adapters if row.get('route') and row.get('connected')]
             if len(routed)!=1:return None
             row=routed[0]

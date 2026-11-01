@@ -1,23 +1,37 @@
 """Local adapter facade. No network mutation happens during inspection."""
 import time
 import ipaddress
+from threading import Event
+from .network_diagnostics import emit, adapter_state
 from .runtime import current_os,WINDOWS,LINUX
 
 
-def inspect(peer=None,timeout=10):
+def inspect(peer=None,timeout=10,*,adapter_id=None,local_address=None):
     if current_os()==WINDOWS:
         from .lan_network_windows import inspect as read
     elif current_os()==LINUX:
         from .lan_network_linux import inspect as read
     else:return dict(adapters=[],error='unsupported_platform')
+    try:local_address=str(ipaddress.IPv4Address(local_address)) if local_address is not None else None
+    except (TypeError,ValueError):local_address=None
     try:
-        rows=read(peer,timeout=timeout)
+        rows=read(None if local_address else peer,timeout=timeout,**({"adapter_id":adapter_id} if adapter_id is not None else {}))
         if not isinstance(rows,list) or len(rows)>128:raise ValueError('Invalid adapter inventory')
+        if local_address:
+            rows=[dict(row,route=_owns_address(row,local_address)) for row in rows]
         try:destination=str(ipaddress.IPv4Address(peer))
         except (ValueError,TypeError):destination=''
-        return dict(adapters=rows,error='',peer=destination)
+        return dict(adapters=rows,error='',peer=destination,selection_source='ssh_socket' if local_address else 'system_route',route_candidates=sum(row.get('route') is True for row in rows))
     except Exception as exc:
         return dict(adapters=[],error=type(exc).__name__)
+
+
+def _owns_address(adapter,address):
+    for value in adapter.get('addresses',[]):
+        try:
+            if str(ipaddress.IPv4Interface(value).ip)==address:return True
+        except (TypeError,ValueError):continue
+    return False
 
 
 def renew(adapter,timeout,permit=lambda:True):
@@ -30,15 +44,71 @@ def renew(adapter,timeout,permit=lambda:True):
     else:raise RuntimeError('Unsupported local network manager')
     started=time.monotonic()
     if timeout<=4:raise TimeoutError('Network recovery request expired')
-    execute(dict(adapter),timeout-3,permit)
-    remaining=timeout-(time.monotonic()-started)
-    if remaining<=0:raise TimeoutError('Network recovery timed out')
-    rows=inspect(timeout=remaining)['adapters']
-    current=next((r for r in rows if r['id']==adapter['id'] and r['mac']==adapter['mac']),None)
-    if not current or current.get("dhcp") is not True or not current.get("connected"):raise RuntimeError('\u91cd\u65b0\u83b7\u53d6\u540e\u672a\u80fd\u8bfb\u53d6\u7f51\u5361\u72b6\u6001\u3002')
-    addresses=[ipaddress.IPv4Interface(v) for v in current.get("addresses",[])]
-    usable=[a for a in addresses if not (a.ip.is_link_local or a.ip.is_loopback or a.ip.is_unspecified or a.ip.is_multicast)]
-    expected=[ipaddress.IPv4Interface(v) for v in adapter.get("expected_addresses",[])]
-    if not usable or (expected and not any(a.ip in target.network and a.ip!=target.ip for a in usable for target in expected)):
-        raise RuntimeError("网卡尚未获取目标网段的有效地址，请确认路由器已启动且网线或 Wi-Fi 已连接后重试。")
-    return current
+    expected=adapter.get('expected_addresses', [])
+    emit('adapter_before', **adapter_state(adapter, expected), snapshot_cached=True)
+    execution_error=None
+    try:
+        execute(dict(adapter),timeout-3,permit)
+    except Exception as exc:
+        emit('lease_process', getattr(exc, 'network_reason', 'system_error'))
+        # Permission/identity failures are final. A rejected lease request may
+        # still be followed by asynchronous DHCP readiness; never resubmit it.
+        if not getattr(exc, 'network_retryable', False):
+            raise
+        execution_error=exc
+    return _wait_for_address(adapter,timeout,started,permit,execution_error)
+
+
+def _wait_for_address(adapter,timeout,started,permit,execution_error=None):
+    expected=adapter.get('expected_addresses', [])
+    attempts=0;previous=None;last_reason='address_pending'
+    while True:
+        if not permit():
+            emit('address_wait', 'request_expired', snapshot_attempts=attempts)
+            raise InterruptedError("Network recovery request expired")
+        remaining=timeout-(time.monotonic()-started)
+        if remaining<=0:
+            emit('address_wait',last_reason,snapshot_attempts=attempts,elapsed_seconds=timeout)
+            if execution_error is not None:
+                raise execution_error
+            raise TimeoutError("\u7b49\u5f85\u7f51\u5361\u83b7\u53d6\u76ee\u6807\u7f51\u6bb5\u5730\u5740\u8d85\u65f6\uff0c\u8bf7\u68c0\u67e5\u7f51\u7edc\u8fde\u63a5\u3002")
+        peer=str(ipaddress.IPv4Interface(expected[0]).ip) if expected else None
+        inventory=inspect(peer=peer,timeout=min(5,remaining),adapter_id=adapter["id"])
+        attempts+=1
+        current=next((r for r in inventory['adapters'] if r['id']==adapter['id']),None)
+        if not permit():
+            emit('address_wait','request_expired',snapshot_attempts=attempts)
+            raise InterruptedError('Network recovery request expired')
+        if time.monotonic()-started>=timeout:
+            continue
+        state=adapter_state(current,expected)
+        if current is not None and current.get('mac')!=adapter['mac']:
+            emit('adapter_after','adapter_changed',**state,snapshot_attempts=attempts)
+            raise RuntimeError('\u6240\u9009\u7f51\u5361\u8eab\u4efd\u5df2\u53d8\u5316\uff0c\u5df2\u505c\u6b62\u7b49\u5f85\uff0c\u8bf7\u91cd\u65b0\u8bfb\u53d6\u7f51\u7edc\u72b6\u6001\u3002')
+        if current is None:
+            last_reason='inspection_failed' if inventory.get('error') else 'adapter_missing'
+        elif current.get('dhcp') is False:
+            last_reason='dhcp_disabled'
+        elif current.get('dhcp') is not True:
+            last_reason='inspection_failed'
+        elif not current.get('connected'):
+            last_reason='adapter_disconnected'
+        elif state.get('address_conflicts_target'):
+            last_reason='address_conflict'
+        elif expected and state.get('target_subnet_match') and not (state.get('target_on_link') or state.get('route_selected') is True):
+            last_reason='route_pending'
+        elif state.get('usable_address_count',0) and (not expected or state.get('target_subnet_match')):
+            emit('adapter_after','address_ready',**state,snapshot_attempts=attempts,
+                 elapsed_seconds=time.monotonic()-started)
+            return current
+        else:
+            last_reason='address_pending'
+        signature=(last_reason,tuple(sorted(state.items())))
+        if signature!=previous:
+            emit('adapter_after',last_reason,**state,snapshot_attempts=attempts)
+            previous=signature
+        if last_reason=='dhcp_disabled':
+            raise RuntimeError("\u7f51\u5361\u5df2\u6539\u4e3a\u624b\u52a8\u914d\u7f6e\uff0c\u5df2\u505c\u6b62\u7b49\u5f85\u81ea\u52a8\u5730\u5740\u3002")
+        remaining=timeout-(time.monotonic()-started)
+        if remaining>0:
+            Event().wait(min(.5,remaining))

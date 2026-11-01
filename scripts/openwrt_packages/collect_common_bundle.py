@@ -249,6 +249,10 @@ class Collector:
                     and any(p["status"] == "index-verified" for p in inventory["profiles"])
                     and all(p["status"] in ("index-verified", "not-provided-by-upstream", "dependencies-unavailable")
                             for p in inventory["profiles"]))
+        variants = []
+        if self.spec.kind == "capture":
+            from scripts.openwrt_packages.hcx_payloads import collect_hcx_payloads
+            variants = collect_hcx_payloads(self)
         profiles = []
         logical_packages = 0
         logical_indexes = 0
@@ -269,6 +273,11 @@ class Collector:
                 previous = referenced.setdefault(row["sha256"], row)
                 if previous["size"] != row["size"]:
                     raise ValueError("Conflicting referenced object sizes")
+        for variant in variants:
+            for row in variant["packages"]:
+                previous = referenced.setdefault(row["sha256"], row)
+                if previous["size"] != row["size"]:
+                    raise ValueError("Conflicting designated hcx object size")
         self.objects = {sha: dict(blob=row["blob"], size=row["size"], sha256=sha)
                         for sha, row in referenced.items()}
         catalog = dict(schema_version=1, purpose=self.spec.catalog_purpose, complete=complete,
@@ -278,6 +287,8 @@ class Collector:
                        unavailable_dependencies=[p for p in inventory["profiles"] if p["status"] == "dependencies-unavailable"],
                        index_errors=inventory["errors"], download_errors=failures,
                        note="Firmware base libraries are device-provided; runtime must verify versions and installation plan.")
+        if variants:
+            catalog["hcx_variants"] = variants
         (self.root / "bundle" / "catalog.json").write_bytes(json_bytes(catalog))
         self.status("verifying", objects=len(self.objects))
         for sha, obj in self.objects.items():
@@ -301,14 +312,17 @@ class Collector:
         temporary.replace(archive)
         result = dict(complete=complete, profiles=len(profiles), releases=len(inventory["releases"]),
                       targets=len(inventory["targets"]), architectures=sorted({p["architecture"] for p in profiles}),
-                      package_references=sum(len(p["packages"]) for p in profiles),
-                      unique_packages=len({r["sha256"] for p in profiles for r in p["packages"]}),
-                      unique_objects=len(self.objects), logical_package_bytes=logical_packages,
+                      package_references=sum(len(p["packages"]) for p in profiles + variants),
+                      unique_packages=len({r["sha256"] for p in profiles + variants for r in p["packages"]}),
+                      unique_objects=len(self.objects),
+                      logical_package_bytes=logical_packages + sum(r["size"] for v in variants for r in v["packages"]),
                       logical_index_bytes=logical_indexes, deduplicated_bytes=sum(r["size"] for r in self.objects.values()),
                       zip_bytes=archive.stat().st_size, zip_path=str(archive),
                       zip_sha256=sha256_file(archive),
                       index_errors=len(inventory["errors"]), download_errors=len(failures),
-                      elapsed_seconds=round(time.time() - self.started, 2))
+                      elapsed_seconds=round(time.time() - self.started, 2),
+                      hcx_variants=len(variants),
+                      hcx_package_references=sum(len(v["packages"]) for v in variants))
         if complete:
             self.ledger.seed_inventory(inventory)
         result["reused_profiles"] = len(self.reused_profiles)
@@ -355,24 +369,30 @@ def main():
     if not result["complete"]:
         sys.exit(2)
     if args.deliver:
-        import shutil
-        from modules.capture_services.openwrt.common_bundle_manifest import sha256_file
-        destination = ROOT / "dist" / task.spec.directory
-        destination.mkdir(parents=True, exist_ok=True)
-        archive = Path(result["zip_path"])
-        delivery = destination / archive.name
-        if delivery.exists() and sha256_file(delivery) != result["zip_sha256"]:
-            raise ValueError("Delivery filename already belongs to different verified content; retain both archives")
-        if not delivery.exists():
-            shutil.copyfile(archive, delivery)
-        if sha256_file(delivery) != result["zip_sha256"]:
-            raise ValueError("Delivery copy fingerprint mismatch")
-        result["zip_path"] = str(delivery)
-        (destination / (archive.stem + ".report.json")).write_bytes(json_bytes(result))
-        from scripts.openwrt_packages.support_inventory import write_inventory
-        write_inventory(args.kind, delivery)
-        from scripts.build_cleanup import cleanup_offline
-        cleanup_offline(Path(__file__).resolve().parents[2], task.root, delivery)
+        deliver_bundle(task, result)
+
+
+def deliver_bundle(task, result):
+    """Deliver one verified archive and refresh the shared support inventory."""
+    import shutil
+    from modules.capture_services.openwrt.common_bundle_manifest import sha256_file
+    destination = ROOT / "dist" / task.spec.directory
+    destination.mkdir(parents=True, exist_ok=True)
+    archive = Path(result["zip_path"])
+    delivery = destination / archive.name
+    if delivery.exists() and sha256_file(delivery) != result["zip_sha256"]:
+        raise ValueError("Delivery filename already belongs to different verified content; retain both archives")
+    if not delivery.exists():
+        shutil.copyfile(archive, delivery)
+    if sha256_file(delivery) != result["zip_sha256"]:
+        raise ValueError("Delivery copy fingerprint mismatch")
+    result["zip_path"] = str(delivery)
+    (destination / (archive.stem + ".report.json")).write_bytes(json_bytes(result))
+    from scripts.openwrt_packages.support_inventory import write_inventory
+    write_inventory(task.spec.kind, delivery)
+    from scripts.build_cleanup import cleanup_offline
+    cleanup_offline(Path(__file__).resolve().parents[2], task.root, delivery)
+    return delivery
 
 
 

@@ -10,6 +10,7 @@ class ApplyEvidence:
         self.journal=journal if isinstance(journal,OperationDiagnostics) else None
         self.epoch=self.journal.epoch if self.journal else None
         self.started=time.monotonic();self.trace_id=None;self.signature=None
+        self.connection_fields={};self.primary_connection_fields=None
         self.counts=dict(connect_attempts=0,verify_attempts=0,restore_attempts=0)
         self.last_stage='';self.last_reason='';self.error_type='';self.native_error=None;self.restored=False;self.primary=None;self.current_stage='';self.runtime_reason=''
 
@@ -23,14 +24,19 @@ class ApplyEvidence:
         if stage!='finish':self.current_stage=stage
         if stage=='rollback' and self.primary is None:
             self.primary=(self.last_stage,self.last_reason,self.error_type,self.native_error)
+            self.primary_connection_fields=dict(self.connection_fields)
         if error is not None:
+            from modules.platform_services.network_diagnostics import failure_fields
+            classified=failure_fields(error)
+            fields.update(classified)
+            if classified.get('connection_reason')!='connection_unknown':self.connection_fields=classified
             self.error_type=type(error).__name__
             code=getattr(error,'code','')
             match=re.fullmatch(r'rpc_uci_(?:apply|confirm|rollback|commit)_([0-9]{1,3})',str(code))
             self.native_error=int(match[1]) if match else None
             reason=code if code in CODES else 'native_rpc_error' if match else 'exception'
         if status=='retry':self.last_stage=stage;self.last_reason=reason
-        signature=(stage,status,reason,self.error_type,self.native_error)
+        signature=(stage,status,reason,self.error_type,self.native_error,tuple(sorted(fields.items())))
         if signature==self.signature:return
         self.signature=signature
         if self.journal:
@@ -52,6 +58,7 @@ class ApplyEvidence:
             self.emit(self.current_stage or 'stage','retry',error=error)
         if self.primary is not None:
             self.last_stage,self.last_reason,self.error_type,self.native_error=self.primary
+            self.connection_fields=self.primary_connection_fields or {}
         if error is not None and not self.error_type:self.error_type=type(error).__name__
         self.emit('finish',status,last_stage=self.last_stage,last_reason=self.last_reason,
-                  exception_type=self.error_type,restored=self.restored)
+                  exception_type=self.error_type,restored=self.restored,**self.connection_fields)

@@ -12,6 +12,7 @@ class CaptureDependencyProgress(QObject):
         self.title = title
         self.dialog = None
         self.session = None
+        self.action = None
         self.disposed = False
         service.taskChanged.connect(self.changed)
         service.taskFinished.connect(self.finished)
@@ -23,6 +24,7 @@ class CaptureDependencyProgress(QObject):
             if not self.accepts(task):
                 return
             self.session = task.session_id
+            self.action = task.action
             title = self.title or {
                 "install": "\u5b89\u88c5\u6293\u5305\u4f9d\u8d56",
                 "uninstall": "\u5378\u8f7d\u6293\u5305\u4f9d\u8d56",
@@ -39,8 +41,10 @@ class CaptureDependencyProgress(QObject):
             return
         dialog, self.dialog = self.dialog, None
         self.session = None
+        close_on_failure = self.action == "check"
+        self.action = None
         if dialog is not None:
-            dialog.finish(success, message)
+            dialog.finish(success, message, close_on_failure=close_on_failure)
 
     def dispose(self):
         if self.disposed:

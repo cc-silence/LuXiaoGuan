@@ -205,8 +205,8 @@ class OpenWrtDependencyService(QObject):
             diagnostic_path=""
             checked=()
             try:
-                if action=="check" and group=="capture":checked=self.manager.check(features, device.sftp_available, cancel)
-                elif action=="check" and group in TOOL_KEYS:checked=check_tools(self.manager.command_runner,TOOL_KEYS,cancel)
+                if action=="check" and group=="capture":checked=self.manager.check(features, device.sftp_available, cancel, device=device)
+                elif action=="check" and group in TOOL_KEYS:checked=check_tools(self.manager.command_runner,(group,),cancel)
                 elif action=="check":checked=(self.manager.check_terminal(cancel),) if group=="terminal" else (self.manager.check_sftp(cancel,fresh=True),)
                 elif action=="install" and upgrade_hcx:
                     from .openwrt.hcx_upgrade import upgrade_hcx as run_upgrade
@@ -219,9 +219,9 @@ class OpenWrtDependencyService(QObject):
                         cancel,message,packages,include_sftp=group in {"all","common","common_all","login_all"})
                 if group=="capture" and selection is not None:
                     if action=="check":checked=tuple(item for item in checked if item.key in selection)
-                    else:checked=self.manager.check(refresh_features, device.sftp_available, cancel)
+                    else:checked=self.manager.check(refresh_features, device.sftp_available, cancel, device=device)
                 if group in TOOL_KEYS and action!="check":
-                    checked=check_tools(self.manager.command_runner,TOOL_KEYS,cancel)
+                    checked=check_tools(self.manager.command_runner,(group,),cancel)
             except Exception as exc:
                 import logging
                 logging.getLogger("routermanager.dependency").exception("Dependency %s failed: %s", action, exc)
@@ -233,9 +233,9 @@ class OpenWrtDependencyService(QObject):
                 # 取消安装后允许一次只读复测；不继续安装、不忽略安装首错。
                 if managed and self._same_connection(binding) and not self.owner._shutting_down:
                     try:
-                        if group=="capture":checked=self.manager.check(refresh_features,device.sftp_available,Event())
-                        elif group in {"common_all","login_all"}:checked=self.manager.check(features,self.manager._probe_sftp(Event(),device.sftp_available),Event())
-                        elif group in TOOL_KEYS:checked=check_tools(self.manager.command_runner,TOOL_KEYS,Event())
+                        if group=="capture":checked=self.manager.check(refresh_features,device.sftp_available,Event(),device=device)
+                        elif group in {"common_all","login_all"}:checked=self.manager.check(features,self.manager._probe_sftp(Event(),device.sftp_available),Event(),device=device)
+                        elif group in TOOL_KEYS:checked=check_tools(self.manager.command_runner,(group,),Event())
                         else:checked=(self.manager.check_terminal(Event()),) if group=="terminal" else (self.manager.check_sftp(Event(),fresh=True),)
                     except Exception as probe_error:
                         checked=(DependencyInfo(items[0],label,DependencyState.UNKNOWN,detail=str(probe_error)),)
@@ -270,7 +270,11 @@ class OpenWrtDependencyService(QObject):
             if action=="uninstall" and (group in TOOL_KEYS or group=="capture" and packages is not None):
                 verification=()
             expected=DependencyState.MISSING if action=="uninstall" else DependencyState.READY
-            if not error and any(item.state not in {expected,DependencyState.DISABLED} for item in verification):
+            from .openwrt.hcx_policy import installation_satisfied
+            if not error and any(
+                    not installation_satisfied(item) if action == "install"
+                    else item.state not in {expected, DependencyState.DISABLED}
+                    for item in verification):
                 error=("\u5378\u8f7d\u540e\u5de5\u5177\u4ecd\u53ef\u7528\u6216\u72b6\u6001\u65e0\u6cd5\u786e\u8ba4\uff0c\u8bf7\u67e5\u770b\u8be6\u60c5\u5e76\u91cd\u65b0\u68c0\u67e5\u3002"
                        if action=="uninstall" else "\u68c0\u6d4b\u5c1a\u672a\u901a\u8fc7\uff0c\u8bf7\u67e5\u770b\u8be6\u60c5\u5e76\u91cd\u65b0\u68c0\u67e5\u3002")
             return dict(checked=tuple(checked),error=error,diagnostic_path=diagnostic_path)
@@ -292,7 +296,7 @@ class OpenWrtDependencyService(QObject):
         checked=tuple(checked)
         if group=="common":checked=tuple(item for item in checked if item.key=="sftp")
         elif group=="terminal":checked=tuple(item for item in checked if item.key=="terminal")
-        elif group in TOOL_KEYS:checked=tuple(item for item in checked if item.key in TOOL_KEYS)
+        elif group in TOOL_KEYS:checked=tuple(item for item in checked if item.key==group)
         elif group=="common_all":checked=tuple(item for item in checked if item.key in REQUIRED_COMMON_KEYS)
         elif group=="login_all":checked=tuple(item for item in checked if item.key in REQUIRED_COMMON_KEYS | CAPTURE_KEYS)
         elif group=="capture":checked=tuple(item for item in checked if item.key not in {"sftp","terminal"} | TOOL_KEYS)

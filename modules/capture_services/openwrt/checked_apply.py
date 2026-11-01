@@ -126,7 +126,7 @@ def _run_checked(channel, stage, verify, cancel, *, candidates, original_host, p
         phase("正在应用配置，等待网络恢复",deadline=deadline,rollback=True,**extra)
         if progress:progress(dict(uncancellable=True))
         attempted=True
-        evidence.emit("apply")
+        evidence.emit("apply",rollback_seconds=90,confirm_reserve_seconds=8)
         apply_acknowledged=False
         try:
             outcome=channel.call("checked_apply",sid=sid,hashes=baseline,timeout=15)
@@ -252,6 +252,15 @@ def apply_common(manager, review, values, cancel, progress, settings, password, 
     channel=ApplyChannel(settings,password,expected_fingerprint)
     evidence=ApplyEvidence(getattr(manager.runner,"operation_diagnostics",None))
     config=review["config"]
+    if recovery:
+        from modules.platform_services.network_diagnostics import adapter_state
+        evidence.emit('network_plan',selection_source=recovery.plan.get('selection_source','unknown'),
+                      automatic_allowed=recovery.plan.get('automatic_allowed',False),
+                      route_candidates=sum(row.get('route') is True for row in recovery.adapters),adapter_count=len(recovery.adapters),
+                      target_count=len(recovery.plan.get('new_addresses',[])))
+        for row in recovery.adapters[:8]:
+            evidence.emit('adapter_before',snapshot_cached=True,
+                **adapter_state(row,recovery.plan.get('new_addresses',[])))
     def stage(remote,sid):
         remote.call("common_stage",sid=sid,config=config,review=review,values=values,timeout=15)
         return {config:review["token"]}

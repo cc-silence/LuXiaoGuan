@@ -7,6 +7,7 @@ import subprocess
 import time
 import uuid
 from .runtime import subprocess_creationflags
+from .network_diagnostics import emit
 
 
 def powershell(script):
@@ -16,7 +17,7 @@ def powershell(script):
     return executable,['-NoProfile','-NonInteractive','-EncodedCommand',encoded]
 
 
-def inspect(peer=None,timeout=10):
+def inspect(peer=None,timeout=10,*,adapter_id=None):
     # Qt uses the native adapter API; registry reads supply DHCP lease metadata.
     # Avoid slow PowerShell network-provider initialization during preflight.
     import socket
@@ -41,6 +42,7 @@ def inspect(peer=None,timeout=10):
         if api.ConvertInterfaceIndexToLuid(nic.index(),ctypes.byref(luid)):continue
         if api.ConvertInterfaceLuidToGuid(ctypes.byref(luid),ctypes.byref(guid)):continue
         identity=str(uuid.UUID(bytes_le=bytes(guid)))
+        if adapter_id is not None and identity!=str(adapter_id):continue
         keypath=r'SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\{'+identity+'}'
         try:
             with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,keypath) as key:
@@ -73,30 +75,48 @@ if(($nic.MACAddress -replace '[:-]','').ToUpper() -ne '__MAC__'){exit 12}
 try{
  if([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() -ge __EXPIRES__){exit 12}
  $released=Invoke-CimMethod -InputObject $nic -MethodName ReleaseDHCPLease
- if($released.ReturnValue -eq 91){exit 5}
- if($released.ReturnValue -eq 64){exit 16}
- if($released.ReturnValue -ne 0 -and $released.ReturnValue -ne 1){exit 14}
+ if($released.ReturnValue -ne 0 -and $released.ReturnValue -ne 1){exit (1000+[int]$released.ReturnValue)}
  # Always reacquire after releasing, even if the deadline has just elapsed.
  $renewed=Invoke-CimMethod -InputObject $nic -MethodName RenewDHCPLease
- if($renewed.ReturnValue -eq 91){exit 5}
- if($renewed.ReturnValue -eq 64){exit 16}
- if($renewed.ReturnValue -ne 0 -and $renewed.ReturnValue -ne 1){exit 14}
+ if($renewed.ReturnValue -ne 0 -and $renewed.ReturnValue -ne 1){exit (2000+[int]$renewed.ReturnValue)}
  if($released.ReturnValue -eq 1 -or $renewed.ReturnValue -eq 1){exit 15}
 }catch [System.UnauthorizedAccessException]{exit 5}
 catch [Microsoft.Management.Infrastructure.CimException]{if([int]$_.Exception.StatusCode -eq 2){exit 5};throw}
 """.replace('__GUID__',identity).replace('__INDEX__',str(index)).replace('__MAC__',mac).replace('__EXPIRES__',str(expires))
     executable,args=powershell(script)
+    native=None;code=None;authorization_failed=False
+    def decode(code,elevated=False):
+        nonlocal native
+        emit('lease_process',system_exit_code=code,elevated=elevated)
+        if 1000<=code<3000:
+            native=code%1000
+            emit('lease_release' if code<2000 else 'lease_renew',
+                 'permission_denied' if native==91 else 'lease_unsupported' if native==64 else 'lease_failed',
+                 native_error=native,elevated=elevated)
+            return 5 if native==91 else 16 if native==64 else 14
+        return code
     try:
         result=subprocess.run([executable,*args],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
                               timeout=timeout,creationflags=subprocess_creationflags())
-        code=result.returncode
+        code=decode(result.returncode)
         if code==5 and permit() and expires-time.time()>1:
             from .update_elevation import run_elevated_update
             accepted,code=run_elevated_update(executable,subprocess.list2cmdline(args),
                 timeout_ms=max(1000,int((expires-time.time())*1000)),show_window=False)
-            if not accepted:raise RuntimeError('\u7f51\u7edc\u66f4\u65b0\u672a\u83b7\u5f97\u7ba1\u7406\u5458\u6388\u6743\u3002')
+            if accepted:code=decode(code,elevated=True)
+            if not accepted:
+                authorization_failed=True
+                emit('lease_process','authorization_failed',system_exit_code=code,elevated=True)
+                raise RuntimeError('\u7f51\u7edc\u66f4\u65b0\u672a\u83b7\u5f97\u7ba1\u7406\u5458\u6388\u6743\u3002')
         if code==15:raise RuntimeError("\u7cfb\u7edf\u62a5\u544a\u7f51\u7edc\u53d8\u66f4\u9700\u8981\u91cd\u542f\u7535\u8111\u540e\u624d\u80fd\u5b8c\u6210\uff0c\u5f53\u524d\u5730\u5740\u5237\u65b0\u7ed3\u679c\u672a\u786e\u8ba4\u3002")
         if code==16:raise RuntimeError("\u8be5\u7f51\u5361\u4e0d\u652f\u6301\u7cfb\u7edf\u7684\u5730\u5740\u91ca\u653e\u6216\u7eed\u79df\u63a5\u53e3\uff0c\u8bf7\u5728\u7cfb\u7edf\u7f51\u7edc\u8bbe\u7f6e\u4e2d\u91cd\u65b0\u8fde\u63a5\u8be5\u7f51\u5361\u3002")
         if code:raise RuntimeError('\u7f51\u5361\u5730\u5740\u91cd\u65b0\u83b7\u53d6\u672a\u5b8c\u6210\uff0c\u8bf7\u5728\u7cfb\u7edf\u7f51\u7edc\u8bbe\u7f6e\u4e2d\u68c0\u67e5\u8be5\u7f51\u5361\u3002')
+        emit('lease_process','system_accepted')
     except subprocess.TimeoutExpired:
+        emit('lease_process','lease_timeout')
         raise RuntimeError('\u7b49\u5f85\u7f51\u5361\u91cd\u65b0\u83b7\u53d6\u5730\u5740\u8d85\u65f6\uff0c\u8bf7\u68c0\u67e5\u8be5\u7f51\u5361\u7684\u5f53\u524d\u914d\u7f6e\u3002') from None
+    except RuntimeError as exc:
+        exc.network_reason='authorization_failed' if authorization_failed else 'permission_denied' if code==5 else 'lease_unsupported' if code==16 else 'reboot_required' if code==15 else 'lease_failed'
+        exc.network_retryable=not authorization_failed and code==14 and native==82
+        emit('lease_process',exc.network_reason)
+        raise

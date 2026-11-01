@@ -38,10 +38,10 @@ class RecoveryAuditTests(unittest.TestCase):
     def test_facade_counts_action_and_final_read_in_same_budget(self):
         from modules.platform_services import lan_network as facade
         from modules.platform_services import lan_network_windows as windows
-        with patch.object(facade,'current_os',return_value=facade.WINDOWS),patch.object(facade.time,'monotonic',side_effect=[100,110]),patch.object(windows,'renew') as execute,patch.object(facade,'inspect',return_value=dict(adapters=[adapter()])) as inspect:
+        with patch.object(facade,'current_os',return_value=facade.WINDOWS),patch.object(facade.time,'monotonic',side_effect=[100,110,110,110]),patch.object(windows,'renew') as execute,patch.object(facade,'inspect',return_value=dict(adapters=[adapter()])) as inspect:
             facade.renew(adapter(),20,lambda:True)
         self.assertEqual(execute.call_args.args[1],17)
-        self.assertEqual(inspect.call_args.kwargs['timeout'],10)
+        self.assertEqual(inspect.call_args.kwargs['timeout'],5)
 
     def test_linux_slow_validation_leaves_no_budget_for_activation(self):
         from modules.platform_services import lan_network_linux as linux

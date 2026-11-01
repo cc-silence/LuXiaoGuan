@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 from modules.capture_services.openwrt.dependency_manager import OpenWrtDependencyManager
 from modules.capture_services.openwrt.installation_sources import install_with_sources
-from modules.capture_services.openwrt.package_manager import PackageManager, package_error_reason
+from modules.capture_services.openwrt.package_manager import PackageManager, package_error_reason, MISSING_SOURCE_ERROR, SERVER_SOURCE_ERROR
 from modules.capture_services.openwrt.signal_manager import RouterSignalManager, SignalError
 
 
@@ -33,9 +33,28 @@ class PackageErrorClassificationTests(unittest.TestCase):
             with self.subTest(error=error):
                 self.assertEqual(package_error_reason(SUCCESS + error), package_error_reason(error))
 
+    def test_missing_source_is_distinct_from_dns_and_unknown_wget_response(self):
+        for response in ('HTTP 404', 'HTTP/1.1 404 Not Found', 'HTTP Error 410', '410 Gone'):
+            with self.subTest(response=response):
+                self.assertEqual(package_error_reason(response), MISSING_SOURCE_ERROR)
+        self.assertEqual(package_error_reason('Failed to download Packages.gz, wget returned 8.'),
+                         SERVER_SOURCE_ERROR)
+        self.assertNotEqual(SERVER_SOURCE_ERROR, package_error_reason(NETWORK_FAILURE))
+        self.assertEqual(package_error_reason('HTTP 404; Signature check failed.'),
+                         package_error_reason('Signature check failed.'))
+
+    def test_signal_source_failure_uses_the_shared_fallback_classification(self):
+        from modules.capture_services.openwrt.signal_manager import _looks_like_network
+        for message in (MISSING_SOURCE_ERROR, SERVER_SOURCE_ERROR):
+            self.assertTrue(_looks_like_network(message))
+        self.assertFalse(_looks_like_network(package_error_reason('Signature check failed.')))
+
     def test_real_update_failure_uses_pc_route_only_for_network_errors(self):
         for output, fallback in ((SUCCESS + NETWORK_FAILURE, True),
-                                 ("Signature check failed.\n" + NETWORK_FAILURE, False)):
+                                 ("Failed to download Packages.gz, wget returned 8.", True),
+                                 ("HTTP 404 Not Found", True),
+                                 ("Signature check failed.\n" + NETWORK_FAILURE, False),
+                                 ("HTTP 404; Cannot satisfy dependencies", False)):
             with self.subTest(fallback=fallback):
                 runner = Mock()
                 runner.run.return_value = SimpleNamespace(stdout=output, stderr="", exit_code=1,

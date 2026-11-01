@@ -43,8 +43,9 @@ class SignalError(RuntimeError):
 
 
 def _looks_like_network(message):
-    """仅明确联网错误才转代下载，不用离线重试掩盖签名或依赖冲突。"""
-    return "联网或 DNS" in message
+    """仅软件源获取失败才转代下载，不用离线重试掩盖签名或依赖冲突。"""
+    from .package_manager import retryable_package_source_failure
+    return retryable_package_source_failure(message)
 
 
 _REASONS = {

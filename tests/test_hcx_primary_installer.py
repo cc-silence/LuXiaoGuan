@@ -36,23 +36,18 @@ class HcxPrimaryTests(unittest.TestCase):
                    "hcx_uploaded_hash": ("0" * 64 if self.wrong_hash else self.digest) + "  package",
                    "verify_hcx": "hcxdumptool 6.3.4"}
         return SimpleNamespace(exit_code=1 if name == "install_modern_hcx" and self.fail_install else 0,
-                               stdout=outputs.get(name, ""), stderr="failure")
+                               stdout=outputs.get(name, ""), stderr="failure", timed_out=False, cancelled=False, command_name=name)
 
     def install(self, pm="opkg", sftp_available=True):
-        branch = "24.10" if pm == "opkg" else "25.12"
-        bundle = self.root / "tools/hc_offline_pack" / branch / "mipsel_24kc"
-        (bundle / "pkgs").mkdir(parents=True)
-        filename = "hcxdumptool_6.3.4-r1_mipsel_24kc.ipk" if pm == "opkg" else "hcxdumptool-6.3.4-r1.apk"
-        content = b"fixture-package"
-        self.digest = hashlib.sha256(content).hexdigest()
-        (bundle / "pkgs" / filename).write_bytes(content)
-        (bundle / "manifest.json").write_text(json.dumps({
-            "branch": branch, "arch": "mipsel_24kc", "mode": "ipk" if pm == "opkg" else "apk",
-            "packages": [{"name": "hcxdumptool", "file": filename, "version": "6.3.4-r1", "sha256": self.digest}]
-        }), encoding="utf-8")
-        device = SimpleNamespace(package_manager=pm, package_architecture="mipsel_24kc")
-        with patch("modules.config_manager.BASE_DIR", self.root):
-            return install_primary(self.manager, device, sftp_available, self.cancel, MagicMock(), None, None)
+        from tests.hcx_bundle_fixture import hcx_fixture, prepare_hcx
+        f = hcx_fixture(self.root, apk=pm == "apk")
+        repo = prepare_hcx(f, self.root / "repository")
+        variant = next(v for v in f.catalog["hcx_variants"]
+                       if v["branch"] == ("25.12" if pm == "apk" else "24.10")
+                       and v["architecture"] == f.device.package_architecture)
+        self.digest = next(r["sha256"] for r in variant["packages"] if r["name"] == "hcxdumptool")
+        with patch("modules.capture_services.openwrt.common_bundle_repository.CommonBundleRepository", return_value=repo):
+            return install_primary(self.manager, f.device, sftp_available, self.cancel, MagicMock(), None, None)
 
     def test_opkg_only_uploads_primary_and_does_not_force_libraries(self):
         self.assertTrue(self.install())
@@ -114,6 +109,40 @@ class HcxPrimaryTests(unittest.TestCase):
                 self.install()
         route.assert_called_once()
         self.assertNotIn("install_modern_hcx", dict(self.calls))
+
+    def test_missing_library_install_cannot_hide_change_to_existing_library(self):
+        self.versions = "libpcap1=1.10.4-1\n"
+        def install_missing(*args):
+            self.versions = "libpcap1=1.10.5-r2\nlibopenssl3=3.0.9-1\n"
+        with patch("modules.capture_services.openwrt.installation_sources.install_with_sources",
+                   side_effect=install_missing):
+            with self.assertRaisesRegex(RuntimeError, "Existing shared library changed"):
+                self.install()
+        self.assertNotIn("install_modern_hcx", dict(self.calls))
+
+    def test_cleanup_exception_preserves_original_install_failure(self):
+        original = self.run_command
+        def run(name, command, **kwargs):
+            if name == "hcx_cleanup":
+                raise OSError("cleanup disconnected")
+            return original(name, command, **kwargs)
+        self.manager.command_runner.run.side_effect = run
+        self.fail_install = True
+        with self.assertRaisesRegex(RuntimeError, "install_modern_hcx"):
+            self.install()
+
+    def test_timeout_prevents_upload_and_still_cleans_unique_directory(self):
+        original = self.run_command
+        def run(name, command, **kwargs):
+            result = original(name, command, **kwargs)
+            if name == "hcx_prepare":
+                result.timed_out = True
+            return result
+        self.manager.command_runner.run.side_effect = run
+        with self.assertRaises(TimeoutError):
+            self.install()
+        self.manager._package_uploader.assert_not_called()
+        self.assertIn("hcx_cleanup", dict(self.calls))
 
     def test_incomplete_versions_cannot_build_install(self):
         with self.assertRaises(ValueError):

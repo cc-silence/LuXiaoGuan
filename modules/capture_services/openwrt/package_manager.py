@@ -99,6 +99,17 @@ class PackageManager:
             raise ValueError('opkg 未返回可核实的操作计划。')
 
 
+NETWORK_SOURCE_ERROR = "路由器联网或 DNS 异常"
+MISSING_SOURCE_ERROR = "软件源地址不存在或已失效（HTTP 404/410），请核对当前固件对应的软件源"
+SERVER_SOURCE_ERROR = "软件源下载失败（wget 返回 8），请核对源地址和服务器响应"
+
+
+def retryable_package_source_failure(message):
+    """Allow another approved source without masking signature or ABI failures."""
+    return any(reason in str(message) for reason in (
+        NETWORK_SOURCE_ERROR, MISSING_SOURCE_ERROR, SERVER_SOURCE_ERROR))
+
+
 def package_error_reason(output):
     """将两种包管理器的常见失败分类，不把签名失败当成断网。"""
     # A successful opkg feed check is status, not a signature error. Keep all
@@ -115,8 +126,12 @@ def package_error_reason(output):
         return '软件源中没有该软件包，请核对固件源'
     if any(x in text for x in ('unsatisfiable', 'unable to select packages', 'cannot satisfy', 'incompatible with the architectures')):
         return '依赖版本、架构或内核不匹配，未强制安装'
+    if re.search(r"\b(?:404\s+not found|410\s+gone|http(?:/\d(?:\.\d)?)?(?: error)?[:\s]+(?:404|410))\b", text):
+        return MISSING_SOURCE_ERROR
+    if re.search(r"\bwget returned 8(?:\D|$)", text):
+        return SERVER_SOURCE_ERROR
     if any(x in text for x in ('bad address', "couldn't resolve", 'failed to download', 'wget returned', 'connection timed out', 'network is unreachable', 'network error', 'dns lookup error', 'temporary error')):
-        return '路由器联网或 DNS 异常'
+        return NETWORK_SOURCE_ERROR
     if any(x in text for x in ('is depended upon by packages', 'is depended upon by other packages', 'has dependent packages')):
         package=re.search(r'package (\S+) is depended upon',text)
         titles={'iwinfo':'\u65e0\u7ebf\u4fe1\u606f\u67e5\u8be2','iw':'\u65e0\u7ebf\u7ba1\u7406\u5de5\u5177','tmux':'\u7ec8\u7aef\u4f1a\u8bdd\u4fdd\u7559','openssh-sftp-server':'\u6587\u4ef6\u4f20\u8f93'}

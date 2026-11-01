@@ -42,6 +42,8 @@ def prepare(kind, archive, coverage):
         raw = zipped.read("catalog.json")
         catalog = json.loads(raw)
         objects = validate_catalog(catalog, kind)
+        if kind == "capture" and not catalog.get("hcx_variants"):
+            raise ValueError("Rebuild the capture bundle with designated hcx payloads before publication")
         if (evidence["catalog_sha256"] != hashlib.sha256(raw).hexdigest()
                 or evidence["profiles_verified"] != len(catalog["profiles"])
                 or evidence["objects_verified"] != len(objects)):
