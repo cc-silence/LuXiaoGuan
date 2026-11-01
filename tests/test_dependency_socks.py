@@ -8,6 +8,7 @@ import ssl
 import struct
 import tempfile
 import threading
+import time
 import unittest
 import urllib.request
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
@@ -48,10 +49,28 @@ class DependencySocksTests(unittest.TestCase):
               .add_extension(x509.BasicConstraints(ca=True,path_length=None),critical=True).sign(key,hashes.SHA256()))
         folder=Path(self.tmp.name);self.ca=folder/'ca.pem';self.ca.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
         private=folder/'key.pem';private.write_bytes(key.private_bytes(serialization.Encoding.PEM,serialization.PrivateFormat.PKCS8,serialization.NoEncryption()))
+        self.body_received = threading.Event()
+        self.body_release = threading.Event()
+        self.pause_body = False
+        self.body_delay = 0.0
+        owner = self
         class HTTP(BaseHTTPRequestHandler):
             def log_message(self,*args):pass
             def do_GET(self):
-                self.send_response(200);self.send_header('Content-Length','8');self.end_headers();self.wfile.write(b'verified')
+                self.send_response(200)
+                self.send_header('Content-Length','8')
+                self.end_headers()
+                if owner.pause_body:
+                    self.wfile.write(b'v')
+                    self.wfile.flush()
+                    owner.body_received.set()
+                    owner.body_release.wait(2)
+                    return
+                for byte in b'verified':
+                    self.wfile.write(bytes([byte]))
+                    self.wfile.flush()
+                    if owner.body_delay:
+                        time.sleep(owner.body_delay)
         self.http=ThreadingHTTPServer(('127.0.0.1',0),HTTP)
         self.https=ThreadingHTTPServer(('127.0.0.1',0),HTTP)
         context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);context.load_cert_chain(self.ca,private)
@@ -91,18 +110,64 @@ class DependencySocksTests(unittest.TestCase):
         for server in self.servers:server.shutdown();server.server_close()
         for thread in self.threads:thread.join(1)
 
-    def download(self,tls=False,proxy=None,trust=True):
+    def download(self,tls=False,proxy=None,trust=True,cancel=None):
         url=('https' if tls else 'http')+'://fixture.invalid:'+str((self.https if tls else self.http).server_port)+'/package'
         original=urllib.request.build_opener
         original_plans=feed._attempt_plans
         context=ssl.create_default_context(cafile=str(self.ca)) if trust else ssl.create_default_context()
-        def opener(handler):return original(handler,urllib.request.HTTPSHandler(context=context))
+        def opener(handler, *handlers):
+            from modules.capture_services.openwrt.dependency_http import StreamingHTTPSHandler
+            return original(handler, handlers[0], StreamingHTTPSHandler(context=context))
         with patch.object(feed,'_proxy_candidates',return_value=[proxy or self.proxy]), \
              patch.object(feed,'_attempt_plans',side_effect=lambda:original_plans()[:1]), \
              patch.object(urllib.request,'proxy_bypass',return_value=False), \
              patch.object(urllib.request,'build_opener',side_effect=opener), \
              feed.download_session(lambda text,*_:self.messages.append(text)):
-            return feed.fetch_bytes(url,timeout=3)
+            return feed.fetch_bytes(url,timeout=3,cancel_event=cancel)
+
+    def test_slow_https_body_recovers_after_read_poll_timeouts(self):
+        from modules.capture_services.openwrt import dependency_http
+        self.body_delay = .08
+        with patch.object(dependency_http, 'CANCEL_CHECK_INTERVAL', .02), \
+             patch.object(dependency_http, 'BODY_IDLE_TIMEOUT', .4):
+            self.assertEqual(self.download(tls=True, cancel=threading.Event()), b'verified')
+
+    def test_idle_https_over_socks_can_be_cancelled_promptly(self):
+        self.pause_body = True
+        cancel = threading.Event()
+        outcome = []
+        blocked_read = threading.Event()
+        original_read_body = feed._read_body
+        def read_body(response, *args):
+            original_read = response.read1
+            reads = [0]
+            def read(*options):
+                reads[0] += 1
+                if reads[0] == 2:
+                    blocked_read.set()
+                return original_read(*options)
+            response.read1 = read
+            return original_read_body(response, *args)
+        def download():
+            try:
+                with patch.object(feed, "_read_body", side_effect=read_body):
+                    self.download(tls=True, cancel=cancel)
+            except RuntimeError:
+                outcome.append('cancelled')
+        worker = threading.Thread(target=download, daemon=True)
+        worker.start()
+        try:
+            self.assertTrue(self.body_received.wait(2))
+            self.assertTrue(blocked_read.wait(2))
+            cancel.set()
+            worker.join(.8)
+            self.assertFalse(worker.is_alive())
+            self.assertEqual(outcome, ['cancelled'])
+            self.assertFalse(any(t.name == 'Dependency-download-cancel' for t in threading.enumerate()))
+        finally:
+            cancel.set()
+            self.body_release.set()
+            worker.join(2)
 
     def test_http_uses_real_socks5_remote_dns_and_releases_bridge(self):
         environment=dict(os.environ);original_socket=socket.socket

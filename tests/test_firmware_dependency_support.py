@@ -1,4 +1,5 @@
 """Release variants share authenticated sources and native compatibility checks."""
+import gzip
 import copy
 import hashlib
 import unittest
@@ -52,7 +53,7 @@ class ReleaseTests(unittest.TestCase):
             if "24.10-SNAPSHOT" in url:
                 raise RuntimeError("HTTP 404")
             self.assertIn("/releases/packages-24.10/",url)
-            return raw
+            return gzip.compress(raw)
         p = normalize_profile("24.10-SNAPSHOT","mipsel_24kc","opkg")
         self.assertIn("wpa-cli",fetch_index(p,fetch,feeds=("base",),require_complete=True))
 

@@ -101,11 +101,8 @@ class CompatibleToolInstaller:
                 note='这份新版工具使用现代无线接口，不需要更换路由器的系统库。\n'
                      '会另装一份，保留原工具。支持被动采集，及手动过滤中勾选目标的主动 PMKID 请求。\n'
                      '安装前后会校验文件并自检；实际无线采集仍需启动验证。')
-        deadline=time.monotonic()+120
         def fetch(url, **options):
-            remaining=deadline-time.monotonic()
-            if remaining <= 0: raise TimeoutError('检查官方软件源超时，请检查电脑网络后重试。')
-            options['timeout']=min(20,remaining)
+            options['timeout']=20
             return fetch_bytes(url, **options)
         if device.package_manager == "apk":
             package = lookup_tool(profile, fetch, cancel)

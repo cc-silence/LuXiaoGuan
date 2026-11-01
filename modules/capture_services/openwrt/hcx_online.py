@@ -1,6 +1,5 @@
 """Fetch only the approved hcx body; shared libraries use firmware-native routes."""
 import hashlib
-import time
 from urllib.parse import urlsplit, urlunsplit
 from contextlib import contextmanager
 from pathlib import Path
@@ -54,13 +53,9 @@ def _cancelled(cancel):
 def online_primary_package(device, cancel, tell):
     """Download a pinned body with bounded routes, cancellation and task cleanup."""
     _cancelled(cancel)
-    deadline = time.monotonic() + 150
     def bounded_fetch(url, **kwargs):
         _cancelled(cancel)
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            raise RuntimeError("hcx download deadline exceeded")
-        kwargs["timeout"] = min(kwargs.get("timeout", 45), remaining)
+        kwargs["timeout"] = min(kwargs.get("timeout", 45), 45)
         return fetch_bytes(url, **kwargs)
     from .hcx_sources import MAX_BODY
     with download_session(tell):
@@ -81,11 +76,8 @@ def online_primary_package(device, cancel, tell):
     with TemporaryDirectory(prefix="routermanager-hcx-online-") as directory, download_session(tell):
         for url in urls:
             _cancelled(cancel)
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                break
             try:
-                raw = bounded_fetch(url, timeout=min(45, remaining), cancel_event=cancel,
+                raw = bounded_fetch(url, timeout=45, cancel_event=cancel,
                                     limit=row["size"] or MAX_BODY)
             except InterruptedError:
                 raise
