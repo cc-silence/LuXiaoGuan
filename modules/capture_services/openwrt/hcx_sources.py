@@ -1,6 +1,7 @@
 """Select exactly hcx 6.3.4 for any architecture from verified metadata."""
 import json
 import re
+from .package_index_transport import fetch_package_index
 
 _MAX_INDEX = 8 * 1024 * 1024
 MAX_BODY = 16 * 1024 * 1024
@@ -53,7 +54,7 @@ def official_primary_row(device, fetch, cancel):
         try:
             if pm == "opkg":
                 url = root + "packages/Packages"
-                raw = fetch(url, timeout=45, cancel_event=cancel, limit=_MAX_INDEX)
+                raw = fetch_package_index(url, fetch, timeout=45, cancel_event=cancel, limit=_MAX_INDEX)
                 text = raw.decode("utf-8").replace("\r\n", "\n")
                 stanzas = [part for part in text.split("\n\n")
                            if re.search(r"(?m)^Package: hcxdumptool$", part)]

@@ -1,4 +1,5 @@
 """Any package architecture can use exactly hcx 6.3.4 without library replacement."""
+import gzip
 import hashlib
 import json
 from contextlib import contextmanager
@@ -66,10 +67,10 @@ class OnlineArchitectureTests(unittest.TestCase):
     def fetch(self,raw,pm="opkg",arch="x86_64",version="6.3.4-r1",index_arch=None,wrong_feed=False):
         digest=hashlib.sha256(raw).hexdigest()
         def fetch(url,**kwargs):
-            if url.endswith("/Packages"):
-                return ("Package: hcxdumptool\nVersion: "+version+"\nArchitecture: "+(index_arch or arch)+
+            if url.endswith("/Packages.gz"):
+                return gzip.compress(("Package: hcxdumptool\nVersion: "+version+"\nArchitecture: "+(index_arch or arch)+
                         "\nFilename: hcxdumptool_"+version+"_"+arch+".ipk\nSize: "+str(len(raw))+
-                        "\nSHA256sum: "+digest+"\n\n").encode()
+                        "\nSHA256sum: "+digest+"\n\n").encode())
             if url.endswith("/index.json"):
                 return json.dumps(dict(architecture=index_arch or arch,packages={"hcxdumptool":version})).encode()
             if url.endswith("/sha256sums"):

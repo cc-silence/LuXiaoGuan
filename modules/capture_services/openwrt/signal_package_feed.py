@@ -25,11 +25,13 @@ import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 
+from .dependency_http import DownloadHTTPError, StreamingHTTPHandler, StreamingHTTPSHandler, download_cancellation
 from .dependency_resolution import InstalledPackages, resolve_packages
 from .firmware_profile import release_kind, canonical_release, package_directory
 from .offline_cleanup import report_cleanup_warning
 from .package_download_diagnostics import AttemptDiagnostics, configuration_lines
 from .package_cache import prepare_cache_directory, checked_cache_target
+from .package_index_transport import fetch_package_index
 
 from modules.platform_services.owned_cache import checked_path, delete_inventory
 
@@ -37,7 +39,7 @@ _cache_lock = RLock()
 _cache_transaction = local()
 
 _download_state = ContextVar("openwrt_download_state", default=None)
-_ROUTE_TIMEOUT = 5.0
+_ROUTE_TIMEOUT = 15.0
 
 
 @contextmanager
@@ -342,8 +344,8 @@ def _reason_text(exc):
     return f"网络连接失败（{type(reason).__name__}，错误码 {code}）"
 
 
-def _read_body(response, limit, cancel_event, deadline, diagnostic=None):
-    """分块限长读取，每次读取前后核对取消和整体期限。"""
+def _read_body(response, limit, cancel_event, diagnostic=None):
+    """Read bounded chunks until EOF; active transfers have no total deadline."""
     chunks = []
     received = 0
     header = getattr(response, "headers", {}).get("Content-Length")
@@ -358,12 +360,8 @@ def _read_body(response, limit, cancel_event, deadline, diagnostic=None):
     read = getattr(response, "read1", response.read)
     while True:
         _check_cancel(cancel_event)
-        if time.monotonic() >= deadline:
-            raise TimeoutError("Download deadline exceeded")
         block = read(256 * 1024)
         _check_cancel(cancel_event)
-        if time.monotonic() >= deadline:
-            raise TimeoutError("Download deadline exceeded")
         if not block:
             break
         received += len(block)
@@ -409,9 +407,9 @@ def _wait_download_retry(not_before, deadline, cancel_event):
 
 @download_session()
 def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
-    """线路试完后最多重试一轮；两轮共用 timeout 总预算。"""
+    """Retry bounded routes; timeout budgets connection/wait time, never body progress."""
     _check_cancel(cancel_event)
-    deadline = time.monotonic() + max(0, float(timeout))
+    connection_budget = max(0, float(timeout))
     state = _download_state.get()
     plans = list(_attempt_plans())
     if state.get("message") is not None and not state.get("diagnostic_configuration"):
@@ -422,15 +420,17 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
     not_before = 0.0
     for round_number in range(2):
         _check_cancel(cancel_event)
-        if not round_plans or time.monotonic() >= deadline:
+        if not round_plans or connection_budget <= 0:
             break
         if round_number:
             _download_message("首轮线路均未成功；开始第 2/2 轮，重试临时网络故障的线路…")
         retry_plans = []
         for position, (label, handler) in enumerate(round_plans):
-            if not _wait_download_retry(not_before, deadline, cancel_event):
+            wait_started = time.monotonic()
+            if not _wait_download_retry(not_before, wait_started + connection_budget, cancel_event):
                 _raise_download_failure(errors, cancel_event)
-            remaining = deadline - time.monotonic()
+            connection_budget -= time.monotonic() - wait_started
+            remaining = connection_budget
             if remaining <= 0:
                 break
             key = _route_key(label, url)
@@ -449,14 +449,21 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
             try:
                 # ProxyHandler mutates Request host, tunnel and authentication state.
                 request = urllib.request.Request(url, headers={"User-Agent": "LuXiaoGuan-offline/1.0"})
-                with urllib.request.build_opener(handler).open(
-                        request, timeout=min(_ROUTE_TIMEOUT, remaining)) as response:
-                    status = getattr(response, "status", 200)
-                    diagnostic.status=status
-                    diagnostic.stage="\u8bfb\u53d6\u54cd\u5e94\u5185\u5bb9"
-                    if status != 200:
-                        raise RuntimeError(f"下载失败：HTTP {status}。")
-                    payload = _read_body(response, limit, cancel_event, deadline, diagnostic)
+                with download_cancellation(cancel_event):
+                    connect_started = time.monotonic()
+                    try:
+                        response = urllib.request.build_opener(
+                            handler, StreamingHTTPHandler(), StreamingHTTPSHandler()).open(
+                                request, timeout=min(_ROUTE_TIMEOUT, remaining))
+                    finally:
+                        connection_budget -= time.monotonic() - connect_started
+                    with response as response:
+                        status = getattr(response, "status", 200)
+                        diagnostic.status=status
+                        diagnostic.stage="\u8bfb\u53d6\u54cd\u5e94\u5185\u5bb9"
+                        if status != 200:
+                            raise DownloadHTTPError(status)
+                        payload = _read_body(response, limit, cancel_event, diagnostic)
                 _download_message(diagnostic.result(),"diagnostic")
                 _download_message(diagnostic.short_result(),"success")
                 return payload
@@ -470,7 +477,7 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
                 retry_delay = _retry_after_seconds(exc.headers) if status in (429, 503) else 0.0
                 exc.close()
                 if status not in (407, 408, 429, 500, 502, 503, 504):
-                    raise RuntimeError(f"下载失败：HTTP {status}。") from None
+                    raise DownloadHTTPError(status) from None
                 not_before = max(not_before, time.monotonic() + retry_delay)
                 failure = f"{route}：HTTP {status}"
                 if status == 407:
@@ -519,8 +526,8 @@ def fetch_index(profile, fetch=fetch_bytes, cancel_event=None, *, feeds=_FEEDS, 
         for url in (url for name, url in index_urls(profile) if name == feed):
             _check_cancel(cancel_event)
             try:
-                raw = fetch(url, timeout=60, cancel_event=cancel_event,
-                            limit=_MAX_INDEX_BYTES)
+                raw = fetch_package_index(url, fetch, timeout=60, cancel_event=cancel_event,
+                                          limit=_MAX_INDEX_BYTES)
             except RuntimeError as exc:
                 _check_cancel(cancel_event)
                 errors.append(str(exc))

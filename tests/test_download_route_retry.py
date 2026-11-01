@@ -20,7 +20,7 @@ class DownloadRetryTests(unittest.TestCase):
         factory = self.stack.enter_context(patch.object(feed.urllib.request, "build_opener"))
         factory.side_effect = self.opener
 
-    def opener(self, route):
+    def opener(self, route, *handlers):
         def open_request(*args, **kwargs):
             self.calls.append(route)
             outcome = next(self.outcomes)
@@ -241,7 +241,7 @@ class RequestIsolationTests(unittest.TestCase):
                 return transport(request)
 
         build = feed.urllib.request.build_opener
-        def build_with_transport(handler):
+        def build_with_transport(handler, *handlers):
             return build(handler, Transport())
 
         with patch.object(feed, "_attempt_plans", return_value=plans), \
@@ -342,7 +342,7 @@ class NativeProxyAndBodyTests(unittest.TestCase):
             response.begin()
             with self.assertRaises(IncompleteRead):
                 with response:
-                    feed._read_body(response, 1024, None, feed.time.monotonic() + 5)
+                    feed._read_body(response, 1024, None)
             self.assertTrue(stream.closed)
 
     def test_real_auth_failed_proxy_falls_back_to_origin(self):

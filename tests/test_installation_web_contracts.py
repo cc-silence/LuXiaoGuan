@@ -1,6 +1,5 @@
 """Three web-source reviews using real stdlib wire parsing and route contracts."""
 import io
-import time
 from http.client import HTTPResponse,IncompleteRead
 from threading import Event
 import unittest
@@ -31,7 +30,7 @@ class HttpWireContracts(unittest.TestCase):
         response=HTTPResponse(SocketBytes(wire))
         response.begin()
         with response:
-            return _read_body(response,1024,None,time.monotonic()+5)
+            return _read_body(response,1024,None)
 
     def test_content_length_body(self):
         self.assertEqual(self.read_response(b"HTTP/1.1 200 OK\r\nContent-Length: 9\r\n\r\nWikipedia"),b"Wikipedia")

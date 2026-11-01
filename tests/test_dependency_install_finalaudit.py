@@ -124,7 +124,7 @@ class TruncatedDownloadTests(unittest.TestCase):
         response=MagicMock(headers={"Content-Length":"100"})
         response.read1.side_effect=[b"tiny",b""]
         with self.assertRaises(RuntimeError):
-            feed._read_body(response,16,None,float("inf"))
+            feed._read_body(response,16,None)
         response.read1.assert_not_called()
 
 
