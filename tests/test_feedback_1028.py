@@ -2,6 +2,7 @@
 import copy
 import json
 import time
+from tests.network_readiness_fixture import fast_address_wait
 import unittest
 from pathlib import Path
 from unittest.mock import Mock,patch
@@ -167,7 +168,7 @@ class RenewalVerificationTests(unittest.TestCase):
         row=adapter(expected_addresses=['192.168.22.1/24'])
         fresh=adapter(addresses=['192.168.22.100/24'])
         with patch.object(facade,'current_os',return_value=facade.WINDOWS),patch('modules.platform_services.lan_network_windows.renew'),patch.object(facade,'inspect',return_value=dict(adapters=[adapter()])) as inspect:
-            with self.assertRaises(RuntimeError):facade.renew(row,30)
+            with fast_address_wait(), self.assertRaises(TimeoutError):facade.renew(row,30)
             inspect.return_value=dict(adapters=[fresh])
             self.assertEqual(facade.renew(row,30)['addresses'],fresh['addresses'])
 

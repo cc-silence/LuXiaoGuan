@@ -2,6 +2,7 @@
 import copy
 import threading
 import time
+from tests.network_readiness_fixture import fast_address_wait
 import unittest
 from pathlib import Path
 from types import SimpleNamespace as NS
@@ -213,7 +214,7 @@ class PassThreeTransactionTests(unittest.TestCase):
         wrong_id=adapter(id='different',addresses=['192.168.22.100/24'])
         for current in (wrong_id,adapter(addresses=['192.168.22.1/24']),adapter(addresses=['169.254.8.9/16'])):
             with patch.object(facade,'current_os',return_value=facade.WINDOWS),patch('modules.platform_services.lan_network_windows.renew'),patch.object(facade,'inspect',return_value=dict(adapters=[current])):
-                with self.assertRaises(RuntimeError):facade.renew(requested,30)
+                with fast_address_wait(), self.assertRaises(TimeoutError):facade.renew(requested,30)
 
     def test_expired_linux_permission_never_activates_a_connection(self):
         from modules.platform_services import lan_network_linux as linux

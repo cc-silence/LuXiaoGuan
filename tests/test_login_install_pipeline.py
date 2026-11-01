@@ -141,7 +141,7 @@ class RouterBoundary:
 
 
 class LoginInstallPipelineTests(unittest.TestCase):
-    def exercise(self, apk=False, *, accepted=True, cancel=False, missing=None, old_batching=False, capture=True, tamper=False, online=False):
+    def exercise(self, apk=False, *, accepted=True, cancel=False, missing=None, old_batching=False, capture=True, tamper=False, online=False, ignored_missing=()):
         missing = ('aircrack-ng','reaver','wpa-cli') if missing is None else missing
         with TemporaryDirectory() as directory, ExitStack() as stack:
             root = Path(directory)
@@ -212,15 +212,16 @@ class LoginInstallPipelineTests(unittest.TestCase):
                 self.assertEqual(names.count('apk_install' if apk else 'dependency_offline_install'),1)
             else:
                 self.assertFalse(result['error'],result['error'])
-                self.assertTrue(set(missing).issubset(boundary.installed))
+                self.assertTrue((set(missing)-set(ignored_missing)).issubset(boundary.installed))
+                self.assertTrue(set(ignored_missing).isdisjoint(boundary.installed))
                 required = REQUIRED_COMMON_KEYS | CAPTURE_KEYS
                 self.assertTrue(all(r.state.value in ('ready','disabled') for r in result['checked'] if r.key in required))
                 from modules.capture_services.openwrt.installation_sources import package_batches
-                self.assertEqual(names.count('apk_install' if apk else 'dependency_offline_install'),len(package_batches(missing))-int(online))
+                self.assertEqual(names.count('apk_install' if apk else 'dependency_offline_install'),len(package_batches(tuple(n for n in missing if n not in ignored_missing)))-int(online))
                 self.assertEqual(any(n=='dependency_update' for n in names),online)
                 package_uploads=[name for name,_ in boundary.uploads if name.endswith(('.ipk','.apk'))]
                 self.assertEqual(len(package_uploads),len(set(package_uploads)))
-                self.assertEqual({name.rsplit('-1.',1)[0] for name in package_uploads},set(missing)-({'curl'} if online else set()))
+                self.assertEqual({name.rsplit('-1.',1)[0] for name in package_uploads},set(missing)-set(ignored_missing)-({'curl'} if online else set()))
             self.assertTrue(any(n=='apk_cleanup' if apk else n=='dependency_cleanup' for n in names))
 
     def test_feedback_login_to_verified_ipk_install_and_fresh_recheck(self):
@@ -241,8 +242,8 @@ class LoginInstallPipelineTests(unittest.TestCase):
     def test_missing_sftp_bootstraps_over_command_channel_then_fresh_sftp_succeeds(self):
         self.exercise(missing=('aircrack-ng','reaver','wpa-cli','openssh-sftp-server'))
 
-    def test_required_hcx_and_common_tools_install_with_capture_features_disabled(self):
-        self.exercise(missing=('hcxdumptool','wpa-cli'),capture=False)
+    def test_disabled_capture_does_not_install_hcx_with_required_common_tools(self):
+        self.exercise(missing=('hcxdumptool','wpa-cli'),capture=False,ignored_missing=('hcxdumptool',))
 
     def test_tampered_package_stops_without_network_or_false_success(self):
         self.exercise(tamper=True)
