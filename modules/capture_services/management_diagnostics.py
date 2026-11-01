@@ -62,6 +62,12 @@ def failure_metadata(exc):
     for key in ("errno","winerror"):
         value=getattr(cause,key,None)
         if type(value) is int:fields[key]=value
+    from modules.platform_services.network_diagnostics import failure_fields
+    classified=failure_fields(exc)
+    transport=any(getattr(item,"code",None) in {"transport","disconnected"} for item in _chain(exc))
+    transport=transport or site.startswith("ssh_client:") or cause_site.startswith("ssh_client:")
+    if classified["connection_reason"] not in {"socket_timeout","connection_unknown"} or transport:
+        fields.update(classified)
     return fields
 
 

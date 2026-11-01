@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import Mock,patch
 from modules.capture_services.openwrt.dependency_groups import REQUIRED_COMMON_ITEMS, REQUIRED_COMMON_KEYS, COMMON_KEYS, CAPTURE_KEYS
 from modules.capture_services.openwrt.common_tool_dependencies import CommonTool, REQUIRED_TOOL_KEYS, check_tools
-from modules.capture_services.openwrt.models import DependencyState
+from modules.capture_services.openwrt.models import DependencyInfo, DependencyState
 from modules.capture_services.openwrt.command_runner import RemoteCommandResult
 from modules.capture_services.openwrt.runtime_helper_dependencies import check_wireless_rpc
 from tests.test_login_dependency_prompt import LoginDependencyPromptTests, rows
@@ -16,7 +16,7 @@ from modules.main_pages.packet_capture.openwrt.login_dependency_prompt import Lo
 class RequiredDependencyTests(unittest.TestCase):
     def test_only_real_function_requirements_are_in_automatic_scope(self):
         self.assertFalse(CommonTool('extra','Extra','extra','Optional by default').required)
-        self.assertEqual(REQUIRED_COMMON_KEYS,{'sftp','iw','wpa_cli','signal','curl','wireless_rpc','hcxdumptool'})
+        self.assertEqual(REQUIRED_COMMON_KEYS,{'sftp','iw','wpa_cli','signal','curl','wireless_rpc'})
         self.assertTrue({'terminal','iwinfo','luci_commands','luci_base_zh','luci_commands_zh'}.isdisjoint(REQUIRED_COMMON_KEYS))
 
     def test_required_checks_do_not_read_optional_package_inventory(self):
@@ -45,17 +45,26 @@ class RequiredDependencyTests(unittest.TestCase):
 
 
 class RequiredLoginConsentTests(LoginDependencyPromptTests):
-    def test_hcx_missing_prompts_even_when_pmkid_is_disabled(self):
+    def test_stale_common_hcx_missing_is_ignored_when_pmkid_is_disabled(self):
+        owner,page=self.create(False);factory=self.factory(True)
+        stale=DependencyInfo('hcxdumptool','Old common hcx row',DependencyState.MISSING,('hcxdumptool',))
+        owner.openwrt_backend.snapshot=replace(owner.openwrt_snapshot,
+            dependencies=owner.openwrt_snapshot.dependencies+(stale,))
+        owner.dependency_service.install_async=Mock()
+        prompt=LoginDependencyPrompt(page);self.addCleanup(prompt.dispose);self.settle()
+        factory.assert_not_called()
+        owner.dependency_service.install_async.assert_not_called()
+
+    def test_capture_hcx_missing_still_prompts_when_pmkid_is_enabled(self):
         owner,page=self.create(False);factory=self.factory(True)
         owner.openwrt_backend.snapshot=replace(owner.openwrt_snapshot,
             dependencies=tuple(replace(r,state=DependencyState.MISSING,missing_packages=('hcxdumptool',))
-                               if r.key=='hcxdumptool' else r for r in owner.openwrt_snapshot.dependencies))
+                               if r.key=='pmkid' else r for r in owner.openwrt_snapshot.dependencies))
         owner.dependency_service.install_async=Mock(return_value=True)
         prompt=LoginDependencyPrompt(page);self.addCleanup(prompt.dispose);self.settle()
         factory.assert_called_once()
         self.assertIn('hcxdumptool',factory.call_args.args[1])
-        owner.dependency_service.install_async.assert_called_once()
-        self.assertFalse(owner.dependency_service.install_async.call_args.args[0]['pmkid'])
+        self.assertTrue(owner.dependency_service.install_async.call_args.args[0]['pmkid'])
 
     def test_optional_only_missing_never_prompts_or_installs(self):
         owner,page=self.create(False);factory=self.factory(True)
@@ -85,7 +94,7 @@ class RequiredLoginConsentTests(LoginDependencyPromptTests):
         operation,event=owner.pending;result=operation(event,Mock())
         self.assertFalse(result['error'],result['error'])
         features=service.manager.install_all.call_args.args[0]
-        self.assertTrue(features['hcxdumptool'])
+        self.assertNotIn('hcxdumptool',features)
         self.assertFalse(features['pmkid'])
         self.assertTrue(optional.isdisjoint(features))
         self.assertTrue(optional.isdisjoint(service.task.items))
@@ -108,4 +117,6 @@ class OptionalToolUiTests(unittest.TestCase):
             self.assertIn('\u53ef\u9009',section.names[key].text())
             self.assertIn('\u672a\u68c0\u67e5',section.rows[key][0].text())
             self.assertEqual(section.rows[key][1].text(),'\u68c0\u67e5')
+        self.assertNotIn('hcxdumptool',section.rows)
+        self.assertNotIn('hcxdumptool',COMMON_KEYS)
         self.assertIn('\u5fc5\u9700',section.install_all_button.text())

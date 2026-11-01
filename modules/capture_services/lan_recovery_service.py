@@ -65,6 +65,7 @@ class LanRecoveryService(QObject):
             self.owner.configurationProgressChanged.emit(key,dict(value,network_recovery=self.payload(key)))
             return False
         adapter,timeout=claimed
+        phase_restoring=gate.restoring
         token=uuid4().hex
         self.adapter_jobs[identity]=token
         def finish(message,current=None):
@@ -78,10 +79,18 @@ class LanRecoveryService(QObject):
             runner=getattr(getattr(self.owner,'openwrt_backend',None),'command_runner',None)
             trace=ManagementTrace(runner,'client_network_renew',dict(kind='network'))
             def permitted():
-                return not cancel.is_set() and not getattr(self.owner,'_shutting_down',False) and gate.permit()
+                return not cancel.is_set() and not getattr(self.owner,'_shutting_down',False) and gate.restoring==phase_restoring and gate.permit()
             def perform(event,report):
                 if not permitted():raise InterruptedError('网卡地址更新已取消。')
-                return renew(adapter,timeout,permitted)
+                from modules.platform_services.network_diagnostics import observing, emit
+                def record(fields):
+                    if trace.journal is not None:
+                        trace.journal.record('configuration', expected_epoch=trace.epoch,
+                            operation='client_network_renew', status='progress', task_id=trace.task_id,
+                            restoring=phase_restoring, automatic=automatic, **fields)
+                with observing(record):
+                    emit('network_context', timeout_seconds=timeout)
+                    return renew(adapter,timeout,permitted)
             return trace.execute(perform,cancel,lambda *_:None)
         def completed(result):
             addresses=', '.join(result.get('addresses',[])) if isinstance(result,dict) else ''

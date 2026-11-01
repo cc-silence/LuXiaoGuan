@@ -97,13 +97,13 @@ class TaskProgressDialog(FramelessDialog):
         self.message.setText('正在取消，请等待任务收尾…')
         self.cancelRequested.emit()
 
-    def finish(self,success,message=''):
+    def finish(self,success,message='',*,close_on_failure=False):
         if not self.running:return
         previous = self.bar.value() if self.bar.maximum() else 0
         self.running=False
         self.bar.setRange(0,1000)
         self.bar.setValue(1000 if success else max(0,previous))
-        if success or self.cancelling:
+        if success or self.cancelling or close_on_failure:
             self.accept()
             self.deleteLater()
         else:

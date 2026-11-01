@@ -4,6 +4,7 @@ import base64
 import os
 import subprocess
 import time
+from tests.network_readiness_fixture import fast_address_wait
 import unittest
 from types import SimpleNamespace as NS
 from unittest.mock import patch,Mock
@@ -56,7 +57,7 @@ class AddressReadbackTests(unittest.TestCase):
     def test_disconnect_or_manual_static_change_during_renewal_is_not_success(self):
         for current in (adapter(connected=False),adapter(dhcp=False),adapter(addresses=['224.0.0.2/24'])):
             with self.subTest(current=current),patch.object(facade,'current_os',return_value=facade.WINDOWS),patch('modules.platform_services.lan_network_windows.renew'),patch.object(facade,'inspect',return_value=dict(adapters=[current])):
-                with self.assertRaises(RuntimeError):facade.renew(adapter(),30)
+                with fast_address_wait(), self.assertRaises(RuntimeError if current.get("dhcp") is False else TimeoutError):facade.renew(adapter(),30)
 
     def test_linux_missing_manager_is_explicit_and_has_no_side_effect(self):
         from modules.platform_services import lan_network_linux as linux
@@ -69,7 +70,7 @@ class AddressReadbackTests(unittest.TestCase):
 class WindowsLeaseContractTests(unittest.TestCase):
     def test_actual_powershell_flow_with_fake_cim_never_calls_real_adapter(self):
         from modules.platform_services import lan_network_windows as windows
-        for released,renewed,expected,renew_called in ((0,0,0,True),(1,0,15,True),(0,1,15,True),(91,0,5,False),(64,0,16,False),(83,0,14,False)):
+        for released,renewed,expected,renew_called in ((0,0,0,True),(1,0,15,True),(0,1,15,True),(91,0,1091,False),(64,0,1064,False),(83,0,1083,False)):
             with self.subTest(released=released,renewed=renewed):
                 with patch.object(windows.subprocess,'run',return_value=Mock(returncode=0)) as run:
                     windows.renew(adapter(),30,lambda:True)

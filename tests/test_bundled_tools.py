@@ -19,6 +19,8 @@ class BundledToolTests(unittest.TestCase):
             root=Path(directory)/"source";target=Path(directory)/"package"
             (root/"tools/scripts").mkdir(parents=True)
             (root/"tools/scripts/hcx_autocap.sh").write_bytes(b"#!/bin/sh\n")
+            (root/"tools/hc_offline_pack").mkdir()
+            (root/"tools/hc_offline_pack/duplicate.ipk").write_bytes(b"not shipped")
             (root/"offline_packages").mkdir()
             (root/"offline_packages/private-cache").write_bytes(b"not a shipped resource")
             (root/"config").mkdir();(root/"config/app_update.json").write_text("{}",encoding="utf-8")
@@ -26,6 +28,7 @@ class BundledToolTests(unittest.TestCase):
             script=target/"bin/tools/scripts/hcx_autocap.sh"
             self.assertTrue(script.is_file())
             self.assertEqual(managed_path(script.relative_to(target).as_posix()),"bin/tools/scripts/hcx_autocap.sh")
+            self.assertFalse((target/"bin/tools/hc_offline_pack").exists())
             self.assertFalse((target/"tools").exists())
             self.assertFalse((target/"offline_packages").exists())
             self.assertEqual(bundled_tools(target,frozen=True)/"scripts/hcx_autocap.sh",script)

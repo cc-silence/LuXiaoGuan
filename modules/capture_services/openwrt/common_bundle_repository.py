@@ -82,6 +82,14 @@ def _validate_catalog(data, kind="common"):
             previous = objects.setdefault(sha, row)
             if previous["size"] != row["size"]:
                 raise ValueError("\u5171\u4eab\u79bb\u7ebf\u5bf9\u8c61\u8bb0\u5f55\u4e0d\u4e00\u81f4\u3002")
+    if "hcx_variants" in data:
+        if kind != "capture":
+            raise ValueError("Designated hcx payloads belong only to the capture bundle")
+        from .hcx_bundle import validate_variants
+        for sha, row in validate_variants(data["hcx_variants"]).items():
+            previous = objects.setdefault(sha, row)
+            if previous["size"] != row["size"]:
+                raise ValueError("Conflicting shared hcx object size")
     return objects
 
 

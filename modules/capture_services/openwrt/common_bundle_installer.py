@@ -4,10 +4,14 @@ from contextlib import ExitStack
 from .bundle_storage_lock import bundle_lock
 from pathlib import Path
 from .bundle_specs import COMMON_ROOTS, CAPTURE_ROOTS, bundle_spec
+from .hcx_bundle import HCX_LIBRARIES
+
 from .common_bundle_repository import CommonBundleRepository
 from .signal_package_feed import default_cache_dir, parse_installed
 from .package_manager import compare_opkg_versions
 from .candidate_policy import CandidatePlanRejected
+
+CAPTURE_INSTALLABLE = CAPTURE_ROOTS | HCX_LIBRARIES
 
 
 def install_from_local(manager, wanted, device, cache_dir, sftp_available, cancel, tell,
@@ -16,11 +20,12 @@ def install_from_local(manager, wanted, device, cache_dir, sftp_available, cance
     wanted = tuple(wanted)
     if not wanted:
         return False
-    if repository is not None and set(wanted).issubset(bundle_spec(repository.kind).roots):
+    if repository is not None and set(wanted).issubset(
+            CAPTURE_INSTALLABLE if repository.kind == "capture" else bundle_spec(repository.kind).roots):
         kind = repository.kind
     elif set(wanted).issubset(COMMON_ROOTS):
         kind = "common"
-    elif set(wanted).issubset(CAPTURE_ROOTS):
+    elif set(wanted).issubset(CAPTURE_INSTALLABLE):
         kind = "capture"
     else:
         return False

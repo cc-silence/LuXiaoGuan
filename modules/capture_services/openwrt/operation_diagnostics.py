@@ -24,6 +24,11 @@ SAFE_VALUES["reason"] |= {"accepted","unchanged","reply_lost","verified","verifi
     "saved_values","runtime_missing","runtime_pending","runtime_up","runtime_proto","runtime_device","runtime_ipv4","runtime_ipv4_mask","runtime_gateway4","runtime_gateway6","runtime_ipv6","runtime_old_ipv6","runtime_prefix6","runtime_invalid"}
 SAFE_VALUES["reason"] |= {"wireless_interface_pending","wireless_configuration_pending","wireless_identity_pending","wireless_ap_pending","wireless_association_pending","wireless_runtime_pending"}
 SAFE_VALUES["reason"] |= {"wireless_config_"+key for key in ("mode","ssid","encryption","key","macaddr","channel","htmode","country","txpower")}
+from modules.platform_services.network_diagnostics import STAGES as NETWORK_STAGES, REASONS as NETWORK_REASONS, NUMBERS as NETWORK_NUMBERS
+SAFE_VALUES["stage"] |= NETWORK_STAGES
+SAFE_VALUES["reason"] |= NETWORK_REASONS
+SAFE_VALUES["connection_reason"] = NETWORK_REASONS
+SAFE_VALUES["selection_source"] = frozenset({"ssh_socket","system_route","unknown"})
 SAFE_VALUES["kind"] = KINDS
 SAFE_VALUES["outcome"] = frozenset({"reconnect","uncertain","saved","applied","restored"})
 SAFE_VALUES["reason"] |= CODES
@@ -51,7 +56,7 @@ MAX_MANAGEMENT_FAILURES = 16
 MAX_CONFIGURATION = 128
 MAX_CONFIGURATION_FAILURES = 16
 STRING_FIELDS = frozenset({"timestamp", "event", "operation", "status", "stage", "kind",
-    "exception_type", "cause_reason", "cause_type", "cause_site", "reason", "code_site", "last_stage", "last_reason", "outcome", "transport", "band", "source", "task_band"})
+    "selection_source", "connection_reason", "exception_type", "cause_reason", "cause_type", "cause_site", "reason", "code_site", "last_stage", "last_reason", "outcome", "transport", "band", "source", "task_band"})
 NUMBER_FIELDS = frozenset({"id", "errno", "winerror", "operation_id", "elapsed_seconds", "connected_before",
     "connected_after", "exit_code", "timed_out", "cancelled", "request_bytes",
     "force_apply", "rollback", "trace_id", "connect_attempts", "verify_attempts", "restore_attempts", "native_error", "candidate_index", "original_target", "remaining_seconds", "restored",
@@ -61,7 +66,7 @@ NUMBER_FIELDS = frozenset({"id", "errno", "winerror", "operation_id", "elapsed_s
     "completed", "total", "uncancellable", "queue_depth", "queue_seconds",
     "channel", "pending_processes", "takeover", "blocked", "primary_failed",
     "wireless_cleanup_confirmed", "monitor_active", "result_rows", "accepted_rows",
-    "rejected_rows", "frequency_rows", "band_rows", "legacy_rows", "configured_radios", "identified_radios", "physical_radios"})
+    "rejected_rows", "frequency_rows", "band_rows", "legacy_rows", "configured_radios", "identified_radios", "physical_radios"}) | NETWORK_NUMBERS | {"snapshot_cached", "rollback_seconds", "confirm_reserve_seconds"}
 
 
 def _fields(row):

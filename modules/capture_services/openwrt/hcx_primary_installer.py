@@ -1,8 +1,5 @@
 """Install the owner-approved hcx binary without replacing shared libraries."""
-import hashlib
-import json
 import re
-from pathlib import Path
 from uuid import uuid4
 
 from .command_builder import quote_argument as q
@@ -15,6 +12,8 @@ def checked_run(manager, name, command, cancel, timeout=30):
     if cancel is not None and cancel.is_set():
         raise SignalError("cancelled", "Installation cancelled")
     result = manager.command_runner.run(name, command, timeout=timeout, cancel_event=cancel)
+    from .command_runner import require_command_completion
+    require_command_completion(result)
     if result.exit_code != 0:
         raise RuntimeError(name + ": " + str(result.stderr or result.stdout))
     return result.stdout or ""
@@ -57,33 +56,30 @@ def primary_command(package_manager, remote, versions, simulate=False):
 
 
 def install_primary(manager, device, sftp_available, cancel, tell, cache_dir, uploader):
-    from modules.config_manager import BASE_DIR
-    from .common_bundle_installer import install_from_local
-    from .installation_sources import install_with_sources
-    from .apk_plan import parse_actions
-    from .package_space import ipk_installed_size, required_kb
+    from .hcx_bundle import primary_package
     if device is None:
         return False
     pm = getattr(device, "package_manager", "")
     arch = str(getattr(device, "package_architecture", "") or "")
     if pm not in {"opkg", "apk"} or arch not in {"mipsel_24kc", "aarch64_cortex-a53"}:
         return False
-    branch = "25.12" if pm == "apk" else "24.10"
-    from modules.platform_services.bundled_tools import bundled_tools
-    bundle = bundled_tools(BASE_DIR) / "hc_offline_pack" / branch / arch
-    if not (bundle / "manifest.json").is_file():
+    from .hcx_policy import supports_modern_hcx
+    if not supports_modern_hcx(device):
+        tell("\u5f53\u524d\u8bbe\u5907\u4e0d\u6ee1\u8db3 hcx 6.3.4 \u5347\u7ea7\u6761\u4ef6\uff0c\u6539\u7528\u8be5\u56fa\u4ef6\u5b98\u65b9\u63d0\u4f9b\u7684\u9002\u914d\u7248\u672c\u3002", "info")
         return False
-    manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
-    rows = [row for row in manifest["packages"] if row["name"] == "hcxdumptool"]
-    if len(rows) != 1 or manifest["arch"] != arch or manifest["branch"] != branch or manifest["mode"] != ("apk" if pm == "apk" else "ipk"):
-        raise ValueError("Invalid hcx package identity")
-    row = rows[0]
-    if row["version"].split("-", 1)[0] != "6.3.4" or Path(row["file"]).name != row["file"]:
-        raise ValueError("Unexpected hcx package")
-    package = bundle / "pkgs" / row["file"]
-    if hashlib.sha256(package.read_bytes()).hexdigest() != row["sha256"]:
-        raise ValueError("hcx package checksum mismatch")
+    with primary_package(device, cancel) as (package, row):
+        return _install_package(manager, device, package, row, sftp_available,
+                                cancel, tell, cache_dir, uploader)
+
+
+def _install_package(manager, device, package, row, sftp_available, cancel, tell, cache_dir, uploader):
+    from .common_bundle_installer import install_from_local
+    from .installation_sources import install_with_sources
+    from .apk_plan import parse_actions
+    from .package_space import ipk_installed_size, required_kb
+    pm = device.package_manager
     versions = parse_libraries(checked_run(manager, "hcx_library_probe", library_probe(pm), cancel))
+    existing_versions = dict(versions)
     missing = tuple(name for name in LIBRARIES if name not in versions)
     if missing:
         tell("正在通过常规安装流程补齐 hcx 缺少的运行库：" + ", ".join(missing), "info")
@@ -92,6 +88,8 @@ def install_primary(manager, device, sftp_available, cancel, tell, cache_dir, up
             lambda: manager._install_online(missing, cancel, tell),
             lambda: manager._install_offline(missing, device, cache_dir, sftp_available, cancel, tell, uploader), tell)
         versions = parse_libraries(checked_run(manager, "hcx_library_probe", library_probe(pm), cancel))
+    if any(versions.get(name) != version for name, version in existing_versions.items()):
+        raise RuntimeError("Existing shared library changed while installing missing libraries")
     if set(versions) != set(LIBRARIES):
         raise RuntimeError("Required hcx libraries are unavailable; existing libraries were not replaced")
     if pm == "opkg":
@@ -101,8 +99,8 @@ def install_primary(manager, device, sftp_available, cancel, tell, cache_dir, up
         return False
     directory = "/tmp/routermanager-hcx-" + uuid4().hex
     remote = directory + "/" + package.name
-    checked_run(manager, "hcx_prepare", "mkdir -m 700 " + q(directory), cancel)
     try:
+        checked_run(manager, "hcx_prepare", "mkdir -m 700 " + q(directory), cancel)
         push = uploader or manager._package_uploader(sftp_available, cancel, tell)
         push(str(package), remote)
         output = checked_run(manager, "hcx_uploaded_hash", "sha256sum " + q(remote), cancel)
@@ -122,5 +120,8 @@ def install_primary(manager, device, sftp_available, cancel, tell, cache_dir, up
         tell("hcxdumptool 6.3.4 安装完成，原有公共运行库版本未改变。", "success")
         return True
     finally:
-        manager.command_runner.run("hcx_cleanup", "rm -f " + q(remote) + "; rmdir " + q(directory),
-                                   timeout=10, cancel_event=None)
+        from .offline_cleanup import cleanup_remote
+        cleanup_remote(
+            lambda name, command, timeout, event: checked_run(
+                manager, name, command, event, min(timeout, 10)),
+            "hcx_cleanup", "rm -f " + q(remote) + "; rmdir " + q(directory), tell)

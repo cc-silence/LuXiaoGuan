@@ -10,6 +10,7 @@ from pathlib import Path
 from .package_manager import PackageManager, package_error_reason, compare_opkg_versions
 from .common_tool_dependencies import TOOLS, TOOL_KEYS, TOOL_BY_KEY, check_tools
 from .dependency_groups import CAPTURE_PACKAGES
+from .hcx_policy import installation_satisfied
 
 from modules.capture_services.openwrt.command_builder import quote_argument
 from modules.capture_services.openwrt.models import DependencyInfo, DependencyState
@@ -71,18 +72,9 @@ class OpenWrtDependencyManager:
 
     def _is_modern_hcx_supported(self, device, cancel_event=None) -> bool:
         """判定当前设备环境是否支持升级运行 6.3.4 现代版。"""
+        from .hcx_policy import supports_modern_hcx
         if device is not None:
-            kernel_str = str(getattr(device, "kernel_version", "") or "").strip()
-            km = re.match(r"^(\d+)\.(\d+)", kernel_str)
-            if km and (int(km.group(1)), int(km.group(2))) < (5, 15):
-                return False
-            version_str = str(getattr(device, "version", "") or "").strip()
-            vm = re.match(r"^(\d+)\.(\d+)", version_str)
-            if vm:
-                return (int(vm.group(1)), int(vm.group(2))) >= (23, 5)
-            if km and (int(km.group(1)), int(km.group(2))) >= (5, 15):
-                return True
-            return False
+            return supports_modern_hcx(device)
         try:
             res = self.command_runner.run(
                 "probe_env_for_modern_hcx",
@@ -93,14 +85,9 @@ class OpenWrtDependencyManager:
             lines = [l.strip() for l in (res.stdout or "").splitlines() if l.strip()]
             kernel_str = lines[0] if lines else ""
             version_str = lines[1] if len(lines) > 1 else ""
-            km = re.match(r"^(\d+)\.(\d+)", kernel_str)
-            if km and (int(km.group(1)), int(km.group(2))) < (5, 15):
-                return False
-            vm = re.match(r"^(\d+)\.(\d+)", version_str)
-            if vm:
-                return (int(vm.group(1)), int(vm.group(2))) >= (23, 5)
-            if km and (int(km.group(1)), int(km.group(2))) >= (5, 15):
-                return True
+            from types import SimpleNamespace
+            return supports_modern_hcx(SimpleNamespace(
+                version=version_str, kernel_version=kernel_str))
         except Exception:
             pass
         return False
@@ -308,7 +295,7 @@ class OpenWrtDependencyManager:
         return match.group(1) if match else ""
 
     @offline_cache_transaction(lambda result: bool(result) and all(
-        item.state in (DependencyState.READY, DependencyState.DISABLED) for item in result if item.key != "converter"))
+        installation_satisfied(item) for item in result if item.key != "converter"))
     def install_all(self, enabled_features, sftp_available, device, cache_dir,
                     cancel_event, message=None, uploader=None, *, include_sftp=True):
         """确认后安装缺失的抓包依赖，装完复测返回最新清单。
@@ -320,7 +307,7 @@ class OpenWrtDependencyManager:
         tell = message or (lambda _text, _level: None)
         tell("正在检查缺失依赖…", "info")
         def checked():
-            return tuple(item for item in self.check(enabled_features, sftp_available, cancel_event)
+            return tuple(item for item in self.check(enabled_features, sftp_available, cancel_event, device=device)
                          if include_sftp or item.key != "sftp")
         initial = checked()
         if enabled_features.get('signal') and any(item.key == 'signal' and item.state != DependencyState.READY for item in initial):
@@ -332,7 +319,7 @@ class OpenWrtDependencyManager:
             tell("依赖齐全，无需安装。", "success")
             return checked()
         tell("本次安装：" + "、".join(wanted) + "。", "info")
-        # 若需要安装 hcxdumptool 且设备内核满足要求，优先尝试从随包 hc_offline_pack 安装 6.3.4 现代版
+        # Eligible devices use the designated 6.3.4 from the unified capture bundle.
         if "hcxdumptool" in wanted:
             if self._try_install_modern_hcxdumptool(device, sftp_available, cancel_event, tell, cache_dir, uploader):
                 initial = checked()
@@ -364,11 +351,13 @@ class OpenWrtDependencyManager:
         if include_sftp:
             sftp_available = self._probe_sftp(cancel_event, sftp_available)
         result = checked()
-        report_verified(source, all(item.state in (DependencyState.READY, DependencyState.DISABLED)
+        report_verified(source, all(installation_satisfied(item)
                                     for item in result if item.key != "converter"), tell)
 
         # 抓包工具兼容性与版本深度诊断报告
         pmkid_item = next((item for item in result if item.key == "pmkid"), None)
+        if pmkid_item and pmkid_item.state == DependencyState.OUTDATED:
+            tell(pmkid_item.detail, "warning")
         if pmkid_item and pmkid_item.state == DependencyState.READY:
             try:
                 hcx_cap = read_hcx_capabilities(self.command_runner, cancel_event)
@@ -946,5 +935,6 @@ class OpenWrtDependencyManager:
 
 
 def _looks_like_network(message):
-    """仅明确联网错误才转代下载，不用离线重试掩盖签名或依赖冲突。"""
-    return "联网或 DNS" in message
+    """仅软件源获取失败才转代下载，不用离线重试掩盖签名或依赖冲突。"""
+    from .package_manager import retryable_package_source_failure
+    return retryable_package_source_failure(message)

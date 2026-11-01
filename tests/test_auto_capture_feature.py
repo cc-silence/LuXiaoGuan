@@ -1395,6 +1395,10 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         service.auto_capture = auto_cap_service
 
         page = AutoCapturePage(service, {})
+        from shiboken6 import delete
+        self.addCleanup(delete, service.auto_capture)
+        self.addCleanup(delete, page)
+        self.addCleanup(page.dispose)
         page._on_snapshot_changed(snap_2305)
         self.assertFalse(page.version_warning_card.isHidden())
         self.assertFalse(page.upgrade_hcx_btn.isHidden())
@@ -1573,9 +1577,13 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         service.settings = {}
         service.openwrt_snapshot = snap
         service.current_device = dev_legacy
-        service.auto_capture = AutoCaptureService(service)
+        service.auto_capture = self.ui_service(service)
 
         page = AutoCapturePage(service, {})
+        from shiboken6 import delete
+        self.addCleanup(delete, service.auto_capture)
+        self.addCleanup(delete, page)
+        self.addCleanup(page.dispose)
         page._on_snapshot_changed(snap)
 
         # 验证卡片标题和内容必须包含真实的 6.0.1，绝不能出现硬编码的 6.2.4

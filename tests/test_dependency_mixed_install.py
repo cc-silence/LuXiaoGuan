@@ -16,7 +16,7 @@ class MixedDependencyInstallTests(unittest.TestCase):
         manager = OpenWrtDependencyManager(Mock())
         installed = set()
         wanted = ('aircrack-ng', 'reaver', 'wpa-cli')
-        def check(*args):
+        def check(*args, device=None):
             return tuple(DependencyInfo(name, name,
                 DependencyState.READY if name in installed else DependencyState.MISSING,
                 () if name in installed else (name,)) for name in wanted)

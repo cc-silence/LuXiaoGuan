@@ -16,8 +16,9 @@ class CommonToolSection(QObject):
         self.service=owner.dependency_service
         self.dialog=None
         self.dialog_session=None
+        self.dialog_action=None
         self.card,self.layout=create_capture_card(parent,"路由器常用工具依赖",
-            "\u767b\u5f55\u53ea\u68c0\u67e5\u8def\u5c0f\u7ba1\u529f\u80fd\u5fc5\u9700\u9879\uff1b\u6807\u6ce8\u53ef\u9009\u7684\u5de5\u5177\u4ec5\u5728\u624b\u52a8\u9009\u62e9\u65f6\u68c0\u67e5\u3001\u5b89\u88c5\u3002", collapsible=True, expanded=False)
+            "\u767b\u5f55\u540e\u81ea\u52a8\u68c0\u67e5\u5168\u90e8\u4f9d\u8d56\uff1b\u53ef\u9009\u5de5\u5177\u4ec5\u5728\u624b\u52a8\u9009\u62e9\u65f6\u5b89\u88c5\u3002", collapsible=True, expanded=False)
         from .common_bundle_controls import CommonBundleControls
         self.offline_controls=CommonBundleControls(self.card,self.layout,owner)
         self.rows={}
@@ -120,7 +121,7 @@ class CommonToolSection(QObject):
                 button.setText('\u68c0\u67e5')
                 button.setVisible(True)
                 button.setEnabled(not self.owner.is_busy)
-                button.setToolTip('\u53ef\u9009\u5de5\u5177\uff0c\u4e0d\u53c2\u4e0e\u767b\u5f55\u68c0\u6d4b\u6216\u6279\u91cf\u8865\u88c5\uff1b\u70b9\u51fb\u540e\u6309\u9700\u68c0\u67e5\u3002')
+                button.setToolTip('\u53ef\u9009\u5de5\u5177\uff0c\u767b\u5f55\u540e\u81ea\u52a8\u68c0\u67e5\uff0c\u4e0d\u53c2\u4e0e\u6279\u91cf\u8865\u88c5\uff1b\u70b9\u51fb\u53ef\u5237\u65b0\u72b6\u6001\u3002')
                 continue
             status.setText({'ready':'已安装','missing':'未安装','checking':'检测中'}.get(state,'检测失败'))
             status.setToolTip(item.detail if item is not None else '请重新检查。')
@@ -181,6 +182,7 @@ class CommonToolSection(QObject):
         if self.dialog is None and not self.card.isVisible():return
         if self.dialog is None:
             self.dialog_session=task.session_id
+            self.dialog_action=task.action
             title=TOOL_BY_KEY[task.group].title if task.group in TOOL_KEYS else '全部常用依赖' if task.group=='common_all' else '终端会话保留支持' if task.group=='terminal' else '文件传输支持'
             self.dialog=TaskProgressDialog({'install':'安装','uninstall':'卸载'}.get(task.action,'检查')+title,
                 parent=self.card,cancel_text="取消任务")
@@ -192,7 +194,8 @@ class CommonToolSection(QObject):
         if self.dialog is not None and self.dialog_session==session:
             dialog=self.dialog
             self.dialog=None;self.dialog_session=None
-            dialog.finish(success,message)
+            dialog.finish(success,message,close_on_failure=self.dialog_action=="check")
+            self.dialog_action=None
         self.apply_snapshot(self.owner.openwrt_snapshot)
 
     def dispose(self):

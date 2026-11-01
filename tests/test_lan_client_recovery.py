@@ -16,7 +16,7 @@ def adapter(**changes):
 
 def review(*rows):
     return dict(values=dict(proto='static',ipaddr='192.168.11.1',netmask='255.255.255.0'),
-                client_network=dict(adapters=list(rows)))
+                client_network=dict(adapters=list(rows),selection_source='ssh_socket'))
 
 
 NEW=dict(proto='static',ipaddr='192.168.22.1',netmask='255.255.255.0')

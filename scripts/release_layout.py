@@ -18,7 +18,7 @@ def seed_assets(target):
     config=target/"config";config.mkdir()
     if (ROOT/"tools").is_dir():
         shutil.copytree(ROOT/"tools",target/"bin/tools",
-                        ignore=shutil.ignore_patterns("__pycache__","*.pyc","*.log","*.tmp"))
+                        ignore=shutil.ignore_patterns("__pycache__","*.pyc","*.log","*.tmp","hc_offline_pack"))
     from modules.config_manager import ConfigManager
     settings=configparser.ConfigParser();settings.read_dict(ConfigManager.DEFAULTS)
     settings.remove_section("winbox_meta")
@@ -54,7 +54,7 @@ def verify_files(package,version):
             if version not in versions:raise ValueError("Executable version mismatch: "+name)
     if any(p.is_file() and p.name!=APPLICATION_EXECUTABLE for p in package.iterdir()):
         raise ValueError("Unexpected loose root file in application package")
-    blocked={".wrangler","RouterManagerData","build","infra","tests",".git","openwrt_signal","__pycache__",".desktop-shortcut-prompted",".first_launch_done"}
+    blocked={".wrangler","RouterManagerData","build","infra","tests",".git","openwrt_signal","hc_offline_pack","__pycache__",".desktop-shortcut-prompted",".first_launch_done"}
     for path in package.rglob("*"):
         relative=path.relative_to(package)
         if any(part in blocked for part in relative.parts):raise ValueError("Runtime or build data included: "+str(relative))

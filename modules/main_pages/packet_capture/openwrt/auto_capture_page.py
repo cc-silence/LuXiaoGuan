@@ -483,34 +483,9 @@ class AutoCaptureReportDialog(FramelessDialog):
 
 
 def is_modern_hcx_supported_on_device(device) -> bool:
-    """判定当前路由器环境是否支持升级并运行现代版 hcxdumptool (6.3.4+)。
-
-    现代版 hcxdumptool 依赖 Netlink / nl80211 原生套接字，官方自 OpenWrt 23.05 起（Linux 内核 ≥ 5.15）
-    开始提供支持。若路由器固件版本低于 23.05 或 Linux 内核低于 5.15，则不支持升级新版本。
-    """
-    if not device:
-        return False
-
-    kernel_str = str(getattr(device, "kernel_version", "") or "").strip()
-    km = re.match(r"^(\d+)\.(\d+)", kernel_str)
-    if km:
-        k_major, k_minor = int(km.group(1)), int(km.group(2))
-        if (k_major, k_minor) < (5, 15):
-            return False
-
-    version_str = str(getattr(device, "version", "") or "").strip()
-    vm = re.match(r"^(\d+)\.(\d+)", version_str)
-    if vm:
-        major, minor = int(vm.group(1)), int(vm.group(2))
-        if (major, minor) < (23, 5):
-            return False
-        return True
-
-    # 若固件版本无法识别（如第三方固件），且内核达到 5.15+，视为支持
-    if km and (int(km.group(1)), int(km.group(2))) >= (5, 15):
-        return True
-
-    return False
+    """Use the same upgrade policy as dependency installation."""
+    from modules.capture_services.openwrt.hcx_policy import supports_modern_hcx
+    return supports_modern_hcx(device)
 
 
 def check_auto_capture_environment(device, snapshot=None) -> tuple[bool, str, str]:
