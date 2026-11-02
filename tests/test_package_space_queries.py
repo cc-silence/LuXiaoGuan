@@ -1,6 +1,8 @@
 """Space checks exercise the upstream single-selector opkg info contract."""
 import os
 import shlex
+import shutil
+from pathlib import Path
 import subprocess
 import unittest
 from threading import Event
@@ -9,6 +11,9 @@ from modules.capture_services.openwrt.dependency_manager import OpenWrtDependenc
 from modules.capture_services.openwrt.package_manager import PackageManager
 from modules.capture_services.openwrt.package_space import check_plan_space, required_kb
 from modules.capture_services.openwrt.signal_manager import SignalError
+
+GIT_BASH = Path("C:/Program Files/Git/bin/bash.exe")
+SHELL = str(GIT_BASH) if os.name == "nt" and GIT_BASH.is_file() else shutil.which("sh")
 
 PACKAGES = ("liblua5.1.5", "libubus-lua", "libuci-lua", "lua", "luci-lib-jsonc")
 PLAN = "".join("Installing %s (1) to root...\n" % name for name in PACKAGES)
@@ -73,7 +78,7 @@ class SpaceQueryTests(unittest.TestCase):
         self.assertEqual(manager._preflight.call_args.args[0], required_kb([1024] * 5))
 
 
-@unittest.skipUnless(os.name == "posix", "Executes the actual router POSIX shell command")
+@unittest.skipUnless(SHELL, "POSIX test shell unavailable")
 class NativeShellQueryTests(unittest.TestCase):
     def execute(self, command, fail=None):
         cases = []
@@ -82,7 +87,7 @@ class NativeShellQueryTests(unittest.TestCase):
             action = "return 7" if name == fail else "printf '%s\\n' " + shlex.quote(row)
             cases.append(name + ") " + action + ";;")
         function = "opkg() { [ \"$1\" = info ] || return 8; case \"$2\" in " + " ".join(cases) + " esac; }\n"
-        return subprocess.run(["sh", "-c", function + command], capture_output=True, text=True, timeout=3)
+        return subprocess.run([SHELL, "-c", function + command], capture_output=True, text=True, timeout=3)
 
     def test_upstream_first_selector_behavior_reproduces_old_failure(self):
         from modules.capture_services.openwrt.package_space import parse_opkg_sizes

@@ -9,7 +9,8 @@ import sys
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-ALLOWED_SKIPS = {"tests.test_native_window_visibility": 1}
+# Both native screen hit-testing cases require a real Windows display backend.
+ALLOWED_SKIPS = {"tests.test_native_window_visibility": 2}
 
 
 def tracked_paths():
