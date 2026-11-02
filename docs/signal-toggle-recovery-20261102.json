@@ -1,0 +1,39 @@
+{
+  "scope": "Shared signal toggle completion: protect previously confirmed running APs across network reload; target is excluded when intentionally stopped.",
+  "implementation": [
+    "Direct toggle keeps the foreground operation active until target and protected APs are observed in the same inventory.",
+    "Session toggle verifies baseline AP readiness before mutation and recovery before UCI confirmation; existing rollback is preserved.",
+    "No UI style changes, extra reloads, driver changes or UI timers. Deadlines and cancellation remain bounded."
+  ],
+  "verification": {
+    "windows_targeted_tests": 116,
+    "final_direct_and_recovery_recheck": 12,
+    "new_test_methods": 9,
+    "native_profiles": [
+      "19.07",
+      "21.02",
+      "22.03",
+      "23.05",
+      "24.10",
+      "25.12 shell",
+      "25.12 ucode"
+    ],
+    "debian": "Actual Debian 12 Python syntax and selection smoke passed; full Qt desktop and live router validation pending.",
+    "live_router": "Not performed; restart source application and retest upper enable/disable with AP recovery."
+  },
+  "official_source_check": {
+    "checked_at": "2026-11-02T08:07:08.742490+00:00",
+    "sources": [
+      {
+        "file": "wifi-21.02.1",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.1/package/base-files/files/sbin/wifi",
+        "sha256": "2ec130f182afebd77c98a71859d6be7972e617723d6571e7a19cca7e49bb4801"
+      },
+      {
+        "file": "wifi-23.05.4",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/base-files/files/sbin/wifi",
+        "sha256": "3496b99d6e0267494e3e6932158a20a3b5ae403c2a4f5d7923d98d0d1b886f42"
+      }
+    ]
+  }
+}

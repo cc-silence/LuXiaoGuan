@@ -55,7 +55,7 @@ class NativeTerminalView(QWidget):
         self._selectionRefresh.connect(self._refresh_selection, Qt.QueuedConnection)
         bridge.output.connect(self.receive_output)
         bridge.control.connect(self.apply_control)
-        self._dll.wb_colors(self._pointer, self.palette().color(QPalette.WindowText).rgba(), self.palette().color(QPalette.Window).rgba())
+        self._apply_palette()
         self._dll.wb_font(self._pointer, self._font_size)
 
     @staticmethod
@@ -210,6 +210,17 @@ class NativeTerminalView(QWidget):
             self._press_point = None
             self._selectionRefresh.emit()
         return super().eventFilter(watched, event)
+
+    def _apply_palette(self):
+        self._dll.wb_colors(self._pointer,
+                            self.palette().color(QPalette.WindowText).rgba(),
+                            self.palette().color(QPalette.Window).rgba())
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if (event.type() == QEvent.PaletteChange and getattr(self, '_pointer', None)
+                and not self._disposed):
+            self._apply_palette()
 
     def resizeEvent(self, event):
         path = QPainterPath()

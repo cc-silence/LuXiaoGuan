@@ -1,0 +1,96 @@
+{
+  "checked_on": "2026-11-02",
+  "input_file": "XRJ_LuXiaoGuan_\u4fe1\u53f7\u7ba1\u7406_20261102_152157.zip",
+  "input_app_version": "1.0.32_alpha",
+  "device": "TP-Link TL-XDR6088 / OpenWrt 23.05.4",
+  "confirmed_observations": [
+    "Parent disabled changes true to false, radio and interface become up",
+    "Four AP readiness failures return native_error 4 from hostapd.IFACE get_status",
+    "Parent enable uses rollback-session AP readiness, ordinary toggles previously used only interface up"
+  ],
+  "confirmed_defect": "Positive kernel AP-started evidence was ignored when the optional hostapd ubus object was absent; the ordinary and parent paths used different criteria",
+  "repair": [
+    "One shared Lua AP predicate across transactions, inventory, periodic samples, policy replacement and relocation",
+    "Only missing object error 4 permits independent positive kernel proof",
+    "Requires same interface, AP type, exact live SSID bytes, positive channel/frequency, administrative UP and carrier=1",
+    "Explicit disabled/DFS, permission, timeout, ambiguous data and missing evidence remain unready",
+    "Existing rollback/cancel and deadlines remain intact; no forced restart or dependency change"
+  ],
+  "privacy": "Only numeric and boolean readiness evidence is exported; no SSID or raw kernel output",
+  "new_evidence": [
+    "ap_control_available",
+    "kernel_ap_started",
+    "ap_carrier"
+  ],
+  "sources": [
+    {
+      "file": "openwrt-23.05.4-ubus-Makefile",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/system/ubus/Makefile",
+      "sha256": "9aa620a3aef24c538ed8927899147616fb8842de8548a7a82bdbbb082755f240"
+    },
+    {
+      "file": "openwrt-23.05.4-hostapd-ubus.c",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/network/services/hostapd/src/src/ap/ubus.c",
+      "sha256": "3c1a67c33e9665b60c33c2c034cf0104d47f5a2755d9e1cf095ff3c6a1a1913a"
+    },
+    {
+      "file": "openwrt-23.05.4-netifd-Makefile",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/network/config/netifd/Makefile",
+      "sha256": "68432ce8c0ecab75943a021970ac0ac02be40a012dd292efc688da75537743dc"
+    },
+    {
+      "file": "openwrt-23.05.4-luci-feeds",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/feeds.conf.default",
+      "sha256": "1638712e1f97e4afa51fa907674cb0fb57bd4afa53f893d36fa3ba12f16a62eb"
+    },
+    {
+      "file": "ubus-pinned-lua.c",
+      "url": "https://raw.githubusercontent.com/openwrt/ubus/f787c97b34894a38b15599886cacbca01271684f/lua/ubus.c",
+      "sha256": "43d4204771b99ea52e648b52f8afe25c8afbe77ecf011fdc68989e9d8874f15e"
+    },
+    {
+      "file": "ubus-pinned-ubusmsg.h",
+      "url": "https://raw.githubusercontent.com/openwrt/ubus/f787c97b34894a38b15599886cacbca01271684f/ubusmsg.h",
+      "sha256": "a20942befcd07205a27aa2d3c66b194434c245b310de607d07d7e0bf2de7c285"
+    },
+    {
+      "file": "luci-pinned-wireless.js",
+      "url": "https://raw.githubusercontent.com/openwrt/luci/85dec609ab12eee92601d492e4d472b01d71f7ae/modules/luci-mod-network/htdocs/luci-static/resources/view/network/wireless.js",
+      "sha256": "efe1530f3d0e68c40b963c0e571aa0a3b2d36a1622ef3e3a47bdb68b2fb13069"
+    },
+    {
+      "file": "linux-v5.15-nl80211.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/v5.15/net/wireless/nl80211.c",
+      "sha256": "d2657e91c55600e39acd9bb0d10933541814d7139d6e2c56e83bea326f6cf85f"
+    },
+    {
+      "file": "linux-v5.15-mac80211-cfg.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/v5.15/net/mac80211/cfg.c",
+      "sha256": "31effe5396a3893836c46a10d251a1d83e90743c0c92661cbcb42c8d9a30627f"
+    },
+    {
+      "file": "linux-v5.15-mac80211-iface.c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/v5.15/net/mac80211/iface.c",
+      "sha256": "16bf905428d5ce84698d5ee8a168a7f0a0225b618fd9a2dfff31ec84c73d8f4d"
+    },
+    {
+      "file": "iw-5.19-util.c",
+      "url": "https://www.kernel.org/pub/software/network/iw/iw-5.19.tar.xz",
+      "archive_sha256": "f167bbe947dd53bb9ebc0c1dcef5db6ad73ac1d6084f2c6f9376c5c360cc4d4e",
+      "sha256": "140060bc4cf589b7894c5e45f88a84e57c9d609dcc24d1d10fb6896a59bf8dc8"
+    }
+  ],
+  "verification": {
+    "windows_tests": {
+      "count": 159,
+      "result": "passed",
+      "scope": "targeted offline native-Lua, UI state, exact-release, rollback and sibling-call regressions"
+    },
+    "exact_release_contracts": 50,
+    "real_router": "not operated",
+    "debian12": "Lua and PySide6 unavailable in existing environment",
+    "old_feedback_limit": "No kernel SSID/carrier evidence existed in original ZIP, so actual beaconing during the original failure is not asserted",
+    "input_hash": "not recorded: original share path no longer accessible at final audit",
+    "packaging": "not performed"
+  }
+}

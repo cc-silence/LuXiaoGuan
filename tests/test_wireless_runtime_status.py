@@ -289,6 +289,7 @@ class RuntimeCollectorLuaTests(unittest.TestCase):
         def call(object,method,args):
             calls.append((object,method))
             if (object,method) in fixtures:return to_lua(fixtures[(object,method)])
+            if object.startswith('hostapd.') and method=='get_status':return to_lua(dict(status='ENABLED',ssid='AP'))
             if object=='network.device':return to_lua(dict(up=True))
             if object=='iwinfo' and missing_station_info and args['device']=='phy1-sta0':
                 raise RuntimeError('unsupported')

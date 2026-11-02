@@ -1,5 +1,6 @@
 """Read-only OpenWrt runtime observations; never scan, commit UCI or restart interfaces."""
 from .signal_commands import _LUA_BINS
+from .ap_readiness import AP_READINESS_LUA
 
 STATUS_LUA = r"""
 local okj,json=pcall(require,'luci.jsonc')
@@ -9,8 +10,9 @@ if not okj or not oku or not okc then io.write('{"ok":false,"code":"dependencies
 local bus=ubus.connect()
 if not bus then io.write('{"ok":false,"code":"disconnected"}'); return end
 local function call(object,method,args)
-    local ok,r=pcall(function() return bus:call(object,method,args or {}) end)
-    if ok and type(r)=='table' then return r end
+    local ok,r,err=pcall(function() return bus:call(object,method,args or {}) end)
+    if ok and not err and type(r)=='table' then return r end
+    return nil,type(err)=='number' and err or nil
 end
 local function text(v)
     if type(v)=='string' and #v<=256 and not v:find('[%z\1-\31]') then return v end
@@ -23,6 +25,7 @@ local function counter(iface,kind)
     if not f then return nil end
     local value=f:read(32); f:close(); return tonumber(value)
 end
+__AP_READINESS__
 local hints={}
 local f=io.open('/tmp/dhcp.leases','r')
 if f then
@@ -55,7 +58,7 @@ local runtime=call('network.wireless','status')
 if not runtime then io.write(json.stringify({ok=false,code='unsupported'})); bus:close(); return end
 local dump=call('network.interface','dump') or {}
 local networks,total,limited={},0,false
-local links={}
+local links,readiness={},{}
 for radio,state in pairs(runtime) do
     if type(state)=='table' and state.up==true then
         for _,iface in ipairs(state.interfaces or {}) do
@@ -64,8 +67,14 @@ for radio,state in pairs(runtime) do
             if name(device) and (cfg.mode=='ap' or cfg.mode=='sta') then
                 if #networks>=64 then limited=true; break end
                 local info=call('iwinfo','info',{device=device}) or {}
-                local devstate=call('network.device','status',{name=device})
-                if name(iface.section) and type(devstate)=='table' and type(devstate.up)=='boolean' then links[iface.section]=devstate.up end
+                local devstate,dev_error=call('network.device','status',{name=device})
+                local proof={interface_present=true,device_error=dev_error}
+                if name(iface.section) then readiness[iface.section]=proof end
+                if type(devstate)=='table' and type(devstate.up)=='boolean' then proof.interface_up=devstate.up end
+                if name(iface.section) and type(devstate)=='table' and type(devstate.up)=='boolean' then
+                    links[iface.section]=devstate.up
+                    if cfg.mode=='ap' and devstate.up then links[iface.section]=ap_ready(bus,device,cfg.ssid,proof,devstate) end
+                end
                 if not devstate or devstate.up~=false then
                     local assoc=call('iwinfo','assoclist',{device=device})
                     local peers,available={},assoc~=nil and type(assoc.results)=='table'
@@ -145,20 +154,30 @@ for section,cfg in pairs(configs) do
                     if iface.section==section then
                         matches=matches+1
                         if type(iface.ifname)=='string' and state.up then
-                            running=links[section]==true and 'active' or 'unknown'
+                            running=links[section]==true and 'active' or (cfg.mode=='ap' and links[section]==false and 'inactive' or 'unknown')
                         end
                     end
                 end
                 if matches>1 then running='unknown' end
             end
         end
-        observations[#observations+1]={section=section,radio=cfg.device,mode=cfg.mode,running=running,note=note}
+        local proof=readiness[section] or {interface_present=false}
+        if type(state)=='table' then
+            proof.radio_up=state.up==true;proof.runtime_pending=state.pending==true
+            proof.retry_setup_failed=state.retry_setup_failed==true
+        end
+        if cfg.mode=='ap' and not proof.ap_failure then
+            proof.ap_failure=proof.runtime_pending and 'radio_pending' or proof.radio_up==false and 'radio_down' or not proof.interface_present and 'interface_missing' or 'interface_down'
+        end
+        observations[#observations+1]={section=section,radio=cfg.device,mode=cfg.mode,running=running,note=note,readiness=cfg.mode=='ap' and proof or nil}
     end
 end
 bus:close()
 io.write(json.stringify({ok=true,result={schema=1,networks=networks,limited=limited,runtime=observations}}))
 """
 
+
+STATUS_LUA = STATUS_LUA.replace("__AP_READINESS__", AP_READINESS_LUA)
 
 def status_command(lua_bin='lua'):
     if lua_bin not in _LUA_BINS:

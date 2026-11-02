@@ -9,6 +9,7 @@ import json
 from .takeover_config import TAKEOVER_LUA
 from .uci_booleans import NETIFD_BOOL_LUA
 from .signal_detail_commands import DETAIL_LUA
+from .ap_readiness import AP_READINESS_LUA
 
 from modules.capture_services.openwrt.command_builder import quote_argument
 from modules.capture_services.openwrt.signal_package_feed import is_safe_filename
@@ -98,16 +99,23 @@ local function inventory()
         local runtime_ssid, runtime_band = "", ""
         local state = "unknown"
         local rs = status[s.device]
+        local readiness = {configured_enabled=d==false,radio_disabled=rd==true,interface_present=false}
+        if type(rs)=="table" then
+            readiness.radio_up=rs.up==true;readiness.runtime_pending=rs.pending==true
+            readiness.retry_setup_failed=rs.retry_setup_failed==true
+        end
         if type(rs) == "table" and type(rs.up) == "boolean" and not rs.pending then
             state = "inactive"
             local matches = 0
             for _, iface in ipairs(rs.interfaces or {}) do
                 if iface.section == s[".name"] then
-                    matches = matches + 1
+                    matches = matches + 1;readiness.interface_present=true
                     if type(iface.ifname) == "string" and rs.up then
-                        local dev = bus:call("network.device", "status", {name=iface.ifname})
+                        local dev,dev_error = bus:call("network.device", "status", {name=iface.ifname})
+                        readiness.device_error=type(dev_error)=="number" and dev_error or nil
+                        if type(dev)=="table" and type(dev.up)=="boolean" then readiness.interface_up=dev.up end
                         if type(dev) == "table" and dev.up == true then
-                            state = "active"
+                            state = (s.mode~="ap" or ap_ready(bus,iface.ifname,s.ssid,readiness,dev)) and "active" or "inactive"
                             local info = runtime_info(bus, iface.ifname)
                             local active_config = type(iface.config)=="table" and iface.config or {}
                             local ssid = info and info.ssid or active_config.ssid
@@ -122,7 +130,10 @@ local function inventory()
                     end
                 end
             end
-            if matches > 1 then state = "unknown"; runtime_ssid=""; runtime_band="" end
+            if matches > 1 then readiness.ap_failure="ambiguous_interface";state = "unknown"; runtime_ssid=""; runtime_band="" end
+        end
+        if s.mode=="ap" and not readiness.ap_failure then
+            readiness.ap_failure=readiness.runtime_pending and "radio_pending" or readiness.radio_up==false and "radio_down" or not readiness.interface_present and "interface_missing" or "interface_down"
         end
         local runtime_note = ""
         if type(rs) == "table" then
@@ -138,7 +149,7 @@ local function inventory()
         end
         rows[#rows+1] = {label=type(s.description)=="string" and s.description:sub(1,128) or "", section=s[".name"], ssid=type(s.ssid)=="string" and s.ssid or "",
             managed_bridge=type(s.rm_bridge)=="string" or type(s.rm_wds_backup)=="string", mode=type(s.mode)=="string" and s.mode or "", radio=type(s.device)=="string" and s.device or "",
-            runtime_ssid=runtime_ssid, runtime_band=runtime_band, band=band, disabled=d==true, radio_disabled=rd==true, running=state, reason=reason, details=detail, runtime_note=runtime_note}
+            runtime_ssid=runtime_ssid, runtime_band=runtime_band, band=band, disabled=d==true, radio_disabled=rd==true, running=state, reason=reason, details=detail, runtime_note=runtime_note, readiness=s.mode=="ap" and readiness or nil}
     end)
     bus:close()
     if not same(pending, cursor():changes("wireless")) or hash() ~= revision then fail("changed") end
@@ -208,7 +219,7 @@ def signal_command(action, lua_bin="lua", **values):
         raise ValueError("不支持的 lua 解释器。")
     payload = json.dumps(dict(action=action, **values), ensure_ascii=True)
     takeover = action in {"takeover_prepare", "takeover_disable", "takeover_restore"}
-    body = _LUA.replace("__NETIFD_BOOL__", NETIFD_BOOL_LUA).replace("-- WINBOX_SIGNAL_DETAILS", DETAIL_LUA) + (TAKEOVER_LUA if takeover else "") + _LUA_RESULT
+    body = _LUA.replace("__NETIFD_BOOL__", NETIFD_BOOL_LUA).replace("-- WINBOX_SIGNAL_DETAILS", AP_READINESS_LUA + "\n" + DETAIL_LUA) + (TAKEOVER_LUA if takeover else "") + _LUA_RESULT
     script = lua_bin + " - " + quote_argument(payload) + " <<'WINBOX_SIGNAL_LUA'\n" + body + "\nWINBOX_SIGNAL_LUA"
     return (
         "command -v " + lua_bin + " >/dev/null 2>&1 || { printf '%s' '{\"ok\":false,\"code\":\"dependencies\"}'; exit 0; }; "

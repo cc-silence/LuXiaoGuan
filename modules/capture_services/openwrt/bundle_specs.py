@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from .wireless_dependencies import WIRELESS_HELPER_PACKAGES
 
 COMMON_ROOTS = frozenset((
-    "openssh-sftp-server", "tmux", "iw", "iwinfo", "luci-app-commands",
+    "openssh-sftp-server", "tmux", "iw", "iwinfo", "curl", "luci-app-commands",
     "luci-i18n-base-zh-cn", "luci-i18n-commands-zh-cn",
     *WIRELESS_HELPER_PACKAGES,
 ))

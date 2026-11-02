@@ -85,7 +85,6 @@ class OpenWrtPmkidCapture:
     def __init__(self, command_runner, process_manager):
         self.command_runner = command_runner
         self.process_manager = process_manager
-        self.tool_selection = None
 
     def prepare(self, band, active_beacon, selected_bssids, cancel_event=None, *, session_id=""):
         """每个任务开始前读取一次实际能力，返回仅供本任务自检/采集共用的参数。"""
@@ -94,8 +93,8 @@ class OpenWrtPmkidCapture:
         if type(active_beacon) is not bool:
             raise ValueError("PMKID 主动开关必须是布尔值，请重新保存设置。")
         connection = getattr(getattr(self.command_runner, "ssh_client", None), "_client", None)
-        executable = self.tool_selection[1] if self.tool_selection and self.tool_selection[0] is connection else "hcxdumptool"
-        capabilities = read_hcx_capabilities(self.command_runner, cancel_event) if executable == "hcxdumptool" else read_hcx_capabilities(self.command_runner, cancel_event, executable=executable)
+        executable = "hcxdumptool"
+        capabilities = read_hcx_capabilities(self.command_runner, cancel_event)
         capabilities.capture_options(band, active_beacon, bool(targets), "capture.bpf")
         bpf_text = filter_text(capture_filter(
             targets, legacy_624=capabilities.version == "6.2.4", active_request=active_beacon,
@@ -469,7 +468,7 @@ class OpenWrtPmkidCapture:
                         )
                     if error_type is _WextInitializationError and "hcxdumptool 6.2.4" in (detail or ""):
                         message = ("旧版 PMKID 工具无法识别无线网卡，本次尚未开始采集。"
-                            "请到“路由器登录 → PMKID 工具”检查并安装适配的新版；暂可使用常规握手抓包。")
+                            "请在“抓包依赖”中检查并安装 hcxdumptool；暂可使用常规握手抓包。")
                     message += ("诊断已保存，可导出日志。" if diag_name
                                 else "诊断文件未能保存。")
                     error = error_type(message)

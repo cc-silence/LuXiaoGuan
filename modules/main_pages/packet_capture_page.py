@@ -98,7 +98,6 @@ class PacketCapturePage(QFrame):
             self._on_verified_history_changed
         )
         self.capture_service.taskFinishedNotice.connect(self._show_task_result_notice)
-        self.capture_service.compatibleToolSuggested.connect(self._suggest_compatible_tool)
         self.capture_service.takeoverProbeFinished.connect(self._on_takeover_probe_finished)
         # 射频预检的待认领请求（probe_id, 设置副本, 勾选快照），结果过期直接丢弃。
         self._pending_takeover_probe = None
@@ -142,12 +141,10 @@ class PacketCapturePage(QFrame):
         """四个路由器信息窗口共用当前连接的冻结诊断，不持有旧设备缓存。"""
         from modules.capture_services.openwrt.diagnostic_context import router_context_json
         backend=self.capture_service.openwrt_backend
-        selected=backend.pmkid_capture.tool_selection
-        compatible=bool(selected and selected[0] is backend.ssh_client._client)
         from PySide6.QtWidgets import QApplication
         evidence = backend.command_runner.radio_diagnostics.snapshot()
         version = QApplication.instance().applicationVersion()
-        return router_context_json(self.capture_service.openwrt_snapshot, masker, compatible,
+        return router_context_json(self.capture_service.openwrt_snapshot, masker,
                                    radio_evidence=evidence, app_version=version,
                                    operation_evidence=backend.command_runner.operation_diagnostics.snapshot(),
                                    signal_snapshot=self.capture_service.router_signals.snapshot,
@@ -155,14 +152,6 @@ class PacketCapturePage(QFrame):
                                    application_window=self.window(),
                                    device_history=self.capture_service.diagnostic_history)
 
-    def _suggest_compatible_tool(self):
-        """\u786e\u8ba4\u540e\u68c0\u67e5\u517c\u5bb9\u5305\uff0c\u4e0d\u81ea\u52a8\u4fee\u6539\u8def\u7531\u5668\u3002"""
-        if ConfirmDialog("\u68c0\u67e5\u517c\u5bb9\u5de5\u5177", "\u672c\u6b21 PMKID \u542f\u52a8\u5931\u8d25\u53ef\u80fd\u6d89\u53ca\u5de5\u5177\u7248\u672c\u6216\u63a5\u53e3\u517c\u5bb9\u6027\u3002\u662f\u5426\u5e2e\u4f60\u68c0\u67e5\u5f53\u524d\u56fa\u4ef6\u7684\u5b98\u65b9\u517c\u5bb9\u5305\uff1f\u5b89\u88c5\u524d\u4f1a\u663e\u793a\u7248\u672c\u548c\u786e\u8ba4\u3002", self).exec() != ConfirmDialog.Accepted:
-            return
-        self.openwrt_tab.tabs.setCurrentWidget(self.openwrt_tab.login_page)
-        section = self.openwrt_tab.login_page.compatible_tools
-        self.openwrt_tab.login_page.scroll_area.ensureWidgetVisible(section.card)
-        section.check()
 
     def _show_task_result_notice(self, title, text):
         """任务终局弹窗告知最终结果，主线程调用，不展示敏感内容。"""

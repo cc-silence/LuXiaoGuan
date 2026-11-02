@@ -148,8 +148,7 @@ class UploadWorkerQueueTests(unittest.TestCase):
         owner.task_controller = Mock()
         owner._start_openwrt_worker = Mock()
         owner.openwrt_backend = NS(ssh_client=NS(connected=True, host_fingerprint='fp', _client=object()), command_runner=Mock())
-        with patch('modules.capture_services.openwrt.compatible_tool.CompatibleToolInstaller'):
-            service = RouterManagementService(owner)
+        service = RouterManagementService(owner)
         completed = Mock()
         service.completed.connect(completed)
         with tempfile.TemporaryDirectory() as folder:

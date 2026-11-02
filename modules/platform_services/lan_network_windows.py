@@ -32,13 +32,15 @@ def inspect(peer=None,timeout=10,*,adapter_id=None):
         with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as probe:
             probe.connect((address,9));local=probe.getsockname()[0]
     except (OSError,ValueError,TypeError):pass
+    from .network_environment import windows as environment
+    context=environment()
     rows=[]
     for nic in QNetworkInterface.allInterfaces():
         addresses=[]
         for entry in nic.addressEntries():
             try:addresses.append(str(ipaddress.IPv4Interface(entry.ip().toString()+'/'+str(entry.prefixLength()))))
             except ValueError:continue
-        if not addresses:continue
+        if not addresses and adapter_id is None:continue
         luid=ctypes.c_ulonglong();guid=(ctypes.c_ubyte*16)()
         api=ctypes.windll.iphlpapi
         if api.ConvertInterfaceIndexToLuid(nic.index(),ctypes.byref(luid)):continue
@@ -51,14 +53,19 @@ def inspect(peer=None,timeout=10,*,adapter_id=None):
                 def value(name,default=None):
                     try:return winreg.QueryValueEx(key,name)[0]
                     except OSError:return default
-                dhcp=value('EnableDHCP')==1
+                enabled=value('EnableDHCP')
+                dhcp=enabled==1 if enabled in (0,1) else None
+                dhcp_server=value('DhcpServer','') if dhcp else ''
+                lease_end=value('LeaseTerminatesTime') if dhcp else None
                 gateway=value('DhcpDefaultGateway' if dhcp else 'DefaultGateway',[])
                 dns=value('NameServer','') or (value('DhcpNameServer','') if dhcp else '')
-        except OSError:dhcp=None;gateway=[];dns=''
+        except OSError:dhcp=None;gateway=[];dns='';dhcp_server='';lease_end=None
         gateway=[gateway] if isinstance(gateway,str) else gateway
-        rows.append(dict(id=identity,index=nic.index(),name=nic.humanReadableName(),mac=nic.hardwareAddress(),
+        rows.append(dict(**context,dhcp_server=dhcp_server,
+            lease_expired=(lease_end<=time.time()) if type(lease_end) is int and lease_end>0 else None,id=identity,index=nic.index(),name=nic.humanReadableName(),mac=nic.hardwareAddress(),
             addresses=addresses,gateways=list(gateway or []),dns=str(dns).replace(',',' ').split(),dhcp=dhcp,
             connected=bool(nic.flags() & QNetworkInterface.IsRunning),manager='windows',renewable=dhcp is True,
+            wireless=True if nic.type()==QNetworkInterface.Wifi else False if nic.type()==QNetworkInterface.Ethernet else None,
             route=any(str(ipaddress.IPv4Interface(v).ip)==local for v in addresses)))
     return rows
 

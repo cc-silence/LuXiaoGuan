@@ -386,6 +386,7 @@ class RouterSignalManager:
                 source = []
             if not isinstance(source, list) or len(source) > 512:
                 raise ValueError()
+            from .readiness_diagnostics import readiness_evidence
             from .signal_details import parse_details
             rows = []
             for item in source:
@@ -420,6 +421,7 @@ class RouterSignalManager:
                         item.get("runtime_note", ""), "固件返回未知运行状态"),
                     item.get("label", ""), item.get("managed_bridge", False),
                     item.get("runtime_ssid", ""), item.get("runtime_band", ""),
+                    readiness_evidence(item.get("readiness")),
                 ))
             if sum(len(row.details.clients) for row in rows if row.details is not None) > 512:
                 raise ValueError()
@@ -449,6 +451,11 @@ class RouterSignalManager:
             WirelessSetupManager(self.runner).toggle(section, enabled, cancel_event,
                                                      expected_revision=inventory.revision, **options)
             return self.read(cancel_event)
+        from .signal_recovery import SIGNAL_READY_SECONDS, recovery_targets, pending_recovery
+        protected = recovery_targets(
+            ({"section": item.section, "device": item.radio, "mode": item.mode} for item in inventory.rows),
+            (item.section for item in inventory.rows if item.running == "active"
+             and not item.disabled and not item.radio_disabled), section)
         token = uuid4().hex
         backup = f"/etc/winbox-wireless-backups/{token}/wireless"
         from .wireless_readiness_evidence import WirelessReadinessEvidence
@@ -459,25 +466,39 @@ class RouterSignalManager:
                 self._run("change", cancel_event, revision=inventory.revision,
                           section=section, enabled=enabled, token=token)
                 phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u542f\u505c\u7ed3\u679c",seconds=125)
-                for attempt in range(6):
+                deadline = time.monotonic() + SIGNAL_READY_SECONDS
+                attempt = 0
+                while True:
+                    if cancel_event is not None and cancel_event.is_set():
+                        raise SignalError("cancelled", "\u5df2\u8bf7\u6c42\u505c\u6b62\u6838\u5b9e\u3002")
                     current = self.read(cancel_event)
+                    attempt += 1
+                    observed = {(item.section, item.radio): item for item in current.rows if item.mode == "ap"}
+                    def recovered(name, radio):
+                        item = observed.get((name, radio))
+                        return bool(item and not item.disabled and not item.radio_disabled
+                                    and item.running == "active" and not item.reason)
+                    pending = pending_recovery(protected, recovered)
                     actual = next((r for r in current.rows if r.section == section), None)
                     expected = "active" if enabled else "inactive"
-                    matches = bool(actual and actual.disabled == (not enabled) and actual.running == expected)
-                    evidence.sample(dict(ready=matches, requested_enabled=enabled,
+                    matches = bool(actual and actual.disabled == (not enabled) and actual.running == expected and not pending)
+                    evidence.sample(dict(actual.readiness if actual else {}, ready=matches, requested_enabled=enabled, runtime_pending=bool(pending) or bool(actual and actual.readiness.get("runtime_pending")),
                         **({"configured_enabled": not actual.disabled, "interface_state": actual.running}
                            if actual is not None else {"interface_state": "missing"}),
                         reason="verified" if matches else "wireless_interface_pending" if actual is None else
                                "wireless_config_disabled" if actual.disabled != (not enabled) else "wireless_runtime_pending"))
-                    if actual and actual.disabled == (not enabled) and actual.running == expected:
+                    if matches:
                         return current
-                    if attempt < 5:
-                        if cancel_event is not None:
-                            if cancel_event.wait(1):
-                                raise SignalError("cancelled", "已请求停止核实。")
-                        else:
-                            time.sleep(1)
-                raise SignalError("unconfirmed", "配置或运行状态未达到请求值。")
+                    if time.monotonic() >= deadline:
+                        break
+                    if cancel_event is not None:
+                        if cancel_event.wait(min(1, max(0, deadline - time.monotonic()))):
+                            raise SignalError("cancelled", "\u5df2\u8bf7\u6c42\u505c\u6b62\u6838\u5b9e\u3002")
+                    else:
+                        time.sleep(min(1, max(0, deadline - time.monotonic())))
+                if pending:
+                    raise SignalError("unconfirmed", "\u539f\u672c\u8fd0\u884c\u7684\u70ed\u70b9\u672a\u5728\u65f6\u9650\u5185\u6062\u590d\uff0c\u8bf7\u5237\u65b0\u6838\u5bf9\u5e76\u5bfc\u51fa\u4fe1\u53f7\u7ba1\u7406\u65e5\u5fd7\u3002")
+                raise SignalError("unconfirmed", "\u914d\u7f6e\u6216\u8fd0\u884c\u72b6\u6001\u672a\u8fbe\u5230\u8bf7\u6c42\u503c\u3002")
             except Exception as exc:
                 # 仅传播本模块已脱敏的摘要；未知异常不得携带原始 stdout/stderr。
                 # 错误码原样保留，服务层靠它判断是否缺依赖。
@@ -508,32 +529,38 @@ class RouterSignalManager:
             raise SignalError("unsupported", "该信号运行正常，无需修复。")
         if not valid_radio_name(row.radio):
             raise SignalError("unsupported", "父 radio 无法唯一识别，请检查无线配置。")
-        phase("\u6b63\u5728\u91cd\u65b0\u542f\u7528\u65e0\u7ebf\u7f51\u5361",seconds=60)
-        result = self._run_command(
-            "repair_wifi_up", f"wifi up {quote_argument(row.radio)}", timeout=60, cancel_event=cancel_event)
-        if result.cancelled:
-            raise SignalError("cancelled", "信号修复已取消；请刷新核对设备状态。")
-        if result.timed_out or result.exit_code != 0:
-            raise SignalError(
-                "transport", "重新启用无线网卡超时或失败，状态未确认；请检查连接后刷新核对。")
-        phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u6062\u590d\u7ed3\u679c",seconds=328)
-        for attempt in range(15):
-            if cancel_event is not None and cancel_event.is_set():
+        from .wireless_readiness_evidence import WirelessReadinessEvidence
+        with WirelessReadinessEvidence(getattr(self.runner, "operation_diagnostics", None),
+                                       row.mode, row.band, "repair").observing() as evidence:
+            phase("\u6b63\u5728\u91cd\u65b0\u542f\u7528\u65e0\u7ebf\u7f51\u5361",seconds=60)
+            result = self._run_command(
+                "repair_wifi_up", f"wifi up {quote_argument(row.radio)}", timeout=60, cancel_event=cancel_event)
+            if result.cancelled:
                 raise SignalError("cancelled", "信号修复已取消；请刷新核对设备状态。")
-            current = self.read(cancel_event)
-            actual = next((r for r in current.rows if r.section == section), None)
-            if actual and not actual.disabled and actual.running == "active":
-                return current
-            if attempt < 14:
-                if cancel_event is not None:
-                    if cancel_event.wait(2):
-                        raise SignalError("cancelled", "信号修复已取消；请刷新核对设备状态。")
-                else:
-                    time.sleep(2)
-        raise SignalError(
-            "unconfirmed",
-            f"已重新启用 {row.radio}，但该信号 30 秒内仍未运行；请在路由器管理界面检查，"
-            "必要时重启路由器无线或整机后再刷新核对。")
+            if result.timed_out or result.exit_code != 0:
+                raise SignalError(
+                    "transport", "重新启用无线网卡超时或失败，状态未确认；请检查连接后刷新核对。")
+            phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u6062\u590d\u7ed3\u679c",seconds=328)
+            for attempt in range(15):
+                if cancel_event is not None and cancel_event.is_set():
+                    raise SignalError("cancelled", "信号修复已取消；请刷新核对设备状态。")
+                current = self.read(cancel_event)
+                actual = next((r for r in current.rows if r.section == section), None)
+                evidence.sample(dict(actual.readiness if actual else {},
+                    ready=bool(actual and not actual.disabled and actual.running=="active"),
+                    interface_state=actual.running if actual else "missing"))
+                if actual and not actual.disabled and actual.running == "active":
+                    return current
+                if attempt < 14:
+                    if cancel_event is not None:
+                        if cancel_event.wait(2):
+                            raise SignalError("cancelled", "信号修复已取消；请刷新核对设备状态。")
+                    else:
+                        time.sleep(2)
+            raise SignalError(
+                "unconfirmed",
+                f"已重新启用 {row.radio}，但该信号 30 秒内仍未运行；请在路由器管理界面检查，"
+                "必要时重启路由器无线或整机后再刷新核对。")
 
     def _run(self, action, cancel_event, **values):
         """统一有限时执行、取消和 JSON 校验；拒绝输出原始错误或配置内容。

@@ -1,5 +1,6 @@
 """Project signal state and exact activation blockers without names or credentials."""
 import re
+from .readiness_diagnostics import readiness_evidence
 
 MAX_SIGNALS = 256
 BLOCKERS = frozenset({"disconnected", "busy", "stale", "unsupported", "parent_disabled", "none"})
@@ -13,7 +14,7 @@ def signal_evidence(snapshot, setup_snapshot=None):
                   "parent_disabled" if row.radio_disabled else "none")
         rows.append(dict(index=index + 1, radio=row.radio, band=row.band, mode=row.mode,
             disabled=row.disabled, radio_disabled=row.radio_disabled, running=row.running,
-            blocked_reason=reason))
+            blocked_reason=reason, readiness=readiness_evidence(row.readiness)))
     environment = getattr(setup_snapshot, "environment", None)
     setup = dict(checked=environment is not None, ready=bool(environment and environment.ready),
                  missing_packages=list(environment.missing) if environment else [],
@@ -64,5 +65,6 @@ def sanitized_signal_evidence(data):
             if type(row.get(key)) is not bool:
                 raise ValueError("invalid signal flag")
             clean[key] = row[key]
+        clean["readiness"] = readiness_evidence(row.get("readiness"))
         result["rows"].append(clean)
     return result

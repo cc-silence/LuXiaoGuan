@@ -15,6 +15,8 @@ class RouterPolicyActions:
         if signal is not None:signal.connect(self._progress)
         signal=getattr(page.manager,"policyStatusChanged",None)
         if signal is not None:signal.connect(self._status_changed)
+        signal=getattr(page.manager,'initialVerificationCompleted',None)
+        if signal is not None:signal.connect(self._initial_verified)
 
     @property
     def active(self):return bool(self.pending) or self.modal
@@ -60,6 +62,9 @@ class RouterPolicyActions:
         return self.page.manager.manager.ssh.connected and identity==self._identity()
 
     def _status_changed(self,*_):self.page._sync()
+
+    def _initial_verified(self,result):
+        if not self.disposed:self.page._message(result['note'],'success' if result.get('verified') else 'warning')
 
     def sync(self,available):
         for button in self.buttons.values():set_page_action_enabled(button,available)
@@ -200,6 +205,6 @@ class RouterPolicyActions:
         for key in tuple(self.pending):self.page.manager.cancel(key)
         self.pending.clear()
         for key in tuple(self.dialogs):self._finish_progress(key)
-        for name,slot in (("progress",self._progress),("policyStatusChanged",self._status_changed)):
+        for name,slot in (("progress",self._progress),("policyStatusChanged",self._status_changed),("initialVerificationCompleted",self._initial_verified)):
             signal=getattr(self.page.manager,name,None)
             if signal is not None:signal.disconnect(slot)

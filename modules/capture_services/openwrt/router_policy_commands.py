@@ -8,6 +8,7 @@ from .checked_apply_commands import CHECKED_APPLY, CHECKED_ACTIONS
 from .wireless_identity_commands import IDENTITY
 from .station_identity_commands import STATION_IDENTITY
 from .router_policy_files import FILES_LUA
+from .initial_reconnect_commands import INITIAL_RECONNECT
 from .wireless_capabilities import CAPABILITIES_LUA
 
 CONFIGS = ("system", "network", "wireless", "firewall", "dhcp", "dropbear", "uhttpd", "luci", "fstab")
@@ -256,13 +257,14 @@ local function policy_ap_ready()
  for _,iface in ipairs(radio.interfaces or {}) do
   if iface.section==ap.section and type(iface.ifname)=="string" then
    local info=optional("iwinfo","info",{device=iface.ifname})
-   if runtime_mac(iface.ifname)==ap.mac:lower() and info.frequency and info.frequency>=2400 and info.frequency<2500 and ap_ready(iface.ifname,ap.ssid) then return {ready=true} end
+   if runtime_mac(iface.ifname)==ap.mac:lower() and info.frequency and info.frequency>=2400 and info.frequency<2500 and ap_ready(bus,iface.ifname,ap.ssid) then return {ready=true} end
   end
  end
  return {ready=false}
 end
 
 __CHECKED_APPLY__
+__INITIAL_RECONNECT__
 local function policy_applied()
  local c=uci.cursor()
  local network_state=nil
@@ -311,6 +313,7 @@ local function policy_applied()
 end
 local function run()
 __CHECKED_ACTIONS__
+ if req.action=="initial_deferred_apply" then return initial_deferred_apply() end
  if req.action=="policy_applied" then return policy_applied() end
  if req.action=="discard_session" then rpc("session","destroy",{ubus_rpc_session=sid()});return {discarded=true} end
  if req.action=="ap_ready" then return policy_ap_ready() end
@@ -337,7 +340,7 @@ local ok,result=pcall(run)
 if bus then bus:close() end
 io.write(json.stringify(ok and {ok=true,result=result} or {ok=false,code=type(result)=="table" and result.code or "internal",backup_dir=type(result)=="table" and result.backup_dir or nil,cleanup_failed=type(result)=="table" and result.cleanup_failed or nil}))
 '''
-BOOT = BOOT.replace("__CHECKED_APPLY__",CHECKED_APPLY).replace("__CHECKED_ACTIONS__",CHECKED_ACTIONS).replace("__AP_HELPERS__",CAPABILITIES_LUA.replace("__DEVICE_OPTIONS__","").replace("__INTERFACE_OPTIONS__","")).replace("__FILES_LUA__",FILES_LUA).replace("__PENDING__",PENDING).replace("__SAVE__",SAVE_ONLY).replace("__IDENTITY__",IDENTITY+STATION_IDENTITY).replace("__CONFIGS__", "{" + ",".join(json.dumps(c) for c in CONFIGS) + "}").replace("__FILES__", "{" + ",".join(json.dumps(p) for p in FILES) + "}")
+BOOT = BOOT.replace("__INITIAL_RECONNECT__",INITIAL_RECONNECT).replace("__CHECKED_APPLY__",CHECKED_APPLY).replace("__CHECKED_ACTIONS__",CHECKED_ACTIONS).replace("__AP_HELPERS__",CAPABILITIES_LUA.replace("__DEVICE_OPTIONS__","").replace("__INTERFACE_OPTIONS__","")).replace("__FILES_LUA__",FILES_LUA).replace("__PENDING__",PENDING).replace("__SAVE__",SAVE_ONLY).replace("__IDENTITY__",IDENTITY+STATION_IDENTITY).replace("__CONFIGS__", "{" + ",".join(json.dumps(c) for c in CONFIGS) + "}").replace("__FILES__", "{" + ",".join(json.dumps(p) for p in FILES) + "}")
 
 
 def policy_command(action, lua_bin="lua", **values):

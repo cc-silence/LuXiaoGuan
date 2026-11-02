@@ -362,7 +362,9 @@ exit 1
         from .wireless_readiness_evidence import WirelessReadinessEvidence
         journal = getattr(self.runner, "operation_diagnostics", None)
         with WirelessReadinessEvidence(journal, request.mode, band).observing() as evidence:
-            deadline = time.monotonic() + 45
+            from .signal_recovery import SIGNAL_READY_SECONDS
+            deadline = time.monotonic() + SIGNAL_READY_SECONDS
+            status = {}
             phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u8fd0\u884c\u72b6\u6001", deadline=deadline, rollback=True, cancellable=True)
             while time.monotonic() < deadline:
                 if cancel.is_set():
@@ -387,6 +389,8 @@ exit 1
                     return
                 if cancel.wait(1):
                     raise InterruptedError("无线操作已取消。")
+            if request.mode == "ap" and status.get("native_error") == 4:
+                raise SignalError("ap_control_unavailable", "\u7236\u7f51\u5361\u5df2\u5c1d\u8bd5\u5f00\u542f\uff0c\u4f46\u70ed\u70b9\u72b6\u6001\u63a5\u53e3\u4e0d\u53ef\u7528\uff0c\u5185\u6838\u4e5f\u672a\u786e\u8ba4 Wi-Fi \u5df2\u542f\u52a8\u3002\u64cd\u4f5c\u5c06\u5c1d\u8bd5\u6062\u590d\u539f\u914d\u7f6e\uff0c\u8bf7\u5bfc\u51fa\u4fe1\u53f7\u7ba1\u7406\u65e5\u5fd7\u3002")
             raise SignalError("authentication", "未在时限内确认信号启动，请检查信道、加密及驱动兼容性。" if request.mode == "ap" else "未在时限内完成无线连接；请检查密码、信号强度及加密兼容性，不能据此断定密码错误。")
 
     def _restore(self, sid, env, radio, *, failure=None):
@@ -431,6 +435,20 @@ exit 1
         """只用系统独立会话暂存；确认前失败或取消均回滚，不回退裸写配置。"""
         self._require_ready(env)
         radio_info = self._radio(env, request.radio)
+        protected = ()
+        if enabled is not None:
+            from .signal_recovery import recovery_targets, wait_for_recovery
+            baseline_deadline = time.monotonic() + 15
+            candidates = recovery_targets(env.data["rows"], env.data["active"], request.section)
+            running = []
+            for section, radio in candidates:
+                remaining = baseline_deadline - time.monotonic()
+                if remaining <= 0:
+                    raise SignalError("unconfirmed", "\u539f\u6709\u70ed\u70b9\u72b6\u6001\u672a\u80fd\u6838\u5b9e\uff0c\u672a\u4fee\u6539\u914d\u7f6e\u3002")
+                status = self._call("status", cancel, section=section, radio=radio, mode="ap", timeout=min(8, remaining))
+                if status.get("ready") is True:
+                    running.append((section, radio))
+            protected = tuple(running)
         sid = self._call("session", cancel).get("sid", "")
         if not re.fullmatch(r"[a-fA-F0-9]{32}", sid):
             raise SignalError("session", "未能建立安全的配置会话。")
@@ -440,6 +458,7 @@ exit 1
             phase("\u6b63\u5728\u5e94\u7528\u65e0\u7ebf\u914d\u7f6e", seconds=90, rollback=True)
             result = self._call("delete_stage" if delete else "stage" if enabled is None else "stage_toggle", cancel, timeout=30, enabled=enabled, enable_parent=enable_parent, sid=sid, token=secrets.token_hex(8),
                                 revision=env.data["revision"], dhcp_revision=env.data.get("dhcp_revision", ""), values=asdict(request), temporary=temporary)
+            recovery_deadline = time.monotonic() + 45
             if enabled is False or delete:
                 deadline = time.monotonic() + 45
                 phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u505c\u7528\u7ed3\u679c", deadline=deadline, rollback=True)
@@ -457,6 +476,11 @@ exit 1
                 self._wait_ready(request, result["section"], cancel, bssid, network=result["network"], temporary=temporary, expected_mac=result.get("expected_mac", ""), band=radio_info.get("band", ""))
             if not temporary:
                 if enabled is not None:
+                    def observe_ap(section, radio, timeout):
+                        status = self._call("status", cancel, section=section, radio=radio, mode="ap", timeout=timeout)
+                        return status.get("ready") is True
+                    wait_for_recovery(protected, observe_ap, cancel, recovery_deadline,
+                                      getattr(self.runner, "operation_diagnostics", None))
                     saved = self._call("toggle_saved_status", cancel, radio=request.radio,
                                        section=result["section"], enabled=enabled)
                     if saved.get("saved") is not True:

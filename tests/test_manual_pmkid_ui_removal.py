@@ -1,4 +1,4 @@
-"""UI removal boundaries and nested compatibility tools; no router operations."""
+"""Removed manual and alternate tool UI; no router operations."""
 import unittest
 from pathlib import Path
 from PySide6.QtWidgets import QAbstractButton, QLabel, QGroupBox
@@ -33,19 +33,17 @@ class ManualPmkidUiTests(unittest.TestCase):
         self.assertEqual(tools.handshake_button.property("captureAction"), "stop")
         self.assertIsNotNone(self.container.auto_capture_page.upgrade_hcx_btn)
 
-    def test_compatibility_card_follows_dependency_collapse(self):
+    def test_alternate_card_removed_and_dependency_install_retained(self):
         login = self.container.login_page
-        section = login.dependencies.card
-        card = login.compatible_tools.card
-        self.container.tabs.setCurrentIndex(0)
-        self.assertTrue(section.isAncestorOf(card))
+        self.assertFalse(hasattr(login, "compatible_tools"))
         self.assertIn("pmkid", login.dependencies.checks)
-        section.set_expanded(False, animate=False)
-        APP.processEvents()
-        self.assertFalse(card.isVisible())
-        section.set_expanded(True, animate=False)
-        APP.processEvents()
-        self.assertTrue(card.isVisible())
+        manager = self.window.runtime.capture_service.router_management
+        self.assertFalse(hasattr(manager, "tools"))
+        for action in ("tool_check", "tool_install", "tool_reset"):
+            with self.assertRaises(ValueError):
+                manager.submit(action)
+        for widget in login.findChildren(QAbstractButton) + login.findChildren(QLabel):
+            self.assertNotIn("\u517c\u5bb9\u5de5\u5177", widget.text())
 
     def test_render_themes_and_scales(self):
         output = Path("build/review/manual-pmkid-removal")
@@ -55,11 +53,8 @@ class ManualPmkidUiTests(unittest.TestCase):
             for scale in (100, 150):
                 self.window.apply_appearance(scale, "default", theme)
                 self.window.resize(1200, 850)
-                for name, index in (("login", 0), ("capture", 6), ("settings", 7)):
+                for name, index in (("login", 0), ("capture", 6)):
                     self.container.tabs.setCurrentIndex(index)
                     APP.processEvents()
                     page = self.container.tabs.currentWidget()
-                    if name == "login":
-                        card = self.container.login_page.compatible_tools.card
-                        self.assertTrue(card.grab().save(str(output / f"compatibility-{theme}-{scale}.png")))
                     self.assertTrue(page.grab().save(str(output / f"{name}-{theme}-{scale}.png")))

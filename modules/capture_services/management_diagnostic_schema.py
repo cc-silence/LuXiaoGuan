@@ -1,5 +1,5 @@
 """Finite non-secret protocol labels shared by capture and export."""
-ACTIONS=frozenset({"policy_status","policy_read","policy_preview","policy_apply","common_read","common_save",
+ACTIONS=frozenset({"initial_verify","policy_status","policy_read","policy_preview","policy_apply","common_read","common_save",
     "maintenance_preview","maintenance_backup","maintenance_apply","maintenance_reboot","password_change",
     "move_preview","relocate","orphan_preview","orphan_cleanup","policy_validation","common_validation","maintenance_validation"})
 KINDS=frozenset({"initial","station","ap","boot","network","system","restore","reset","backup","reboot","relocation","orphan","status","read","password"})
@@ -10,7 +10,7 @@ CODES=frozenset({"pending","changed","official","common_values","common_section"
     "orphan_runtime","orphan_selection","orphan_large","move_system","move_management","move_ap_support","move_dhcp","pending_commit",
     "pending_recovery","internal","network","radio","dhcp_changed","recovery"})
 
-SITE_MODULES=frozenset({"router_policy_plan","upstream_firewall_zones","common_settings","router_backup",
+SITE_MODULES=frozenset({"initial_reconnect","initial_reconnect_store","router_policy_plan","upstream_firewall_zones","common_settings","router_backup",
     "backup_archive","router_password","router_reboot","router_policy","orphan_interface_manager",
     "relocation_manager","wireless_setup_manager","command_runner","signal_manager","router_management_service",
     "common_config_actions","router_policy_actions","maintenance_actions","wireless_setup_service",
@@ -36,7 +36,7 @@ CODES |= frozenset({"configuration_apply_restored","configuration_apply_uncertai
 # Metadata-only workflows; no filenames, request values or output are retained.
 ACTIONS |= frozenset({"list","upload","download","mkdir","delete","rename","chmod",
     "upload_directory","download_directory","file_batch","local_list","local_upload_selection",
-    "local_delete","local_mkdir","tool_reset","tool_check","tool_install",
+    "local_delete","local_mkdir",
     "wireless_inspect","wireless_password","wireless_pending_review","wireless_pending_commit",
     "wireless_install","wireless_scan","wireless_apply_check","wireless_save","wireless_save_only","wireless_delete"})
 SITE_MODULES |= frozenset({"force_apply","checked_apply","relocation_connection","router_management",
@@ -47,3 +47,5 @@ SITE_MODULES |= {"lan_recovery_service","lan_network","lan_network_windows","lan
 
 KINDS |= {"homepage"}
 SITE_MODULES |= {"router_homepage_dialog"}
+
+CODES |= {"firewall_shared_local"}

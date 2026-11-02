@@ -24,6 +24,7 @@ class RouterSignal:
     managed_bridge: bool = False
     runtime_ssid: str = ""
     runtime_band: str = ""
+    readiness: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -83,5 +84,5 @@ def same_signal_configuration(left, right):
             right.revision != left.revision or right.pending_changes != left.pending_changes):
         return False
     def saved(row):
-        return replace(row, running="unknown", details=None, runtime_note="", runtime_ssid="", runtime_band="")
+        return replace(row, running="unknown", details=None, runtime_note="", runtime_ssid="", runtime_band="", readiness={})
     return tuple(map(saved,left.rows)) == tuple(map(saved,right.rows))

@@ -133,7 +133,7 @@ class DownloadCandidateTests(unittest.TestCase):
                 download_profile_packages(profile,InstalledPackages({"libc":"1"}),folder,fetch=fetch,wanted=("wpa-cli",))
         fetch.assert_not_called()
 
-    def test_compatible_tool_download_is_hashed_before_original_install_path(self):
+    def test_dependency_download_is_hashed_before_original_install_path(self):
         raw=b"fixture package"
         root=FeedPackage("wpa-cli","1","wpa-cli.ipk",hashlib.sha256(raw).hexdigest(),len(raw),
                         "https://example.invalid/wpa-cli.ipk",("libc",))

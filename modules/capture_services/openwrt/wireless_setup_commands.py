@@ -400,7 +400,7 @@ local function status()
    local actual=runtime_mac(iface)
    if type(actual)~="string" or actual:lower()~=expected:lower() then return observed({ready=false,identity_pending=true}) end
   end
-  local ready=ap_ready(iface,c:get("wireless",req.section,"ssid"),evidence)
+  local ready=ap_ready(bus,iface,c:get("wireless",req.section,"ssid"),evidence)
   return observed({ready=ready,reason=not ready and "wireless_ap_pending" or nil})
  end
  if req.expected_mac and req.expected_mac~="" then

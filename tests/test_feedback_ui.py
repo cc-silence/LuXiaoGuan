@@ -341,7 +341,6 @@ class WindowFeedbackTests(unittest.TestCase):
         finally:
             if rebuilt is not None:
                 # Match OpenWrtPage.dispose before deleting the reconstructed page.
-                rebuilt.compatible_tools.dispose()
                 rebuilt.common_tools.dispose()
                 rebuilt.dependencies.dispose()
                 rebuilt.deleteLater()

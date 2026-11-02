@@ -1,0 +1,34 @@
+{
+  "scope": "Automatic AP readiness evidence, same checks/commands/read frequency and no UI changes.",
+  "paths": [
+    "ordinary toggle",
+    "parent/session apply",
+    "repair/re-enable",
+    "periodic runtime refresh",
+    "signal-state.json",
+    "operation-diagnostics.json",
+    "router-info.json"
+  ],
+  "evidence": [
+    "Fixed rejection stage",
+    "hostapd native error/state",
+    "radio/interface/kernel flags",
+    "carrier",
+    "running SSID comparison boolean",
+    "mode comparison boolean",
+    "frequency/channel",
+    "DFS/CAC state"
+  ],
+  "retention": "Latest bounded signal snapshot plus existing 12-transition/128-configuration/16-failure rings; final failure retained after later successful refresh.",
+  "privacy": "Fixed enums, booleans and bounded integers only; raw SSID/password/command output excluded.",
+  "verification": {
+    "targeted_tests": 143,
+    "live_router": "Pending user reproduction on instrumented build",
+    "debian_desktop": "Not validated in this change"
+  },
+  "source_check": {
+    "file": "openwrt-23.05.4-hostapd-ubus.c",
+    "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/network/services/hostapd/src/src/ap/ubus.c",
+    "sha256": "3c1a67c33e9665b60c33c2c034cf0104d47f5a2755d9e1cf095ff3c6a1a1913a"
+  }
+}

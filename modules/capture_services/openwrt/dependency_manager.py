@@ -381,7 +381,7 @@ class OpenWrtDependencyManager:
                     else:
                         tell(
                             f"【版本提示】检测到系统安装了旧版 hcxdumptool {hcx_ver}。"
-                            f"若自动抓包报错，建议在【PMKID 工具】中升级为 6.3.4+ 现代版本。",
+                            f"若自动抓包报错，请到【自动抓包】使用“一键升级抓包工具 (6.3.4)”。",
                             "info"
                         )
                 elif "6.3." in hcx_ver or "7." in hcx_ver:

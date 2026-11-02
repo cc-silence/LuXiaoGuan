@@ -1,12 +1,13 @@
 """Both signal toggle routes retain bounded, secret-free execution evidence."""
 from dataclasses import replace
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 import json
 import threading
 import unittest
 from modules.capture_services.openwrt.signal_manager import RouterSignalManager, SignalError
 from modules.capture_services.openwrt.signal_models import RouterSignal, SignalInventory
+from modules.capture_services.openwrt.signal_recovery import SIGNAL_READY_SECONDS
 from modules.capture_services.openwrt.operation_diagnostics import OperationDiagnostics, sanitized_operation_evidence
 
 
@@ -43,11 +44,18 @@ class DirectToggleEvidenceTests(unittest.TestCase):
             with self.subTest(disabled=disabled):
                 manager,journal,row,inventory,event=self.fixture()
                 manager.read=Mock(return_value=SignalInventory((replace(row,disabled=disabled),),"b"*64))
-                with self.assertRaises(SignalError):manager.change(inventory,"home",True,event)
+                now = [0.0]
+                def advance_wait(_seconds):
+                    now[0] += SIGNAL_READY_SECONDS + 1
+                    return False
+                event.wait.side_effect = advance_wait
+                with patch("modules.capture_services.openwrt.signal_manager.time.monotonic", side_effect=lambda: now[0]):
+                    with self.assertRaises(SignalError):manager.change(inventory,"home",True,event)
                 final=journal.snapshot()["configuration_failures"][-1]
                 self.assertEqual(final["reason"],reason)
                 self.assertEqual(final["interface_state"],"inactive")
-                self.assertEqual(final["verify_attempts"],6)
+                self.assertEqual(final["verify_attempts"],2)
+                self.assertEqual(manager.read.call_count,2)
                 self.assertEqual(len(journal.snapshot()["configuration"]),2)
                 manager._run.assert_called_once()
 

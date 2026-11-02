@@ -20,7 +20,13 @@ NUMBERS = frozenset({'ip_enabled', 'system_exit_code', 'native_error', 'elevated
     'renewable', 'route_selected', 'address_count', 'usable_address_count', 'gateway_count',
     'dns_count', 'target_on_link', 'target_subnet_match', 'gateway_matches_target', 'address_conflicts_target',
     'snapshot_cached', 'snapshot_attempts', 'adapter_count', 'target_count', 'restoring', 'automatic',
-    'automatic_allowed', 'route_candidates', 'errno', 'winerror'})
+    'automatic_allowed', 'route_candidates', 'errno', 'winerror',
+    'virtual_machine_observed', 'vmware_observed', 'host_network_config_visible',
+    'virtual_network_mode_known', 'adapter_wireless', 'dhcp_server_known', 'lease_expired',
+    'dhcp_server_matches_target', 'dhcp_server_on_link', 'gateway_on_link',
+    'addresses_changed', 'gateways_changed', 'dns_changed', 'dhcp_server_changed',
+    'zone_member_count', 'zone_has_lan', 'zone_has_local_ap', 'zone_named_lan',
+    'upstream_is_wan', 'upstream_is_wan6'})
 
 @contextmanager
 def observing(sink):
@@ -42,7 +48,7 @@ def emit(stage, reason='', **fields):
     except Exception:
         pass  # Diagnostic storage must never interrupt recovery.
 
-def adapter_state(adapter, expected=()):
+def adapter_state(adapter, expected=(), *, baseline=None):
     """Keep network relationships without persisting addresses or identities."""
     if not isinstance(adapter, dict):
         return dict(adapter_found=False)
@@ -64,7 +70,26 @@ def adapter_state(adapter, expected=()):
         renewable=adapter.get('renewable'), route_selected=adapter.get('route'),
         address_count=len(addresses), usable_address_count=len(usable),
         gateway_count=len(adapter.get('gateways') or ()), dns_count=len(adapter.get('dns') or ()))
+    for key in ('virtual_machine_observed','vmware_observed','host_network_config_visible',
+                'virtual_network_mode_known','lease_expired'):
+        row[key]=adapter.get(key)
+    row['adapter_wireless']=adapter.get('wireless')
+    def ipv4(value):
+        try:return ipaddress.IPv4Address(value)
+        except (ValueError,TypeError):return None
+    server=ipv4(adapter.get('dhcp_server'))
+    if server is not None and server.is_unspecified:server=None
+    row['dhcp_server_known']=server is not None if 'dhcp_server' in adapter else None
+    row['dhcp_server_on_link']=any(server in a.network for a in usable) if server else None
+    gateways=[ipv4(v) for v in (adapter.get('gateways') or ())[:128]]
+    row['gateway_on_link']=any(g in a.network for g in gateways if g is not None for a in usable)
+    if isinstance(baseline,dict):
+        for key,field in (('addresses','addresses_changed'),('gateways','gateways_changed'),('dns','dns_changed')):
+            row[field]=set(adapter.get(key) or ())!=set(baseline.get(key) or ())
+        row['dhcp_server_changed']=(ipv4(baseline.get('dhcp_server'))!=server
+            if 'dhcp_server' in baseline and 'dhcp_server' in adapter else None)
     if targets:
+        row['dhcp_server_matches_target']=any(server==t.ip for t in targets) if server else None
         row.update(target_on_link=any(t.ip in a.network and a.ip!=t.ip for a in usable for t in targets),
             target_subnet_match=any(a.ip in t.network and a.ip != t.ip
                    for a in usable for t in targets),

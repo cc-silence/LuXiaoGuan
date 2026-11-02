@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from math import isfinite
 from threading import RLock, local
 from contextlib import contextmanager
+from .readiness_diagnostics import FLAGS as READINESS_FLAGS, NUMBERS as READINESS_NUMBERS, FAILURES as AP_FAILURES
 from ..management_diagnostic_schema import ACTIONS,KINDS,CODES,SITE_MODULES
 
 # Exact protocol constants may survive text redaction; arbitrary strings may not.
@@ -29,9 +30,10 @@ SAFE_VALUES["stage"] |= NETWORK_STAGES
 SAFE_VALUES["reason"] |= NETWORK_REASONS
 SAFE_VALUES["connection_reason"] = NETWORK_REASONS
 SAFE_VALUES["selection_source"] = frozenset({"ssh_socket","system_route","unknown"})
-SAFE_VALUES["source"] = frozenset({"session_apply", "direct_toggle"})
+SAFE_VALUES["source"] = frozenset({"session_apply", "direct_toggle", "repair"})
 SAFE_VALUES["interface_state"] = frozenset({"active", "inactive", "unknown", "missing"})
 SAFE_VALUES["band"] = frozenset({"2g", "5g", "6g"})
+SAFE_VALUES["ap_failure"] = AP_FAILURES
 SAFE_VALUES["ap_state"] = frozenset({"UNINITIALIZED", "DISABLED", "COUNTRY_UPDATE", "ACS", "HT_SCAN", "DFS", "ENABLED"})
 SAFE_VALUES["kind"] = KINDS
 SAFE_VALUES["outcome"] = frozenset({"reconnect","uncertain","saved","applied","restored"})
@@ -60,7 +62,7 @@ MAX_MANAGEMENT_FAILURES = 16
 MAX_CONFIGURATION = 128
 MAX_CONFIGURATION_FAILURES = 16
 STRING_FIELDS = frozenset({"timestamp", "event", "operation", "status", "stage", "kind",
-    "selection_source", "connection_reason", "exception_type", "cause_reason", "cause_type", "cause_site", "reason", "code_site", "last_stage", "last_reason", "outcome", "transport", "band", "source", "task_band", "ap_state", "interface_state"})
+    "selection_source", "connection_reason", "exception_type", "cause_reason", "cause_type", "cause_site", "reason", "code_site", "last_stage", "last_reason", "outcome", "transport", "band", "source", "task_band", "ap_state", "ap_failure", "interface_state"})
 NUMBER_FIELDS = frozenset({"id", "errno", "winerror", "operation_id", "elapsed_seconds", "connected_before",
     "connected_after", "exit_code", "timed_out", "cancelled", "request_bytes",
     "force_apply", "rollback", "trace_id", "connect_attempts", "verify_attempts", "restore_attempts", "native_error", "candidate_index", "original_target", "remaining_seconds", "restored",
@@ -70,7 +72,9 @@ NUMBER_FIELDS = frozenset({"id", "errno", "winerror", "operation_id", "elapsed_s
     "completed", "total", "uncancellable", "queue_depth", "queue_seconds",
     "channel", "pending_processes", "takeover", "blocked", "primary_failed",
     "wireless_cleanup_confirmed", "monitor_active", "result_rows", "accepted_rows",
-    "rejected_rows", "frequency_rows", "band_rows", "legacy_rows", "configured_radios", "identified_radios", "physical_radios"}) | NETWORK_NUMBERS | {"snapshot_cached", "rollback_seconds", "confirm_reserve_seconds", "radio_up", "runtime_pending", "interface_present", "interface_up", "configuration_pending", "identity_pending", "frequency", "radio_disabled", "retry_setup_failed", "cac_active", "cac_seconds", "requested_enabled", "configured_enabled"}
+    "rejected_rows", "frequency_rows", "band_rows", "legacy_rows", "configured_radios", "identified_radios", "physical_radios"}) | NETWORK_NUMBERS | {"snapshot_cached", "rollback_seconds", "confirm_reserve_seconds", "radio_up", "runtime_pending", "interface_present", "interface_up", "configuration_pending", "identity_pending", "frequency", "radio_disabled", "retry_setup_failed", "cac_active", "cac_seconds", "requested_enabled", "configured_enabled", "ap_control_available", "kernel_ap_started", "ap_carrier"}
+
+NUMBER_FIELDS |= set(READINESS_FLAGS) | set(READINESS_NUMBERS)
 
 
 def _fields(row):

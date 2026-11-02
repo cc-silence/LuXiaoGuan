@@ -503,18 +503,6 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 for item in dependencies
             )
             detail = "OpenWrt SSH 登录和设备探测完成."
-            self.pmkid_capture.tool_selection = None
-            if sftp_available is True:
-                from modules.capture_services.openwrt.compatible_tool import CompatibleToolInstaller
-                try:
-                    if CompatibleToolInstaller(self).restore(device, cancel_event):
-                        detail += "已核验并恢复使用永久保存的兼容工具。"
-                except InterruptedError:
-                    raise
-                except Exception as exc:
-                    if cancel_event is not None and cancel_event.is_set():
-                        raise
-                    detail += "兼容工具未启用，继续使用原工具：" + str(exc)
             if recovery_note:
                 detail += recovery_note
             reaped_procs = self.process_manager.reap_stale_processes(
@@ -886,8 +874,6 @@ class OpenWrtCaptureBackend(CaptureBackend):
             band, settings.get("pmkid_active_beacon", False), selected_bssids, cancel_event,
             session_id=session_id,
         )
-        from modules.capture_services.openwrt.bundled_compatible_tool import require_preferred_tool
-        require_preferred_tool(self.snapshot.device,command_options.capabilities.version)
         Path(local_root).mkdir(parents=True, exist_ok=True)
         self.reconnect_cleanup.require_ready()
         workspace = CaptureWorkspaceFactory.create(session_id, local_session_root(), "/tmp/winbox-capture")

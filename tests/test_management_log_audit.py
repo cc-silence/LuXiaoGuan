@@ -104,8 +104,8 @@ class ManagementLogAuditTests(unittest.TestCase):
             self.assertEqual(final['operation'],'wireless_'+action)
             self.assertEqual(final['status'],'completed')
 
-    def test_file_tool_and_maintenance_actions_have_task_journals(self):
-        for action in ('delete','file_batch','download_directory','tool_install','maintenance_apply','password_change'):
+    def test_file_and_maintenance_actions_have_task_journals(self):
+        for action in ('delete','file_batch','download_directory','maintenance_apply','password_change'):
             trace=ManagementTrace(self.runner,action,{'kind':'reset','path':'private-path','password':'private-password'})
             trace.execute(lambda event,report:{'verified':True},threading.Event(),Mock())
             final=self.journal.snapshot()['management'][-1]
