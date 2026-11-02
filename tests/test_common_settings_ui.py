@@ -15,6 +15,47 @@ SYSTEM=dict(config="system",section="cfg01",token="b"*64,devices=[],values=dict(
 class CommonSettingsUiTests(unittest.TestCase):
     create_page=create_page
 
+    def test_lan_collision_popup_keeps_editor_open_and_allows_corrected_address(self):
+        import copy
+        from PySide6.QtWidgets import QTextEdit
+        from modules.common_widgets.common_dialogs import MessageDialog
+        from tests.test_lan_client_recovery import adapter,review
+        value=copy.deepcopy(NETWORK)
+        value['client_network']=review(adapter(dhcp=False))['client_network']
+        dialog=RouterConfigDialog(value);self.addCleanup(dialog.deleteLater)
+        dialog.controls['ipaddr'].set_values(['192.168.22.123'])
+        dialog.controls['broadcast'].setText('')
+        before=dialog.values();dialog.show();APP.processEvents()
+        def show_popup(popup):
+            popup.show();APP.processEvents()
+            text=popup.findChild(QTextEdit).toPlainText()
+            self.assertIn('192.168.22.123',text)
+            self.assertIn('\u91cd\u65b0\u8f93\u5165',text)
+            output=Path('build/lan-conflict-verification');output.mkdir(parents=True,exist_ok=True)
+            popup.grab().save(str(output/'conflict-popup.png'))
+            popup.reject()
+            return popup.Rejected
+        with patch.object(MessageDialog,'exec',show_popup):dialog.save_button.click()
+        self.assertNotEqual(dialog.result(),dialog.Accepted)
+        self.assertTrue(dialog.isVisible());self.assertFalse(dialog.apply_requested)
+        self.assertEqual(dialog.values(),before)
+        dialog.controls['ipaddr'].set_values(['192.168.22.1'])
+        dialog.save_button.click()
+        self.assertEqual(dialog.result(),dialog.Accepted);self.assertTrue(dialog.apply_requested)
+        self.assertEqual(dialog.values()['ipaddr'],'192.168.22.1')
+
+    def test_save_only_keeps_existing_semantics_despite_client_migration_conflict(self):
+        import copy
+        from tests.test_lan_client_recovery import adapter,review
+        value=copy.deepcopy(NETWORK)
+        value['client_network']=review(adapter(dhcp=False))['client_network']
+        dialog=RouterConfigDialog(value);self.addCleanup(dialog.deleteLater)
+        dialog.controls['ipaddr'].set_values(['192.168.22.123'])
+        with patch('modules.common_widgets.common_dialogs.MessageDialog') as popup:
+            dialog.save_only_button.click()
+        popup.assert_not_called();self.assertEqual(dialog.result(),dialog.Accepted)
+        self.assertFalse(dialog.apply_requested)
+
     def test_page_constructs_without_remote_read_and_buttons_open_read_request(self):
         page,_=self.create_page()
         manager=page.manager

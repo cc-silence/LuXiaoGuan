@@ -52,7 +52,6 @@ class CaptureService(QObject):
     verifiedHistoryChanged = Signal(object)
     taskFinishedNotice = Signal(str, str)
     takeoverProbeFinished = Signal(str, object, str, bool)
-    compatibleToolSuggested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1803,11 +1802,7 @@ class CaptureService(QObject):
         level = "info" if "已取消" in str(summary) else "error"
         self.messageGenerated.emit(f"PMKID 任务未完成：{summary}", level)
         self.task_controller.finish(failed=level == "error")
-        if (level == "error" and self.openwrt_backend.ssh_client.connected
-                and ("_WextInitializationError" in detail or
-                     ("HcxCompatibilityError" in detail and "\u4e3b\u52a8\u53d1\u5c04" not in summary
-                      and ("API" in summary or "\u7248\u672c\u672a\u77e5" in summary)))):
-            self.compatibleToolSuggested.emit()
+
 
     def _on_openwrt_handshake_progress(self, update):
         """在 Qt 主线程发布 H 模块有限时长进度。"""

@@ -2,6 +2,17 @@
 import re
 
 
+class FirewallZoneConflict(ValueError):
+    """Keep finite membership evidence without exporting custom network names."""
+    code='firewall_shared_local'
+
+    def __init__(self,network,name,members,local_networks):
+        super().__init__(network+"\uff1a\u4e0e\u5c40\u57df\u7f51\u5171\u7528\u9632\u706b\u5899\u533a\u57df\uff0c\u4e3a\u907f\u514d\u963b\u65ad\u672c\u5730\u7ba1\u7406\u800c\u505c\u6b62\u3002")
+        self.network_evidence=dict(zone_member_count=len(members),zone_has_lan='lan' in members,
+            zone_has_local_ap=bool(members & (local_networks-{'lan','loopback'})),
+            zone_named_lan=name=='lan',upstream_is_wan=network=='wan',upstream_is_wan6=network=='wan6')
+
+
 def _words(value):
     return value if isinstance(value,list) else str(value or "").split()
 
@@ -63,6 +74,6 @@ def upstream_zones(snapshot):
         if any(row.get(key) for key in ("device","subnet","extra_src","extra_dest")):
             raise ValueError(network+"\uff1a\u533a\u57df\u8fd8\u6309\u7269\u7406\u8bbe\u5907\u6216\u5b50\u7f51\u5339\u914d\uff0c\u65e0\u6cd5\u786e\u8ba4\u4e0d\u4f1a\u5f71\u54cd\u672c\u5730\u7ba1\u7406\uff0c\u672a\u4fee\u6539\u3002")
         if name=="lan" or members & local_networks:
-            raise ValueError(network+"：与局域网共用防火墙区域，为避免阻断本地管理而停止。")
+            raise FirewallZoneConflict(network,name,members,local_networks)
         selected.add(name)
     return sorted(selected)

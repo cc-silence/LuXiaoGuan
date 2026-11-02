@@ -15,6 +15,12 @@ def _addresses(values):
     return result
 
 
+def validate_static_plan(review,values):
+    """Pure preflight shared with worker planning; never inspect or change the OS."""
+    from modules.platform_services.static_network import migration_plan
+    return migration_plan(client_plan(review,values))
+
+
 def attach_inventory(review,ssh):
     from modules.platform_services.lan_network import inspect
     peer=getattr(ssh,'_host','')

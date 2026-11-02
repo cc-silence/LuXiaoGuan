@@ -43,6 +43,13 @@ def validate_catalog(data, kind="common"):
 def _validate_catalog(data, kind="common"):
     """\u6821\u9a8c\u9002\u914d\u7ec4\u5408\u548c\u6240\u6709\u5bf9\u8c61\u8fb9\u754c\uff0c\u8fd4\u56de\u53bb\u91cd\u5bf9\u8c61\u8868\u3002"""
     roots = bundle_spec(kind).roots
+    if (isinstance(data, dict) and data.get("schema_version") == 1
+            and data.get("purpose") == bundle_spec(kind).catalog_purpose
+            and data.get("complete") is True
+            and isinstance(data.get("roots"), list)
+            and data["roots"] and all(isinstance(key, str) for key in data["roots"])
+            and set(data["roots"]) < roots):
+        raise ValueError("\u79bb\u7ebf\u4f9d\u8d56\u5305\u7248\u672c\u8fc7\u65e7\uff0c\u7f3a\u5c11\u5f53\u524d\u8f6f\u4ef6\u6240\u9700\u4f9d\u8d56\uff0c\u8bf7\u66f4\u65b0\u79bb\u7ebf\u4f9d\u8d56\u5305\u540e\u91cd\u8bd5\u3002")
     if (not isinstance(data, dict) or data.get("schema_version") != 1
             or data.get("purpose") != bundle_spec(kind).catalog_purpose or set(data.get("roots", [])) != roots or data.get("complete") is not True
             or data.get("index_errors") or data.get("download_errors") or data.get("unsupported")):

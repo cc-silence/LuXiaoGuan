@@ -17,17 +17,14 @@ class ExactReleaseReadinessTests(unittest.TestCase):
         values.reply=lua.table_from(sample);values.reply_error=profile['method_error']
         values.observed=observed;values.frequency=frequency;values.link=link
         lua.execute("""
-        function optional(object,method,args)
-         if object=='network.device' then return {up=link} end
-         if object=='iwinfo' then return {mode='Master',ssid=observed,frequency=frequency} end
-         return {}
-        end
         bus={call=function(self,object,method,args)
+         if object=='network.device' then return {up=link},nil end
+         if object=='iwinfo' then return {mode='Master',ssid=observed,frequency=frequency},nil end
          if method=='get_status' then return reply,reply_error end
          if method=='get_clients' then return {clients={},freq=2412},nil end
          return nil,4
         end}
-        """+CAPABILITIES_LUA+"\nfunction check() return ap_ready('wlan-test','Running-test-AP') end")
+        """+CAPABILITIES_LUA+"\nfunction check() return ap_ready(bus,'wlan-test','Running-test-AP') end")
         return values.check()
 
     def test_all_50_exact_source_shapes_have_a_verified_success_path(self):

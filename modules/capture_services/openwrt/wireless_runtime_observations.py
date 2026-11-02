@@ -1,5 +1,6 @@
 """Current native runtime state, separate from saved wireless configuration."""
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
+from .readiness_diagnostics import readiness_evidence
 import re
 
 
@@ -10,6 +11,7 @@ class RuntimeObservation:
     mode: str
     running: str
     note: str = ""
+    readiness: dict = field(default_factory=dict)
 
 
 def parse_observations(values):
@@ -31,7 +33,7 @@ def parse_observations(values):
         if section in seen:
             raise ValueError("Duplicate wireless runtime observation")
         seen.add(section)
-        result.append(RuntimeObservation(section,radio,mode,running,note))
+        result.append(RuntimeObservation(section,radio,mode,running,note,readiness_evidence(row.get("readiness"))))
     return tuple(result)
 
 
@@ -42,8 +44,8 @@ def merge_runtime(inventory, observations):
     changed = False
     for row in inventory.rows:
         value = current.get((row.section,row.radio,row.mode))
-        if value is not None and (row.running != value.running or row.runtime_note != notes[value.note]):
-            row = replace(row,running=value.running,runtime_note=notes[value.note])
+        if value is not None and (row.running != value.running or row.runtime_note != notes[value.note] or row.readiness != value.readiness):
+            row = replace(row,running=value.running,runtime_note=notes[value.note],readiness=value.readiness)
             changed = True
         rows.append(row)
     return replace(inventory,rows=tuple(rows)) if changed else inventory

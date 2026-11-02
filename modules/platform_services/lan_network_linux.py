@@ -25,11 +25,14 @@ def inspect(peer=None,timeout=10,*,adapter_id=None):
         remaining=deadline-time.monotonic()
         if remaining<=0:raise TimeoutError("Adapter inspection timed out")
         return command(args,min(5,remaining))
+    from PySide6.QtNetwork import QNetworkInterface
     route=None
     try:
         address=str(ipaddress.IPv4Address(peer))
         route=json.loads(query(['ip','-j','-4','route','get',address]))[0].get('dev')
     except (ValueError,TypeError,KeyError,IndexError,RuntimeError):pass
+    from .network_environment import linux as environment
+    context=environment()
     rows=[]
     inventory=json.loads(query(['ip','-j','-4','address','show']))
     if adapter_id is not None:
@@ -46,7 +49,8 @@ def inspect(peer=None,timeout=10,*,adapter_id=None):
                     gateways=query(['nmcli','-g','IP4.GATEWAY','device','show',name]).splitlines()
                     dns=query(['nmcli','-g','IP4.DNS','device','show',name]).splitlines()
             except RuntimeError:connection=''
-        rows.append(dict(id=str(row['ifindex']),index=row['ifindex'],name=name,mac=row.get('address',''),
+        kind=QNetworkInterface.interfaceFromIndex(row['ifindex']).type()
+        rows.append(dict(**context,wireless=True if kind==QNetworkInterface.Wifi else False if kind==QNetworkInterface.Ethernet else None,id=str(row['ifindex']),index=row['ifindex'],name=name,mac=row.get('address',''),
             addresses=[str(ipaddress.IPv4Interface(str(a['local'])+'/'+str(a['prefixlen']))) for a in row.get('addr_info',[]) if a.get('family')=='inet'],
             gateways=gateways,dns=dns,dhcp=dhcp,connected='UP' in row.get('flags',[]),manager='networkmanager' if connection else 'unmanaged',
             connection=connection,renewable=bool(connection and dhcp is True),route=name==route))

@@ -72,6 +72,7 @@ class RuntimeReloadCompletionTests(unittest.TestCase):
                 def call(obj,method,args):
                     if obj=="network.wireless":return wrap(dict(radio1=dict(up=up,pending=pending,interfaces=[dict(section="home",ifname="phy1-ap0")])))
                     if obj=="network.device":return wrap(dict(up=up))
+                    if obj.startswith("hostapd.") and method=="get_status":return wrap(dict(status="ENABLED",ssid="Home"))
                     if obj=="iwinfo" and method=="info":return wrap(dict(ssid="Home",bssid="02:11:22:33:44:55"))
                     if obj=="iwinfo":return wrap(dict(results=[]))
                     return wrap({})

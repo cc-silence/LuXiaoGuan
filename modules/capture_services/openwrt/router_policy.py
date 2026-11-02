@@ -223,6 +223,9 @@ class RouterPolicyManager:
         current=self.read(cancel) if backup is not None else before
         if current["signature"]!=review["signature"]:raise RuntimeError("配置已变化，未执行修改，请重新预览。"+backup_note)
         if cancel.is_set():raise InterruptedError("已取消，尚未执行修改。"+backup_note)
+        if review.get('await_reconnect'):
+            from .initial_reconnect import apply_initial
+            return apply_initial(self,review,current,cancel,report,backup_note)
         if review.get("kind")!="boot":cancel=Event()
         if review.get("new_ap"):
             try:current=self._create_ap(review,current,cancel,report)

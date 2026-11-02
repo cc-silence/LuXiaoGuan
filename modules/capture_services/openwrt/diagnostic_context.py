@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from modules.log_services import sanitized_text
 
 
-def router_context_json(snapshot, masker, compatible=False, radio_evidence=None, app_version="",
+def router_context_json(snapshot, masker, radio_evidence=None, app_version="",
                         operation_evidence=None, signal_snapshot=None, device_history=None, signal_setup_snapshot=None, application_window=None):
     """冻结导出时的设备白名单字段；断连时不把残留设备当作当前设备。"""
     status=snapshot.connection_state.value
@@ -36,7 +36,7 @@ def router_context_json(snapshot, masker, compatible=False, radio_evidence=None,
             "detail":sanitized_text(item.detail,masker),
             "missing_packages":[sanitized_text(name,masker) for name in item.missing_packages[:64]],
         } for item in source.dependencies[:64]]
-        context["pmkid_tool"]=("compatible" if compatible else "original") if status=="connected" else "unknown"
+        context["pmkid_tool"]="system" if status=="connected" else "unknown"
     else:
         context["note"]="当前未登录；未附加上次设备信息。"
     context["app_version"] = str(app_version)

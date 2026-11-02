@@ -72,7 +72,7 @@ class ReadOnlyLifecycleTests(unittest.TestCase):
  def test_management_inspections_remain_exclusive_without_becoming_writers(self):
   from tests.test_router_policy_worker import Owner as WorkerOwner
   from modules.capture_services.router_management_service import RouterManagementService
-  for action in ('policy_preview','maintenance_preview','tool_check','common_save','common_read'):
+  for action in ('policy_preview','maintenance_preview','common_save','common_read'):
    with self.subTest(action=action):
     ssh=NS(connected=True,_client=object(),host_fingerprint='pinned')
     owner=WorkerOwner(ssh,Mock());self.addCleanup(owner.deleteLater)

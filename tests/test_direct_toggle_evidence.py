@@ -1,7 +1,7 @@
 """Both signal toggle routes retain bounded, secret-free execution evidence."""
 from dataclasses import replace
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 import json
 import threading
 import unittest
@@ -43,11 +43,12 @@ class DirectToggleEvidenceTests(unittest.TestCase):
             with self.subTest(disabled=disabled):
                 manager,journal,row,inventory,event=self.fixture()
                 manager.read=Mock(return_value=SignalInventory((replace(row,disabled=disabled),),"b"*64))
-                with self.assertRaises(SignalError):manager.change(inventory,"home",True,event)
+                with patch("modules.capture_services.openwrt.signal_manager.time.monotonic",side_effect=[0,0,46,46]):
+                    with self.assertRaises(SignalError):manager.change(inventory,"home",True,event)
                 final=journal.snapshot()["configuration_failures"][-1]
                 self.assertEqual(final["reason"],reason)
                 self.assertEqual(final["interface_state"],"inactive")
-                self.assertEqual(final["verify_attempts"],6)
+                self.assertEqual(final["verify_attempts"],1)
                 self.assertEqual(len(journal.snapshot()["configuration"]),2)
                 manager._run.assert_called_once()
 

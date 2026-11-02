@@ -261,5 +261,8 @@ class LoginInstallPipelineTests(unittest.TestCase):
     def test_tampered_package_stops_without_network_or_false_success(self):
         self.exercise(tamper=True)
 
-    def test_root_absent_from_local_bundle_uses_verified_online_route_only_for_that_root(self):
-        self.exercise(missing=('aircrack-ng','wpa-cli','curl'),online=True)
+    def test_curl_is_installed_with_required_tools_without_network(self):
+        self.exercise(missing=('aircrack-ng','wpa-cli','curl'))
+
+    def test_curl_is_installed_from_apk_bundle_without_network(self):
+        self.exercise(True, missing=('aircrack-ng','wpa-cli','curl'))

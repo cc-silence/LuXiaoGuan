@@ -376,7 +376,6 @@ class OpenWrtPage(QWidget):
         for name in ("files", "terminal", "auto_capture"):
             if name in self._created_pages:
                 self._created_pages[name].set_light_theme(enabled)
-        self.login_page.compatible_tools.set_light_theme(enabled)
         self.login_page.common_tools.set_light_theme(enabled)
         self.login_page.dependencies.offline_controls.set_light_theme(enabled)
 
@@ -414,7 +413,6 @@ class OpenWrtPage(QWidget):
                 self.service.openwrtSnapshotChanged.disconnect(page._apply_snapshot)
             else:
                 page.dispose()
-        self.login_page.compatible_tools.dispose()
         self.login_page.dependency_prompt.dispose()
         self.login_page.common_tools.dispose()
         self.login_page.dependencies.dispose()

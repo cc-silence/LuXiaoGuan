@@ -1,6 +1,7 @@
 """Extend verified common profiles with new roots without re-resolving old packages."""
 import argparse
 import copy
+import concurrent.futures
 import hashlib
 import itertools
 import json
@@ -37,6 +38,8 @@ def main():
     parser.add_argument("--destination", type=Path, required=True)
     parser.add_argument("--http-cache", type=Path, required=True)
     parser.add_argument("--deliver", action="store_true")
+    parser.add_argument("--refresh-apk", action="store_true",
+                        help="Re-resolve APK profiles against current matching official indexes")
     args = parser.parse_args()
     if sha256_file(args.baseline_archive) != args.baseline_sha256:
         raise ValueError("Baseline ZIP differs from its approved fingerprint")
@@ -59,14 +62,39 @@ def main():
             task.put(raw, "baseline-object")
     profiles = []
     ordered = sorted(catalog["profiles"], key=lambda p: (p["release"], p["architecture"], p["target"]))
+    refreshed_apk = {}
+    if args.refresh_apk:
+        pending = [profile for profile in ordered if profile["package_manager"] == "apk"]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=task.workers) as pool:
+            futures = {pool.submit(task.profile, profile["release"], profile["target"]): profile
+                       for profile in pending}
+            for index, future in enumerate(concurrent.futures.as_completed(futures), 1):
+                baseline = futures[future]
+                refreshed = future.result()
+                if (refreshed.get("status") != "index-verified" or
+                        refreshed.get("architecture") != baseline["architecture"]):
+                    raise ValueError("APK refresh cannot preserve baseline platform: " + baseline["release"] + "/" + baseline["target"])
+                refreshed_apk[(baseline["release"], baseline["target"])] = refreshed
+                if index % 10 == 0 or index == len(pending):
+                    task.status("refreshing-apk-platforms", completed=index, total=len(pending))
     for (release, arch), group in itertools.groupby(ordered, key=lambda p: (p["release"], p["architecture"])):
+        group = list(group)
+        if args.refresh_apk and all(profile["package_manager"] == "apk" for profile in group):
+            for profile in group:
+                profiles.append(refreshed_apk[(profile["release"], profile["target"])])
+            task.status("refreshing-apk", release=release, architecture=arch, completed=len(profiles))
+            continue
         candidates = [root / release / (arch + ".json") for root in args.metadata_root]
         path = next((path for path in candidates if path.is_file()), None)
         if path is None:
             raise ValueError("Saved official metadata missing for " + release + "/" + arch)
         metadata = json.loads(path.read_text(encoding="utf-8"))
         for profile in group:
-            profiles.append(extend_profile(profile, metadata["rows"]))
+            extended = extend_profile(profile, metadata["rows"])
+            if metadata.get("refresh_indexes"):
+                extended["indexes"] = ([item for item in profile["indexes"] if item["feed"] == "target"] +
+                                       [item for item in metadata["indexes"] if item["feed"] != "target"])
+            profiles.append(extended)
         task.status("extending-roots", release=release, architecture=arch, completed=len(profiles))
     profiles.extend(catalog.get("unavailable_profiles", []))
     inventory = dict(schema_version=1, purpose=task.spec.catalog_purpose,

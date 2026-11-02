@@ -118,10 +118,22 @@ class StaticTests(unittest.TestCase):
         value=review(adapter(dhcp=False));value.update(config='network')
         with self.assertRaises(RuntimeError):apply_forced(Mock(),value,dict(NEW,auto='1'),self.cancel,Mock(),{},'secret','PIN')
 
-    def test_router_address_collision_and_small_subnet_stop(self):
-        for address in ('192.168.22.123','192.168.22.1/30'):
+    def test_router_taking_current_client_address_and_small_subnet_stop(self):
+        for address in ('192.168.11.123','192.168.22.1/30'):
             new=dict(NEW,ipaddr=address)
             with self.assertRaises(StaticMigrationError):migration_plan(client_plan(review(adapter(dhcp=False)),new))
+
+    def test_transferred_address_collision_stops_without_selecting_another_ip(self):
+        for address,mask,local in (('192.168.22.123','255.255.255.0','192.168.11.123/24'),
+                                   ('192.168.22.2','255.255.255.252','192.168.11.2/24')):
+            with self.subTest(address=address):
+                row=adapter(dhcp=False,addresses=[local]);before=copy.deepcopy(row)
+                with self.assertRaises(StaticMigrationError) as error:
+                    migration_plan(client_plan(review(row),dict(NEW,ipaddr=address,netmask=mask)))
+                self.assertIn(address,str(error.exception))
+                self.assertIn('\u91cd\u65b0\u8f93\u5165',str(error.exception))
+                self.assertEqual(row,before)
+
     def test_pending_record_blocks_another_migration(self):
         self.tx.prepare(self.cancel)
         second=StaticMigration(self.plan,self.driver,self.temp.name)

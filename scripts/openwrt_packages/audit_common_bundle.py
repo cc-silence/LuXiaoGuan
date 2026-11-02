@@ -44,7 +44,7 @@ def audit(archive, cache_root, kind="common", baseline_cache_root=None):
             value = z.read("objects/"+sha)
             if len(value) != row["size"] or hashlib.sha256(value).hexdigest() != sha:
                 raise ValueError("Archive object fingerprint mismatch: "+sha)
-    models = {name:dict(model=name, family=family, available=[], not_in_official_firmware=[])
+    models = {name:dict(model=name, family=family, available=[], not_in_official_firmware=[], unverified_legacy=[])
               for name,family,_ in MODELS}
     sources=[]
     for p in catalog["profiles"]:
@@ -56,8 +56,20 @@ def audit(archive, cache_root, kind="common", baseline_cache_root=None):
             caches.extend(Path(p) for p in baseline_cache_root) if isinstance(baseline_cache_root,(list,tuple)) else caches.append(Path(baseline_cache_root))
         cache=next((root/key for root in caches if (root/key).is_file()),None)
         if cache is None:
-            raise ValueError("Official device evidence missing from persistent cache: "+url)
-        evidence=cache.read_bytes();devices=json.loads(evidence)
+            # Legacy official releases lack profiles.json. Reuse their verified
+            # config.buildinfo and package manifest, without inventing models.
+            from threading import Event
+            from .common_bundle_support import HttpCache
+            from .firmware_metadata import legacy_metadata
+            legacy_root = next((root for root in caches if
+                (root / hashlib.sha256((url.rsplit("/", 1)[0] + "/sha256sums").encode()).hexdigest()).is_file()), None)
+            if legacy_root is None:
+                raise ValueError("Official device evidence missing from persistent cache: "+url)
+            devices, legacy_evidence = legacy_metadata(HttpCache(legacy_root, Event()),
+                url.rsplit("/", 1)[0], p["release"], p["target"])
+            evidence = json.dumps(legacy_evidence, sort_keys=True).encode()
+        else:
+            evidence=cache.read_bytes();devices=json.loads(evidence)
         if devices.get("arch_packages")!=p["architecture"] or devices.get("target")!=p["target"]:
             raise ValueError("Official device architecture or target differs: "+url)
         selected,_=closure(p["packages"],p["roots"])
@@ -72,11 +84,18 @@ def audit(archive, cache_root, kind="common", baseline_cache_root=None):
             actual=resolve_packages(records,p["roots"],InstalledPackages({n:"device-provided" for n in p["firmware_required"]}),version_satisfies)
             if {r.name for r in actual}!={r["name"] for r in p["packages"]}:
                 raise ValueError("Runtime dependency resolver disagrees with saved closure")
-        sources.append(dict(release=p["release"],target=p["target"],architecture=p["architecture"],
-                            url=url,sha256=hashlib.sha256(evidence).hexdigest()))
+        source = dict(release=p["release"],target=p["target"],architecture=p["architecture"],
+                      url=url,sha256=hashlib.sha256(evidence).hexdigest())
+        if devices.get("legacy_metadata"):
+            source.update(url=legacy_evidence[0]["url"], sha256=legacy_evidence[0]["sha256"],
+                          evidence_sources=legacy_evidence, legacy_metadata=True)
+        sources.append(source)
         for name,expected_family,prefix in MODELS:
             if family!=expected_family:continue
-            matches={k:v for k,v in devices["profiles"].items() if k==prefix or k.startswith(prefix+"-")}
+            if devices.get("legacy_metadata"):
+                models[name]["unverified_legacy"].append(p["release"])
+                continue
+            matches={k:v for k,v in devices.get("profiles", {}).items() if k==prefix or k.startswith(prefix+"-")}
             if matches:
                 models[name]["available"].append(dict(release=p["release"],target=p["target"],
                     architecture=p["architecture"],device_ids=sorted(matches)))

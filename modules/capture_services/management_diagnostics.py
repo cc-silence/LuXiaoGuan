@@ -59,6 +59,12 @@ def failure_metadata(exc):
     cause_reason,cause_site=_error(cause)
     fields=dict(reason=reason,code_site=site,exception_type=type(exc).__name__,
         cause_reason=cause_reason,cause_site=cause_site,cause_type=type(cause).__name__)
+    from modules.platform_services.network_diagnostics import NUMBERS
+    for item in _chain(exc):
+        evidence=getattr(item,'network_evidence',None)
+        if isinstance(evidence,dict):
+            fields.update({key:value for key,value in evidence.items() if key in NUMBERS
+                           and (value is None or type(value) in (bool,int,float))})
     for key in ("errno","winerror"):
         value=getattr(cause,key,None)
         if type(value) is int:fields[key]=value

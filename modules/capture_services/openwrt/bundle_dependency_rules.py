@@ -5,6 +5,8 @@ from . import apk_version,opkg_version
 _NAME=r"[A-Za-z0-9][A-Za-z0-9+_.-]*"
 _IPK=re.compile(r"("+_NAME+r")(?:\s*\(\s*(<<|<=|>=|>>|=|<|>)\s*([^()\s]+)\s*\))?")
 
+_IPK_INLINE = re.compile(r"(" + _NAME + r")(=)([^()\s=|]+)")
+
 def requirements(expression):
     if isinstance(expression,dict):
         name=expression.get("name","")
@@ -19,7 +21,8 @@ def requirements(expression):
     result=[]
     for part in expression.split("|"):
         negative=part.strip().startswith("!")
-        match=_IPK.fullmatch(part.strip().lstrip("!"))
+        match=(_IPK.fullmatch(part.strip().lstrip("!")) or
+               _IPK_INLINE.fullmatch(part.strip().lstrip("!")))
         if match is None:raise ValueError("Invalid package dependency: "+expression)
         name,operator,version=match.groups()
         result.append(dict(name=name,operator=operator,version=version or "",apk=False,negative=negative))
@@ -30,6 +33,11 @@ def matches(requirement,row,provided=None):
     if not requirement["version"]:
         return True
     version=row["version"]
+    if provided is not None and not requirement["apk"]:
+        aliases = requirements(provided)
+        alias = next((item for item in aliases if item["name"] == requirement["name"]), None)
+        if alias is not None and alias["version"]:
+            version = alias["version"]
     if provided is not None and requirement["apk"]:
         version=provided.get("version") or None if isinstance(provided,dict) else None
     if requirement["apk"]:

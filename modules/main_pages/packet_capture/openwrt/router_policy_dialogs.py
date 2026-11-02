@@ -125,7 +125,11 @@ def review_text(review):
         guide=client_plan(dict(values=before,client_network=review["client_network"]),wanted)["guide"]
         if guide:lines.extend(["",guide])
     if review.get("skipped"):lines.extend(["","\u4ee5\u4e0b\u9879\u76ee\u4e0d\u4f1a\u6267\u884c\uff1a",*review["skipped"]])
-    if review.get("kind")!="boot" and review.get("operations"):lines.extend(["","\u5e94\u7528\u671f\u95f4\u8bf7\u52ff\u65ad\u7535\u3002\u8f6f\u4ef6\u4f1a\u663e\u793a\u5269\u4f59\u786e\u8ba4\u65f6\u95f4\uff0c\u5b8c\u6210\u540e\u81ea\u52a8\u7ed3\u675f\u3002"])
+    if review.get('await_reconnect'):
+        lines.extend(['','\u66ff\u6362 Wi-Fi \u53ef\u80fd\u4e2d\u65ad\u5f53\u524d\u7ba1\u7406\u8fde\u63a5\u3002',
+                      '\u672c\u6b21\u63d0\u4ea4\u540e\u4fdd\u7559\u65b0\u914d\u7f6e\uff0c\u4e0d\u4f1a\u56e0\u91cd\u8fde\u8d85\u65f6\u81ea\u52a8\u6062\u590d\u65e7\u914d\u7f6e\uff0c\u65e0\u9700\u8d76\u5012\u8ba1\u65f6\u3002',
+                      '\u8bf7\u8bb0\u4f4f\u4e0a\u9762\u7684\u65b0 Wi-Fi \u540d\u79f0\u3001\u5bc6\u7801\u548c\u767b\u5f55\u5730\u5740\u3002\u91cd\u65b0\u8fde\u63a5\u5e76\u767b\u5f55\u540e\uff0c\u8f6f\u4ef6\u518d\u6838\u9a8c\u539f\u8def\u7531\u5668\u548c\u914d\u7f6e\u3002'])
+    elif review.get("kind")!="boot" and review.get("operations"):lines.extend(["","\u5e94\u7528\u671f\u95f4\u8bf7\u52ff\u65ad\u7535\u3002\u8f6f\u4ef6\u4f1a\u663e\u793a\u5269\u4f59\u786e\u8ba4\u65f6\u95f4\uff0c\u5b8c\u6210\u540e\u81ea\u52a8\u7ed3\u675f\u3002"])
     if review.get('kind')=='ap' or review.get('new_ap'):
         lines.append('\u81ea\u5efa Wi-Fi \u540d\u79f0\u6539\u53d8\u540e\uff0c\u8bf7\u9009\u62e9\u65b0\u70ed\u70b9\u8fde\u63a5\u3002')
     elif review.get('kind')=='station':

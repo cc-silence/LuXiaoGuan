@@ -1,0 +1,405 @@
+{
+  "checked_at": "2026-11-02T07:42:18.774060+00:00",
+  "releases": [
+    {
+      "release": "19.07.0",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.0/package/system/rpcd/Makefile",
+      "sha256": "d79408be6e607d4b54c72a34809215740104fd5340e9016b6245c5b029f56102",
+      "commit": "77ad0de09247b9bdce50f4cecf3e5beb5636f57f",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/77ad0de09247b9bdce50f4cecf3e5beb5636f57f/uci.c",
+      "uci_sha256": "5431f40ae631a1ca2649df4cc0f25e05bc00357f66e4a9fa4a67d672195daafd"
+    },
+    {
+      "release": "19.07.1",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.1/package/system/rpcd/Makefile",
+      "sha256": "d79408be6e607d4b54c72a34809215740104fd5340e9016b6245c5b029f56102",
+      "commit": "77ad0de09247b9bdce50f4cecf3e5beb5636f57f",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/77ad0de09247b9bdce50f4cecf3e5beb5636f57f/uci.c",
+      "uci_sha256": "5431f40ae631a1ca2649df4cc0f25e05bc00357f66e4a9fa4a67d672195daafd"
+    },
+    {
+      "release": "19.07.2",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.2/package/system/rpcd/Makefile",
+      "sha256": "d79408be6e607d4b54c72a34809215740104fd5340e9016b6245c5b029f56102",
+      "commit": "77ad0de09247b9bdce50f4cecf3e5beb5636f57f",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/77ad0de09247b9bdce50f4cecf3e5beb5636f57f/uci.c",
+      "uci_sha256": "5431f40ae631a1ca2649df4cc0f25e05bc00357f66e4a9fa4a67d672195daafd"
+    },
+    {
+      "release": "19.07.3",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.3/package/system/rpcd/Makefile",
+      "sha256": "037c550be2e4669d566a1d86e92b2220845971e998e5d3f7670cf20865eb913b",
+      "commit": "aaa08366e6384d9933a405d1218b03c1b167f9e5",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/aaa08366e6384d9933a405d1218b03c1b167f9e5/uci.c",
+      "uci_sha256": "5431f40ae631a1ca2649df4cc0f25e05bc00357f66e4a9fa4a67d672195daafd"
+    },
+    {
+      "release": "19.07.4",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.4/package/system/rpcd/Makefile",
+      "sha256": "74347fd858c5ff8ee4f418ffce0b3a7fa005e1d98642952b9829b6cb5cb46702",
+      "commit": "67c8a3fda26e441d3ec4a19f50ac72eca8deb14b",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/67c8a3fda26e441d3ec4a19f50ac72eca8deb14b/uci.c",
+      "uci_sha256": "0fc96e74be35956bdb5b90f3a8e31f1609e31106d4173c3969fca44757495dbb"
+    },
+    {
+      "release": "19.07.5",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.5/package/system/rpcd/Makefile",
+      "sha256": "74347fd858c5ff8ee4f418ffce0b3a7fa005e1d98642952b9829b6cb5cb46702",
+      "commit": "67c8a3fda26e441d3ec4a19f50ac72eca8deb14b",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/67c8a3fda26e441d3ec4a19f50ac72eca8deb14b/uci.c",
+      "uci_sha256": "0fc96e74be35956bdb5b90f3a8e31f1609e31106d4173c3969fca44757495dbb"
+    },
+    {
+      "release": "19.07.6",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.6/package/system/rpcd/Makefile",
+      "sha256": "74347fd858c5ff8ee4f418ffce0b3a7fa005e1d98642952b9829b6cb5cb46702",
+      "commit": "67c8a3fda26e441d3ec4a19f50ac72eca8deb14b",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/67c8a3fda26e441d3ec4a19f50ac72eca8deb14b/uci.c",
+      "uci_sha256": "0fc96e74be35956bdb5b90f3a8e31f1609e31106d4173c3969fca44757495dbb"
+    },
+    {
+      "release": "19.07.7",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.7/package/system/rpcd/Makefile",
+      "sha256": "74347fd858c5ff8ee4f418ffce0b3a7fa005e1d98642952b9829b6cb5cb46702",
+      "commit": "67c8a3fda26e441d3ec4a19f50ac72eca8deb14b",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/67c8a3fda26e441d3ec4a19f50ac72eca8deb14b/uci.c",
+      "uci_sha256": "0fc96e74be35956bdb5b90f3a8e31f1609e31106d4173c3969fca44757495dbb"
+    },
+    {
+      "release": "19.07.8",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.8/package/system/rpcd/Makefile",
+      "sha256": "74347fd858c5ff8ee4f418ffce0b3a7fa005e1d98642952b9829b6cb5cb46702",
+      "commit": "67c8a3fda26e441d3ec4a19f50ac72eca8deb14b",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/67c8a3fda26e441d3ec4a19f50ac72eca8deb14b/uci.c",
+      "uci_sha256": "0fc96e74be35956bdb5b90f3a8e31f1609e31106d4173c3969fca44757495dbb"
+    },
+    {
+      "release": "19.07.9",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.9/package/system/rpcd/Makefile",
+      "sha256": "74347fd858c5ff8ee4f418ffce0b3a7fa005e1d98642952b9829b6cb5cb46702",
+      "commit": "67c8a3fda26e441d3ec4a19f50ac72eca8deb14b",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/67c8a3fda26e441d3ec4a19f50ac72eca8deb14b/uci.c",
+      "uci_sha256": "0fc96e74be35956bdb5b90f3a8e31f1609e31106d4173c3969fca44757495dbb"
+    },
+    {
+      "release": "19.07.10",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.10/package/system/rpcd/Makefile",
+      "sha256": "74347fd858c5ff8ee4f418ffce0b3a7fa005e1d98642952b9829b6cb5cb46702",
+      "commit": "67c8a3fda26e441d3ec4a19f50ac72eca8deb14b",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/67c8a3fda26e441d3ec4a19f50ac72eca8deb14b/uci.c",
+      "uci_sha256": "0fc96e74be35956bdb5b90f3a8e31f1609e31106d4173c3969fca44757495dbb"
+    },
+    {
+      "release": "21.02.0",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.0/package/system/rpcd/Makefile",
+      "sha256": "f05442738ddf7b408d1ebad58f3d7ac42e7ef5629b078aef6f09ed0dddefb486",
+      "commit": "ccb75178cf6a726896729c6904bd623636aa0b29",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/ccb75178cf6a726896729c6904bd623636aa0b29/uci.c",
+      "uci_sha256": "84e8e3ecc502476dda227df4671473a64c22a78f34849c1987b5e064cdedfe6f"
+    },
+    {
+      "release": "21.02.1",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.1/package/system/rpcd/Makefile",
+      "sha256": "f05442738ddf7b408d1ebad58f3d7ac42e7ef5629b078aef6f09ed0dddefb486",
+      "commit": "ccb75178cf6a726896729c6904bd623636aa0b29",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/ccb75178cf6a726896729c6904bd623636aa0b29/uci.c",
+      "uci_sha256": "84e8e3ecc502476dda227df4671473a64c22a78f34849c1987b5e064cdedfe6f"
+    },
+    {
+      "release": "21.02.2",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.2/package/system/rpcd/Makefile",
+      "sha256": "f05442738ddf7b408d1ebad58f3d7ac42e7ef5629b078aef6f09ed0dddefb486",
+      "commit": "ccb75178cf6a726896729c6904bd623636aa0b29",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/ccb75178cf6a726896729c6904bd623636aa0b29/uci.c",
+      "uci_sha256": "84e8e3ecc502476dda227df4671473a64c22a78f34849c1987b5e064cdedfe6f"
+    },
+    {
+      "release": "21.02.3",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.3/package/system/rpcd/Makefile",
+      "sha256": "fbd8eb7b684777120aa42dfef9b89fd15ceb7fddaa125ae1d2bb6c141399c792",
+      "commit": "8d26a1ba3a175016b342cc5e25d340c08ae20eed",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/8d26a1ba3a175016b342cc5e25d340c08ae20eed/uci.c",
+      "uci_sha256": "84e8e3ecc502476dda227df4671473a64c22a78f34849c1987b5e064cdedfe6f"
+    },
+    {
+      "release": "21.02.4",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.4/package/system/rpcd/Makefile",
+      "sha256": "fbd8eb7b684777120aa42dfef9b89fd15ceb7fddaa125ae1d2bb6c141399c792",
+      "commit": "8d26a1ba3a175016b342cc5e25d340c08ae20eed",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/8d26a1ba3a175016b342cc5e25d340c08ae20eed/uci.c",
+      "uci_sha256": "84e8e3ecc502476dda227df4671473a64c22a78f34849c1987b5e064cdedfe6f"
+    },
+    {
+      "release": "21.02.5",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.5/package/system/rpcd/Makefile",
+      "sha256": "fbd8eb7b684777120aa42dfef9b89fd15ceb7fddaa125ae1d2bb6c141399c792",
+      "commit": "8d26a1ba3a175016b342cc5e25d340c08ae20eed",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/8d26a1ba3a175016b342cc5e25d340c08ae20eed/uci.c",
+      "uci_sha256": "84e8e3ecc502476dda227df4671473a64c22a78f34849c1987b5e064cdedfe6f"
+    },
+    {
+      "release": "21.02.6",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.6/package/system/rpcd/Makefile",
+      "sha256": "fbd8eb7b684777120aa42dfef9b89fd15ceb7fddaa125ae1d2bb6c141399c792",
+      "commit": "8d26a1ba3a175016b342cc5e25d340c08ae20eed",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/8d26a1ba3a175016b342cc5e25d340c08ae20eed/uci.c",
+      "uci_sha256": "84e8e3ecc502476dda227df4671473a64c22a78f34849c1987b5e064cdedfe6f"
+    },
+    {
+      "release": "21.02.7",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.7/package/system/rpcd/Makefile",
+      "sha256": "fbd8eb7b684777120aa42dfef9b89fd15ceb7fddaa125ae1d2bb6c141399c792",
+      "commit": "8d26a1ba3a175016b342cc5e25d340c08ae20eed",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/8d26a1ba3a175016b342cc5e25d340c08ae20eed/uci.c",
+      "uci_sha256": "84e8e3ecc502476dda227df4671473a64c22a78f34849c1987b5e064cdedfe6f"
+    },
+    {
+      "release": "22.03.0",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.0/package/system/rpcd/Makefile",
+      "sha256": "b522b9d701530525d04f87413270329afea39fcd954982decada3da10d1d4a86",
+      "commit": "82904bd4f92e5928d047db6396cc14ca2b07d89f",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/82904bd4f92e5928d047db6396cc14ca2b07d89f/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "22.03.1",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.1/package/system/rpcd/Makefile",
+      "sha256": "b522b9d701530525d04f87413270329afea39fcd954982decada3da10d1d4a86",
+      "commit": "82904bd4f92e5928d047db6396cc14ca2b07d89f",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/82904bd4f92e5928d047db6396cc14ca2b07d89f/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "22.03.2",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.2/package/system/rpcd/Makefile",
+      "sha256": "a2ad8b213eff9483728e3f8b2442863305afd0d6e5335d4f2b7cd7f85da5d0f4",
+      "commit": "8c852b656bf1622dee1ae2cfa4c083f730c1c539",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/8c852b656bf1622dee1ae2cfa4c083f730c1c539/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "22.03.3",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.3/package/system/rpcd/Makefile",
+      "sha256": "77f7247a0544ac3fc425635835d80b5e4f44a0d3b170ba2f95f8cb8580461bf2",
+      "commit": "7de4820c87437033f6b7716018f3bfa60a3f7b12",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/7de4820c87437033f6b7716018f3bfa60a3f7b12/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "22.03.4",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.4/package/system/rpcd/Makefile",
+      "sha256": "77f7247a0544ac3fc425635835d80b5e4f44a0d3b170ba2f95f8cb8580461bf2",
+      "commit": "7de4820c87437033f6b7716018f3bfa60a3f7b12",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/7de4820c87437033f6b7716018f3bfa60a3f7b12/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "22.03.5",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.5/package/system/rpcd/Makefile",
+      "sha256": "77f7247a0544ac3fc425635835d80b5e4f44a0d3b170ba2f95f8cb8580461bf2",
+      "commit": "7de4820c87437033f6b7716018f3bfa60a3f7b12",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/7de4820c87437033f6b7716018f3bfa60a3f7b12/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "22.03.6",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.6/package/system/rpcd/Makefile",
+      "sha256": "77f7247a0544ac3fc425635835d80b5e4f44a0d3b170ba2f95f8cb8580461bf2",
+      "commit": "7de4820c87437033f6b7716018f3bfa60a3f7b12",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/7de4820c87437033f6b7716018f3bfa60a3f7b12/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "22.03.7",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.7/package/system/rpcd/Makefile",
+      "sha256": "77f7247a0544ac3fc425635835d80b5e4f44a0d3b170ba2f95f8cb8580461bf2",
+      "commit": "7de4820c87437033f6b7716018f3bfa60a3f7b12",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/7de4820c87437033f6b7716018f3bfa60a3f7b12/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "23.05.0",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.0/package/system/rpcd/Makefile",
+      "sha256": "de35a17fbb76cc8d0eea577da07f33c349ec78a886290bd32fa94a63e6de6215",
+      "commit": "c07ab2f91061ad64209e9aaa1fb1b77061a1af25",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "23.05.1",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.1/package/system/rpcd/Makefile",
+      "sha256": "de35a17fbb76cc8d0eea577da07f33c349ec78a886290bd32fa94a63e6de6215",
+      "commit": "c07ab2f91061ad64209e9aaa1fb1b77061a1af25",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "23.05.2",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.2/package/system/rpcd/Makefile",
+      "sha256": "de35a17fbb76cc8d0eea577da07f33c349ec78a886290bd32fa94a63e6de6215",
+      "commit": "c07ab2f91061ad64209e9aaa1fb1b77061a1af25",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "23.05.3",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.3/package/system/rpcd/Makefile",
+      "sha256": "de35a17fbb76cc8d0eea577da07f33c349ec78a886290bd32fa94a63e6de6215",
+      "commit": "c07ab2f91061ad64209e9aaa1fb1b77061a1af25",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "23.05.4",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/system/rpcd/Makefile",
+      "sha256": "de35a17fbb76cc8d0eea577da07f33c349ec78a886290bd32fa94a63e6de6215",
+      "commit": "c07ab2f91061ad64209e9aaa1fb1b77061a1af25",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "23.05.5",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.5/package/system/rpcd/Makefile",
+      "sha256": "de35a17fbb76cc8d0eea577da07f33c349ec78a886290bd32fa94a63e6de6215",
+      "commit": "c07ab2f91061ad64209e9aaa1fb1b77061a1af25",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "23.05.6",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.6/package/system/rpcd/Makefile",
+      "sha256": "de35a17fbb76cc8d0eea577da07f33c349ec78a886290bd32fa94a63e6de6215",
+      "commit": "c07ab2f91061ad64209e9aaa1fb1b77061a1af25",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "24.10.0",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.0/package/system/rpcd/Makefile",
+      "sha256": "588f14426b96c01bc70e6126091482efb1555f90c99851409613926230704c32",
+      "commit": "9f4b86e70352ab9ca6aa272d096419acc53e2390",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/9f4b86e70352ab9ca6aa272d096419acc53e2390/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "24.10.1",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.1/package/system/rpcd/Makefile",
+      "sha256": "588f14426b96c01bc70e6126091482efb1555f90c99851409613926230704c32",
+      "commit": "9f4b86e70352ab9ca6aa272d096419acc53e2390",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/9f4b86e70352ab9ca6aa272d096419acc53e2390/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "24.10.2",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.2/package/system/rpcd/Makefile",
+      "sha256": "588f14426b96c01bc70e6126091482efb1555f90c99851409613926230704c32",
+      "commit": "9f4b86e70352ab9ca6aa272d096419acc53e2390",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/9f4b86e70352ab9ca6aa272d096419acc53e2390/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "24.10.3",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.3/package/system/rpcd/Makefile",
+      "sha256": "c6d497d14004f8801e6cb10e5ab82896b7e5b6fb9b0e47d8a5e9f40178c78185",
+      "commit": "bba95191ff2f22c9118a1ba1355b83afaa277ae3",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/bba95191ff2f22c9118a1ba1355b83afaa277ae3/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "24.10.4",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.4/package/system/rpcd/Makefile",
+      "sha256": "c6d497d14004f8801e6cb10e5ab82896b7e5b6fb9b0e47d8a5e9f40178c78185",
+      "commit": "bba95191ff2f22c9118a1ba1355b83afaa277ae3",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/bba95191ff2f22c9118a1ba1355b83afaa277ae3/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "24.10.5",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.5/package/system/rpcd/Makefile",
+      "sha256": "c6d497d14004f8801e6cb10e5ab82896b7e5b6fb9b0e47d8a5e9f40178c78185",
+      "commit": "bba95191ff2f22c9118a1ba1355b83afaa277ae3",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/bba95191ff2f22c9118a1ba1355b83afaa277ae3/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "24.10.6",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.6/package/system/rpcd/Makefile",
+      "sha256": "c6d497d14004f8801e6cb10e5ab82896b7e5b6fb9b0e47d8a5e9f40178c78185",
+      "commit": "bba95191ff2f22c9118a1ba1355b83afaa277ae3",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/bba95191ff2f22c9118a1ba1355b83afaa277ae3/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "24.10.7",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.7/package/system/rpcd/Makefile",
+      "sha256": "c6d497d14004f8801e6cb10e5ab82896b7e5b6fb9b0e47d8a5e9f40178c78185",
+      "commit": "bba95191ff2f22c9118a1ba1355b83afaa277ae3",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/bba95191ff2f22c9118a1ba1355b83afaa277ae3/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "24.10.8",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.8/package/system/rpcd/Makefile",
+      "sha256": "63667768914f69f2dc52d1f5ad652b594a45cadef1a9940f1c955dfaae65340d",
+      "commit": "bba95191ff2f22c9118a1ba1355b83afaa277ae3",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/bba95191ff2f22c9118a1ba1355b83afaa277ae3/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "25.12.0",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.0/package/system/rpcd/Makefile",
+      "sha256": "9898fe2195a7d8281bb60a1885014fea0d3044a4892742d770f9453581b06e03",
+      "commit": "ffb9961c1f8bc50830fdd4e144570f11062c2601",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/ffb9961c1f8bc50830fdd4e144570f11062c2601/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "25.12.1",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.1/package/system/rpcd/Makefile",
+      "sha256": "9898fe2195a7d8281bb60a1885014fea0d3044a4892742d770f9453581b06e03",
+      "commit": "ffb9961c1f8bc50830fdd4e144570f11062c2601",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/ffb9961c1f8bc50830fdd4e144570f11062c2601/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "25.12.2",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.2/package/system/rpcd/Makefile",
+      "sha256": "9898fe2195a7d8281bb60a1885014fea0d3044a4892742d770f9453581b06e03",
+      "commit": "ffb9961c1f8bc50830fdd4e144570f11062c2601",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/ffb9961c1f8bc50830fdd4e144570f11062c2601/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "25.12.3",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.3/package/system/rpcd/Makefile",
+      "sha256": "9898fe2195a7d8281bb60a1885014fea0d3044a4892742d770f9453581b06e03",
+      "commit": "ffb9961c1f8bc50830fdd4e144570f11062c2601",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/ffb9961c1f8bc50830fdd4e144570f11062c2601/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "25.12.4",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.4/package/system/rpcd/Makefile",
+      "sha256": "9898fe2195a7d8281bb60a1885014fea0d3044a4892742d770f9453581b06e03",
+      "commit": "ffb9961c1f8bc50830fdd4e144570f11062c2601",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/ffb9961c1f8bc50830fdd4e144570f11062c2601/uci.c",
+      "uci_sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+    },
+    {
+      "release": "25.12.5",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.5/package/system/rpcd/Makefile",
+      "sha256": "64a91890d1dae42c3cc41262e87e278a82c689fb0899534552496b073f8caa3a",
+      "commit": "28faf6403792d25b9826043aaf37880624c19568",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/28faf6403792d25b9826043aaf37880624c19568/uci.c",
+      "uci_sha256": "8fa99ea940d1a2c799a975d0e4d56019ec753f5011e6a793276a74f782c54620"
+    },
+    {
+      "release": "25.12.6",
+      "source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/system/rpcd/Makefile",
+      "sha256": "990d3a55b49eb5f6aa7483b256a4a7b955dd47f288122bea5f61b0ffaab6ae50",
+      "commit": "d99f703e4035d03fbcfbada3cb697db346c2b984",
+      "uci_source": "https://raw.githubusercontent.com/openwrt/rpcd/d99f703e4035d03fbcfbada3cb697db346c2b984/uci.c",
+      "uci_sha256": "bc3ca56c0a190621f9b14fb930a132494d2d28c5e7b6ffe498604a4d59769f22"
+    }
+  ]
+}

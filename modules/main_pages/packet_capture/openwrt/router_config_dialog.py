@@ -9,6 +9,7 @@ from modules.ui_scale_manager import UiScaleManager
 from modules.main_pages.page_action_buttons import create_page_text_button
 from modules.capture_services.openwrt.common_settings import validate_values
 from modules.capture_services.openwrt.uci_booleans import netifd_bool
+from modules.platform_services.static_network import StaticMigrationError
 from .signal_setup_forms import text_input, choice, add_field, hint
 
 
@@ -158,11 +159,21 @@ class RouterConfigDialog(FramelessDialog):
         return values
 
     def _validate(self,apply=False):
-        try:validate_values(self.review,self.values())
-        except ValueError as exc:
+        try:
+            values=self.values()
+            validate_values(self.review,values)
+            if apply and self.review['config']=='network':
+                from modules.capture_services.lan_client_recovery import validate_static_plan
+                validate_static_plan(self.review,values)
+        except (ValueError,StaticMigrationError) as exc:
             from modules.capture_services.management_diagnostics import record_dialog_validation
             record_dialog_validation(self.parentWidget(),self.review["config"],exc)
             self.error_label.setText(str(exc))
+            if isinstance(exc,StaticMigrationError):
+                from modules.common_widgets.common_dialogs import MessageDialog
+                dialog=MessageDialog('\u65e0\u6cd5\u5e94\u7528 LAN \u8bbe\u7f6e',str(exc),self)
+                try:dialog.exec()
+                finally:dialog.deleteLater()
             return
         self.apply_requested=bool(apply)
         self.accept()

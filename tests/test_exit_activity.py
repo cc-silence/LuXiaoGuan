@@ -43,7 +43,7 @@ class ExitActivityTests(unittest.TestCase):
 
     def test_file_listing_and_file_transfer_are_distinguished(self):
         current=service("router_management",True)
-        for action in ("list","local_list","mkdir","delete","tool_check"):
+        for action in ("list","local_list","mkdir","delete"):
             current.router_management.current=item(action)
             self.assertFalse(exit_tasks(current))
         for action in ("upload","download","upload_directory","download_directory"):

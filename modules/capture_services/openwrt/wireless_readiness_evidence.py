@@ -2,12 +2,12 @@
 from contextlib import contextmanager
 import time
 from .operation_diagnostics import OperationDiagnostics, SAFE_VALUES
+from .readiness_diagnostics import FLAGS as READINESS_FLAGS, readiness_evidence
 
 
 class WirelessReadinessEvidence:
     MAX_TRANSITIONS = 12
-    FLAGS = ("radio_up", "runtime_pending", "interface_present", "interface_up",
-             "configuration_pending", "identity_pending", "radio_disabled", "retry_setup_failed", "cac_active", "requested_enabled", "configured_enabled")
+    FLAGS = READINESS_FLAGS
 
     def __init__(self, journal, mode, band="", source="session_apply"):
         self.journal = journal if isinstance(journal, OperationDiagnostics) else None
@@ -15,7 +15,7 @@ class WirelessReadinessEvidence:
         self.started = time.monotonic()
         self.kind = mode if mode in ("ap", "sta") else "read"
         self.band = band if band in ("2g", "5g", "6g") else ""
-        self.source = source if source in ("session_apply", "direct_toggle") else "session_apply"
+        self.source = source if source in ("session_apply", "direct_toggle", "repair") else "session_apply"
         self.latest = {}
         self.attempts = 0
         self.transitions = 0
@@ -33,7 +33,7 @@ class WirelessReadinessEvidence:
 
     def sample(self, value):
         self.attempts += 1
-        fields = {key: value[key] for key in self.FLAGS if type(value.get(key)) is bool}
+        fields = readiness_evidence(value)
         reason = value.get("reason")
         if not reason:
             reason = ("verified" if value.get("ready") is True else
@@ -41,16 +41,9 @@ class WirelessReadinessEvidence:
                       "wireless_identity_pending" if value.get("identity_pending") is True else
                       "wireless_runtime_pending")
         fields["reason"] = reason if isinstance(reason, str) and reason in SAFE_VALUES["reason"] else "wireless_runtime_pending"
-        state = value.get("ap_state")
-        if isinstance(state, str) and state in SAFE_VALUES["ap_state"]:
-            fields["ap_state"] = state
         state = value.get("interface_state")
         if isinstance(state, str) and state in SAFE_VALUES["interface_state"]:
             fields["interface_state"] = state
-        for key, upper in (("frequency", 100000), ("native_error", 255), ("channel", 1000), ("cac_seconds", 3601)):
-            number = value.get(key)
-            if type(number) is int and 0 <= number < upper:
-                fields[key] = number
         changed = fields != self.latest
         self.latest = fields
         if changed and self.transitions < self.MAX_TRANSITIONS:

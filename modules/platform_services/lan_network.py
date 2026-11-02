@@ -62,7 +62,7 @@ def renew(adapter,timeout,permit=lambda:True):
                     current=next((r for r in inventory['adapters'] if r['id']==adapter['id']),None)
                     emit('adapter_after','inspection_failed' if inventory.get('error') else
                          'adapter_changed' if current and current.get('mac')!=adapter['mac'] else
-                         'system_error',snapshot_cached=False,**adapter_state(current,expected))
+                         'system_error',snapshot_cached=False,**adapter_state(current,expected,baseline=adapter))
                 except Exception:
                     emit('adapter_after','inspection_failed',snapshot_cached=False)
             raise
@@ -92,7 +92,7 @@ def _wait_for_address(adapter,timeout,started,permit,execution_error=None):
             raise InterruptedError('Network recovery request expired')
         if time.monotonic()-started>=timeout:
             continue
-        state=adapter_state(current,expected)
+        state=adapter_state(current,expected,baseline=adapter)
         if current is not None and current.get('mac')!=adapter['mac']:
             emit('adapter_after','adapter_changed',**state,snapshot_attempts=attempts)
             raise RuntimeError('\u6240\u9009\u7f51\u5361\u8eab\u4efd\u5df2\u53d8\u5316\uff0c\u5df2\u505c\u6b62\u7b49\u5f85\uff0c\u8bf7\u91cd\u65b0\u8bfb\u53d6\u7f51\u7edc\u72b6\u6001\u3002')

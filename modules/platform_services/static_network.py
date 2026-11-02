@@ -28,7 +28,9 @@ def migration_plan(plan):
     related=[a for a in addresses if a.ip in old[0].network]
     if len(related)!=1:raise StaticMigrationError('Multiple local LAN addresses require manual review')
     local=related[0]
-    if local.ip==new[0].ip:raise StaticMigrationError('Client address conflicts with the new router address')
+    if local.ip==new[0].ip:
+        emit('network_plan','address_conflict',address_conflicts_target=True)
+        raise StaticMigrationError('\u65b0\u8def\u7531\u5668 IP \u4e0e\u7535\u8111\u5f53\u524d IP \u76f8\u540c\uff0c\u8bf7\u4f7f\u7528\u4e0d\u540c\u5730\u5740\uff1b\u672a\u4fee\u6539\u7535\u8111\u548c\u8def\u7531\u5668\u3002')
     if local.network==new[0].network or (local.ip in new[0].network and new[0].ip in local.network):
         wanted=ipaddress.IPv4Interface(str(local.ip)+'/'+str(new[0].network.prefixlen))
     else:
@@ -37,7 +39,9 @@ def migration_plan(plan):
         if candidate>=int(new[0].network.broadcast_address) or candidate<=int(new[0].network.network_address):
             raise StaticMigrationError('The current host number does not fit the new subnet')
         wanted=ipaddress.IPv4Interface(str(ipaddress.IPv4Address(candidate))+'/'+str(new[0].network.prefixlen))
-        if wanted.ip==new[0].ip:raise StaticMigrationError('Client address conflicts with the new router address')
+        if wanted.ip==new[0].ip:
+            emit('network_plan','address_conflict',address_conflicts_target=True)
+            raise StaticMigrationError(f'\u65b0\u8def\u7531\u5668 IP\uff1a{new[0].ip}\n\u6309\u539f\u56fa\u5b9a IP \u6362\u7b97\u540e\u7684\u7535\u8111 IP\uff1a{wanted.ip}\n\n\u4e24\u4e2a\u5730\u5740\u76f8\u540c\uff0c\u4f1a\u9020\u6210 IP \u51b2\u7a81\u3002\u8bf7\u8fd4\u56de\u91cd\u65b0\u8f93\u5165\u5176\u4ed6\u8def\u7531\u5668 IPv4 \u5730\u5740\u3002\n\u672a\u4fee\u6539\u7535\u8111\u548c\u8def\u7531\u5668\u8bbe\u7f6e\u3002')
     if not wanted.network.network_address < wanted.ip < wanted.network.broadcast_address:
         raise StaticMigrationError('\u7f29\u5c0f\u7f51\u6bb5\u540e\uff0c\u7535\u8111 IP \u4f1a\u53d8\u6210\u7f51\u7edc\u5730\u5740\u6216\u5e7f\u64ad\u5730\u5740\uff0c\u672a\u4fee\u6539\u7f51\u7edc\u3002')
     return dict(adapter=row,old_router=str(old[0].ip),new_router=str(new[0].ip),old_address=str(local),new_address=str(wanted))

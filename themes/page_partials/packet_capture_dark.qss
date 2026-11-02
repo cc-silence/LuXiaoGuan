@@ -139,7 +139,7 @@ QTreeWidget#captureDictionaryList QHeaderView::section { background: #1d2126; co
 QPushButton#captureSecondaryButton[compactDependency="true"] { min-height: 20px; padding: 2px 8px; }
 
 QWidget#routerTerminalContainer {
-    background-color: #1d2126;
+    background-color: #000000;
     color: #f4f6f8;
     border-radius: 6px;
 }

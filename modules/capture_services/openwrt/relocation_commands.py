@@ -211,7 +211,7 @@ local function move_status()
    local enabled=not netifd_bool(old.disabled,false) and not netifd_bool(c:get("wireless",old.device,"disabled"),false)
    local iface=active[item.section]
    if enabled then
-    if not iface or not ap_ready(iface,item.name) or runtime_mac(iface)~=item.mac:lower() then ready=false end
+    if not iface or not ap_ready(bus,iface,item.name) or runtime_mac(iface)~=item.mac:lower() then ready=false end
    elseif iface and optional("network.device","status",{name=iface}).up==true then ready=false end
   end
  end
