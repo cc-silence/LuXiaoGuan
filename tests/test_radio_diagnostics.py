@@ -49,8 +49,18 @@ class RadioDiagnosticsTests(unittest.TestCase):
         def execute(name, command, timeout, cancel_event=None, **kwargs):
             if name == 'list_phys':
                 text = 'phy0 phy1'
+            elif name == 'snapshot_wireless':
+                text = ("wireless.radio0=wifi-device\nwireless.radio0.band='2g'\n"
+                        "wireless.radio1=wifi-device\nwireless.radio1.band='5g'\n"
+                        "wireless.home=wifi-iface\nwireless.home.device='radio0'\n"
+                        "__WINBOX_SNAP_IWDEV__\n"+IW_DEV+"\n__WINBOX_SNAP_WIFISTATUS__\n"
+                        '{"radio0":{"interfaces":[{"ifname":"phy0-sta0"}]},"radio1":{"interfaces":[{"ifname":"phy1-ap0"}]}}')
+            elif name == 'radio_identity_probe':
+                text = '__RM_PHYS__\nphy0\nphy1\n__RM_PHYS_OK__\n__RM_RADIO__radio0\n{"phyname":"phy0"}\n__RM_RADIO__radio1\n{"phyname":"phy1"}\n__RM_END__\n'
+            elif name == 'radio_usage':
+                text = '__RM_USAGE_BEGIN__\nP|phy0\nP|phy1\nI|phy0|phy0-sta0|managed|1|1\nI|phy0|phy0-ap0|AP|1|1\nI|phy1|phy1-ap0|AP|1|1\n__RM_USAGE_END__\n'
             elif name in ('probe_phy_channel', 'probe_phy_band'):
-                text = output
+                text = output if "phy1" not in command else output.replace("24", "51").replace("2462", "5180")
             else:
                 text = IW_DEV
             return RemoteCommandResult(name, 0, text)
@@ -77,7 +87,7 @@ class RadioDiagnosticsTests(unittest.TestCase):
         self.assertIn('probe_phy_channel', operations)
         self.assertTrue(all('command' not in r and 'ssid' not in r for r in attempt['queries']))
         self.assertTrue(all(r['elapsed_seconds'] is not None for r in attempt['queries']))
-        self.assertTrue(all(call.args[1].startswith(('iw ', 'ls ')) for call in backend.command_runner._run.call_args_list))
+        self.assertTrue(all(call.args[0] in {'list_phys','probe_takeover_needs','probe_phy_channel','probe_phy_band','snapshot_wireless','radio_identity_probe','radio_usage'} for call in backend.command_runner._run.call_args_list))
         masker = masker_for(['PrivateNetwork'])
         evidence['attempts'][0]['queries'][0]['password'] = 'do-not-export'
         evidence['attempts'][0]['queries'][0]['stderr'] = 'password=do-not-export\nnext useful line'

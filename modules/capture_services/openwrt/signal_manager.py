@@ -451,34 +451,43 @@ class RouterSignalManager:
             return self.read(cancel_event)
         token = uuid4().hex
         backup = f"/etc/winbox-wireless-backups/{token}/wireless"
-        try:
-            phase("\u6b63\u5728\u5e94\u7528\u65e0\u7ebf\u542f\u505c\u8bbe\u7f6e",seconds=20)
-            self._run("change", cancel_event, revision=inventory.revision,
-                      section=section, enabled=enabled, token=token)
-            phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u542f\u505c\u7ed3\u679c",seconds=125)
-            for attempt in range(6):
-                current = self.read(cancel_event)
-                actual = next((r for r in current.rows if r.section == section), None)
-                expected = "active" if enabled else "inactive"
-                if actual and actual.disabled == (not enabled) and actual.running == expected:
-                    return current
-                if attempt < 5:
-                    if cancel_event is not None:
-                        if cancel_event.wait(1):
-                            raise SignalError("cancelled", "已请求停止核实。")
-                    else:
-                        time.sleep(1)
-            raise SignalError("unconfirmed", "配置或运行状态未达到请求值。")
-        except Exception as exc:
-            # 仅传播本模块已脱敏的摘要；未知异常不得携带原始 stdout/stderr。
-            # 错误码原样保留，服务层靠它判断是否缺依赖。
-            code = exc.code if isinstance(exc, SignalError) else "internal"
-            detail = str(exc) if isinstance(exc, RuntimeError) else "设备执行异常。"
-            raise SignalError(
-                code,
-                f"路由器启停结果未确认：{detail} 请重连并刷新核对；不自动回滚。"
-                f"若备份步骤已完成，原配置在路由器 {backup}；恢复前请由管理员核对后续改动。"
-            ) from None
+        from .wireless_readiness_evidence import WirelessReadinessEvidence
+        journal = getattr(self.runner, "operation_diagnostics", None)
+        with WirelessReadinessEvidence(journal, row.mode, row.band, "direct_toggle").observing() as evidence:
+            try:
+                phase("\u6b63\u5728\u5e94\u7528\u65e0\u7ebf\u542f\u505c\u8bbe\u7f6e",seconds=20)
+                self._run("change", cancel_event, revision=inventory.revision,
+                          section=section, enabled=enabled, token=token)
+                phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u542f\u505c\u7ed3\u679c",seconds=125)
+                for attempt in range(6):
+                    current = self.read(cancel_event)
+                    actual = next((r for r in current.rows if r.section == section), None)
+                    expected = "active" if enabled else "inactive"
+                    matches = bool(actual and actual.disabled == (not enabled) and actual.running == expected)
+                    evidence.sample(dict(ready=matches, requested_enabled=enabled,
+                        **({"configured_enabled": not actual.disabled, "interface_state": actual.running}
+                           if actual is not None else {"interface_state": "missing"}),
+                        reason="verified" if matches else "wireless_interface_pending" if actual is None else
+                               "wireless_config_disabled" if actual.disabled != (not enabled) else "wireless_runtime_pending"))
+                    if actual and actual.disabled == (not enabled) and actual.running == expected:
+                        return current
+                    if attempt < 5:
+                        if cancel_event is not None:
+                            if cancel_event.wait(1):
+                                raise SignalError("cancelled", "已请求停止核实。")
+                        else:
+                            time.sleep(1)
+                raise SignalError("unconfirmed", "配置或运行状态未达到请求值。")
+            except Exception as exc:
+                # 仅传播本模块已脱敏的摘要；未知异常不得携带原始 stdout/stderr。
+                # 错误码原样保留，服务层靠它判断是否缺依赖。
+                code = exc.code if isinstance(exc, SignalError) else "internal"
+                detail = str(exc) if isinstance(exc, RuntimeError) else "设备执行异常。"
+                raise SignalError(
+                    code,
+                    f"路由器启停结果未确认：{detail} 请重连并刷新核对；不自动回滚。"
+                    f"若备份步骤已完成，原配置在路由器 {backup}；恢复前请由管理员核对后续改动。"
+                ) from None
 
     def repair(self, inventory, section, cancel_event):
         """运行态修复：配置已启用但接口未运行，重载该 radio 并核实回来。

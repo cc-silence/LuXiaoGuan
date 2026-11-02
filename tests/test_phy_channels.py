@@ -31,6 +31,17 @@ class PhyChannelTests(unittest.TestCase):
 
     def runner(self, output, busy=False):
         def run(name, command, **kwargs):
+            if name == 'snapshot_wireless':
+                return RemoteCommandResult(name, 0,
+                    "wireless.radio7=wifi-device\nwireless.radio7.band='2g'\n"
+                    "wireless.radio7.disabled='0'\nwireless.home=wifi-iface\n"
+                    "wireless.home.device='radio7'\nwireless.home.disabled='%s'\n" % int(not busy))
+            if name == 'radio_identity_probe':
+                return RemoteCommandResult(name, 0,
+                    '__RM_PHYS__\nphy0\n__RM_PHYS_OK__\n__RM_RADIO__radio7\n'
+                    '{"phyname":"phy0"}\n__RM_END__\n')
+            if name == 'radio_usage':
+                return RemoteCommandResult(name, 0, '__RM_USAGE_BEGIN__\nP|phy0\n__RM_USAGE_END__\n')
             text = ('phy0' if name == 'parallel_list_phys' else
                     ('busy' if busy else 'idle') if name == 'check_idle_radio' else output)
             return RemoteCommandResult(name, 0, text)

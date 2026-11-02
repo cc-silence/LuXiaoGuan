@@ -30,6 +30,9 @@ def apply_forced(manager,review,values,cancel,progress,settings,password,fingerp
     from .checked_apply import ApplyChannel
     if review.get('config')!='network':raise ValueError('Force application is limited to LAN settings')
     validate_values(review,values)
+    from ..lan_client_recovery import client_plan
+    if any(row.get('dhcp') is False for row in client_plan(review,values).get('adapters',[])):
+        raise RuntimeError('\u56fa\u5b9a IP \u81ea\u52a8\u8c03\u6574\u9700\u8981\u666e\u901a\u5e94\u7528\u7684\u8fde\u63a5\u6838\u9a8c\u548c\u6062\u590d\u4fdd\u62a4\uff0c\u672c\u6b21\u4e0d\u6267\u884c\u5f3a\u5236\u5e94\u7528\u3002')
     channel=ApplyChannel(settings,password,fingerprint)
     evidence=ApplyEvidence(getattr(manager.runner,'operation_diagnostics',None));evidence.counts['force_apply']=True;evidence.attach(channel)
     sid=None;sent=False;completed=False

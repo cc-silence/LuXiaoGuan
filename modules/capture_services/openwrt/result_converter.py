@@ -4,6 +4,7 @@ import re
 import hashlib
 import shutil
 import struct
+from .conversion_output import ssid_octets, collect_hash_lines
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -65,6 +66,9 @@ def finalize_result_file(temp_path, output_dir, stem, suffix):
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    if suffix in (".cap", ".pcap", ".pcapng"):
+        from .capture_products import raw_capture_suffix
+        suffix = raw_capture_suffix(temp_path)
     final_path = unique_result_path(output_dir, stem, suffix)
     shutil.move(str(temp_path), str(final_path))
     return final_path
@@ -321,7 +325,7 @@ def analyze_handshake_cap(cap_path, bssid="", max_bytes=64 * 1024 * 1024):
     return analysis, pairs
 
 
-def extract_beacon_ssids(cap_path, max_bytes=64 * 1024 * 1024, max_frames=1000000, bssid=""):
+def extract_beacon_ssids(cap_path, max_bytes=64 * 1024 * 1024, max_frames=1000000, bssid="", *, raw=False):
     """提取 Beacon、Probe Response、关联及重关联请求中的 UTF-8 SSID。
 
     可限定目标 BSSID；保留截断前已识别的名称。目标尚未识别时，损坏、
@@ -347,7 +351,7 @@ def extract_beacon_ssids(cap_path, max_bytes=64 * 1024 * 1024, max_frames=100000
                 break
             if not body:
                 unknown = "链路类型不支持，SSID 内容未知。"
-            parsed = _parse_beacon(body, has_radiotap)
+            parsed = _parse_beacon(body, has_radiotap, raw=raw)
             if parsed is not None:
                 bssid, ssid = parsed
                 if target and bssid != target:
@@ -400,7 +404,7 @@ def _iter_classic_frames(blob):
         raise ValueError("包尾截断，SSID 内容未知。")
 
 
-def _parse_beacon(frame, has_radiotap):
+def _parse_beacon(frame, has_radiotap, *, raw=False):
     """解析四类携带名称的管理帧，按地址结构核对 BSSID；无效返回 None。"""
 
     offset = 0
@@ -433,7 +437,9 @@ def _parse_beacon(frame, has_radiotap):
             if length == 0 or length > 32:
                 return None
             try:
-                ssid = bytes(frame[cursor + 2:cursor + 2 + length]).decode("utf-8")
+                ssid = bytes(frame[cursor + 2:cursor + 2 + length])
+                if not raw:
+                    ssid = ssid.decode("utf-8")
             except UnicodeDecodeError:
                 return None
             if not ssid or not any(frame[cursor + 2:cursor + 2 + length]):
@@ -882,7 +888,7 @@ def _eapol_22000_line(ssid, ap, sta, first, second, pair):
             bytes(second["mic"]).hex(),
             _flat_mac(ap),
             _flat_mac(sta),
-            bytes(str(ssid or "").encode("utf-8", errors="replace")).hex(),
+            ssid_octets(ssid).hex(),
             bytes(first["nonce"]).hex(),
             bytes(second["eapol"]).hex(),
             pair,
@@ -900,7 +906,7 @@ def _pmkid_22000_line(ssid, ap, sta, pmkid_hex):
             pmkid_hex.lower(),
             _flat_mac(ap),
             _flat_mac(sta),
-            bytes(str(ssid or "").encode("utf-8", errors="replace")).hex(),
+            ssid_octets(ssid).hex(),
             "",
             "",
             "",
@@ -937,7 +943,7 @@ def iter_22000_lines(pairs, ssid, check):
                         yield _eapol_22000_line(ssid, ap, sta, first, fourth, mp)
 
 
-def write_22000(cap_path, ssid, bssid, out_path, max_bytes=64 * 1024 * 1024):
+def write_22000(cap_path, ssid, bssid, out_path, max_bytes=64 * 1024 * 1024, *, cancel_event=None):
     """把 CAP 中的可跑包组合写成 Hashcat 22000 文件。
 
     参数：ssid 是目标信号名（隐藏或空则拒绝，跑包离不开 SSID）；bssid 限定目标
@@ -947,37 +953,34 @@ def write_22000(cap_path, ssid, bssid, out_path, max_bytes=64 * 1024 * 1024):
     """
 
     ssid_names = ssid if isinstance(ssid, dict) else None
-    ssid_text = str(ssid or "") if ssid_names is None else ""
+    ssid_text = ssid if ssid_names is None else ""
     if ssid_names is None and (not ssid_text or ssid_text == "__hidden__"):
         raise RuntimeError("SSID 未知，无法生成 22000（跑包需要 SSID）。")
-    if len(ssid_text.encode("utf-8")) > 32:
+    if len(ssid_octets(ssid_text)) > 32:
         raise RuntimeError("SSID 超过 32 字节，请核对真实信号名。")
     analysis, pairs = _analyze_detailed(cap_path, bssid, max_bytes)
     if analysis.status == "unknown":
         raise RuntimeError(f"原始包无法解析，不能生成 22000：{analysis.detail}")
-    lines = []
-    for (ap, sta), entry in pairs.items():
-        if str(ap).upper() != str(bssid or "").strip().upper() and bssid:
-            continue
-        if ssid_names is not None:
-            ssid_text = ssid_names.get(str(ap).upper(), "")
-            if not ssid_text or ssid_text == "__hidden__" or len(ssid_text.encode("utf-8")) > 32:
+    names = extract_beacon_ssids(cap_path, max_bytes=max_bytes, bssid=bssid, raw=True)
+    def records():
+        for (ap, sta), entry in pairs.items():
+            if bssid and ap.upper() != bssid.strip().upper():
                 continue
-        selected = _select_best({(ap, sta): entry})
-        if selected is None:
-            continue
-        verdict, _ap, _sta, frames = selected
-        if verdict == "pmkid":
-            lines.append(_pmkid_22000_line(ssid_text, ap, sta, frames[0]["pmkid_hex"]))
-        else:
-            message_pair = {"complete": "00", "m1m2": "00", "m2m3": "02", "m1m4": "01", "m3m4": "05"}[verdict]
-            lines.append(_eapol_22000_line(ssid_text, ap, sta, frames[0], frames[1], message_pair))
-            if verdict == "complete":
-                lines.append(_eapol_22000_line(ssid_text, ap, sta, frames[2], frames[1], "02"))
-    seen = []
-    for line in lines:
-        if line not in seen:
-            seen.append(line)
+            name = names.get(ap.upper(), ssid_names.get(ap.upper(), b"" )
+                             if ssid_names is not None else ssid_text)
+            if not name or name in ("__hidden__", b"__hidden__"):
+                continue
+            if len(ssid_octets(name)) > 32:
+                continue
+            yield from iter_22000_lines({(ap, sta): entry}, name, check)
+    from time import monotonic
+    deadline = monotonic() + 10
+    def check():
+        if cancel_event is not None and cancel_event.is_set():
+            raise InterruptedError("Capture conversion cancelled; original preserved.")
+        if monotonic() > deadline:
+            raise RuntimeError("Capture conversion exceeded its time limit; original preserved.")
+    seen = collect_hash_lines(records(), check)
     if not seen:
         raise RuntimeError("包中没有可跑包组合（需要 M1+M2、M2+M3 或 PMKID），不生成 22000。")
     out_path = Path(out_path)
@@ -1024,7 +1027,7 @@ def write_hccapx(cap_path, ssid, bssid, out_path, max_bytes=64 * 1024 * 1024):
     一对 AP/STA 都写不出时抛 RuntimeError，调用方保留原始包。
     """
 
-    ssid_bytes = str(ssid or "").encode("utf-8")
+    ssid_bytes = ssid_octets(ssid)
     if not ssid_bytes or ssid_bytes == b"__hidden__":
         raise RuntimeError("SSID 未知，无法生成 HCCAPX（跑包需要 SSID）。")
     if len(ssid_bytes) > 32:
@@ -1032,6 +1035,7 @@ def write_hccapx(cap_path, ssid, bssid, out_path, max_bytes=64 * 1024 * 1024):
     analysis, pairs = _analyze_detailed(cap_path, bssid, max_bytes)
     if analysis.status == "unknown":
         raise RuntimeError(f"原始包无法解析，不能生成 HCCAPX：{analysis.detail}")
+    names = extract_beacon_ssids(cap_path, max_bytes=max_bytes, bssid=bssid, raw=True)
     records = []
     skipped_eapol = 0
     for (ap, sta), entry in pairs.items():
@@ -1045,6 +1049,7 @@ def write_hccapx(cap_path, ssid, bssid, out_path, max_bytes=64 * 1024 * 1024):
             if found is None:
                 continue
             first, second = found
+        ssid_bytes = names.get(ap.upper(), ssid_octets(ssid))
         eapol = bytes(second["eapol"])
         if len(eapol) > 256:
             skipped_eapol += 1

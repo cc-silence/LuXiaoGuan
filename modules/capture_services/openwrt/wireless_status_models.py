@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from ipaddress import ip_address
 import math
 import re
+from .wireless_runtime_observations import RuntimeObservation, parse_observations
 
 MAX_NETWORKS = 64
 MAX_PEERS = 512
@@ -74,6 +75,7 @@ class WirelessStatus:
     sample_seconds: float = 0
     limited: bool = False
     observed_monotonic: float = 0
+    runtime: tuple[RuntimeObservation, ...] = ()
 
 
 def interface_name(value):
@@ -161,7 +163,7 @@ def parse_wireless_status(data):
     if len({n.interface for n in networks}) != len(networks):
         raise ValueError('Duplicate wireless interface')
     return WirelessStatus(tuple(sorted(networks, key=lambda n: (n.mode, n.radio, n.interface))),
-                          limited=data.get('limited') is True)
+                          limited=data.get('limited') is True, runtime=parse_observations(data.get('runtime', [])))
 
 
 def measured_status(before, after, seconds, checked_at, internet):
@@ -193,7 +195,7 @@ def measured_status(before, after, seconds, checked_at, internet):
                     if direction=='rx' and (rx_bps is None or rx_bps==0): rx_bps=sum(values)
                     if direction=='tx' and (tx_bps is None or tx_bps==0): tx_bps=sum(values)
         networks.append(replace(current, peers=tuple(peers), internet=proof, rx_bps=rx_bps, tx_bps=tx_bps))
-    return WirelessStatus(tuple(networks), checked_at, seconds, before.limited or after.limited)
+    return WirelessStatus(tuple(networks), checked_at, seconds, before.limited or after.limited, runtime=after.runtime)
 
 
 def internet_status_recent(proof, now=None):

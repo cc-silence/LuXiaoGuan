@@ -79,9 +79,22 @@ class AdminCommandJobs:
             options.update(background_script_options())
             options.update(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         command = subprocess.list2cmdline([executable]) + (' ' + args if args else '')
-        process = subprocess.Popen(command, cwd=request['directory'], **options)
+        request_cancel=None
+        if request.get('cancel_event'):
+            self._kernel.OpenEventW.argtypes=[wintypes.DWORD,wintypes.BOOL,wintypes.LPCWSTR]
+            self._kernel.OpenEventW.restype=wintypes.HANDLE
+            request_cancel=self._kernel.OpenEventW(0x100000,False,request['cancel_event'])
+            if not request_cancel:raise ctypes.WinError(ctypes.get_last_error())
+            if _winapi.WaitForSingleObject(int(request_cancel),0)!=258:
+                _winapi.CloseHandle(request_cancel)
+                return {'started':False,'code':1223,'error':'Command cancelled before start'}
+        try:process = subprocess.Popen(command, cwd=request['directory'], **options)
+        except BaseException:
+            if request_cancel:_winapi.CloseHandle(request_cancel)
+            raise
         try:
-            outcome = _winapi.WaitForMultipleObjects([int(process._handle), self._cancel], False, request['timeout_ms'])
+            handles=[int(process._handle),self._cancel]+([int(request_cancel)] if request_cancel else [])
+            outcome = _winapi.WaitForMultipleObjects(handles, False, request['timeout_ms'])
             if outcome == 0:
                 code = process.wait(timeout=5)
             else:
@@ -89,6 +102,7 @@ class AdminCommandJobs:
                 code = 1460 if outcome == 258 else 1223
             return {'started': True, 'code': code}
         finally:
+            if request_cancel:_winapi.CloseHandle(request_cancel)
             if process.poll() is None:
                 self._terminate(process)
 

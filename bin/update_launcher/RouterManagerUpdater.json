@@ -1,8 +1,8 @@
 {
-  "version": "1.0.30_alpha",
+  "version": "1.0.31_alpha",
   "display_name": "\u8def\u5c0f\u7ba1",
   "product_name": "LuXiaoGuan",
   "source_sha256": "791916ccd6e18055c0d5fbbb2258ef2f48b13fc7549dee92ae1b03681d9feb89",
   "builder_sha256": "023eab2ec663a2090138efa476d7177c70114e3bc392835ce61397a32a0dcc45",
-  "sha256": "99b4127a5914fc7ea47468a70fa7f714146965d28b651373e05df58d79ff7f91"
+  "sha256": "388b495b8d15b261aeaa787341f5f0c1f96b27716a6ab92672e12e3ea843a048"
 }

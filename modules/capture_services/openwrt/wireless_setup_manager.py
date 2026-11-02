@@ -357,32 +357,37 @@ exit 1
             raise SignalError("radio", "无法唯一识别所选无线硬件，未按编号猜测，请刷新。")
         return values[0]
 
-    def _wait_ready(self, request, section, cancel, bssid="", *, network="", temporary=False, expected_mac=""):
+    def _wait_ready(self, request, section, cancel, bssid="", *, network="", temporary=False, expected_mac="", band=""):
         """认证只看 COMPLETED 和所选接入点，不要求 IPv4 或访问外网。"""
-        deadline = time.monotonic() + 45
-        phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u8fd0\u884c\u72b6\u6001", deadline=deadline, rollback=True)
-        while time.monotonic() < deadline:
-            if cancel.is_set():
-                raise InterruptedError("无线操作已取消。")
-            status = self._call("status", cancel, radio=request.radio, section=section, mode=request.mode, timeout=8,
-                                network=network, expected_mac=expected_mac, downstream=request.options.get("network", ""),
-                                bridge_mode="routed" if temporary else request.options.get("bridge_mode", "routed"))
-            if not temporary and request.options.get("bridge_mode") == "relayd":
-                import ipaddress
-                for upper in status.get("upstream4", []):
-                    for lower in status.get("downstream4", []):
-                        try:
-                            up = ipaddress.IPv4Interface(str(upper["address"])+"/"+str(upper["mask"])).network
-                            down = ipaddress.IPv4Interface(str(lower["address"])+"/"+str(lower["mask"])).network
-                        except (KeyError, TypeError, ValueError):
-                            raise SignalError("response", "路由器返回的桥接地址不完整。") from None
-                        if up.overlaps(down):
-                            raise SignalError("subnet", "IPv4 中继的本机管理网段与上级冲突，已停止保存并恢复。请先修改局域网管理网段。")
-            if status.get("ready") is True and (not bssid or str(status.get("bssid", "")).lower() == bssid.lower()):
-                return
-            if cancel.wait(1):
-                raise InterruptedError("无线操作已取消。")
-        raise SignalError("authentication", "未在时限内确认信号启动，请检查信道、加密及驱动兼容性。" if request.mode == "ap" else "未在时限内完成无线连接；请检查密码、信号强度及加密兼容性，不能据此断定密码错误。")
+        from .wireless_readiness_evidence import WirelessReadinessEvidence
+        journal = getattr(self.runner, "operation_diagnostics", None)
+        with WirelessReadinessEvidence(journal, request.mode, band).observing() as evidence:
+            deadline = time.monotonic() + 45
+            phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u8fd0\u884c\u72b6\u6001", deadline=deadline, rollback=True, cancellable=True)
+            while time.monotonic() < deadline:
+                if cancel.is_set():
+                    raise InterruptedError("无线操作已取消。")
+                status = self._call("status", cancel, radio=request.radio, section=section, mode=request.mode, timeout=8,
+                                    network=network, expected_mac=expected_mac, downstream=request.options.get("network", ""),
+                                    bridge_mode="routed" if temporary else request.options.get("bridge_mode", "routed"))
+                matches = not bssid or str(status.get("bssid", "")).lower() == bssid.lower()
+                evidence.sample(status if matches else dict(status, ready=False, reason="wireless_association_pending"))
+                if not temporary and request.options.get("bridge_mode") == "relayd":
+                    import ipaddress
+                    for upper in status.get("upstream4", []):
+                        for lower in status.get("downstream4", []):
+                            try:
+                                up = ipaddress.IPv4Interface(str(upper["address"])+"/"+str(upper["mask"])).network
+                                down = ipaddress.IPv4Interface(str(lower["address"])+"/"+str(lower["mask"])).network
+                            except (KeyError, TypeError, ValueError):
+                                raise SignalError("response", "路由器返回的桥接地址不完整。") from None
+                            if up.overlaps(down):
+                                raise SignalError("subnet", "IPv4 中继的本机管理网段与上级冲突，已停止保存并恢复。请先修改局域网管理网段。")
+                if status.get("ready") is True and matches:
+                    return
+                if cancel.wait(1):
+                    raise InterruptedError("无线操作已取消。")
+            raise SignalError("authentication", "未在时限内确认信号启动，请检查信道、加密及驱动兼容性。" if request.mode == "ap" else "未在时限内完成无线连接；请检查密码、信号强度及加密兼容性，不能据此断定密码错误。")
 
     def _restore(self, sid, env, radio, *, failure=None):
         """取消也给恢复独立期限；断线时由设备端 90 秒回滚保护兜底。"""
@@ -425,7 +430,7 @@ exit 1
     def _transaction(self, request, env, cancel, *, temporary, bssid="", enabled=None, delete=False, enable_parent=False):
         """只用系统独立会话暂存；确认前失败或取消均回滚，不回退裸写配置。"""
         self._require_ready(env)
-        self._radio(env, request.radio)
+        radio_info = self._radio(env, request.radio)
         sid = self._call("session", cancel).get("sid", "")
         if not re.fullmatch(r"[a-fA-F0-9]{32}", sid):
             raise SignalError("session", "未能建立安全的配置会话。")
@@ -449,7 +454,7 @@ exit 1
                     if time.monotonic() >= deadline: raise SignalError("unconfirmed", "无线配置更改后的运行状态未确认。")
                     if cancel.wait(1): raise InterruptedError("无线操作已取消。")
             else:
-                self._wait_ready(request, result["section"], cancel, bssid, network=result["network"], temporary=temporary, expected_mac=result.get("expected_mac", ""))
+                self._wait_ready(request, result["section"], cancel, bssid, network=result["network"], temporary=temporary, expected_mac=result.get("expected_mac", ""), band=radio_info.get("band", ""))
             if not temporary:
                 if enabled is not None:
                     saved = self._call("toggle_saved_status", cancel, radio=request.radio,
@@ -464,7 +469,7 @@ exit 1
                 if cancel.is_set():
                     raise InterruptedError("保存已取消。")
                 phase("\u6b63\u5728\u786e\u8ba4\u4fdd\u7559\u65b0\u914d\u7f6e", seconds=10, rollback=True)
-                self._call("finish", cancel, sid=sid, confirm=True, unapplied=False, timeout=10)
+                self._call("finish", cancel, sid=sid, confirm=True, unapplied=result.get("unchanged") is True, timeout=10)
                 confirmed = True
                 return {"section": result["section"], "network": result["network"], "retained_network": result.get("retained_network", False)}
         except Exception as exc:

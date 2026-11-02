@@ -589,7 +589,9 @@ __WINBOX_KERNEL__=5.15.137
                 return RemoteCommandResult(name, 0, "wireless.radio0=wifi-device\nwireless.radio0.band='2g'\n__WINBOX_SNAP_IWDEV__\nphy#0\n__WINBOX_SNAP_WIFISTATUS__\n{}", "")
             if name == "radio_identity_probe":
                 return RemoteCommandResult(name, 0, '__RM_PHYS__\nphy0\n__RM_PHYS_OK__\n__RM_RADIO__radio0\n{"phyname":"phy0"}\n__RM_END__\n', "")
-            if name == "sweep_stale":
+            if name == "radio_usage":
+                return RemoteCommandResult(name, 0, "__RM_USAGE_BEGIN__\nP|phy0\n__RM_USAGE_END__\n")
+            if name in ("sweep_stale", "del_mon_iface"):
                 return RemoteCommandResult(name, 0, "ABSENT", "")
             if name == "ensure_phy_stubs":
                 return RemoteCommandResult(name, 0, "STUB_CREATED:hcxstub1\n", "")
@@ -650,7 +652,7 @@ __WINBOX_KERNEL__=5.15.137
             self.assertNotIn("hcxmon0|hcxmon", sweep_cmd)
 
             # 验证清理本 PHY 冲突旧 AP 接口命令
-            self.assertTrue(any(c.args[0] == "cleanup_stale_ap" for c in runner.run.call_args_list))
+            self.assertFalse(any(c.args[0] == "cleanup_stale_ap" for c in runner.run.call_args_list))
 
             # 2. 验证接口创建命令：绝不包含 iw reg set 或 rfkill 操作，防止驱动重置导致 netlink 丢失接口
             create_call = next(c for c in runner.run.call_args_list if c.args[0] == "add_mon_iface")

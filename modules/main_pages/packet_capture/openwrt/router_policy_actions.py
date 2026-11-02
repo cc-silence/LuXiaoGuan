@@ -33,7 +33,7 @@ class RouterPolicyActions:
             button=create_page_text_button(card,"\u6253\u5f00\u8bbe\u7f6e" if kind in {"initial","homepage"} else "\u5207\u6362\u7b56\u7565" if kind=="boot" else "\u66f4\u6362",descriptions[kind])
             button.clicked.connect(lambda checked=False,k=kind:self.start(k))
             self.buttons[kind]=button;layout.addWidget(button)
-            if kind!="boot":self.add_details(card,layout,kind)
+            if kind not in {"boot", "homepage"}:self.add_details(card,layout,kind)
             cards.append(card)
         return tuple(cards)
 

@@ -107,6 +107,7 @@ QFrame#captureSignalRow[signalEmphasis="disabled"] QLabel { color: #7f8995; }
 QFrame#captureSignalRow[signalEmphasis="disabled"] QLabel[signalIdentity="true"] { color: #aeb8c6; }
 
 QFrame#captureSignalRow QPushButton#captureSecondaryButton { min-height: 24px; padding: 2px 10px; }
+QFrame#captureSignalRow QPushButton#captureSecondaryButton:disabled { background: #20242a; color: #737d89; border-color: #2c333c; }
 QPushButton#captureSecondaryButton { background: #24282e; color: #f4f6f8; border: 1px solid #343b45; border-radius: 5px; min-height: 28px; padding: 4px 10px; }
 QPushButton#captureSecondaryButton:hover { background: #303742; border-color: #0078d4; }
 QPushButton#captureSecondaryButton[connectionActionState="login"] { background: #24517a; border-color: #3978aa; color: #ffffff; }

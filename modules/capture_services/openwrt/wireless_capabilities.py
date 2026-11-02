@@ -40,11 +40,26 @@ local function runtime_mac(iface)
  if not value or #value~=17 or not value:match("^%x%x:%x%x:%x%x:%x%x:%x%x:%x%x$") then return nil end
  return value:lower()
 end
-local function ap_ready(iface,ssid)
+local function ap_ready(iface,ssid,evidence)
+ evidence=evidence or {}
  if type(ssid)~="string" or #ssid==0 then return false end
  local device=optional("network.device","status",{name=iface})
+ if type(device.up)=="boolean" then evidence.interface_up=device.up end
  if device.up~=true then return false end
  local value,err=bus:call("hostapd."..iface,"get_status",{})
+ if type(err)=="number" then evidence.native_error=err end
+ if type(value)=="table" then
+  local states={UNINITIALIZED=true,DISABLED=true,COUNTRY_UPDATE=true,ACS=true,HT_SCAN=true,DFS=true,ENABLED=true}
+  if states[value.status] then evidence.ap_state=value.status end
+  if type(value.freq)=="number" and value.freq>0 and value.freq<100000 then evidence.frequency=value.freq end
+  if type(value.channel)=="number" and value.channel>0 and value.channel<1000 then evidence.channel=value.channel end
+  if type(value.dfs)=="table" then
+   local dfs=value.dfs
+   if dfs.cac_active==true or dfs.cac_active==1 then evidence.cac_active=true end
+   if dfs.cac_active==false or dfs.cac_active==0 then evidence.cac_active=false end
+   if type(dfs.cac_seconds)=="number" and dfs.cac_seconds>=0 and dfs.cac_seconds<=3600 then evidence.cac_seconds=dfs.cac_seconds end
+  end
+ end
  if not err then
   if type(value)~="table" or value.status~="ENABLED" then return false end
   if value.ssid~=nil then return value.ssid==ssid end

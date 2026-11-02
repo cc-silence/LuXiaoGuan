@@ -6,7 +6,7 @@ import ipaddress
 import socket
 
 _sink = ContextVar('network_diagnostic_sink', default=None)
-STAGES = frozenset({'adapter_before', 'adapter_after', 'address_wait', 'lease_release',
+STAGES = frozenset({'static_inspect', 'static_command', 'static_prepare', 'static_activate', 'static_commit', 'static_restore', 'lease_before', 'lease_after_release', 'lease_after_renew', 'adapter_before', 'adapter_after', 'address_wait', 'lease_release',
     'lease_renew', 'lease_process', 'network_plan', 'network_context'})
 REASONS = frozenset({'address_ready', 'address_pending', 'adapter_missing', 'adapter_changed',
     'address_conflict', 'route_pending', 'adapter_disconnected', 'dhcp_disabled', 'inspection_failed', 'authorization_failed', 'permission_denied',
@@ -15,7 +15,7 @@ REASONS = frozenset({'address_ready', 'address_pending', 'adapter_missing', 'ada
     'connection_aborted', 'network_unreachable', 'host_unreachable', 'socket_timeout',
     'dns_failed', 'authentication_failed', 'host_key_changed', 'host_key_unconfirmed',
     'ssh_channel_closed', 'ssh_error', 'connection_unknown'})
-NUMBERS = frozenset({'system_exit_code', 'native_error', 'elevated', 'timeout_seconds',
+NUMBERS = frozenset({'ip_enabled', 'system_exit_code', 'native_error', 'elevated', 'timeout_seconds',
     'elapsed_seconds', 'adapter_index', 'adapter_found', 'adapter_connected', 'dhcp_enabled',
     'renewable', 'route_selected', 'address_count', 'usable_address_count', 'gateway_count',
     'dns_count', 'target_on_link', 'target_subnet_match', 'gateway_matches_target', 'address_conflicts_target',

@@ -68,7 +68,7 @@ class CaptureSettingsManager:
             "output_dir": f"{USER_DOWNLOADS_TOKEN}\\{CAPTURE_OUTPUT_DIR_NAME}",
             "auto_open_dir": True,
             "keep_raw_capture": True,
-            "generate_22000": True,
+            "generate_cap": True,
             "pmkid_active_beacon": False,
             "active_deauth": True,
             "online_dependency_install": True,
@@ -380,8 +380,9 @@ class CaptureSettingsManager:
         openwrt["remote_work_root"] = remote_root if remote_root.startswith("/") else "/tmp/winbox-capture"
         openwrt["output_dir"] = self._portable_output_path(openwrt.get("output_dir"))
         openwrt["auto_open_dir"] = self._bool(openwrt.get("auto_open_dir"), True)
-        openwrt["keep_raw_capture"] = self._bool(openwrt.get("keep_raw_capture"), True)
-        openwrt["generate_22000"] = self._bool(openwrt.get("generate_22000"), True)
+        openwrt["keep_raw_capture"] = True
+        openwrt.pop("generate_22000", None)
+        openwrt["generate_cap"] = True
         openwrt["pmkid_active_beacon"] = self._bool(openwrt.get("pmkid_active_beacon"), False)
         openwrt.pop("auto_parallel_radios", None)
         # 模拟热点辅助已整体移除；旧配置里的开关不再有执行路径，直接丢弃。

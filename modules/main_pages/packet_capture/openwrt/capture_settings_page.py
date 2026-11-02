@@ -71,16 +71,9 @@ class CaptureSettingsPage(QWidget):
         self.refresh_seconds.setObjectName("captureSpinBox")
         self.refresh_seconds.setRange(1, 60)
         self.refresh_seconds.setSuffix(" 秒")
-        self.keep_raw = QCheckBox("保留原始 PCAPNG", card)
-        self.keep_raw.setObjectName("captureCheckBox")
-        self.keep_raw.setToolTip(
-            "建议勾选，方便以后重新转换或检查原始包。关闭后，常规抓包成功转换的原包和无法识别的包不会保留，可能丢失后续可用的数据；转换失败时仍保留原包。"
-        )
-        self.generate_22000 = QCheckBox("生成 Hashcat 22000", card)
-        self.generate_22000.setObjectName("captureCheckBox")
-        self.generate_22000.setToolTip(
-            "建议勾选，抓到可用数据后自动生成能直接跑包的文件。关闭则不生成这种文件；缺少信号名称或数据不完整时，可能无法生成，会显示原因。"
-        )
+        self.generate_cap = QCheckBox("\u81ea\u52a8\u751f\u6210 CAP", card)
+        self.generate_cap.setObjectName("captureCheckBox")
+        self.generate_cap.setToolTip("\u6293\u5305\u7ed3\u675f\u540e\u81ea\u52a8\u8f6c\u6362 CAP\uff1b\u5931\u8d25\u4e5f\u4fdd\u7559\u539f\u59cb\u5305\u3002")
         self.auto_open = QCheckBox("任务完成后打开结果目录", card)
         self.auto_open.setObjectName("captureCheckBox")
         self.auto_open.setToolTip(
@@ -89,8 +82,7 @@ class CaptureSettingsPage(QWidget):
         )
         layout.addLayout(create_path_row(card, "保存目录", self.output_dir, self.output_dir_button, "选择电脑上空间充足、容易找到的文件夹。软件会在下面创建 \u8def\u5c0f\u7ba1\u6293\u5305 文件夹存放结果。"))
         layout.addLayout(create_form_row(card, "刷新间隔", self.refresh_seconds, "建议保留 10 秒。数值越小，列表和结果更新越及时，但会增加路由器和连接的负担；连接慢或不稳定时可调大。"))
-        layout.addWidget(self.keep_raw)
-        layout.addWidget(self.generate_22000)
+        layout.addWidget(self.generate_cap)
         layout.addWidget(self.auto_open)
         self.clear_history_button = QPushButton(card)
         self.clear_history_button.setObjectName("captureSecondaryButton")
@@ -110,14 +102,14 @@ class CaptureSettingsPage(QWidget):
             )
         )
         self.refresh_seconds.setValue(int(settings.get("refresh_seconds", 10)))
-        self.keep_raw.setChecked(bool(settings.get("keep_raw_capture", True)))
-        self.generate_22000.setChecked(bool(settings.get("generate_22000", True)))
+        self.generate_cap.setChecked(True)
+        self.generate_cap.setEnabled(False)
         self.auto_open.setChecked(bool(settings.get("auto_open_dir", True)))
         self._refresh_history_button()
         self.output_dir.editingFinished.connect(self._normalize_output_dir)
         self.output_dir_button.clicked.connect(lambda: self.resource_picker.choose_output_dir(self.output_dir))
         self.refresh_seconds.lineEdit().editingFinished.connect(self.settingsChanged)
-        for control in (self.keep_raw, self.generate_22000, self.auto_open):
+        for control in (self.generate_cap, self.auto_open):
             control.toggled.connect(lambda _checked: self.settingsChanged.emit())
 
     def _build_handshake_options(self, parent, root, settings):
@@ -276,8 +268,8 @@ class CaptureSettingsPage(QWidget):
             "refresh_seconds": self.refresh_seconds.value(),
             "handshake_rounds": self.handshake_rounds.value(),
             "handshake_rounds_infinite": self.handshake_rounds_mode.currentData() == "infinite",
-            "keep_raw_capture": self.keep_raw.isChecked(),
-            "generate_22000": self.generate_22000.isChecked(),
+            "keep_raw_capture": True,
+            "generate_cap": True,
             "auto_open_dir": self.auto_open.isChecked(),
             "active_deauth": self.active_deauth.isChecked(),
             "password_dictionaries": list(self._dictionary_paths()),

@@ -27,7 +27,7 @@ def reporting(callback):
         _reporter.reset(token)
 
 
-def phase(stage, *, seconds=None, deadline=None, rollback=False, **extra):
+def phase(stage, *, seconds=None, deadline=None, rollback=False, cancellable=False, **extra):
     callback = _reporter.get()
     observer = _observer.get()
     if callback is None and observer is None:
@@ -35,7 +35,7 @@ def phase(stage, *, seconds=None, deadline=None, rollback=False, **extra):
     if deadline is None and seconds is not None:
         deadline = time.monotonic() + seconds
     value = dict(configuration_apply=True, stage=stage, deadline=deadline,
-                 rollback=bool(rollback), power_warning=True, uncancellable=True, **extra)
+                 rollback=bool(rollback), power_warning=True, uncancellable=not cancellable, **extra)
     if observer is not None:
         observer(value)
     if callback is not None:

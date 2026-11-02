@@ -176,6 +176,7 @@ __PENDING__
 __SAVE_ONLY__
 __WIRELESS_RUNTIME__
 __COMMON_SETTINGS__
+__CHECKED_APPLY__
 local function stage()
  local c=clean()
  if revision()~=req.revision then fail("changed") end
@@ -302,8 +303,9 @@ local function stage()
  end)
  if req.save_only~=true then set("wireless",radio,{disabled="0"}) end
  if revision()~=req.revision then fail("changed") end
- if req.save_only~=true then rpc("uci","apply",{ubus_rpc_session=sid(),rollback=true,timeout=90}) end
- return {section=section,network=network,expected_mac=expected_mac}
+ local unchanged=false
+ if req.save_only~=true then unchanged=apply_staged() end
+ return {section=section,network=network,expected_mac=expected_mac,unchanged=unchanged}
 end
 local function saved_status()
  local c=clean();local before=revision();local v=req.values or {};local opts=v.options or {}
@@ -373,40 +375,49 @@ local function saved_status()
 end
 local function status()
  local rs=rpc("network.wireless","status",{})[req.radio] or {}
+ local evidence={}
+ if type(rs.up)=="boolean" then evidence.radio_up=rs.up end
+ if type(rs.pending)=="boolean" then evidence.runtime_pending=rs.pending end
+ if type(rs.disabled)=="boolean" then evidence.radio_disabled=rs.disabled end
+ if type(rs.retry_setup_failed)=="boolean" then evidence.retry_setup_failed=rs.retry_setup_failed end
+ local function observed(value)
+  for key,item in pairs(evidence) do value[key]=item end
+  return value
+ end
  local iface=nil
  for _,v in ipairs(rs.interfaces or {}) do if v.section==req.section then iface=v.ifname end end
- if type(iface)~="string" or not iface:match("^[%w_.:%-]+$") or rs.pending or rs.up~=true then return {ready=false,reason="wireless_interface_pending"} end
+ evidence.interface_present=type(iface)=="string"
+ if type(iface)~="string" or not iface:match("^[%w_.:%-]+$") or rs.pending or rs.up~=true then return observed({ready=false,reason="wireless_interface_pending"}) end
  local loaded=uci.cursor()
- if not loaded:load("wireless") then return {ready=false,configuration_pending=true} end
+ if not loaded:load("wireless") then return observed({ready=false,configuration_pending=true}) end
  local loaded_ok,loaded_reason=wireless_loaded(loaded,rs,req.section)
- if not loaded_ok then return {ready=false,configuration_pending=true,reason=loaded_reason} end
+ if not loaded_ok then return observed({ready=false,configuration_pending=true,reason=loaded_reason}) end
  if req.mode=="ap" then
   local c=uci.cursor()
-  if not c:load("wireless") then return {ready=false} end
+  if not c:load("wireless") then return observed({ready=false}) end
   local expected=req.expected_mac or c:get("wireless",req.section,"macaddr")
   if identity_mac(expected) then
    local actual=runtime_mac(iface)
-   if type(actual)~="string" or actual:lower()~=expected:lower() then return {ready=false,identity_pending=true} end
+   if type(actual)~="string" or actual:lower()~=expected:lower() then return observed({ready=false,identity_pending=true}) end
   end
-  local ready=ap_ready(iface,c:get("wireless",req.section,"ssid"))
-  return {ready=ready,reason=not ready and "wireless_ap_pending" or nil}
+  local ready=ap_ready(iface,c:get("wireless",req.section,"ssid"),evidence)
+  return observed({ready=ready,reason=not ready and "wireless_ap_pending" or nil})
  end
  if req.expected_mac and req.expected_mac~="" then
   local actual=runtime_mac(iface)
-  if type(actual)~="string" or actual:lower()~=req.expected_mac:lower() then return {ready=false,identity_pending=true} end
+  if type(actual)~="string" or actual:lower()~=req.expected_mac:lower() then return observed({ready=false,identity_pending=true}) end
  end
- if req.require_connection==false then return {ready=true,association_not_required=true} end
+ if req.require_connection==false then return observed({ready=true,association_not_required=true}) end
  local text=read("wpa_cli -i "..q(iface).." status")
  local state=text:match("\nwpa_state=([^\r\n]+)") or text:match("^wpa_state=([^\r\n]+)")
  local bssid=text:match("\nbssid=([^\r\n]+)") or text:match("^bssid=([^\r\n]+)")
- return bridge_status(iface,state=="COMPLETED",bssid)
+ return observed(bridge_status(iface,state=="COMPLETED",bssid))
 end
 __BRIDGE_TOGGLE__
 __DELETE__
 __RELOCATION__
 __ORPHANS__
 __SCAN__
-__CHECKED_APPLY__
 local function run()
 __CHECKED_ACTIONS__
  if req.action=="common_force_apply" then return common_force_apply() end

@@ -118,6 +118,7 @@ class KodoTerm : public QWidget {
     void setPasteOnMiddleClick(bool enable) { m_config.pasteOnMiddleClick = enable; }
     bool mouseWheelZoom() const { return m_config.mouseWheelZoom; }
     void setMouseWheelZoom(bool enable) { m_config.mouseWheelZoom = enable; }
+    void setLocalSelection(bool enabled) { m_localSelection = enabled; }
     bool visualBell() const { return m_config.visualBell; }
     void setVisualBell(bool enable) { m_config.visualBell = enable; }
     bool audibleBell() const { return m_config.audibleBell; }
@@ -180,6 +181,7 @@ class KodoTerm : public QWidget {
     QScrollBar *m_scrollBar = nullptr;
     std::deque<SavedLine> m_scrollback;
 
+    bool m_localSelection = false;
     bool m_selecting = false;
     VTermPos m_selectionStart = {-1, -1};
     VTermPos m_selectionEnd = {-1, -1};

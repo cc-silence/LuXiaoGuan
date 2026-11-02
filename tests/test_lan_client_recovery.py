@@ -83,7 +83,7 @@ class PlatformRenewalTests(unittest.TestCase):
         argv=run.call_args.args[0]
         script=base64.b64decode(argv[-1]).decode('utf-16-le')
         self.assertIn(adapter()['id'],script);self.assertIn('InterfaceIndex -ne 14',script)
-        self.assertIn('0050562B292D',script);self.assertIn('!$nic.DHCPEnabled',script)
+        self.assertIn('0050562B292D',script);self.assertIn('!$selected.DHCPEnabled',script)
         self.assertLess(script.index('ReleaseDHCPLease'),script.index('RenewDHCPLease'));self.assertIn('RenewDHCPLease',script)
         self.assertGreaterEqual(script.count('ToUnixTimeSeconds() -ge'),2)
 

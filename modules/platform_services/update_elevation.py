@@ -2,6 +2,7 @@
 import logging
 from pathlib import Path
 import shutil
+import re
 from types import SimpleNamespace
 
 from .firewall_session_transport import PipeEndpoint, validate_address, send_json, receive_json
@@ -12,7 +13,7 @@ MAX_COMMAND_TIMEOUT_MS = 3 * 60 * 60 * 1000
 def validate_command_request(request):
     """双端校验有界命令请求；拒绝远程路径、未知字段和无效超时。"""
     required = {'operation', 'file', 'args', 'directory', 'timeout_ms', 'show_window', 'reply_address'}
-    if not isinstance(request, dict) or set(request) != required or request['operation'] != 'execute':
+    if not isinstance(request, dict) or set(request) - {'cancel_event'} != required or request['operation'] != 'execute':
         raise ValueError('Invalid update command fields')
     for key in ('file', 'directory'):
         value = request[key]
@@ -37,11 +38,13 @@ def validate_command_request(request):
         raise ValueError('Invalid update window mode')
     if not isinstance(request['reply_address'], str):
         raise ValueError('Invalid update reply address')
+    if 'cancel_event' in request and (not isinstance(request['cancel_event'],str) or not re.fullmatch(r'Local\\RouterManager-Cancel-[0-9a-f]{32}',request['cancel_event'])):
+        raise ValueError('Invalid administrator cancellation event')
     validate_address(request['reply_address'])
     return request
 
 
-def run_elevated_update(filepath, args='', timeout_ms=600000, show_window=True, working_directory=None):
+def run_elevated_update(filepath, args='', timeout_ms=600000, show_window=True, working_directory=None, cancel_event=None):
     """以共享管理员权限执行更新，返回原有的启动结果和退出码。
 
     参数与 run_elevated 一致；首次通过 UAC 建立授权，后续命令继承同一宿主的权限。
@@ -57,6 +60,7 @@ def run_elevated_update(filepath, args='', timeout_ms=600000, show_window=True, 
             'operation': 'execute', 'file': str(executable.resolve()), 'args': str(args),
             'directory': str(Path(working_directory).resolve()) if working_directory else None,
             'timeout_ms': timeout_ms, 'show_window': show_window, 'reply_address': endpoint.address,
+            **({'cancel_event':cancel_event} if cancel_event is not None else {}),
         })
         accepted = request_firewall(request, timeout_ms=min(timeout_ms, 150000))
         if not accepted.get('success'):

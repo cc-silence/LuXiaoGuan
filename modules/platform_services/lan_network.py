@@ -54,6 +54,17 @@ def renew(adapter,timeout,permit=lambda:True):
         # Permission/identity failures are final. A rejected lease request may
         # still be followed by asynchronous DHCP readiness; never resubmit it.
         if not getattr(exc, 'network_retryable', False):
+            # Failure feedback needs current state, not just the cached inventory.
+            remaining=timeout-(time.monotonic()-started)
+            if remaining>0 and permit():
+                try:
+                    inventory=inspect(timeout=min(2,remaining),adapter_id=adapter['id'])
+                    current=next((r for r in inventory['adapters'] if r['id']==adapter['id']),None)
+                    emit('adapter_after','inspection_failed' if inventory.get('error') else
+                         'adapter_changed' if current and current.get('mac')!=adapter['mac'] else
+                         'system_error',snapshot_cached=False,**adapter_state(current,expected))
+                except Exception:
+                    emit('adapter_after','inspection_failed',snapshot_cached=False)
             raise
         execution_error=exc
     return _wait_for_address(adapter,timeout,started,permit,execution_error)

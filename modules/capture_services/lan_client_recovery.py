@@ -53,23 +53,24 @@ def client_plan(review,values):
     selected=routed if len(routed)==1 else related
     if not selected:
         return dict(guide='\u672a\u80fd\u786e\u5b9a\u672c\u673a\u5230\u8def\u7531\u5668\u7684\u7f51\u5361\u3002\u5982\u679c\u5e94\u7528\u540e\u65e0\u6cd5\u8fde\u63a5\uff0c\u8bf7\u5728\u7cfb\u7edf\u7f51\u7edc\u8bbe\u7f6e\u4e2d\u68c0\u67e5\u5730\u5740\uff1b\u8f6f\u4ef6\u4e0d\u4f1a\u731c\u6d4b\u5e76\u91cd\u7f6e\u6240\u6709\u7f51\u5361\u3002',adapters=[],old_addresses=[str(v) for v in old],new_addresses=[str(v) for v in new])
+    conflict=any(any(ipaddress.IPv4Interface(v).network.overlaps(new[0].network) for v in row.get('addresses',[])) for row in rows if row.get('connected') and row.get('id') not in {a['id'] for a in selected})
     lines=['应用后，请用 '+str(new[0].ip)+' 登录路由器。']
     for row in selected:
         name=str(row.get('name') or row['id'])
         if row.get('dhcp') is True and row.get('renewable'):
             lines.append('电脑网卡 '+name+'：如果无法连接新地址，请点“重新获取网络地址”。')
         elif row.get('dhcp') is False:
+            lines.append('\u7535\u8111\u7f51\u5361 '+name+'\uff1a\u8f6f\u4ef6\u5c06\u5148\u4fdd\u7559\u65e7\u5730\u5740\uff0c\u81ea\u52a8\u51c6\u5907\u65b0\u7f51\u6bb5\u56fa\u5b9a IP\uff0c\u53ef\u80fd\u9700\u8981\u7cfb\u7edf\u7ba1\u7406\u5458\u6388\u6743\u3002')
             keep=any(ipaddress.IPv4Interface(v).ip in new[0].network and ipaddress.IPv4Interface(v).ip!=new[0].ip and ipaddress.IPv4Interface(v).network==new[0].network for v in row.get('addresses',[]))
             if not keep:
-                example=next((a for _,a in zip(range(2),new[0].network.hosts()) if a!=new[0].ip),None)
-                lines.append('电脑网卡 '+name+'：请手动修改电脑 IP，使它和新路由器地址处于同一网段。')
-                if example:lines.append('例如 '+str(example)+'，请先确认该地址没有被其他设备使用。')
+                lines.append('\u81ea\u52a8\u8c03\u6574\u540e\uff0c\u7535\u8111 IP \u5c06\u4e0e\u65b0\u8def\u7531\u5668\u5730\u5740\u5904\u4e8e\u540c\u4e00\u7f51\u6bb5\u3002')
+
                 lines.append('子网掩码：'+str(new[0].network.netmask)+'。')
         else:lines.append('电脑网卡 '+name+'：如果无法连接，请在系统网络设置中重新连接。')
         if any(str(v.ip) in row.get('gateways',[])+row.get('dns',[]) for v in old):
-            lines.append('电脑的网关或 DNS 如果填的是旧路由器地址，也要改为 '+str(new[0].ip)+'。')
-    lines.append('如果应用失败并恢复了原地址，请把电脑的网络设置也改回去。')
-    return dict(guide='\n'.join(lines),adapters=selected,selection_required=len(routed)!=1,selection_source=inventory.get('selection_source','unknown'),automatic_allowed=inventory.get('selection_source')=='ssh_socket' and len(routed)==1 and routed[0].get('dhcp') is True and routed[0].get('renewable') is True,old_addresses=[str(v) for v in old],new_addresses=[str(v) for v in new])
+            lines.append(('\u8f6f\u4ef6\u4f1a\u540c\u6b65\u66f4\u65b0\u56fa\u5b9a\u7f51\u5361\u4e2d\u6307\u5411\u65e7\u8def\u7531\u5668\u7684\u7f51\u5173\u548c DNS\uff1a' if row.get('dhcp') is False else '\u7535\u8111\u7684\u7f51\u5173\u6216 DNS \u5982\u679c\u586b\u7684\u662f\u65e7\u8def\u7531\u5668\u5730\u5740\uff0c\u4e5f\u8981\u6539\u4e3a ')+str(new[0].ip)+'\u3002')
+    lines.append('\u5931\u8d25\u65f6\u8f6f\u4ef6\u4f1a\u5c1d\u8bd5\u6062\u590d\u672c\u6b21\u4fee\u6539\u7684\u7535\u8111\u56fa\u5b9a\u8bbe\u7f6e\uff1b\u672a\u786e\u8ba4\u6062\u590d\u4f1a\u660e\u786e\u63d0\u793a\u3002')
+    return dict(guide='\n'.join(lines),adapters=selected,static_route_conflict=conflict,selection_required=len(routed)!=1,selection_source=inventory.get('selection_source','unknown'),automatic_allowed=inventory.get('selection_source')=='ssh_socket' and len(routed)==1 and routed[0].get('dhcp') is True and routed[0].get('renewable') is True,old_addresses=[str(v) for v in old],new_addresses=[str(v) for v in new])
 
 
 class RenewalGate:

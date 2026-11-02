@@ -39,8 +39,8 @@ local function stage_toggle()
  if parent then set("wireless",v.radio,{disabled="0"}) end
  set("wireless",v.section,{disabled=req.enabled and "0" or "1"})
  if req.revision~=revision() or req.dhcp_revision~=dhcp_revision() then fail("changed") end
- rpc("uci","apply",{ubus_rpc_session=sid(),rollback=true,timeout=90})
- return {section=v.section,network=network}
+ local unchanged=apply_staged()
+ return {section=v.section,network=network,unchanged=unchanged}
 end
 local function toggle_saved_status()
  local c=uci.cursor()

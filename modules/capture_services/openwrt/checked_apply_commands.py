@@ -7,14 +7,18 @@ local function apply_capabilities()
  end
  return {supported=true}
 end
+local function apply_staged()
+ local _,err=bus:call("uci","apply",{ubus_rpc_session=sid(),rollback=true,timeout=90})
+ if err==5 then return true end
+ if err then fail("rpc_uci_apply_"..tostring(err)) end
+ return false
+end
 local function checked_apply()
  if type(req.hashes)~="table" or not next(req.hashes) then fail("apply_changed") end
  for config,digest in pairs(req.hashes) do
   if not name(config) or pending_hash("/etc/config/"..config)~=digest then fail("apply_changed") end
  end
- local _,err=bus:call("uci","apply",{ubus_rpc_session=sid(),rollback=true,timeout=90})
- if err==5 then return {unchanged=true} end
- if err then fail("rpc_uci_apply_"..tostring(err)) end
+ if apply_staged() then return {unchanged=true} end
  return {applied=true}
 end
 local function checked_confirm()

@@ -59,15 +59,18 @@ class LanFeedbackTests(unittest.TestCase):
 
 
 class LanFailureReasonTests(unittest.TestCase):
-    def test_verified_router_is_confirmed_even_when_computer_settings_are_old(self):
+    def test_verified_router_is_confirmed_after_static_migration_verification(self):
         from tests.test_checked_apply import CheckedApplyTests,run_checked,fast_deadlines,LuaRuntime
         if not LuaRuntime:self.fail('Lua runtime required for this regression')
         device,channel,event,stage,verify=CheckedApplyTests().fixture()
         row=adapter(dhcp=False,renewable=False)
         gate=RenewalGate(client_plan(review(row),NEW))
-        with fast_deadlines(),patch('modules.platform_services.lan_network.inspect',side_effect=AssertionError('No client validation')):
+        from unittest.mock import Mock
+        migration=Mock();migration.committed=True
+        with fast_deadlines(),patch('modules.platform_services.static_network.for_recovery',return_value=migration):
             result=run_checked(channel,stage,verify,event,candidates=('new',),original_host='old',client_recovery=gate)
         self.assertTrue(result['applied'])
+        migration.prepare.assert_called_once();migration.activate.assert_called_once();migration.commit.assert_called_once()
         self.assertNotIn('checked_rollback',channel.calls);self.assertIn('checked_confirm',channel.calls)
         self.assertTrue(gate.closed)
 

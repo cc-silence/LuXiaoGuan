@@ -13,6 +13,12 @@ class DeviceStatusPanel(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
+        self.hostname_label = QLabel("\u4e3b\u673a\u540d\uff1a\u672a\u8fde\u63a5", self)
+        self.hostname_label.setObjectName("captureGroupTitle")
+        self.hostname_label.setWordWrap(True)
+        self.hostname_label.setTextFormat(Qt.PlainText)
+        self.hostname_label.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard)
+        layout.addWidget(self.hostname_label)
         self.value_label = QLabel("尚未连接 OpenWrt。", self)
         self.value_label.setObjectName("captureDescription")
         self.value_label.setWordWrap(True)
@@ -27,7 +33,10 @@ class DeviceStatusPanel(QWidget):
         """根据快照更新设备摘要，不执行任何探测。"""
 
         device = snapshot.device
-        if snapshot.connection_state.value != "connected":
+        connected = snapshot.connection_state.value == "connected"
+        hostname = (device.hostname or "").strip() if connected else ""
+        self.hostname_label.setText("\u4e3b\u673a\u540d\uff1a" + (hostname or ("\u672a\u77e5" if connected else "\u672a\u8fde\u63a5")))
+        if not connected:
             self.value_label.setText(snapshot.connection_detail or "尚未连接 OpenWrt。")
             return
         radios_lines = []

@@ -10,6 +10,7 @@ from .configuration_runtime import network_ready
 from ..configuration_progress import phase
 from .apply_evidence import ApplyEvidence
 from .force_apply import ApplyRestored,connection_error
+from modules.platform_services.static_network import StaticMigrationError
 
 
 class ApplyConflict(RuntimeError):
@@ -88,16 +89,36 @@ class ApplyChannel:
 def run_checked(channel, stage, verify, cancel, *, evidence=None, **options):
     trace=evidence if evidence is not None else ApplyEvidence()
     trace.attach(channel)
-    try:result=_run_checked(channel,stage,verify,cancel,evidence=trace,**options)
+    from modules.platform_services.static_network import for_recovery
+    migration=None
+    from modules.platform_services.network_diagnostics import observing
+    def record_local(fields):
+        fields=dict(fields);stage=fields.pop('stage');reason=fields.pop('reason','')
+        trace.emit(stage,'progress',reason,**fields)
+    try:
+        with observing(record_local):
+            migration=for_recovery(options.get('client_recovery'))
+            if migration:options['allow_force_retry']=False
+            result=_run_checked(channel,stage,verify,cancel,evidence=trace,local_migration=migration,**options)
     except Exception as exc:
+        if migration:
+            try:
+                with observing(record_local):migration.rollback()
+            except Exception as restore_error:
+                trace.finish('uncertain',error=restore_error)
+                if migration.confirmation_pending:
+                    raise ApplyUncertain('\u8def\u7531\u5668\u662f\u5426\u4fdd\u7559\u65b0\u914d\u7f6e\u672a\u786e\u8ba4\uff0c\u7535\u8111\u65b0\u65e7\u5730\u5740\u6682\u65f6\u4fdd\u7559\uff1b\u8bf7\u52ff\u91cd\u590d\u63d0\u4ea4\uff0c\u6838\u5bf9\u8def\u7531\u5668\u5f53\u524d\u5730\u5740\u3002') from restore_error
+                raise ApplyUncertain('\u7535\u8111\u56fa\u5b9a IP \u6062\u590d\u672a\u786e\u8ba4\uff0c\u8bf7\u68c0\u67e5\u7cfb\u7edf\u7f51\u7edc\u8bbe\u7f6e\u548c\u6062\u590d\u8bb0\u5f55\u3002') from restore_error
         trace.finish('uncertain' if isinstance(exc,ApplyUncertain) else 'failed',error=exc)
         raise
     else:
+        if migration and migration.committed:
+            result['note']+=' \u7535\u8111\u56fa\u5b9a IP\u3001\u7f51\u5173\u548c DNS \u5df2\u540c\u6b65\u6838\u9a8c\u3002'
         trace.finish('completed')
         return result
 
 
-def _run_checked(channel, stage, verify, cancel, *, candidates, original_host, progress=None, close_channel=True, restore_verify=None, client_recovery=None, evidence=None, allow_force_retry=False):
+def _run_checked(channel, stage, verify, cancel, *, candidates, original_host, progress=None, close_channel=True, restore_verify=None, client_recovery=None, evidence=None, allow_force_retry=False, local_migration=None):
     """Never retry apply. Lost replies are reconciled under the original SID."""
     sid=None
     attempted=False
@@ -116,11 +137,15 @@ def _run_checked(channel, stage, verify, cancel, *, candidates, original_host, p
         if capabilities.get("supported") is not True:
             raise RuntimeError("路由器缺少原生应用或回滚能力，未修改配置。可选择“仅保存”。")
         if cancel.is_set():raise InterruptedError("已取消，未应用配置。")
+        if local_migration:
+            phase('\u6b63\u5728\u51c6\u5907\u7535\u8111\u56fa\u5b9a IP\uff0c\u4fdd\u7559\u539f\u5730\u5740',seconds=60,cancellable=True,preparing_local=True)
+            local_migration.prepare(cancel)
         evidence.emit("session")
         sid=channel.call("session",relocation=True)["sid"]
         evidence.emit("stage")
         baseline=stage(channel,sid)
         if cancel.is_set():raise InterruptedError("已取消，未应用配置。")
+        if local_migration:local_migration.applying()
         deadline=time.monotonic()+90
         extra=dict(network_recovery=client_recovery.start(deadline)) if client_recovery else {}
         phase("正在应用配置，等待网络恢复",deadline=deadline,rollback=True,**extra)
@@ -136,6 +161,7 @@ def _run_checked(channel, stage, verify, cancel, *, candidates, original_host, p
                 attempted=False
                 if not verify(channel,sid):
                     raise ApplyUncertain("\u6ca1\u6709\u5f85\u5e94\u7528\u7684\u4fee\u6539\uff0c\u4f46\u5f53\u524d\u8fd0\u884c\u72b6\u6001\u672a\u901a\u8fc7\u6838\u9a8c\u3002\u8bf7\u91cd\u65b0\u8bfb\u53d6\u68c0\u67e5\u3002")
+                if local_migration:local_migration.rollback()
                 return dict(saved=True,applied=True,target_host=original_host,checked_apply=True,
                             note="\u6ca1\u6709\u9700\u8981\u5e94\u7528\u7684\u65b0\u4fee\u6539\uff0c\u5f53\u524d\u914d\u7f6e\u4e0e\u8fd0\u884c\u72b6\u6001\u5df2\u6838\u9a8c\u3002")
         except Exception as exc:
@@ -172,28 +198,39 @@ def _run_checked(channel, stage, verify, cancel, *, candidates, original_host, p
                         if client_recovery and not client_recovery.seal():
                             evidence.emit("verify","retry","renewal_busy")
                             continue
+                        if local_migration:
+                            try:local_migration.activate(deadline-8)
+                            except Exception as exc:raise StaticMigrationError('\u7535\u8111\u56fa\u5b9a IP \u8bbe\u7f6e\u672a\u901a\u8fc7\u6838\u9a8c\uff0c\u6b63\u5728\u6062\u590d\u3002') from exc
                         phase("正在确认保留新配置",deadline=deadline,rollback=True)
                         remaining=deadline-time.monotonic()
                         if remaining<=0:break
                         last_issue="未收到路由器保留新配置的确认。"
                         evidence.emit("confirm")
+                        if local_migration:local_migration.confirming()
                         confirmation=channel.call("checked_confirm",sid=sid,timeout=min(8,remaining))
                         if confirmation.get("confirmed") is not True:
                             if confirmation.get("inactive") is not True or not verify(channel,sid):
                                 raise ApplyUncertain("Configuration confirmation is inactive and runtime verification failed")
                         confirmed=True
+                        if local_migration:
+                            try:local_migration.commit()
+                            except Exception as exc:raise ApplyUncertain('\u8def\u7531\u5668\u65b0\u5730\u5740\u5df2\u786e\u8ba4\u4fdd\u7559\uff0c\u4f46\u7535\u8111\u65e7\u5730\u5740\u6e05\u7406\u672a\u5b8c\u6210\uff1b\u5df2\u4fdd\u7559\u6062\u590d\u8bb0\u5f55\uff0c\u8bf7\u52ff\u91cd\u590d\u63d0\u4ea4\u3002') from exc
                         return dict(saved=True,applied=True,target_host=host,checked_apply=True,
                             note="配置已应用，已通过原设备身份和运行状态核验。")
                     else:evidence.emit("verify","retry",evidence.runtime_reason or "verification_false")
+                except StaticMigrationError:
+                    raise
                 except ApplyConflict:
                     # Do not manually restore a snapshot over an external edit.
                     preserve_concurrent=True
+                    if local_migration:local_migration.confirming()
                     try:channel.call("checked_confirm",sid=sid,timeout=8)
                     except Exception as exc:
                         raise ApplyUncertain("\u914d\u7f6e\u88ab\u5176\u4ed6\u5de5\u5177\u4fee\u6539\uff0c\u4e14\u4fdd\u7559\u7ed3\u679c\u672a\u786e\u8ba4\u3002\u5df2\u505c\u6b62\u540e\u7eed\u64cd\u4f5c\uff0c\u8bf7\u52ff\u65ad\u7535\uff0c\u91cd\u65b0\u767b\u5f55\u6838\u5bf9\u3002") from exc
                     confirmed=True
                     raise
                 except Exception as exc:
+                    if confirmed:raise
                     if not connection_error(exc):retry_blocked=True
                     evidence.emit(evidence.signature[0] if evidence.signature else "connect","retry",error=exc)
                     channel.ssh.close()
@@ -214,6 +251,7 @@ def _run_checked(channel, stage, verify, cancel, *, candidates, original_host, p
                             channel.connect(host,min(4,max(.1,recovery_deadline-time.monotonic())))
                             result=channel.call("checked_rollback",sid=sid,hashes=baseline,timeout=5)
                             if result.get("restored") is True and (restore_verify is None or restore_verify(channel)):
+                                if local_migration:local_migration.router_restored()
                                 evidence.restored=True
                                 evidence.emit("restore_verify","progress","restored")
                                 restored=True;break

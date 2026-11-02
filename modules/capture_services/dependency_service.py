@@ -241,6 +241,12 @@ class OpenWrtDependencyService(QObject):
                         checked=(DependencyInfo(items[0],label,DependencyState.UNKNOWN,detail=str(probe_error)),)
             if not self._same_connection(binding):
                 return dict(checked=(),error=(error+"；" if error else "")+"连接已断开或变化，任务已停止。已安装部分需重新登录后核对。",diagnostic_path=diagnostic_path)
+            if group == "capture" and selection is not None:
+                # Omitted feature flags produce synthetic DISABLED rows. Publish
+                # only selected or explicitly supplied feature states; full-scope
+                # callers still refresh shared dependencies and explicit opt-outs.
+                checked = tuple(item for item in checked if item.key not in CAPTURE_KEYS
+                                or item.key in refresh_features or item.key in selection)
             if group=="terminal":
                 checked=tuple(item for item in checked if item.key=="terminal")
                 if not checked:error=error or "Terminal dependency check returned no result."

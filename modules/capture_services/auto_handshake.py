@@ -24,7 +24,7 @@ class AutoHandshakeRequest:
     output_dir: str
     auto_open_dir: bool
     keep_raw_capture: bool
-    generate_22000: bool
+    generate_cap: bool
     mask_ssid: bool
     mask_bssid: bool
     parallel_radios: bool = False
@@ -67,8 +67,8 @@ class AutoHandshakeRequest:
             tuple(selected.values()), frozenset(completed), band, scan, capture, refresh,
             str(settings.get("resolved_output_dir") or ""),
             bool(settings.get("auto_open_dir", True)),
-            bool(settings.get("keep_raw_capture", True)),
-            bool(settings.get("generate_22000", True)),
+            True,
+            True,
             bool(settings.get("mask_ssid_column", False)),
             bool(settings.get("mask_bssid_column", False)),
             settings.get("auto_parallel_radios") is True,
@@ -84,8 +84,8 @@ class AutoHandshakeRequest:
             "refresh_seconds": self.refresh_seconds,
             "resolved_output_dir": self.output_dir,
             "auto_open_dir": self.auto_open_dir,
-            "keep_raw_capture": self.keep_raw_capture,
-            "generate_22000": self.generate_22000,
+            "keep_raw_capture": True,
+            "generate_cap": True,
             "mask_ssid_column": self.mask_ssid,
             "mask_bssid_column": self.mask_bssid,
             "idle_radio_only": True,

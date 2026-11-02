@@ -1,5 +1,5 @@
 """Reusable configuration fields with explicit preservation and bounded lists."""
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QLineEdit, QVBoxLayout, QWidget
 from modules.ui_scale_manager import UiScaleManager
 from modules.common_widgets.icon_button import create_themed_icon_button
@@ -45,11 +45,16 @@ class ConfigCheckBox(QCheckBox):
 class ConfigValueList(QWidget):
     """Editable rows with add/remove buttons, bounded independently of input."""
 
+    validationChanged = Signal(str)
+
     MAX_ENTRIES = 512
 
     def __init__(self, parent=None, *, placeholder=""):
         super().__init__(parent)
         self._rows = []
+        self._validator = None
+        self._required = False
+        self._validation_message = ""
         self._placeholder = placeholder
         self._layout = QVBoxLayout(self)
         scale = UiScaleManager.for_widget(self)
@@ -70,6 +75,7 @@ class ConfigValueList(QWidget):
         scale.bind_layout(layout, margins=(0, 0, 0, 0), spacing=4)
         edit = QLineEdit(str(value), row)
         edit.setPlaceholderText(self._placeholder)
+        edit.textChanged.connect(lambda _text: self.validate())
         remove = create_themed_icon_button(row, ":/icons/images/icons/cil-minus.png", "删除此项")
         remove.setAccessibleName("删除此项")
         scale.bind_metrics(remove, fixed_size=(30, 30), icon_size=16)
@@ -88,6 +94,7 @@ class ConfigValueList(QWidget):
         if not self._rows:
             self.add_value()
         self.add_button.setEnabled(len(self._rows) < self.MAX_ENTRIES)
+        self.validate()
 
     def set_values(self, values):
         values = list(values)
@@ -100,6 +107,40 @@ class ConfigValueList(QWidget):
         self._rows.clear()
         for value in values or [""]:
             self.add_value(value)
+        self.validate()
+
+    def set_item_validator(self, validator):
+        """An optional validator returns an error message or an empty string."""
+        self._validator = validator
+
+    def validate(self, *, required=None):
+        if self._validator is None:
+            return True
+        from .input_validation import set_input_error
+        if required is not None:
+            self._required = bool(required)
+        empty = not any(edit.text().strip() for _, edit in self._rows)
+        message = ""
+        for index, (_, edit) in enumerate(self._rows):
+            text = edit.text().strip()
+            error = self._validator(text) if text or (self._required and empty and index == 0) else ""
+            set_input_error(edit, bool(error))
+            if error and not message:
+                message = error
+        if message != self._validation_message:
+            self._validation_message = message
+            self.validationChanged.emit(message)
+        return not message
+
+    @property
+    def validation_message(self):
+        return self._validation_message
+
+    def focus_first_error(self):
+        for _, edit in self._rows:
+            if edit.property("inputError"):
+                edit.setFocus(Qt.OtherFocusReason)
+                return
 
     def values(self):
         return [value for _, edit in self._rows for value in edit.text().split()]

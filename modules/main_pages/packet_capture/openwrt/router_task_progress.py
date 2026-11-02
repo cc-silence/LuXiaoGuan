@@ -35,13 +35,13 @@ class RouterTaskProgressDialog(TaskProgressDialog):
                 self.content_layout.addWidget(self._network_panel)
             self._network_panel.update_payload(value["network_recovery"])
         if value.get("stage"):self.phase=str(value["stage"])
-        if value.get("uncancellable"):
-            self._allow_cancel=False
-            self.cancel_button.setEnabled(False)
-            self.cancel_button.setText("\u8bf7\u7b49\u5f85\u5b8c\u6210")
+        if "uncancellable" in value:
+            self._allow_cancel=not bool(value["uncancellable"])
+            self.cancel_button.setEnabled(self._allow_cancel and not self.cancelling)
+            self.cancel_button.setText("\u53d6\u6d88" if self._allow_cancel else "\u8bf7\u7b49\u5f85\u5b8c\u6210")
         if value.get("configuration_apply"):
             self._deadline=value.get("deadline")
-            self.path_label.setText("\u6b63\u5728\u4fee\u6539\u8def\u7531\u5668\u914d\u7f6e\uff0c\u8bf7\u52ff\u65ad\u7535\u3002\u5b8c\u6210\u540e\u4f1a\u81ea\u52a8\u7ed3\u675f\u7b49\u5f85\u3002")
+            self.path_label.setText('\u6b63\u5728\u51c6\u5907\u7535\u8111\u7f51\u7edc\uff0c\u5c1a\u672a\u5e94\u7528\u8def\u7531\u5668\u914d\u7f6e\uff1b\u53ef\u53d6\u6d88\u5e76\u7b49\u5f85\u6062\u590d\u5b8c\u6210\u3002' if value.get('preparing_local') else '\u6b63\u5728\u4fee\u6539\u8def\u7531\u5668\u914d\u7f6e\uff0c\u8bf7\u52ff\u65ad\u7535\u3002\u5b8c\u6210\u540e\u4f1a\u81ea\u52a8\u7ed3\u675f\u7b49\u5f85\u3002')
             self.path_label.show()
             self._show_remaining()
             if self._deadline is not None and self._deadline>time.monotonic():self._clock.start()
@@ -51,6 +51,7 @@ class RouterTaskProgressDialog(TaskProgressDialog):
         else:super().update_stage(self.phase)
 
     def _show_remaining(self):
+        if self.cancelling:return
         if not self.running:
             self._clock.stop()
             return

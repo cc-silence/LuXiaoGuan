@@ -260,6 +260,9 @@ class RouterSignalPage(QWidget):
                 )
 
     def _confirm_inventory_action(self, dialog, inventory):
+        connection = getattr(self.service, "_current_status_connection", None)
+        identity = connection() if connection is not None else None
+        generation = getattr(self.service, "_inventory_generation", inventory)
         try:
             accepted = dialog.exec() == ConfirmDialog.Accepted
         finally:
@@ -267,7 +270,13 @@ class RouterSignalPage(QWidget):
         if not accepted:
             return False
         state = self.service.snapshot
-        if state.inventory is inventory and state.connected and not state.busy and not state.stale:
+        # Runtime observations replace the inventory object without changing its
+        # saved configuration. Validate the revision and connection separately.
+        from modules.capture_services.openwrt.signal_models import same_signal_configuration
+        same_generation = getattr(self.service, "_inventory_generation", state.inventory) is generation
+        same_config = same_generation and same_signal_configuration(inventory, state.inventory)
+        same_connection = connection is None or (identity is not None and connection() is identity)
+        if same_config and same_connection and state.connected and not state.busy and not state.stale:
             return True
         self._show_status_notice("列表或连接已变化，请刷新后重新操作。")
         return False

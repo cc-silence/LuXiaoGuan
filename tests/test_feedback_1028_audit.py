@@ -70,7 +70,7 @@ class AddressReadbackTests(unittest.TestCase):
 class WindowsLeaseContractTests(unittest.TestCase):
     def test_actual_powershell_flow_with_fake_cim_never_calls_real_adapter(self):
         from modules.platform_services import lan_network_windows as windows
-        for released,renewed,expected,renew_called in ((0,0,0,True),(1,0,15,True),(0,1,15,True),(91,0,1091,False),(64,0,1064,False),(83,0,1083,False)):
+        for released,renewed,expected,renew_called in ((0,0,0,True),(1,0,15,True),(0,1,15,True),(91,0,1091,False),(64,0,1064,False),(83,0,0,True)):
             with self.subTest(released=released,renewed=renewed):
                 with patch.object(windows.subprocess,'run',return_value=Mock(returncode=0)) as run:
                     windows.renew(adapter(),30,lambda:True)

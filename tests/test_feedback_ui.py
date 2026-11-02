@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace as NS
 import unittest
 from unittest.mock import Mock, patch
-from PySide6.QtCore import QObject, Signal, QPoint
+from PySide6.QtCore import QObject, Signal, QPoint, Qt
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from tests import test_standalone as standalone
 APP = standalone.APP
@@ -91,7 +91,8 @@ class WindowFeedbackTests(unittest.TestCase):
                 window.window_frame.hide();APP.processEvents()
                 image=window.grab().toImage();point=window.window_frame.geometry().center()
                 self.assertEqual(image.pixelColor(point).alpha(),255,(scale,theme))
-                self.assertEqual(image.pixelColor(0,0).alpha(),0,(scale,theme))
+                self.assertFalse(window.mask().contains(window.rect().topLeft()), (scale, theme))
+                self.assertFalse(window.testAttribute(Qt.WA_TranslucentBackground), (scale, theme))
                 window.window_frame.show();APP.processEvents()
         window.apply_appearance(100,"default","light.qss");APP.processEvents()
         window.grab().save(str(Path(__file__).parent/"feedback-light.png"))

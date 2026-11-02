@@ -50,7 +50,7 @@ class PacketCapturePage(QFrame):
             saved_font_delta,
             "抓包环境、设备探测和任务信息会显示在这里。",
             "抓包功能架构已建立。\n\n"
-            "OpenWrt 模式将通过 SSH 控制已授权设备，抓包结果保存为 PCAPNG，并生成 22000。\n"
+            "OpenWrt 模式将通过 SSH 控制已授权设备，抓包结果保留原始包，并自动生成 CAP。\n"
             "主动断连默认开启，启动定向任务时会如实说明本次行为。",
         )
         self.settings_info_panel = self._create_info_panel(
@@ -709,10 +709,10 @@ class PacketCapturePage(QFrame):
             return
         dictionary = dictionary_paths(settings)
         if not dictionary or any(not Path(path).is_file() for path in dictionary):
-            message = "密码字典不存在，请先在“设置 → 猜密码设置”中选择字典文件。"
+            message = "密码字典不存在，请先在“抓包设置 → 猜密码设置”中选择字典文件。"
             self.info_panel.append_info(message, "warning")
             MessageDialog("请选择字典", message, self).exec()
-            self.openwrt_tab.tabs.setCurrentWidget(self.openwrt_tab.settings_page)
+            self.openwrt_tab.show_capture_settings()
             return
         names = [
             point.ssid or point.bssid

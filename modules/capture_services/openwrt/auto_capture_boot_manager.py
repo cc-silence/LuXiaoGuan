@@ -370,7 +370,7 @@ class AutoCaptureBootManager:
         if res.timed_out or res.exit_code != 0:
             raise RuntimeError(f"收尾抓包失败: {res.stderr or res.stdout}")
 
-    def pull_offline_artifacts(self, local_dest_dir: str, cancel_event=None) -> list[str]:
+    def pull_offline_artifacts(self, local_dest_dir: str, cancel_event=None, *, stable_captures=None) -> list[str]:
         """通过 SFTP 从 /root/cap/ 拉取所有 .pcapng 原始包与日志到本地 PC。"""
         local_path = Path(local_dest_dir)
         local_path.mkdir(parents=True, exist_ok=True)
@@ -395,27 +395,38 @@ class AutoCaptureBootManager:
         pulled_files = []
         with self.ssh.transfer(cancel_event, timeout=300):
             sftp = self.ssh.open_sftp(timeout=15, cancel_event=cancel_event)
-            sftp.get_channel().settimeout(15)
-            for fname in target_files:
-                if cancel_event is not None and cancel_event.is_set():
-                    raise InterruptedError("拉取文件已取消。")
-                remote_file = posixpath.join(REMOTE_CAP_DIR, fname)
-                dest_file = local_path / fname
-                temp_file = local_path / f"{fname}.part"
-                try:
-                    sftp.get(remote_file, str(temp_file))
-                    if temp_file.exists():
-                        if dest_file.exists():
-                            dest_file.unlink()
-                        temp_file.rename(dest_file)
-                        pulled_files.append(str(dest_file))
-                except Exception as exc:
-                    LOGGER.warning("Pull file %s failed: %s", fname, exc)
-                    if temp_file.exists():
-                        try:
-                            temp_file.unlink()
-                        except Exception:
-                            pass
+            try:
+                sftp.get_channel().settimeout(15)
+                for fname in target_files:
+                    if cancel_event is not None and cancel_event.is_set():
+                        raise InterruptedError("拉取文件已取消。")
+                    if Path(fname).name != fname or any(char in fname for char in ("/", "\\", ":")):
+                        continue
+                    from .result_converter import unique_result_path
+                    from uuid import uuid4
+                    remote_file = posixpath.join(REMOTE_CAP_DIR, fname)
+                    dest_file = unique_result_path(local_path, Path(fname).stem, Path(fname).suffix)
+                    temp_file = dest_file.with_name(dest_file.name + "." + uuid4().hex + ".part")
+                    try:
+                        before = sftp.stat(remote_file)
+                        sftp.get(remote_file, str(temp_file))
+                        after = sftp.stat(remote_file)
+                        if temp_file.exists():
+                            stable = before.st_size == after.st_size == temp_file.stat().st_size
+                            stable = stable and getattr(before, "st_mtime", None) == getattr(after, "st_mtime", None)
+                            temp_file.rename(dest_file)
+                            pulled_files.append(str(dest_file))
+                            if stable and stable_captures is not None:
+                                stable_captures.add(str(dest_file))
+                    except Exception as exc:
+                        LOGGER.warning("Pull file %s failed: %s", fname, exc)
+                        if temp_file.exists():
+                            try:
+                                temp_file.unlink()
+                            except Exception:
+                                pass
+            finally:
+                sftp.close()
         return pulled_files
 
 

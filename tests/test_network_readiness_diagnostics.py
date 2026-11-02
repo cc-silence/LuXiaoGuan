@@ -49,7 +49,7 @@ class NetworkReadinessTests(unittest.TestCase):
 
     def test_permission_denied_and_cancellation_do_not_wait_or_report_success(self):
         result,_,execute,inspect,_=self.run_case([],PermissionError('secret'))
-        self.assertIsInstance(result,PermissionError);inspect.assert_not_called()
+        self.assertIsInstance(result,PermissionError);inspect.assert_called_once()
         result,_,_,inspect,_=self.run_case([],permit=lambda:False)
         self.assertIsInstance(result,InterruptedError);inspect.assert_not_called()
 
@@ -208,7 +208,7 @@ class PowerShellNativeCodeTests(unittest.TestCase):
         with patch.object(windows.subprocess,'run',return_value=NS(returncode=0)) as mocked:
             windows.renew(adapter(),20,lambda:True)
         script=base64.b64decode(mocked.call_args.args[0][-1]).decode('utf-16-le')
-        for release,renew,expected in ((0,0,0),(83,0,1083),(0,82,2082),(91,0,1091),(0,64,2064)):
+        for release,renew,expected in ((0,0,0),(83,0,0),(0,82,2082),(91,0,1091),(0,64,2064)):
             with self.subTest(release=release,renew=renew):
                 prefix="function Get-CimInstance { [pscustomobject]@{DHCPEnabled=$true;InterfaceIndex=14;MACAddress='00:50:56:2B:29:2D'} };"
                 prefix+="function Invoke-CimMethod { param($InputObject,$MethodName) if($MethodName -eq 'ReleaseDHCPLease') { [pscustomobject]@{ReturnValue="+str(release)+"} } else { [pscustomobject]@{ReturnValue="+str(renew)+"} } };"

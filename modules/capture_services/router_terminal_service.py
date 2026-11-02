@@ -4,19 +4,19 @@ from threading import Event, Condition
 import socket
 import base64
 from PySide6.QtCore import QObject, QThread, Signal, Slot
-from .capture_logging import LOGGER
 
 
 class TerminalWorker(QThread):
     output = Signal(str)
     status = Signal(str)
     detail = Signal(str)
-    historyDiagnostic = Signal(str)
+    clearFinished = Signal(bool, str)
     def __init__(self,ssh,connection,parent=None,runner=None):
         super().__init__(parent)
         self.ssh,self.connection=ssh,connection
         self.runner=runner
         self.cancel=Event()
+        self.clear_requested=Event()
         self.condition=Condition()
         self.commands=deque()
         self.queued_bytes=0
@@ -44,7 +44,6 @@ class TerminalWorker(QThread):
 
     def run(self):
         channel=None
-        history=b""
         persistent=False
         # 失败时用 stage 说明卡在哪一步，界面才能给可读原因，而不是笼统一句“连接失败”。
         stage="准备终端"
@@ -66,14 +65,12 @@ class TerminalWorker(QThread):
                 if self.ssh._client is not self.connection or not self.ssh.connected:
                     raise ConnectionError()
                 if persistent:
-                    stage="读取终端历史"
-                    history=self._read_history()
                     if self.cancel.is_set():return
                     if self.ssh._client is not self.connection or not self.ssh.connected:
                         raise ConnectionError()
                     stage="打开终端通道"
                     channel=self.ssh.open_terminal(self.connection,self.cancel,
-                        command='exec tmux -u -L winbox -f /dev/null new-session -A -s winbox-terminal')
+                        command='exec tmux -u -L winbox -f /dev/null new-session -A -s winbox-terminal \\; set-option -t winbox-terminal mouse on')
                 else:
                     stage="打开终端通道"
                     channel=self.ssh.open_terminal(self.connection,self.cancel)
@@ -84,11 +81,6 @@ class TerminalWorker(QThread):
             channel.settimeout(0.2)
             stage="读取终端输出"
             self.status.emit("connected")
-            if history:
-                for offset in range(0,len(history),32768):
-                    chunk=history[offset:offset+32768]
-                    self.unacknowledged+=len(chunk)
-                    self.output.emit(base64.b64encode(chunk).decode('ascii'))
             previous=None
             while not self.cancel.is_set():
                 if self.ssh._client is not self.connection or not self.ssh.connected:
@@ -96,6 +88,9 @@ class TerminalWorker(QThread):
                 with self.condition:
                     dimensions=self.dimensions
                     pending=tuple(self.commands);self.commands.clear();self.queued_bytes=0
+                if self.clear_requested.is_set():
+                    self.clear_requested.clear()
+                    self._clear_persistent_screen()
                 if dimensions!=previous:
                     channel.resize_pty(width=dimensions[0],height=dimensions[1])
                     previous=dimensions
@@ -125,35 +120,32 @@ class TerminalWorker(QThread):
                 try:channel.close()
                 except Exception:self.status.emit("close_failed")
 
-    def _read_history(self):
-        """历史回放可选；读取失败不阻断会话连接，不记录终端内容。"""
+    def _clear_persistent_screen(self):
+        """Clear tmux state through its control channel, never through shell input."""
         from .openwrt.command_runner import require_command_completion
-        result=None
         try:
-            result=self.runner.run('terminal_history',
-                'wb_history=$(tmux -L winbox capture-pane -p -S -2000 -E -1 -t winbox-terminal:0.0) || exit $?; printf \'%s\\n\' "$wb_history" | tail -c 262144 | base64',
-                timeout=10,cancel_event=self.cancel,output_limit=360448)
+            if self.cancel.is_set() or self.ssh._client is not self.connection or not self.ssh.connected:
+                raise ConnectionError()
+            result=self.runner.run('terminal_clear',
+                "wb_pane=$(tmux -L winbox display-message -p -t '=winbox-terminal:' '#{pane_id}') || exit $?; "
+                'case "$wb_pane" in %*) wb_index=${wb_pane#%};; *) exit 45;; esac; '
+                'case "$wb_index" in \'\'|*[!0-9]*) exit 45;; esac; '
+                'tmux -L winbox if-shell -F -t "$wb_pane" \'#{pane_in_mode}\' '
+                '"send-keys -X -t $wb_pane cancel" && '
+                'tmux -L winbox send-keys -R -t "$wb_pane" && '
+                'tmux -L winbox clear-history -t "$wb_pane"',
+                timeout=10,cancel_event=self.cancel)
             require_command_completion(result)
-            if result.exit_code!=0:
-                raise RuntimeError('Terminal history could not be read.')
-            data=base64.b64decode(''.join(result.stdout.split()),validate=True)[:262144]
-            return data.decode('utf-8',errors='ignore').encode('utf-8')
-        except Exception as exc:
-            if self.cancel.is_set() or (result is not None and result.cancelled):
-                raise InterruptedError('Terminal history cancelled.') from exc
+            if self.cancel.is_set():
+                raise InterruptedError('Terminal screen clear cancelled')
             if self.ssh._client is not self.connection or not self.ssh.connected:
-                raise ConnectionError() from exc
-            # 只收集该固定命令的错误输出，不记录历史正文或任意异常正文。
-            error=' '.join(str(getattr(result,'stderr','') or '').split())[:2048]
-            reason=(f"历史回放已跳过，继续连接终端；异常类型：{type(exc).__name__}；"
-                    f"退出码：{getattr(result,'exit_code',None)}；"
-                    f"是否超时：{getattr(result,'timed_out',False)}；"
-                    f"错误输出：{error or '无'}")
-            self.historyDiagnostic.emit(reason)
-            LOGGER.warning('Terminal history replay skipped type=%s exit_code=%s timed_out=%s',
-                           type(exc).__name__,getattr(result,'exit_code',None),
-                           getattr(result,'timed_out',False))
-            return b''
+                raise ConnectionError()
+            if result.exit_code!=0:
+                raise RuntimeError('Terminal screen clear failed')
+        except Exception as exc:
+            self.clearFinished.emit(False,type(exc).__name__)
+        else:
+            self.clearFinished.emit(True,'')
 
     @staticmethod
     def _failure_reason(stage,exc):
@@ -174,15 +166,18 @@ class RouterTerminalService(QObject):
     statusChanged=Signal(str)
     activityChanged=Signal()
     failureDetail=Signal(str)
+    clearFinished=Signal(bool,str)
+    displayReset=Signal()
     def __init__(self,owner):
         super().__init__(owner)
         self.owner=owner
         self.ssh=owner.openwrt_backend.ssh_client
         self.worker=None
+        self.clear_pending=False
+        self._clear_display_on_stop=False
         self.state="idle"
         self.session_mode="unknown"
         self.failure_reason=""
-        self.history_diagnostic=""
         owner.openwrtSnapshotChanged.connect(self._connection_changed)
 
     @property
@@ -195,11 +190,10 @@ class RouterTerminalService(QObject):
         self.worker=worker
         self.session_mode="unknown"
         self.failure_reason=""
-        self.history_diagnostic=""
         worker.output.connect(self.output)
         worker.status.connect(self._status)
         worker.detail.connect(self._detail)
-        worker.historyDiagnostic.connect(self._history_diagnostic)
+        worker.clearFinished.connect(self._clear_finished)
         worker.finished.connect(self._finished)
         self._set_state("connecting")
         self.activityChanged.emit()
@@ -225,13 +219,6 @@ class RouterTerminalService(QObject):
         self.failure_reason=str(reason or "")
         self.failureDetail.emit(self.failure_reason)
         self._persist_diagnostic(self.failure_reason)
-
-    @Slot(str)
-    def _history_diagnostic(self,reason):
-        """保存本次历史回放的有界诊断，供页面重建后导出。"""
-        if self.sender() is self.worker:
-            self.history_diagnostic=reason
-            self._persist_diagnostic(reason)
 
     def _persist_diagnostic(self, text):
         from modules.log_history import current_history
@@ -269,14 +256,32 @@ class RouterTerminalService(QObject):
             return False
         return True
 
+    def clear_screen(self):
+        if self.clear_pending:
+            return False
+        if self.state=='connected' and self.session_mode=='persistent' and self.worker:
+            self.clear_pending=True
+            self.worker.clear_requested.set()
+        else:
+            self.clearFinished.emit(True,'')
+        return True
+
+    @Slot(bool,str)
+    def _clear_finished(self,success,reason):
+        if self.sender() is not self.worker:
+            return
+        self.clear_pending=False
+        self.clearFinished.emit(success,reason)
+
     def resize(self,cols,rows):
         if self.worker:self.worker.resize(max(2,min(cols,500)),max(2,min(rows,200)))
 
     def acknowledge(self,count):
         if self.worker:self.worker.acknowledge(max(0,min(count,32768)))
 
-    def stop(self):
+    def stop(self,*,clear_display=False):
         if self.worker:
+            self._clear_display_on_stop=self._clear_display_on_stop or clear_display
             self._set_state("stopping")
             self.worker.stop()
 
@@ -284,9 +289,15 @@ class RouterTerminalService(QObject):
     def _finished(self):
         worker=self.worker
         self.worker=None
+        if self.clear_pending:
+            self.clear_pending=False
+            self.clearFinished.emit(False,'Disconnected')
         if self.state in {"connecting","connected","stopping"}:self._set_state("closed")
         else:self._set_state(self.state)
         if worker:worker.deleteLater()
+        if self._clear_display_on_stop:
+            self._clear_display_on_stop=False
+            self.displayReset.emit()
         self.activityChanged.emit()
 
     @Slot(object)
