@@ -57,12 +57,16 @@ esac
         runner=Mock()
         def run(name,*args,**kwargs):
             if name=='find_hcx_bin':return RemoteCommandResult(name,0,'/usr/sbin/hcxdumptool')
+            if name=='radio_usage':return RemoteCommandResult(name,0,'__RM_USAGE_BEGIN__\nP|phy7\n__RM_USAGE_END__\n')
             if name=='sweep_stale':return RemoteCommandResult(name,44,'','permission denied')
             return RemoteCommandResult(name,0)
         runner.run.side_effect=run
         service=Mock()
         session=AutoCaptureRadioSession(OpenWrtRadioInfo(name='radio1',interface='phy7'),runner,Mock(),Path('.'),service)
         with patch('modules.capture_services.openwrt.auto_capture_service.OpenWrtRadioTakeover') as takeover:
+            takeover.return_value.snapshot_wireless.return_value=(
+                "wireless.radio1=wifi-device\nwireless.radio1.band='5g'\nwireless.radio1.disabled='1'\n"
+                '__ROUTERMANAGER_RADIO_IDENTITY__{"phys":["phy7"],"inventory_complete":true,"radios":{"radio1":"phy7"}}\n')
             takeover.return_value.resolve_phy.return_value=('phy7',())
             session._run_capture_pipeline('',False)
         self.assertEqual(session.stats.state,'error')
