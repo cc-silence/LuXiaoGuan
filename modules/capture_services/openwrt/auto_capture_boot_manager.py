@@ -46,11 +46,17 @@ boot() {
 }
 
 start() {
-    if [ ! -f /root/hcx_autocap.sh ]; then
-        logger -t luxiaoguan-autocap "Error: /root/hcx_autocap.sh not found"
+    SCRIPT=""
+    if [ -f /root/hcx_autocap.sh ]; then
+        SCRIPT="/root/hcx_autocap.sh"
+    elif [ -f /root/autocap.sh ]; then
+        SCRIPT="/root/autocap.sh"
+    fi
+    if [ -z "$SCRIPT" ]; then
+        logger -t luxiaoguan-autocap "Error: capture script not found (/root/hcx_autocap.sh or /root/autocap.sh)"
         return 1
     fi
-    chmod +x /root/hcx_autocap.sh
+    chmod +x "$SCRIPT"
     export PATH="/root/.winbox-tools/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 
     LOCK="/tmp/.hcx_autocap.lock"
@@ -63,13 +69,13 @@ start() {
     fi
 
     # 以后台静默方式启动，脱离控制终端防止 SIGHUP 导致进程随启动脚本退出
-    # VIEW=off 避免输出 ANSI 帧灌满重定向或会话文件
+    # VIEW=off 避免输出 ANSI 帧灌满重定向或会话文件；重定向 </dev/null 彻底脱离 SSH 会话输入
     if [ -x /usr/bin/nohup ]; then
-        VIEW=off nohup /bin/sh /root/hcx_autocap.sh >/dev/null 2>&1 &
+        VIEW=off nohup /bin/sh "$SCRIPT" </dev/null >/dev/null 2>&1 &
     else
-        ( trap '' HUP; VIEW=off /bin/sh /root/hcx_autocap.sh >/dev/null 2>&1 ) &
+        ( trap '' HUP; VIEW=off /bin/sh "$SCRIPT" </dev/null >/dev/null 2>&1 ) &
     fi
-    logger -t luxiaoguan-autocap "Started /root/hcx_autocap.sh in background"
+    logger -t luxiaoguan-autocap "Started $SCRIPT in background"
 }
 
 stop() {
@@ -294,6 +300,7 @@ class AutoCaptureBootManager:
     def start_script(self, cancel_event=None) -> None:
         """手动启动后台抓包脚本。优先使用系统服务启动；若服务尚未注册但脚本存在，直接脱离控制终端拉起。"""
         cmd = (
+            f"chmod +x /etc/init.d/{SERVICE_NAME} 2>/dev/null; "
             f"if [ -x /etc/init.d/{SERVICE_NAME} ]; then "
             f"  /etc/init.d/{SERVICE_NAME} start; "
             "else "
@@ -311,9 +318,9 @@ class AutoCaptureBootManager:
             "    if [ -n \"$PID\" ] && kill -0 \"$PID\" 2>/dev/null; then exit 0; fi; "
             "  fi; "
             "  if [ -x /usr/bin/nohup ]; then "
-            "    VIEW=off nohup /bin/sh \"$SCRIPT\" >/dev/null 2>&1 & "
+            "    VIEW=off nohup /bin/sh \"$SCRIPT\" </dev/null >/dev/null 2>&1 & "
             "  else "
-            "    ( trap '' HUP; VIEW=off /bin/sh \"$SCRIPT\" >/dev/null 2>&1 ) & "
+            "    ( trap '' HUP; VIEW=off /bin/sh \"$SCRIPT\" </dev/null >/dev/null 2>&1 ) & "
             "  fi; "
             "fi"
         )

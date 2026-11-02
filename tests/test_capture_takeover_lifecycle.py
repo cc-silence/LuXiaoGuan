@@ -167,3 +167,230 @@ class TakeoverLifecycleTests(unittest.TestCase):
         command=runner.run.call_args.args[1]
         self.assertIn('kill -0 "$p"',command)
         self.assertNotIn('kill -TERM',command)
+
+
+    def test_concurrent_prepare_takeovers_are_serialized(self):
+        import threading
+        import time
+        active_sections = []
+        max_concurrent = [0]
+        lock = threading.Lock()
+
+        def slow_prepare_config(phy, radio, sid, cancel):
+            with lock:
+                active_sections.append(radio)
+                if len(active_sections) > max_concurrent[0]:
+                    max_concurrent[0] = len(active_sections)
+            time.sleep(0.05)
+            with lock:
+                active_sections.remove(radio)
+            return RadioTakeoverRecord(sid, radio, phy, ('business',), 'token_' + radio)
+
+        ws1 = CaptureWorkspace('1'*32, self.root/('1'*32), PurePosixPath('/tmp/owned1'))
+        ws2 = CaptureWorkspace('2'*32, self.root/('2'*32), PurePosixPath('/tmp/owned2'))
+
+        t1_takeover = OpenWrtRadioTakeover(Mock())
+        t1_takeover.snapshot_wireless = Mock(return_value="wireless.home.key='secret'\n")
+        t1_takeover.resolve_radio = Mock(return_value='radio0')
+        t1_takeover.prepare_config_takeover = Mock(side_effect=slow_prepare_config)
+        t1_takeover.takeover_prepared = Mock()
+
+        t2_takeover = OpenWrtRadioTakeover(Mock())
+        t2_takeover.snapshot_wireless = Mock(return_value="wireless.home.key='secret'\n")
+        t2_takeover.resolve_radio = Mock(return_value='radio1')
+        t2_takeover.prepare_config_takeover = Mock(side_effect=slow_prepare_config)
+        t2_takeover.takeover_prepared = Mock()
+
+        res = [None, None]
+        errors = []
+
+        def run1():
+            try:
+                res[0] = prepare_takeover(t1_takeover, self.ssh, ws1, ws1.session_id, 'phy0', Event(), self.notify, expected_radio='radio0')
+            except Exception as e:
+                errors.append(e)
+
+        def run2():
+            try:
+                res[1] = prepare_takeover(t2_takeover, self.ssh, ws2, ws2.session_id, 'phy1', Event(), self.notify, expected_radio='radio1')
+            except Exception as e:
+                errors.append(e)
+
+        th1 = threading.Thread(target=run1)
+        th2 = threading.Thread(target=run2)
+        th1.start(); th2.start()
+        th1.join(); th2.join()
+
+        self.assertEqual(errors, [])
+        self.assertEqual(max_concurrent[0], 1)
+        self.assertEqual(res[0].radio, 'radio0')
+        self.assertEqual(res[1].radio, 'radio1')
+
+    def test_takeover_transaction_cancels_cleanly(self):
+        from modules.capture_services.openwrt.capture_takeover import takeover_transaction, _TAKEOVER_MUTEX
+        import threading
+        cancel = Event()
+        error = []
+
+        with _TAKEOVER_MUTEX:
+            cancel.set()
+            def worker():
+                try:
+                    with takeover_transaction(cancel):
+                        pass
+                except Exception as e:
+                    error.append(e)
+            th = threading.Thread(target=worker)
+            th.start()
+            th.join()
+
+        self.assertEqual(len(error), 1)
+        self.assertIn("操作已取消", str(error[0]))
+
+    def test_takeover_lua_scopes_to_target_radio(self):
+        from modules.capture_services.openwrt.takeover_config import TAKEOVER_LUA
+        self.assertIn("local function radio_sections(sections, target_radio)", TAKEOVER_LUA)
+        self.assertIn("local current_radio = radio_sections(current, request.radio)", TAKEOVER_LUA)
+        self.assertIn("local original_radio = radio_sections(original, request.radio)", TAKEOVER_LUA)
+        self.assertIn("local expected_radio = radio_sections(expected, request.radio)", TAKEOVER_LUA)
+        self.assertIn("if not same(current_radio, original_radio) and not same(current_radio, expected_radio) then fail(\"changed\") end", TAKEOVER_LUA)
+        self.assertIn("if not same(current_radio, desired_radio) then", TAKEOVER_LUA)
+        self.assertIn("if not same(radio_sections(all(isolated), request.radio), desired_radio) then fail(\"changed\") end", TAKEOVER_LUA)
+        self.assertIn("if not same(radio_sections(all(cursor()), request.radio), desired_radio) then fail(\"unconfirmed\") end", TAKEOVER_LUA)
+
+    def test_concurrent_restore_takeovers_are_serialized_with_notify(self):
+        import threading
+        import time
+        timeline = []
+        lock = threading.Lock()
+
+        ws1 = CaptureWorkspace('3'*32, self.root/('3'*32), PurePosixPath('/tmp/owned3'))
+        ws2 = CaptureWorkspace('4'*32, self.root/('4'*32), PurePosixPath('/tmp/owned4'))
+        ws1.local_dir.mkdir(parents=True, exist_ok=True)
+        ws2.local_dir.mkdir(parents=True, exist_ok=True)
+
+        j1 = SessionJournal('3'*32, 'auto_capture', '/tmp/owned3', [], '', 'snap', 'takeover:radio0', 'radio0', ('phy0-ap0',), 'phy0', 'tok1', 'device-A')
+        j2 = SessionJournal('4'*32, 'auto_capture', '/tmp/owned4', [], '', 'snap', 'takeover:radio1', 'radio1', ('phy1-ap0',), 'phy1', 'tok2', 'device-A')
+        (ws1.local_dir / 'takeover-journal.json').write_text(json.dumps(j1.to_dict()), encoding='utf-8')
+        (ws2.local_dir / 'takeover-journal.json').write_text(json.dumps(j2.to_dict()), encoding='utf-8')
+
+        r1 = RadioTakeoverRecord('3'*32, 'radio0', 'phy0', ('phy0-ap0',), 'tok1')
+        r2 = RadioTakeoverRecord('4'*32, 'radio1', 'phy1', ('phy1-ap0',), 'tok2')
+
+        t1 = OpenWrtRadioTakeover(Mock())
+        def slow_restore1(record, cancel_event=None):
+            with lock: timeline.append(('restore_start', record.radio))
+            time.sleep(0.04)
+            with lock: timeline.append(('restore_end', record.radio))
+            return True
+        t1.restore = Mock(side_effect=slow_restore1)
+        t1.audit_restore = Mock(return_value='')
+
+        t2 = OpenWrtRadioTakeover(Mock())
+        t2.restore = Mock(side_effect=slow_restore1)
+        t2.audit_restore = Mock(return_value='')
+
+        def notify1(cancel):
+            with lock: timeline.append(('notify', 'radio0'))
+            return True
+        def notify2(cancel):
+            with lock: timeline.append(('notify', 'radio1'))
+            return True
+
+        errors = []
+        def run1():
+            errs = restore_takeover(t1, self.ssh, ws1, r1, notify=notify1)
+            errors.extend(errs)
+        def run2():
+            errs = restore_takeover(t2, self.ssh, ws2, r2, notify=notify2)
+            errors.extend(errs)
+
+        th1 = threading.Thread(target=run1)
+        th2 = threading.Thread(target=run2)
+        th1.start(); th2.start()
+        th1.join(); th2.join()
+
+        self.assertEqual(errors, [])
+        # Verify complete atomicity: restore_start -> restore_end -> notify of one radio happens BEFORE the other radio starts
+        first_radio = timeline[0][1]
+        second_radio = 'radio1' if first_radio == 'radio0' else 'radio0'
+        expected_sequence = [
+            ('restore_start', first_radio),
+            ('restore_end', first_radio),
+            ('notify', first_radio),
+            ('restore_start', second_radio),
+            ('restore_end', second_radio),
+            ('notify', second_radio),
+        ]
+        self.assertEqual(timeline, expected_sequence)
+
+    def test_capture_startup_coordinator_syncs_multi_radio(self):
+        """验证多射频启动协调门禁在所有射频 ready 后同时放行。"""
+        import threading, time
+        from modules.capture_services.openwrt.auto_capture_service import CaptureStartupCoordinator
+        coord = CaptureStartupCoordinator(["radio0", "radio1"])
+        order = []
+
+        def worker(radio):
+            time.sleep(0.05 if radio == "radio0" else 0.1)
+            coord.mark_ready(radio)
+            ok = coord.wait_ready(radio, timeout=2.0)
+            order.append((radio, ok, time.monotonic()))
+
+        t0 = threading.Thread(target=worker, args=("radio0",))
+        t1 = threading.Thread(target=worker, args=("radio1",))
+        t0.start(); t1.start()
+        t0.join(); t1.join()
+
+        self.assertEqual(len(order), 2)
+        self.assertTrue(order[0][1])
+        self.assertTrue(order[1][1])
+        # Both workers should be released around the same time (difference < 0.1s)
+        self.assertLess(abs(order[0][2] - order[1][2]), 0.15)
+
+    def test_capture_startup_coordinator_releases_on_failure(self):
+        """验证某一射频准备失败时立即唤醒其他等待射频，防止死锁。"""
+        import threading, time
+        from modules.capture_services.openwrt.auto_capture_service import CaptureStartupCoordinator
+        coord = CaptureStartupCoordinator(["radio0", "radio1"])
+        order = []
+
+        def worker0():
+            coord.mark_ready("radio0")
+            ok = coord.wait_ready("radio0", timeout=2.0)
+            order.append(("radio0", ok))
+
+        t0 = threading.Thread(target=worker0)
+        t0.start()
+        time.sleep(0.05)
+        coord.mark_failed("radio1", "Device busy")
+        t0.join(timeout=1.0)
+
+        self.assertFalse(t0.is_alive())
+        self.assertEqual(order, [("radio0", True)])
+
+    def test_recovery_finish_with_detail_retains_error_message(self):
+        """验证未确认资源时 finish 准确记录具体未确认原因，不吞异常。"""
+        from modules.capture_services.openwrt.auto_capture_recovery import AutoCaptureRecovery
+        from modules.capture_services.openwrt.workspace import CaptureWorkspaceFactory, local_session_root
+        from unittest.mock import MagicMock
+
+        backend = MagicMock()
+        backend.ssh_client.host_fingerprint = "test-fp"
+        takeover = MagicMock()
+        takeover.pending_record = None
+
+        rec = AutoCaptureRecovery(backend, takeover)
+        ws = CaptureWorkspaceFactory.create("test_session_detail", local_session_root(), "/tmp/winbox-capture")
+        ws.local_dir.mkdir(parents=True, exist_ok=True)
+        rec.workspace = ws
+        rec.record = MagicMock()
+
+        detail_msg = "Capture process cleanup failed: exit code 45"
+        errors = rec.finish(resources_confirmed=False, detail=detail_msg)
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn("Capture process cleanup failed", errors[0])
+        audit_text = rec.report_path.read_text(encoding="utf-8")
+        self.assertIn("Capture process cleanup failed", audit_text)
+

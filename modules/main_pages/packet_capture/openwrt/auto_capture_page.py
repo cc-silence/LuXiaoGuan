@@ -1651,8 +1651,9 @@ class AutoCapturePage(QWidget):
     def _on_boot_status_changed(self, status: AutoCaptureBootStatus, force: bool = False):
         """自启状态更新，结构化指标看板展示。"""
         self._last_boot_status = status
-        # 相同状态避免重复重刷控件树，消除频繁重绘与闪烁
-        if not force and getattr(self, "_last_rendered_boot_status", None) == status:
+        # 相同状态避免重复重刷控件树，消除频繁重绘与闪烁；但若当前正在展示中间过渡文案（如【正在...】），必须执行渲染回显
+        is_transitioning = hasattr(self, "boot_status_badge") and self.boot_status_badge.text().startswith("【正在")
+        if not force and not is_transitioning and getattr(self, "_last_rendered_boot_status", None) == status:
             return
         self._last_rendered_boot_status = status
         # 1. 顶部大号状态徽章
@@ -1881,6 +1882,7 @@ class AutoCapturePage(QWidget):
                     )
                 dialog = ConfirmDialog("部署自启服务", msg, self)
                 if dialog.exec() == ConfirmDialog.Accepted:
+                    self._last_rendered_boot_status = None
                     self.boot_enable_check.setEnabled(False)
                     self.boot_status_badge.setText("【正在部署服务...】")
                     self.boot_status_badge.setStyleSheet("color: #38bdf8; font-weight: bold;")
@@ -1889,6 +1891,7 @@ class AutoCapturePage(QWidget):
                 self.boot_enable_check.setChecked(False)
             return
 
+        self._last_rendered_boot_status = None
         self.boot_enable_check.setEnabled(False)
         action_name = "开启" if checked else "关闭"
         self.boot_status_badge.setText(f"【正在{action_name}自启...】")
@@ -1913,6 +1916,25 @@ class AutoCapturePage(QWidget):
             MessageDialog("提示", "后台抓包脚本已在运行中，无需重复启动。\n如需重新开始，可先点击“结束并收尾抓包”。", self).exec()
             return
 
+        # 检查路由器是否有空闲频段供后台抓包使用
+        device = getattr(snapshot, "device", None) if snapshot else None
+        radios = getattr(device, "radios", ()) if device else ()
+        free_radios = [r for r in radios if getattr(r, "free", False)]
+        if radios and not free_radios:
+            msg = (
+                "检测到当前路由器所有无线频段均正在发射 Wi-Fi 提供正常上网服务，未发现空闲频段。\n\n"
+                "【后台抓包说明】：\n"
+                "后台抓包默认遵循【不干扰现有正常业务 Wi-Fi】安全原则，只会使用空闲射频；\n"
+                "若当前所有射频均在发射 Wi-Fi，后台抓包脚本将无法接管任何射频。\n\n"
+                "【建议方案】：\n"
+                "1. 在路由器管理后台（或无线设置页面）暂时停用一个未使用的无线频段（例如 5G 或访客 Wi-Fi）；\n"
+                "2. 或切换到上方【前台抓包】标签页，勾选“临时接管”进行抓包（停止后自动恢复原 Wi-Fi）。\n\n"
+                "是否仍要尝试启动后台抓包？"
+            )
+            dialog = ConfirmDialog("无空闲射频提醒", msg, self)
+            if dialog.exec() != ConfirmDialog.Accepted:
+                return
+
         if not status.remote_script_exists:
             msg = (
                 "检测到路由器尚未准备好抓包环境。\n\n"
@@ -1921,6 +1943,7 @@ class AutoCapturePage(QWidget):
             )
             dialog = ConfirmDialog("安装并启动后台抓包", msg, self)
             if dialog.exec() == ConfirmDialog.Accepted:
+                self._last_rendered_boot_status = None
                 self.start_script_btn.setEnabled(False)
                 self.boot_status_badge.setText("【正在准备并启动...】")
                 self.boot_status_badge.setStyleSheet("color: #38bdf8; font-weight: bold;")
@@ -1936,6 +1959,7 @@ class AutoCapturePage(QWidget):
         )
         dialog = ConfirmDialog("启动后台抓包", msg, self)
         if dialog.exec() == ConfirmDialog.Accepted:
+            self._last_rendered_boot_status = None
             self.start_script_btn.setEnabled(False)
             self.boot_status_badge.setText("【正在启动脚本...】")
             self.boot_status_badge.setStyleSheet("color: #38bdf8; font-weight: bold;")
@@ -1946,6 +1970,7 @@ class AutoCapturePage(QWidget):
         self._manual_boot_started = False
         if hasattr(self, "bg_console_card"):
             self.bg_console_card.setVisible(False)
+        self._last_rendered_boot_status = None
         self.stop_capture_btn.setEnabled(False)
         self.start_script_btn.setEnabled(False)
         self.boot_status_badge.setText("【正在收尾抓包...】")
@@ -1954,6 +1979,7 @@ class AutoCapturePage(QWidget):
 
     def _on_uninstall_clicked(self):
         if ConfirmDialog("卸载自启服务", "确定完全卸载 /etc/init.d/luxiaoguan-autocap 与 /root/hcx_autocap.sh 吗？\n(/root/cap/ 产物将被保留)", self).exec() == ConfirmDialog.Accepted:
+            self._last_rendered_boot_status = None
             self.auto_capture_service.uninstall_boot_service()
 
     def _on_pull_offline_clicked(self):

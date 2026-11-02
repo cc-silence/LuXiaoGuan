@@ -1829,8 +1829,9 @@ class OpenWrtCaptureBackend(CaptureBackend):
             _say("正在恢复被接管的无线…")
             from modules.capture_services.openwrt.capture_takeover import restore_takeover
             errors.extend(restore_takeover(self.radio_takeover, self.ssh_client,
-                                           workspace, takeover_record, cancel_event))
-        if self.ssh_client.connected:
+                                           workspace, takeover_record, cancel_event,
+                                           notify=self._notify_signal_changed))
+        elif self.ssh_client.connected:
             self._notify_signal_changed(cancel_event=cancel_event)
         return errors
 

@@ -572,12 +572,14 @@ class OpenWrtDeviceProbe:
                 normalized_bands = ("5G",) if channel > 14 else ("2.4G",)
             # Parsing old snapshots cannot establish administrative/link state.
             # The live probe replaces this conservative value with shared usage.
-            if interfaces:
+            if name in radio_free_map:
+                is_free = radio_free_map[name]
+            elif interfaces:
                 is_free = False
             elif not phy:
                 is_free = None
             else:
-                is_free = radio_free_map.get(name)
+                is_free = not bool(interfaces)
             radios.append(
                 OpenWrtRadioInfo(
                     name=name,

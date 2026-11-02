@@ -61,7 +61,7 @@ def ensure_native_updater():
             res_done = subprocess.run([windres, str(stage/'version.rc'), "-O", "coff", "-o", str(stage/'version.res')],
                                       cwd=stage, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=60, creationflags=subprocess.CREATE_NO_WINDOW)
             if res_done.returncode: raise RuntimeError('Windres compilation failed: '+str(stage/'build.log'))
-            cmd = [gxx, "-std=c++17", "-O2", "-D_WIN32_WINNT=0x0A00", "-mwindows", "-municode",
+            cmd = [gxx, "-static", "-std=c++17", "-O2", "-D_WIN32_WINNT=0x0A00", "-mwindows", "-municode",
                    "-I" + str(stage),
                    str(ROOT/'native/update_launcher/main.cpp'), str(stage/'version.res'),
                    "-o", str(stage/'RouterManagerUpdater.exe'),
