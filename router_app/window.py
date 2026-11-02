@@ -16,7 +16,7 @@ from modules.main_pages.packet_capture_page import PacketCapturePage
 class RouterWindow(FramelessDialog):
     """\u4e3a\u539f\u8def\u7531\u9875\u63d0\u4f9b\u8bbe\u7f6e\u3001\u4e3b\u9898\u548c\u9000\u51fa\u5165\u53e3\u3002"""
     def __init__(self, runtime, version, *, initial_screen=None):
-        super().__init__(DISPLAY_NAME, inherit_parent_stylesheet=False, window_controls=False)
+        super().__init__(DISPLAY_NAME, translucent_background=False, inherit_parent_stylesheet=False, window_controls=False)
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowMinMaxButtonsHint | Qt.WindowSystemMenuHint)
         from .window_geometry import startup_screen
         screen = initial_screen or startup_screen()
@@ -70,6 +70,8 @@ class RouterWindow(FramelessDialog):
         apply_initial_window_geometry(self)
         from .window_geometry import WindowGeometry
         self.geometry_policy = WindowGeometry(self)
+        from .window_surface import WindowSurface
+        self.surface = WindowSurface(self)
 
     def apply_appearance(self, scale, family, theme):
         key = (UiScaleManager.clamp_global_scale(scale), family, theme)
@@ -109,6 +111,7 @@ class RouterWindow(FramelessDialog):
         self.chrome.refresh()
         self.navigation.refresh()
         self.close_behavior.refresh_menu_theme()
+        self.surface.sync()
         if geometry_reference is not None:
             self.geometry_policy.apply_scale(geometry_reference)
 

@@ -59,6 +59,11 @@ class IdentityFields:
 
     def refresh(self, *_):
         mode = self.mode.currentData()
+        show_details = mode != "keep"
+        for control in (self.mac, self.hostname):
+            control.setVisible(show_details)
+            control._form_label.setVisible(show_details)
+        self.regenerate.setVisible(show_details)
         self.profile.setEnabled(mode == "profile")
         self.mac.setEnabled(mode in ("random", "profile", "manual"))
         self.mac.setReadOnly(mode != "manual")

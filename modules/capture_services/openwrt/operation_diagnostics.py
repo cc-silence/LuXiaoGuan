@@ -18,17 +18,21 @@ SAFE_VALUES = {
         "unexpected_error", "restore_reported_errors", "phase_completed", "native_identity_available",
         "native_identity_unavailable", "configuration_untouched"}),
 }
-SAFE_VALUES["operation"] |= ACTIONS | {"configuration_apply"}
+SAFE_VALUES["operation"] |= ACTIONS | {"configuration_apply", "wireless_readiness"}
 SAFE_VALUES["stage"] |= {"queue","progress","preflight","commit","download","publish","reboot","validation","connect","capabilities","session","stage","apply","verify","confirm","rollback","restore_verify","discard","finish"}
 SAFE_VALUES["reason"] |= {"accepted","unchanged","reply_lost","verified","verification_false","native_rpc_error","exception","restored","restore_unconfirmed","renewal_busy",
     "saved_values","runtime_missing","runtime_pending","runtime_up","runtime_proto","runtime_device","runtime_ipv4","runtime_ipv4_mask","runtime_gateway4","runtime_gateway6","runtime_ipv6","runtime_old_ipv6","runtime_prefix6","runtime_invalid"}
-SAFE_VALUES["reason"] |= {"wireless_interface_pending","wireless_configuration_pending","wireless_identity_pending","wireless_ap_pending","wireless_association_pending","wireless_runtime_pending"}
+SAFE_VALUES["reason"] |= {"wireless_interface_pending","wireless_configuration_pending","wireless_identity_pending","wireless_ap_pending","wireless_association_pending","wireless_runtime_pending", "wireless_config_disabled"}
 SAFE_VALUES["reason"] |= {"wireless_config_"+key for key in ("mode","ssid","encryption","key","macaddr","channel","htmode","country","txpower")}
 from modules.platform_services.network_diagnostics import STAGES as NETWORK_STAGES, REASONS as NETWORK_REASONS, NUMBERS as NETWORK_NUMBERS
 SAFE_VALUES["stage"] |= NETWORK_STAGES
 SAFE_VALUES["reason"] |= NETWORK_REASONS
 SAFE_VALUES["connection_reason"] = NETWORK_REASONS
 SAFE_VALUES["selection_source"] = frozenset({"ssh_socket","system_route","unknown"})
+SAFE_VALUES["source"] = frozenset({"session_apply", "direct_toggle"})
+SAFE_VALUES["interface_state"] = frozenset({"active", "inactive", "unknown", "missing"})
+SAFE_VALUES["band"] = frozenset({"2g", "5g", "6g"})
+SAFE_VALUES["ap_state"] = frozenset({"UNINITIALIZED", "DISABLED", "COUNTRY_UPDATE", "ACS", "HT_SCAN", "DFS", "ENABLED"})
 SAFE_VALUES["kind"] = KINDS
 SAFE_VALUES["outcome"] = frozenset({"reconnect","uncertain","saved","applied","restored"})
 SAFE_VALUES["reason"] |= CODES
@@ -56,7 +60,7 @@ MAX_MANAGEMENT_FAILURES = 16
 MAX_CONFIGURATION = 128
 MAX_CONFIGURATION_FAILURES = 16
 STRING_FIELDS = frozenset({"timestamp", "event", "operation", "status", "stage", "kind",
-    "selection_source", "connection_reason", "exception_type", "cause_reason", "cause_type", "cause_site", "reason", "code_site", "last_stage", "last_reason", "outcome", "transport", "band", "source", "task_band"})
+    "selection_source", "connection_reason", "exception_type", "cause_reason", "cause_type", "cause_site", "reason", "code_site", "last_stage", "last_reason", "outcome", "transport", "band", "source", "task_band", "ap_state", "interface_state"})
 NUMBER_FIELDS = frozenset({"id", "errno", "winerror", "operation_id", "elapsed_seconds", "connected_before",
     "connected_after", "exit_code", "timed_out", "cancelled", "request_bytes",
     "force_apply", "rollback", "trace_id", "connect_attempts", "verify_attempts", "restore_attempts", "native_error", "candidate_index", "original_target", "remaining_seconds", "restored",
@@ -66,7 +70,7 @@ NUMBER_FIELDS = frozenset({"id", "errno", "winerror", "operation_id", "elapsed_s
     "completed", "total", "uncancellable", "queue_depth", "queue_seconds",
     "channel", "pending_processes", "takeover", "blocked", "primary_failed",
     "wireless_cleanup_confirmed", "monitor_active", "result_rows", "accepted_rows",
-    "rejected_rows", "frequency_rows", "band_rows", "legacy_rows", "configured_radios", "identified_radios", "physical_radios"}) | NETWORK_NUMBERS | {"snapshot_cached", "rollback_seconds", "confirm_reserve_seconds"}
+    "rejected_rows", "frequency_rows", "band_rows", "legacy_rows", "configured_radios", "identified_radios", "physical_radios"}) | NETWORK_NUMBERS | {"snapshot_cached", "rollback_seconds", "confirm_reserve_seconds", "radio_up", "runtime_pending", "interface_present", "interface_up", "configuration_pending", "identity_pending", "frequency", "radio_disabled", "retry_setup_failed", "cac_active", "cac_seconds", "requested_enabled", "configured_enabled"}
 
 
 def _fields(row):

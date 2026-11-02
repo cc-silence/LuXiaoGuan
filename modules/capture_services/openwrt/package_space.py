@@ -78,12 +78,24 @@ def check_plan_space(manager, package_manager, plan, cancel, *, repositories="")
         return
     arguments = " ".join(quote_argument(name) for name in names)
     if package_manager.name == "opkg":
-        command = "opkg info " + arguments
+        # opkg info accepts one name/pattern, not a package argument list.
+        # Batch the individual queries in one SSH execution; keep one 40s budget.
+        command = ("for package in " + arguments + "; do\n"
+                   'opkg info "$package" || exit "$?"\n'
+                   "printf '\\n\\n'\n"
+                   "done")
     else:
         command = "apk info --size " + (("--repositories-file " + quote_argument(repositories) + " ") if repositories else "") + arguments
     text = manager._execute_stage("dependency_install_sizes", command, 40, cancel, "核算安装占用")
-    sizes = (parse_opkg_sizes if package_manager.name == "opkg" else parse_apk_sizes)(text, names)
-    manager._preflight(required_kb(sizes), cancel)
+    try:
+        sizes = (parse_opkg_sizes if package_manager.name == "opkg" else parse_apk_sizes)(text, names)
+        manager._preflight(required_kb(sizes), cancel)
+    except SignalError as exc:
+        if not getattr(exc, "package_diagnostic", None):
+            exc.package_diagnostic = (
+                manager._package_diagnostic("dependency_package_plan", plan[-3500:]) + "\n" +
+                manager._package_diagnostic("dependency_install_sizes", text[-3500:]))
+        raise
 
 
 def ipk_metadata(path):

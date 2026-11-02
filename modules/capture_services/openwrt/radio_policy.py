@@ -9,47 +9,21 @@ class IdleRadioUnavailable(RuntimeError):
 
 
 def require_idle_phy(command_runner, phy, cancel_event=None, owned_interface=""):
-    """核实硬件存在且无其他无线接口，失败或未知时拒绝。
+    """Require no enabled/running business or foreign capture, allowing inert interfaces.
 
-    owned_interface 仅供恢复本任务登记的接口时排除自身；不根据 STA 关联状态
-    判断空闲。命令只读、有界且可取消，不输出接口名或网络敏感标识。
+    owned_interface excludes only the caller's journaled interface on revalidation.
     """
 
-    if cancel_event is not None and cancel_event.is_set():
-        raise RuntimeError("核实空闲无线网卡已取消。")
-    command = (
-        f"__phy={quote_argument(phy)}; __owned={quote_argument(owned_interface)}; "
-        '[ -d "/sys/class/ieee80211/$__phy" ] && '
-        '[ -r /sys/class/net ] && [ -x /sys/class/net ] || exit 1; '
-        'for __net in /sys/class/net/*; do '
-        '[ -e "$__net" ] || continue; '
-        '[ -e "$__net/phy80211" ] || [ -L "$__net/phy80211" ] || continue; '
-        '__name=$(cat "$__net/phy80211/name") || exit 1; '
-        '[ -n "$__name" ] || exit 1; '
-        'if [ "$__name" = "$__phy" ] && [ "${__net##*/}" != "$__owned" ]; '
-        'then printf "busy\\n"; exit 0; fi; '
-        'done; printf "idle\\n"'
-    )
+    from .radio_usage import read_radio_usage, usage_for_phy
     try:
-        result = command_runner.run("check_idle_radio", command, timeout=10, cancel_event=cancel_event)
-    except Exception as exc:
-        if cancel_event is not None and cancel_event.is_set():
-            raise RuntimeError("核实空闲无线网卡已取消。") from exc
-        raise IdleRadioUnavailable(
-            f"{phy} 空闲状态读取失败，无法安全使用；请检查设备连接并刷新无线信息。"
-        ) from exc
-    if result.cancelled or (cancel_event is not None and cancel_event.is_set()):
-        raise RuntimeError("核实空闲无线网卡已取消。")
-    if result.timed_out or result.exit_code != 0 or result.stdout.strip() not in {"idle", "busy"}:
-        raise IdleRadioUnavailable(
-            f"{phy} 空闲状态无法核实（硬件或接口清单读取失败），仅使用空闲网卡模式已拒绝使用。"
-            "请刷新设备信息并检查无线状态，或更换频段/设备。"
-        )
-    if result.stdout.strip() == "busy":
-        raise IdleRadioUnavailable(
-            f"{phy} 存在其他无线接口（未连接 STA 也算占用），仅使用空闲网卡模式已拒绝使用；"
-            "不会接管或停用原业务。请更换有空闲射频的频段/设备。"
-        )
+        usage = usage_for_phy(read_radio_usage(command_runner, cancel_event,
+                              owned_interface=owned_interface), phy)
+    except (InterruptedError, TimeoutError):
+        raise
+    except RuntimeError as exc:
+        raise IdleRadioUnavailable(str(exc)) from exc
+    if not usage.free:
+        raise IdleRadioUnavailable(usage.reason)
 
 
 def phy_supports_channel(command_runner, phy, channel, cancel_event=None):

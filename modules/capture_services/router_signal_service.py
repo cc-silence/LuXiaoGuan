@@ -8,7 +8,7 @@ from PySide6.QtCore import QObject, Qt, Signal, Slot
 
 from modules.capture_services.openwrt.models import CaptureTaskType
 from modules.capture_services.openwrt.signal_manager import RouterSignalManager, SignalError
-from modules.capture_services.openwrt.signal_models import SignalFailure, SignalSnapshot
+from modules.capture_services.openwrt.signal_models import SignalFailure, SignalSnapshot, SignalMutationResult
 from modules.capture_services.openwrt.signal_package_feed import default_cache_dir
 from .workflow_diagnostics import record_workflow
 
@@ -54,6 +54,8 @@ class RouterSignalService(QObject):
         self.snapshot = SignalSnapshot()
         self.messages = []
         self._active = False
+        self._mutation_in_flight = False
+        self._inventory_generation = object()
         self._auto_refresh_blocked = False
         self._foreign_task_active = False
         self._foreign_read_detail = None
@@ -164,6 +166,7 @@ class RouterSignalService(QObject):
         """同步连接状态；忙碌与核实位以互斥器与核实位为准，不闩锁。"""
         connected = snapshot.connection_state.value == "connected"
         if not connected:
+            self._inventory_generation = object()
             self._refresh_after_status = False
             self._auto_refresh_blocked = False
             self._verified = False
@@ -332,6 +335,7 @@ class RouterSignalService(QObject):
         """落实外部推送的清单：只换数据不动状态，忙闲与按钮由任务槽决定。"""
         inventory, acknowledged = payload if isinstance(payload, tuple) else (payload, None)
         try:
+            self._inventory_generation = object()
             self.snapshot = replace(self.snapshot, inventory=inventory,
                                     wireless_status_stale=self.snapshot.wireless_status_stale or self.snapshot.inventory != inventory)
             self.snapshotChanged.emit(self.snapshot)
@@ -366,6 +370,7 @@ class RouterSignalService(QObject):
             self._active = False
             return False
         self._status_cancel_event = event if self._status_running else None
+        self._mutation_in_flight = request not in (None, ("__status__",), ("__install__",))
         inventory = self.snapshot.inventory
         if request is None:
             operation = self._guarded(
@@ -409,6 +414,35 @@ class RouterSignalService(QObject):
             )
             success_slot = self._succeeded
             detail = "正在读取或核实无线配置。"
+        # Read the editing environment before publishing completion. Otherwise
+        # the new inventory schedules a second task and locks the buttons again.
+        initial_read = request is None and not self._verified
+        coordinate_read = request is None and (initial_read or self.setup._enabled)
+        if (self._mutation_in_flight and self.setup._enabled) or coordinate_read:
+            mutation = operation
+            inspect = self.setup.manager.inspect
+            existing_environment = self.setup.snapshot.environment
+            def coordinated(cancel, message=None):
+                current = mutation(cancel, message)
+                if isinstance(current, SignalFailure):
+                    return current
+                if (coordinate_read and existing_environment is not None
+                        and existing_environment.ready
+                        and existing_environment.data.get("revision", "")[:64] == current.revision):
+                    return SignalMutationResult(current, existing_environment)
+                try:
+                    environment = inspect(cancel)
+                except SignalError as exc:
+                    if exc.code not in {"transport", "timeout", "probe", "response", "dependencies"}:
+                        raise
+                    # The mutation already returned a verified inventory. A
+                    # later read failure cannot turn it into a failed write.
+                    return SignalMutationResult(current, None, str(exc) or "\u65e0\u7ebf\u73af\u5883\u8bfb\u53d6\u5931\u8d25\u3002")
+                revision = environment.data.get("revision", "")
+                if revision and revision[:64] != current.revision:
+                    raise SignalError("changed", "\u65e0\u7ebf\u914d\u7f6e\u5728\u6838\u5bf9\u671f\u95f4\u53d1\u751f\u53d8\u5316\uff0c\u8bf7\u91cd\u65b0\u8bfb\u53d6\u3002")
+                return SignalMutationResult(current, environment)
+            operation = self._guarded(coordinated)
         if request not in (None, ("__status__",)):
             self.snapshot = replace(self.snapshot, wireless_status_stale=True)
         self.snapshot = replace(
@@ -417,6 +451,15 @@ class RouterSignalService(QObject):
             installing=(request == ("__install__",)), detail=detail, detail_level="info",
         )
         self.snapshotChanged.emit(self.snapshot)
+        if self._mutation_in_flight or coordinate_read:
+            publish = success_slot
+            identity = self._current_status_connection()
+            def publish_mutation(result):
+                if self.snapshot.connected and identity is not None and self._current_status_connection() is identity:
+                    publish(result)
+                else:
+                    self._finish_failed("connection_changed", "\u8fde\u63a5\u5df2\u53d8\u5316\uff0c\u539f\u8def\u7531\u5668\u7684\u64cd\u4f5c\u7ed3\u679c\u4e0d\u80fd\u7528\u4e8e\u5f53\u524d\u8bbe\u5907\uff0c\u8bf7\u91cd\u65b0\u8bfb\u53d6\u3002")
+            success_slot = publish_mutation
         from .task_completion import start_service_worker
         return start_service_worker(
             self.owner, session_id, operation, event, success_slot,
@@ -435,7 +478,9 @@ class RouterSignalService(QObject):
         self._status_cancel_event = None
         same = self.snapshot.connected and self._status_request_connection is self._current_status_connection()
         if same:
-            self.snapshot = replace(self.snapshot, wireless_status=result, wireless_status_stale=False, detail_level="info",
+            from .openwrt.wireless_runtime_observations import merge_runtime
+            inventory = merge_runtime(self.snapshot.inventory, result.runtime)
+            self.snapshot = replace(self.snapshot, inventory=inventory, wireless_status=result, wireless_status_stale=False, detail_level="info",
                                     detail="\u65e0\u7ebf\u72b6\u6001\u5df2\u5237\u65b0\u3002")
         self.owner.task_controller.finish()
         self._active = False
@@ -487,6 +532,19 @@ class RouterSignalService(QObject):
         if isinstance(result, SignalFailure):
             self._finish_failed(result.code, result.message)
             return
+        self._inventory_generation = object()
+        environment = None
+        inspection_error = ""
+        if isinstance(result, SignalMutationResult):
+            environment = result.environment
+            inspection_error = result.inspection_error
+            result = result.inventory
+            self.setup._inspection_revision = result.revision
+            self.setup._pending = False
+            detail = ("\u4fe1\u53f7\u5217\u8868\u5df2\u6838\u5b9e\uff0c\u4f46\u540e\u7eed\u65e0\u7ebf\u73af\u5883\u68c0\u6d4b\u5931\u8d25\uff0c\u8bf7\u91cd\u65b0\u68c0\u6d4b\u3002" + inspection_error if inspection_error else
+                      "\u65e0\u7ebf\u8bbe\u7f6e\u73af\u5883\u5df2\u5c31\u7eea\u3002" if environment.ready else "\uff1b".join((*environment.issues, *environment.missing)))
+            self.setup.snapshot = replace(self.setup.snapshot, environment=environment, detail=detail)
+        self._mutation_in_flight = False
         record_workflow(self.owner, "signal_refresh", "completed",
                         reason="pending_changes" if result.pending_changes else "verified")
         self._verified = not result.pending_changes
@@ -501,6 +559,10 @@ class RouterSignalService(QObject):
         self._active = False
         self._sync_transient()
         self.snapshotChanged.emit(self.snapshot)
+        if environment is not None or inspection_error:
+            self.setup.snapshotChanged.emit(self.setup.snapshot)
+            if inspection_error or not environment.ready:
+                self._message(self.setup.snapshot.detail, "warning")
 
     @Slot(object)
     def _install_succeeded(self, result):
@@ -530,6 +592,11 @@ class RouterSignalService(QObject):
 
         缺依赖时状态行不说后端原文，改说指引动作；原文仍进信息窗留痕。
         """
+        # A failed write invalidates the old inventory, but does not require the
+        # user to initiate the safe readback. Never retry a failed read itself.
+        recheck = bool(self._mutation_in_flight and code not in {
+            "cancelled", "disconnected", "transport", "recovery", "connection_changed"})
+        self._mutation_in_flight = False
         missing = bool(code == "dependencies")
         detail = (
             "路由器缺少信号运行环境，点“安装信号依赖”，"
@@ -547,6 +614,8 @@ class RouterSignalService(QObject):
         self.snapshotChanged.emit(self.snapshot)
         if code == "disconnected":
             self.reconnectRequired.emit(summary)
+        elif recheck:
+            self._refreshRequested.emit()
 
     def _message(self, text, level):
         """保存有限条独立消息用于页面重建回放；不写配置文件。"""

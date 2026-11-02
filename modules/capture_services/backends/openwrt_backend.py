@@ -15,8 +15,7 @@ from modules.capture_services.openwrt.command_builder import quote_argument
 from modules.capture_services.openwrt.command_runner import OpenWrtCommandRunner
 from modules.capture_services.openwrt.dependency_manager import OpenWrtDependencyManager
 from modules.capture_services.openwrt.device_probe import OpenWrtDeviceProbe
-from modules.capture_services.openwrt.device_probe import read_iface_types, read_iwdev_complete
-from modules.capture_services.openwrt.device_probe import sta_link_down
+from modules.capture_services.openwrt.device_probe import read_iwdev_complete
 from modules.capture_services.openwrt.handshake_capture import OpenWrtHandshakeCapture
 from modules.capture_services.openwrt.handshake_capture import HandshakeCaptureResult, HandshakeCaptureUpdate
 from modules.capture_services.openwrt.models import (
@@ -33,12 +32,13 @@ from modules.capture_services.openwrt.password_verification import PasswordVerif
 from modules.capture_services.openwrt.password_reporting import PasswordVerificationReporter
 from modules.capture_services.openwrt.pmkid_capture import OpenWrtPmkidCapture
 from modules.capture_services.openwrt.radio_session import OpenWrtRadioSession
-from modules.capture_services.openwrt.radio_policy import IdleRadioUnavailable, require_idle_phy, phy_supports_channel
+from modules.capture_services.openwrt.radio_policy import IdleRadioUnavailable, phy_supports_channel
 from modules.capture_services.openwrt.radio_takeover import OpenWrtRadioTakeover
+from modules.capture_services.openwrt.radio_usage import read_radio_usage, usage_for_phy
 from modules.capture_services.openwrt.result_converter import finalize_result_file, safe_result_stem
 from modules.capture_services.openwrt.result_converter import converted_output_dir
-from modules.capture_services.openwrt.result_converter import unique_result_path, write_22000
-from modules.capture_services.openwrt.result_converter import write_hccapx
+from modules.capture_services.openwrt.result_converter import unique_result_path
+from modules.capture_services.openwrt.capture_products import cap_product_note
 from modules.capture_services.openwrt.result_converter import analyze_handshake_cap, convertible_pairs
 from modules.capture_services.openwrt.result_converter import CONVERTIBLE_VERDICTS as _CONVERTIBLE_VERDICTS
 from modules.capture_services.openwrt.command_builder import normalize_bssid
@@ -90,56 +90,15 @@ _MAX_HANDSHAKE_ROUNDS = 3
 
 
 def _maybe_drop_raw_cap(final_path, verdict, hc_path, settings):
-    """“保留原始”关闭时删除无用原始 CAP，只留转换产物。
-
-    参数：final_path 是已落盘的原始包；verdict 是解析结论；hc_path 是已生成的
-    转换产物（22000 或 HCCAPX，为空表示没生成）；settings 是任务配置。返回应记入
-    结果的 CAP 路径：删除成功返回空串。可跑包结论在转换产物齐全时删原始；无法解析
-    的包按用户要求也不保留（开关默认开，此时仍保留）。转换产物缺失、有且仅有的
-    证据一定保留；删除失败同样保留，避免静默丢失。
-    """
-
-    if bool((settings or {}).get("keep_raw_capture", True)):
-        return str(final_path)
-    if verdict in _CONVERTIBLE_VERDICTS and not hc_path:
-        return str(final_path)
-    if verdict not in _CONVERTIBLE_VERDICTS and verdict != "unknown":
-        return str(final_path)
-    try:
-        Path(str(final_path)).unlink()
-    except OSError:
-        return str(final_path)
-    return ""
+    """Original captures are retained regardless of legacy settings."""
+    return str(final_path)
 
 
 def _convert_handshake_products(final_path, target, local_root, stem, verdict, settings):
-    """可跑包结论的转换产物：22000（尊重开关）加 HCCAPX（兼容格式同步生成）。
+    """Keep legacy result fields empty; report CAP status through the existing note."""
+    _product, note = cap_product_note(final_path)
+    return "", note, "", ""
 
-    参数：final_path 是已落盘原始 CAP；target 是目标；local_root 是输出根目录；
-    stem 是安全文件名词干；verdict 是解析结论；settings 是任务配置。
-    返回 (hc22000_path, hc22000_note, hccapx_path, hccapx_note)；单项失败只记因
-    不抛错。HCCAPX 只有 M1+M2 配对成功才写得出，纯 PMKID 会记因跳过。
-    """
-
-    hc_path, hc_note, hcx_path, hcx_note = "", "", "", ""
-    if verdict not in _CONVERTIBLE_VERDICTS:
-        return hc_path, hc_note, hcx_path, hcx_note
-    if not bool((settings or {}).get("generate_22000", True)):
-        hc_note = "22000 开关已关闭，未生成。"
-    else:
-        try:
-            out22000 = unique_result_path(converted_output_dir(local_root), stem, ".22000")
-            write_22000(str(final_path), target.ssid, target.bssid, out22000)
-            hc_path = str(out22000)
-        except Exception as exc:
-            hc_note = f"22000 未生成：{exc}"
-    try:
-        out_hcx = unique_result_path(converted_output_dir(local_root), stem, ".hccapx")
-        write_hccapx(str(final_path), target.ssid, target.bssid, out_hcx)
-        hcx_path = str(out_hcx)
-    except Exception as exc:
-        hcx_note = f"HCCAPX 未生成：{exc}"
-    return hc_path, hc_note, hcx_path, hcx_note
 
 
 def _ordered_results(latest, order):
@@ -1005,33 +964,10 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 final_path, local_root, result_stem, ".pcapng",
             ))
         pmkid_count = sum(1 for verdict in combos.values() if verdict == "pmkid")
-        ssid_by_bssid = {
-            point.bssid.upper(): (point.ssid or "")
-            for point in self.snapshot.access_points
-        }
         hc_files = []
-        hc_notes = []
+        _product, cap_note = cap_product_note(final_path)
+        hc_notes = [cap_note]
         completed_bssids = tuple(dict.fromkeys(str(ap).upper() for ap, _sta in combos))
-        converted = set()
-        for (ap, _sta), verdict in combos.items():
-            if ap in converted:
-                continue
-            converted.add(ap)
-            ssid = ssid_by_bssid.get(str(ap).upper(), "")
-            if not ssid or ssid == "__hidden__":
-                hc_notes.append(f"{ap} 无信号名，跳过 22000。")
-                continue
-            if not bool((settings or {}).get("generate_22000", True)):
-                hc_notes.append(f"{ssid}：22000 开关已关闭，未生成。")
-                continue
-            try:
-                out = unique_result_path(
-                    converted_output_dir(local_root), safe_result_stem(ssid, ap), ".22000"
-                )
-                write_22000(final_path, ssid, ap, out)
-                hc_files.append((str(ap).upper(), ssid, str(out)))
-            except Exception as exc:
-                hc_notes.append(f"{ssid}：22000 未生成：{exc}")
         detail = f"发现 {len(combos)} 个可跑包组合（PMKID {pmkid_count} 个）。"
         verdict = "convertible"
         return replace(
@@ -1811,14 +1747,8 @@ class OpenWrtCaptureBackend(CaptureBackend):
             # 创建接口前由 RadioSession 再次核实；任何接管授权均不能覆盖严格模式。
             return None
         authorized = bool(settings.get("allow_radio_takeover"))
-        if not authorized and not target_channel:
-            return None
-        phy_interfaces, channels, diag = read_iwdev_complete(
-            self.command_runner, "check_phy_free", cancel_event
-        )
-        if not phy_interfaces.get(phy) and (
-            phy in phy_interfaces or phy in set(diag["expected"] or ())
-        ):
+        usage = usage_for_phy(read_radio_usage(self.command_runner, cancel_event), phy)
+        if usage.free:
             return None
         if not authorized:
             raise RuntimeError(
@@ -2025,142 +1955,35 @@ class OpenWrtCaptureBackend(CaptureBackend):
         )
 
     def _select_scan_radio(self, phy_interfaces, phy_channels, diag, band, cancel_event,
-                           idle_radio_only=False, message_callback=None, target_channel=0):
-        """在已读取的无线快照上执行选卡决策，与执行期同口径。
-
-        参数与 _find_scan_radio 一致，只是 `iw dev` 快照由调用方一次读好（只读
-        普查多目标共用），本方法不再发起新的 dump 读取，频段能力等只读核验除外。
-        返回值：单个 phy。严格空闲无可用、无承载 radio 时抛异常，调用方按失败处理。
-        """
-
-        def chosen(phy, reason):
+                           idle_radio_only=False, message_callback=None, target_channel=0,
+                           usages=None):
+        """Select by shared business evidence, with one fresh snapshot per decision."""
+        usages = read_radio_usage(self.command_runner, cancel_event) if usages is None else usages
+        notes = []
+        ordered = sorted(usages.values(), key=lambda row: (row.state != "idle",
+                         bool(target_channel) and phy_channels.get(row.phy) != target_channel, row.phy))
+        for usage in ordered:
+            if cancel_event is not None and cancel_event.is_set():
+                raise InterruptedError("Radio selection cancelled.")
+            if usage.state not in ("idle", "business") or (idle_radio_only and not usage.free):
+                notes.append(usage.reason)
+                continue
+            if not self._phy_supports_band(usage.phy, band, cancel_event):
+                continue
+            if target_channel and not self._phy_supports_channel(usage.phy, target_channel, cancel_event):
+                continue
             if message_callback is not None:
-                message_callback(f"选用无线网卡 {phy}（{band}）：{reason}。", "info")
-            return phy
-
-        channel_checks = {}
-
-        def supports_target(phy):
-            # 当前决策内缓存，预检和执行都使用同一能力门禁，不跨设备保存。
-            if not target_channel:
-                return True
-            if phy not in channel_checks:
-                channel_checks[phy] = self._phy_supports_channel(phy, target_channel, cancel_event)
-            return channel_checks[phy]
-
-        if idle_radio_only:
-            notes = []
-            for phy in sorted(set(phy_interfaces) | set(diag["expected"])):
-                if cancel_event is not None and cancel_event.is_set():
-                    raise RuntimeError("选择空闲无线网卡已取消。")
-                if phy_interfaces.get(phy):
-                    notes.append(f"{phy} 存在无线接口（含未连接 STA，均算占用）")
-                    continue
-                try:
-                    require_idle_phy(self.command_runner, phy, cancel_event)
-                except IdleRadioUnavailable as exc:
-                    notes.append(str(exc))
-                    continue
-                if self._phy_supports_band(phy, band, cancel_event) and supports_target(phy):
-                    return chosen(phy, "已核实整块射频空闲，不复用业务接口、不接管；创建前再次核实")
-                notes.append(f"{phy} 不支持 {band}")
-            detail = "；".join(notes) or "没有可核实的无线硬件信息"
-            raise IdleRadioUnavailable(
-                f"仅使用空闲网卡已开启，{band} 没有可用的空闲射频：{detail}。"
-                "本次不接管、不停用原业务；请更换有空闲射频的频段/设备。"
-            )
-        if not phy_interfaces and not diag["expected"]:
-            raise RuntimeError(
-                "无法识别 OpenWrt 无线接口结构，不能安全创建 monitor 接口。"
-                f"本次 `iw dev` 输出摘要：{diag['excerpt'] or '<空>'}。"
-            )
-        seen_parts = []
-        for phy, ifaces in sorted(phy_interfaces.items()):
-            if not ifaces:
-                seen_parts.append(f"{phy}=空闲")
-            else:
-                seen_parts.append(
-                    f"{phy}={','.join(ifaces)}(信道{phy_channels.get(phy, '未知')})"
-                )
-        for phy in sorted(set(diag["expected"]) - set(phy_interfaces)):
-            seen_parts.append(f"{phy}=空闲(无网卡实例)")
-        seen = "; ".join(seen_parts)
-        # 硬件在但 dump 缺失的 phy 同样视为空闲（两种独立读取都无网卡实例）；
-        # 连硬件未知的不在此列，保持保守。
-        free_phys = sorted(
-            {phy for phy, ifaces in phy_interfaces.items() if not ifaces}
-            | {phy for phy in diag["expected"] if phy not in phy_interfaces}
-        )
-        if free_phys:
-            # 优先选择经能力核实支持目标频段和信道的空闲 radio，不按编号猜测。
-            band_free = [
-                phy for phy in free_phys if self._phy_supports_band(phy, band, cancel_event) and supports_target(phy)
-            ]
-            if band_free:
-                return chosen(band_free[0], "无无线接口，优先使用空闲射频，无需接管")
-        # 没有支持该频段的空闲 radio：回退到承载该频段业务的 radio。若它正被业务占用，
-        # 长时守信道可能与业务冲突，由 radio_session 在实际切信道时给出诊断。
-        candidates = sorted(
-            phy
-            for phy, ifaces in phy_interfaces.items()
-            if ifaces and _channel_matches_band(phy_channels.get(phy), band) and supports_target(phy)
-        )
-        # 同信道只作为选卡优先级；业务接口仍必须经过授权接管并核实停用。
-        if target_channel:
-            same_channel = [phy for phy in candidates if phy_channels.get(phy) == target_channel]
-            if same_channel:
-                return chosen(same_channel[0], f"存在业务接口，与目标同信道 {target_channel}，仍需授权临时接管")
-        if candidates:
-            return chosen(candidates[0], "存在业务接口，按业务频段回退；保留原任务的复用/接管授权规则")
-        # `iw dev` 在无线重载或 STA 未关联时可能只缺信道，接口和 phy 本身仍完整。
-        # 此时不能把未知误判为“不承载目标频段”：以 `iw phy info` 实测能力补一次，
-        # 后续接管仍会快照、关闭、恢复该 radio，不会猜 UCI 映射或改错频段。
-        unknown_channel_candidates = sorted(
-            phy
-            for phy, ifaces in phy_interfaces.items()
-            if ifaces
-            and not _channel_matches_band(phy_channels.get(phy), "2.4G")
-            and not _channel_matches_band(phy_channels.get(phy), "5G")
-            and self._phy_supports_band(phy, band, cancel_event) and supports_target(phy)
-        )
-        if unknown_channel_candidates:
-            return chosen(unknown_channel_candidates[0], "存在业务接口且信道未知，按频段能力回退；不视为空闲")
-        # 最后兜底：phy 上如果全是未连接的 STA（如用户已停用本频段业务，仅剩断开的
-        # 上行 STA），同样没有实际业务可扰；频段能力用 iw phy 实测确认，不猜。
-        idle_sta = self._find_idle_sta_phy(band, phy_interfaces, cancel_event)
-        if idle_sta is not None and supports_target(idle_sta):
-            return chosen(idle_sta, "仅检测到未连接 STA，按原手动策略回退；不视为严格空闲射频")
-        rejected = [phy for phy in phy_interfaces
-                    if _channel_matches_band(phy_channels.get(phy), band)
-                    and channel_checks.get(phy) is False]
-        if rejected:
-            raise RuntimeError(
-                f"已找到 {band} 无线网卡 {','.join(sorted(rejected))}，"
-                f"但目标信道 {target_channel} 的能力核验未通过。"
-                "本次检查的详细原因已自动记录，请导出日志反馈，无需额外执行检测命令。"
-            )
-        name = "2.4G" if band == "2.4G" else "5G"
-        if free_phys:
-            raise RuntimeError(
-                f"{name} 频段没有可用的空闲无线网卡，且承载 {name} 业务的网卡已全部被占用。"
-                f"当前无线状态：{seen}。{diag['note']}"
-                "请更换抓包频段，或先停用路由器上对应的无线业务后再试。"
-            )
-        raise RuntimeError(
-            f"未找到承载 {name} 业务的无线接口，且没有空闲无线网卡可接管。"
-            f"当前无线状态：{seen}。{diag['note']}"
-                "若该频段没有空闲 radio，请更换抓包频段，或先停用路由器上对应的无线业务后再试。"
-            )
+                message_callback(usage.phy + ": " + usage.reason, "info")
+            return usage.phy
+        error = IdleRadioUnavailable if idle_radio_only else RuntimeError
+        raise error("\u672a\u627e\u5230\u53ef\u5b89\u5168\u4f7f\u7528\u7684\u5c04\u9891\uff0c\u8bf7\u5237\u65b0\u65e0\u7ebf\u72b6\u6001\u3002 " + " ".join(notes))
 
     @record_takeover_probe
     def probe_handshake_takeover(self, targets, settings, cancel_event=None):
-        """只读普查多目标的射频占用，供主线程按新鲜结果确认接管。
+        """Share one business snapshot across targets; recheck again at execution.
 
-        单次 `iw dev` 读取由全部目标共用；逐个目标复用与执行期完全一致的选卡
-        决策（含严格空闲与各类回退），选中 phy 仍有接口即需接管授权（与接管
-        执行入口的空闲判定同口径）。不创建接口、不修改配置、不弹窗、不写快照。
-        返回与 targets 一一对应的 TakeoverProbeEntry 元组；选卡失败记入
-        entry.error，调用方展示后中止启动。取消直接抛异常，由任务槽按取消处理。
+        Unknown evidence and foreign capture interfaces refuse admission. Only enabled
+        or running wireless business requires takeover consent. Cancellation propagates.
         """
 
         options = settings or {}
@@ -2169,6 +1992,8 @@ class OpenWrtCaptureBackend(CaptureBackend):
             phy_interfaces, phy_channels, diag = read_iwdev_complete(
                 self.command_runner, "probe_takeover_needs", cancel_event
             )
+        except InterruptedError:
+            raise
         except Exception as exc:
             message = str(exc).strip() or type(exc).__name__
             return tuple(
@@ -2178,27 +2003,34 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 )
                 for target in targets or ()
             )
-        expected = set(diag.get("expected") or ())
+        try:
+            usages = read_radio_usage(self.command_runner, cancel_event)
+        except Exception as exc:
+            if cancel_event is not None and cancel_event.is_set():
+                raise InterruptedError("Radio inspection cancelled.") from exc
+            return tuple(TakeoverProbeEntry(t.bssid, t.ssid, t.band, int(t.channel or 0),
+                         error=str(exc) or type(exc).__name__) for t in targets or ())
         entries = []
         for target in targets or ():
             channel = int(target.channel or 0)
             try:
                 phy = self._select_scan_radio(
                     phy_interfaces, phy_channels, diag, target.band,
-                    cancel_event, idle_radio_only, None, channel,
+                    cancel_event, idle_radio_only, None, channel, usages,
                 )
+            except InterruptedError:
+                raise
             except Exception as exc:
                 entries.append(TakeoverProbeEntry(
                     target.bssid, target.ssid, target.band, channel,
                     error=str(exc).strip() or type(exc).__name__,
                 ))
                 continue
-            # 与接管执行入口同口径：已知且为空的 phy 才算空闲，其余一律需授权。
-            known_empty = (not phy_interfaces.get(phy)) and (phy in phy_interfaces or phy in expected)
+            usage = usage_for_phy(usages, phy)
             entries.append(TakeoverProbeEntry(
                 target.bssid, target.ssid, target.band, channel,
                 phy=phy, phy_channel=int(phy_channels.get(phy) or 0),
-                busy=not known_empty, need_takeover=not known_empty and not idle_radio_only,
+                busy=not usage.free, need_takeover=not usage.free and not idle_radio_only,
             ))
         return tuple(entries)
 
@@ -2234,42 +2066,6 @@ class OpenWrtCaptureBackend(CaptureBackend):
             if low[0] <= freq <= low[1] and "disabled" not in line.lower():
                 return True
         return False
-
-    def _find_idle_sta_phy(self, band, phy_interfaces, cancel_event):
-        """找全是未连接 STA 的 phy，返回首个频段能力匹配的，否则返回 None。
-
-        参数 band 是目标频段。逐个 phy 检查：接口必须全部是 managed(STA) 类型且
-        `iw dev <iface> link` 明确未连接，有一个已连接或类型不明就跳过；频段用
-        iw phy 实测，不猜。类型读不到时整条兜底放弃，保守报 402。
-        """
-
-        try:
-            iface_types = read_iface_types(self.command_runner, cancel_event)
-        except Exception:
-            return None
-        if not iface_types:
-            return None
-        for phy in sorted(phy_interfaces):
-            ifaces = phy_interfaces.get(phy) or ()
-            if not ifaces:
-                continue
-            if any(iface_types.get(iface, "") != "managed" for iface in ifaces):
-                continue
-            try:
-                idle = all(
-                    sta_link_down(self.command_runner, iface, cancel_event)
-                    for iface in ifaces
-                )
-            except Exception:
-                continue
-            if not idle:
-                continue
-            try:
-                if self._phy_supports_band(phy, band, cancel_event):
-                    return phy
-            except Exception:
-                continue
-        return None
 
     def is_running(self):
         """返回是否存在本后端启动的远程抓包任务。"""

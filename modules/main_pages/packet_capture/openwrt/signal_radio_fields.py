@@ -8,6 +8,23 @@ _LABELS = {"HT": "N（Wi-Fi 4）", "VHT": "AC（Wi-Fi 5）",
            "NOHT": "传统模式（802.11a/b/g）"}
 
 
+def power_current_label(radio):
+    """Describe preserved power without turning a supported maximum into a reading."""
+    configured = radio.get("txpower")
+    if configured not in (None, ""):
+        return "\u6cbf\u7528\u5f53\u524d\uff08" + str(configured) + " dBm\uff09"
+    active = [item for item in radio.get("powers", ())
+              if item.get("active") is True or type(item.get("active")) is int and item["active"] == 1]
+    if len(active) == 1 and active[0].get("dbm") is not None:
+        item = active[0]
+        value = str(item["dbm"]) + " dBm"
+        if item.get("mw") is not None:
+            value += " \u00b7 " + str(item["mw"]) + " mW"
+    else:
+        value = "\u5f53\u524d\u529f\u7387\u672a\u77e5"
+    return "\u6cbf\u7528\u5f53\u524d\u7cfb\u7edf\u8bbe\u7f6e\uff08" + value + "\uff09"
+
+
 def configure_radio_fields(dialog, radio, features):
     clear_editor_update(dialog, "bandwidth")
     modes = supported_htmodes(radio, features)

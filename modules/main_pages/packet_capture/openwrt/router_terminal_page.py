@@ -86,6 +86,7 @@ class RouterTerminalPage(QWidget):
         self._start_requested=False
         self._pending_command=None
         self._terminal_connection=None
+        self._terminal_worker=None
         snapshot=getattr(service.owner,"openwrt_snapshot",None)
         model=getattr(getattr(snapshot,"device",None),"model","")
         self._device_name=model if isinstance(model,str) else ""
@@ -106,8 +107,8 @@ class RouterTerminalPage(QWidget):
         self.connect_button.clicked.connect(self.enter)
         self.close_button=create_page_text_button(self,"断开终端","只断开显示通道，路由器内的会话和脚本继续运行。")
         self.close_button.clicked.connect(self.close_terminal)
-        self.clear_button=create_page_text_button(self,"清空屏幕","只清除本地显示，不向路由器发送命令。")
-        self.clear_button.clicked.connect(lambda:self.control(action="clear"))
+        self.clear_button=create_page_text_button(self,"清空屏幕","清除终端画面和滚动历史，不停止正在运行的脚本。")
+        self.clear_button.clicked.connect(self.clear_terminal)
         self.export_button=create_page_text_button(self,"导出诊断","导出终端诊断信息（不含终端内容），便于反馈排查。")
         self.export_button.clicked.connect(self.export_diagnostics)
         for button in (self.connect_button,self.close_button,self.clear_button,self.export_button):row.addWidget(button)
@@ -124,6 +125,7 @@ class RouterTerminalPage(QWidget):
         self.install_button.hide();row.addWidget(self.install_button)
         self._install_dialog=None
         self._install_session=None
+        self._install_failure=""
         dependency=getattr(service.owner,'dependency_service',None)
         if dependency is not None:
             dependency.taskChanged.connect(self._dependency_changed)
@@ -145,8 +147,10 @@ class RouterTerminalPage(QWidget):
         service.output.connect(self.bridge.output)
         service.statusChanged.connect(self._status)
         service.failureDetail.connect(self._failure_detail_changed)
+        service.clearFinished.connect(self._clear_finished)
+        service.displayReset.connect(self._reset_display)
         service.owner.openwrtSnapshotChanged.connect(self._connection_changed)
-        self._status(service.state)
+        self._dependency_changed(getattr(dependency,"task",None))
 
     def control(self,**value):
         if self.ready:self.bridge.control.emit(json.dumps(value,ensure_ascii=False))
@@ -202,9 +206,12 @@ class RouterTerminalPage(QWidget):
             note=labels[state]
         if state=='connected' and mode=='plain_unavailable':
             note='会话保留工具检测未通过，已打开普通终端，可正常输入命令。断线后脚本可能停止。'
+        if self._install_failure:
+            note+=("\n" if note else "")+"会话保留支持安装未完成："+self._install_failure
         self.notice.setText(note);self.notice.setVisible(bool(note))
         missing=self._session_support_state=='missing' or (mode=='plain_missing' and self._session_support_state=='unknown')
-        self.install_button.setVisible(missing and not self._session_support_installed)
+        self.install_button.setText("安装会话保留支持")
+        self.install_button.setVisible((missing or bool(self._install_failure)) and not self._session_support_installed)
         self.install_button.setEnabled(self.service.ssh.connected and not getattr(self.service.owner,'is_busy',False))
         dependency=getattr(self.service.owner,'dependency_service',None)
         task=getattr(dependency,'task',None)
@@ -219,10 +226,12 @@ class RouterTerminalPage(QWidget):
         self.connect_button.setText("重新连接终端" if state in {"failed","disconnected","closed"} else "连接终端")
         self.connect_button.setEnabled(self.service.ssh.connected and not self.service.active)
         self.close_button.setEnabled(self.service.active)
+        self.clear_button.setEnabled(not self.service.clear_pending)
         self.paste_button.setEnabled(self.ready and state=="connected")
         self.control(action="state",connected=state=="connected")
-        if state=="connected" and self._terminal_connection is not self.service.ssh._client:
+        if state=="connected" and (self._terminal_connection is not self.service.ssh._client or self._terminal_worker is not self.service.worker):
             self._terminal_connection=self.service.ssh._client
+            self._terminal_worker=self.service.worker
             self.control(action="reset")
         self.close_button.setToolTip('只断开显示通道，脚本继续运行。' if persistent else '普通终端断开可能中断脚本。')
         if state=="connected" and self._pending_command:
@@ -252,16 +261,30 @@ class RouterTerminalPage(QWidget):
         add('粘贴',lambda:self.confirm_paste(QApplication.clipboard().text()),self.service.state=='connected' and bool(QApplication.clipboard().text()))
         add('全选',lambda:self.control(action='selectAll'))
         add('查找',self.bridge.findRequested)
-        add('清空屏幕',lambda:self.control(action='clear'))
+        add('清空屏幕',self.clear_terminal,not self.service.clear_pending)
         try:menu.exec(self.view.mapToGlobal(QPoint(x,y)))
         finally:menu.deleteLater()
+
+    def clear_terminal(self):
+        if self.service.clear_screen() and self.service.clear_pending:
+            self.clear_button.setEnabled(False)
+
+    def _clear_finished(self,success,reason):
+        self.clear_button.setEnabled(True)
+        if success:
+            self.control(action='clear')
+        else:
+            self.status.setText('清屏失败，请重试（'+reason+'）')
+
+    def _reset_display(self):
+        self.control(action="reset")
 
     def close_terminal(self):
         persistent=getattr(self.service,'session_mode','unknown')=='persistent'
         note=('只断开显示通道，脚本仍在路由器中运行，重连可接回。' if persistent else
               '当前为普通终端。断开可能中断正在运行的脚本。')
         if self.service.active and ConfirmDialog('断开路由器终端',note+'确认断开？',self).exec()==ConfirmDialog.Accepted:
-            self._pending_command=None;self.service.stop()
+            self._pending_command=None;self.service.stop(clear_display=True)
 
     def install_session_support(self):
         """复用依赖服务和公共进度窗，不在主线程安装。"""
@@ -270,7 +293,9 @@ class RouterTerminalPage(QWidget):
         if ConfirmDialog('安装终端会话保留支持',
             '将安装 tmux 及其必需依赖。不替换 SSH 服务。脚本在断线后继续运行，重连可恢复当前画面。路由器重启后会话不保留。',self,
             yes_text='安装').exec()==ConfirmDialog.Accepted:
-            dependency.install_async({'terminal':True},scope='terminal')
+            if not dependency.install_async({'terminal':True},scope='terminal'):
+                self._install_failure=self._install_failure or getattr(dependency,"last_rejection_reason","") or "安装任务未启动，请重试。"
+                self._status(self.service.state)
 
     def _failure_detail_changed(self,reason):
         """接收服务转发的失败原因；正处失败态时刷新可见文字。"""
@@ -291,8 +316,6 @@ class RouterTerminalPage(QWidget):
             (f"会话保留支持：{state}；{getattr(support,'detail','') or '无'}","info"),
         ]
 
-        history=getattr(self.service,'history_diagnostic','')
-        if history:entries.append((history,'warning'))
         return entries
 
     def export_diagnostics(self):
@@ -364,13 +387,14 @@ class RouterTerminalPage(QWidget):
         self._export_service=None
 
     def _dependency_changed(self,task):
-        if task is None or task.group!='terminal':return
-        if task.action!='install' or (self._install_dialog is None and not self.isVisible()):return
-        from modules.common_widgets.task_progress_dialog import TaskProgressDialog
-        self.install_button.setVisible(True);self.install_button.setEnabled(False)
-        self.install_button.setText('安装中')
-        if self._install_dialog is None:
+        installing=task is not None and task.group=='terminal' and task.action=='install'
+        if installing:
             self._install_session=task.session_id
+            self._install_failure=""
+        self._status(self.service.state)
+        if not installing or (self._install_dialog is None and not self.isVisible()):return
+        from modules.common_widgets.task_progress_dialog import TaskProgressDialog
+        if self._install_dialog is None:
             self._install_dialog=TaskProgressDialog('安装终端会话保留支持',parent=self)
             self._install_dialog.cancelRequested.connect(lambda key=task.session_id:self.service.owner.dependency_service.cancel(key))
         self._install_dialog.update_stage(task.message)
@@ -379,6 +403,7 @@ class RouterTerminalPage(QWidget):
         if session!=self._install_session:return
         if self._install_dialog is not None:self._install_dialog.finish(success,message)
         self._install_dialog=None;self._install_session=None
+        self._install_failure="" if success else str(message)
         self.install_button.setText('安装会话保留支持')
         if success:
             self._session_support_installed=True;self._session_support_state='ready'
@@ -437,6 +462,8 @@ class RouterTerminalPage(QWidget):
         self.service.output.disconnect(self.bridge.output)
         self.service.statusChanged.disconnect(self._status)
         self.service.failureDetail.disconnect(self._failure_detail_changed)
+        self.service.clearFinished.disconnect(self._clear_finished)
+        self.service.displayReset.disconnect(self._reset_display)
         self.service.owner.openwrtSnapshotChanged.disconnect(self._connection_changed)
         self._export_teardown()
         if self.view:

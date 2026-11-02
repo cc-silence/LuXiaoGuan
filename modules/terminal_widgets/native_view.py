@@ -157,6 +157,8 @@ class NativeTerminalView(QWidget):
         elif action in {'clear', 'reset'}:
             getattr(self._dll, 'wb_clear' if action == 'clear' else 'wb_reset')(self._pointer)
             self._bridge.selectionChanged(False)
+            if action == 'clear' and self._connected:
+                self.terminal.setFocus(Qt.OtherFocusReason)
         elif action == 'paste' and self._connected:
             data = value['text'].encode('utf-8')
             self._dll.wb_paste_text(self._pointer, data, len(data))

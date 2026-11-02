@@ -60,7 +60,7 @@ class SharedUiTests(unittest.TestCase):
 
     def test_rounds_combo_matches_other_capture_inputs(self):
         tabs = self.window.packet_capture_page.openwrt_tab
-        tabs.tabs.setCurrentIndex(tabs._page_indices["settings"])
+        tabs.show_capture_settings()
         box = tabs.settings_page.handshake_rounds_mode
         self.assertEqual(box.objectName(), "captureComboBox")
         for theme, expected in (("dark.qss", "#1d2126"), ("light.qss", "#e9eff6")):
@@ -68,6 +68,7 @@ class SharedUiTests(unittest.TestCase):
             APP.processEvents()
             image = box.grab().toImage()
             self.assertEqual(image.pixelColor(box.width() // 2, box.height() // 2).name(), expected)
+        tabs._settings_dialog.reject()
 
     def test_file_header_matches_capture_header_pixels(self):
         page = self.window.packet_capture_page

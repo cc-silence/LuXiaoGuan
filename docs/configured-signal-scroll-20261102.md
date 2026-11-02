@@ -1,0 +1,9 @@
+# Configured signal action scroll regression (2026-11-02)
+
+The actual configured-signal page with 24 fixture rows reproduced a jump from scroll position 0/2 to 977 when busy or stale snapshots disabled the focused row button. Disabling each row action caused Qt to advance focus through later rows; QScrollArea then revealed those rows. This was reproduced in both light and dark themes before changing production code.
+
+SignalRowWidget now uses the existing set_page_action_enabled helper for enable/disable, edit, and delete buttons. It clears focus before disabling the control, preventing automatic focus traversal. The fix adds no timer, scroll-position restoration, row rebuild, or permanent cache; normal enabled-button keyboard focus policies remain intact. Router operation logic and commands are unchanged, so this is a local UI-only compatibility exemption.
+
+Validation: 13 targeted tests passed in the project Qt 6.3.2 environment. The two new configured-list regression cases also passed using the real Windows display backend on Windows 10. Coverage includes all three action controls across busy/stale snapshots and both themes, actual disable-button request submission, completion with a changed inventory and row reordering, unchanged scroll position, and reuse of row widgets. Existing signal action and confirmation cases pass. Syntax, UTF-8/mojibake and whitespace checks passed.
+
+No router was modified for validation. Windows 11 and Debian 12 desktop focus/scroll acceptance remain pending. On the actual desktop, open a sufficiently long configured-signal list, operate a visible row near the top and middle, and confirm that starting/completing the operation does not bring unrelated later rows into view. The source application must be restarted to load this change; no release package was built.

@@ -66,7 +66,7 @@ class OpenWrtCapturePage(QWidget):
             root.addWidget(left_splitter, 3)
         from .capture_tool_panel import CaptureToolPanel
         self.tools = CaptureToolPanel(settings, self)
-        # 右侧只承担快速操作，固定为窄栏；详细设置仍放在“设置”页面。
+        # The narrow action panel opens detailed settings in a shared dialog.
         self.tools_scroll = ActionScrollArea(self.tools, self)
         root.addWidget(self.tools_scroll)
         self.access_points.selectionChangedByUser.connect(self._selection_changed)
@@ -188,8 +188,9 @@ class OpenWrtPage(QWidget):
             self.tabs,
         )
         self._created_pages = {}
+        self._settings_dialog = None
         pages = (("common", "\u5e38\u7528\u8bbe\u7f6e"), ("signal", "信号管理"), ("files", "文件管理"),
-                 ("terminal", "路由器终端"), ("auto_capture", "自动抓包"), ("capture", "抓包"), ("settings", "抓包设置"))
+                 ("terminal", "路由器终端"), ("auto_capture", "自动抓包"), ("capture", "常规抓包"))
         self._page_indices = {name: index for index, (name, _title) in enumerate(pages, 1)}
         self._panels = {"common": common_info_panel, "capture": info_panel, "signal": signal_info_panel, "files": file_info_panel}
         for panel in self._panels.values():
@@ -240,7 +241,7 @@ class OpenWrtPage(QWidget):
             return self._created_pages[name]
         if name == "capture":
             page = OpenWrtCapturePage(self.service, self.settings, self._panels[name], self.tabs)
-            page.actionRequested.connect(self.actionRequested)
+            page.actionRequested.connect(self._handle_capture_action)
             page.settingsChanged.connect(self.settingsChanged)
             page.columnWidthsChanged.connect(self._column_widths_changed)
             page.advancedWpsRequested.connect(self._on_advanced_wps_requested)
@@ -249,8 +250,10 @@ class OpenWrtPage(QWidget):
             page = AutoCapturePage(self.service, self.settings, self.tabs)
             page.set_light_theme(self._light_theme)
         elif name == "settings":
-            from .capture_settings_page import CaptureSettingsPage
-            page = CaptureSettingsPage(self.service, self.settings, self.tabs)
+            from .capture_settings_dialog import CaptureSettingsDialog
+            self._settings_dialog = CaptureSettingsDialog(self.service, self.settings, self)
+            page = self._settings_dialog.page
+            self._settings_dialog.finished.connect(lambda _result: self.settingsChanged.emit())
             page.actionRequested.connect(self.actionRequested)
             page.settingsChanged.connect(self.settingsChanged)
             page._refresh_history_button()
@@ -271,6 +274,9 @@ class OpenWrtPage(QWidget):
             page = RouterTerminalPage(self.service.router_terminal, self.tabs)
             page.set_light_theme(self._light_theme)
         self._created_pages[name] = page
+        if name == "settings":
+            self._sync_settings_dialog_appearance()
+            return page
         index = self._page_indices[name]
         placeholder = self.tabs.widget(index)
         current = self.tabs.currentIndex()
@@ -287,6 +293,24 @@ class OpenWrtPage(QWidget):
         if getattr(host, "style_mgr", None) is not None:
             host.style_mgr.refresh_subtree(page)
         return page
+
+    def _handle_capture_action(self, action):
+        if action == "capture_settings":
+            self.show_capture_settings()
+        else:
+            self.actionRequested.emit(action)
+
+    def show_capture_settings(self):
+        self.settings_page
+        self._sync_settings_dialog_appearance()
+        self._settings_dialog.show()
+        self._settings_dialog.raise_()
+        self._settings_dialog.activateWindow()
+
+    def _sync_settings_dialog_appearance(self):
+        host = self.parentWidget()
+        if self._settings_dialog is not None and getattr(host, "style_mgr", None) is not None:
+            self._settings_dialog.sync_appearance(host.style_mgr)
 
     def _password_changed(self, target):
         connection = self.login_page.connection
@@ -348,6 +372,7 @@ class OpenWrtPage(QWidget):
     def set_light_theme(self, enabled):
         """由父页面统一切换主题；具体颜色由页面 QSS 负责。"""
         self._light_theme = bool(enabled)
+        self._sync_settings_dialog_appearance()
         for name in ("files", "terminal", "auto_capture"):
             if name in self._created_pages:
                 self._created_pages[name].set_light_theme(enabled)
@@ -366,6 +391,7 @@ class OpenWrtPage(QWidget):
     def apply_scale(self):
         """由父页面统一触发 Qt 布局重算。"""
 
+        self._sync_settings_dialog_appearance()
         if "terminal" in self._created_pages:
             self._created_pages["terminal"].apply_theme()
         self.updateGeometry()

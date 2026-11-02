@@ -1,0 +1,95 @@
+{
+  "checked_on": "2026-11-02",
+  "scope": "PC foreground automatic capture, regular capture, live inventory and idle admission; remote standalone boot script remains a separate shell runtime.",
+  "official_sources": [
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/rpcd/67c8a3fda26e441d3ec4a19f50ac72eca8deb14b/iwinfo.c",
+      "sha256": "ee3e1753a96d5c8920062c7cc869de3a697e7d01ccc9eea40d4ec22c333da67a",
+      "bytes": 21048,
+      "has_phyname": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/rpcd/8d26a1ba3a175016b342cc5e25d340c08ae20eed/iwinfo.c",
+      "sha256": "663543b699271062bf19aeb016ac1479f0b3fd2d5c948f94021ac5cfff17c872",
+      "bytes": 24259,
+      "has_phyname": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/rpcd/7de4820c87437033f6b7716018f3bfa60a3f7b12/iwinfo.c",
+      "sha256": "eba2182fb1774a62365ddb1be386b721f2d8dc924a8800cfbddeb8b73fd41eeb",
+      "bytes": 21850,
+      "has_phyname": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/rpcd/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/iwinfo.c",
+      "sha256": "69ab89e14338c1999f43734bc6f0ec004a1796ddc82550fbec66ce7f1dccbace",
+      "bytes": 22215,
+      "has_phyname": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/rpcd/bba95191ff2f22c9118a1ba1355b83afaa277ae3/iwinfo.c",
+      "sha256": "db67eac5d6de44ca83bf2b80219a68e004aa3ddec973e20f7ae947e313ce8a97",
+      "bytes": 22755,
+      "has_phyname": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/rpcd/d99f703e4035d03fbcfbada3cb697db346c2b984/iwinfo.c",
+      "sha256": "0fd26292e4239831c08dd042b4322833c04d3334bec07f24fdb9722c0ceafede",
+      "bytes": 23525,
+      "has_phyname": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/torvalds/linux/v5.15/net/core/net-sysfs.c",
+      "sha256": "912b2aab1326d2982f7588c8bc90f32495574f585fadb0a33ba037101045ff66",
+      "bytes": 47569,
+      "has_phyname": null
+    },
+    {
+      "url": "https://raw.githubusercontent.com/torvalds/linux/v5.15/Documentation/networking/operstates.rst",
+      "sha256": "b07bfcf1f2f9013d82b55148f3cf172609a1b07ed7397f46214167a9ac987552",
+      "bytes": 6659,
+      "has_phyname": null
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/base-files/files/sbin/wifi",
+      "sha256": "3496b99d6e0267494e3e6932158a20a3b5ae403c2a4f5d7923d98d0d1b886f42",
+      "bytes": 5331,
+      "has_phyname": null
+    }
+  ],
+  "release_contracts": [
+    "19.07",
+    "21.02",
+    "22.03",
+    "23.05",
+    "24.10",
+    "25.12"
+  ],
+  "findings": [
+    "Interface existence is not enabled wireless business.",
+    "Use IFF_UP from flags for administrative state; carrier has a separate sysfs attribute.",
+    "Verify managed station association with iw dev IFACE link.",
+    "Use actual native radio identity, never numbering, architecture or model guesses.",
+    "Incomplete readings, conflicting identity and foreign capture interfaces refuse admission.",
+    "No new package or OS-specific branch; BusyBox/POSIX and iw capabilities are checked at runtime."
+  ],
+  "device_evidence": {
+    "model": "TP-Link TL-XDR6088",
+    "release": "23.05.4",
+    "feedback_app_version": "1.0.30_alpha",
+    "radio1_interface": "managed interface without channel; absence alone does not prove business usage"
+  },
+  "verification_limits": [
+    "No router was operated. Hardware driver behavior, including mt76, requires a wired-device capture/stop test.",
+    "Source contracts are not real-device certification for all supported releases or hardware."
+  ],
+  "verification": {
+    "windows_targeted_tests": 101,
+    "windows_result": "passed",
+    "debian12_app_integration": "not run: existing environment has no PySide6",
+    "router_live": "not run",
+    "interface_cleanup": "Inert AP/STA interfaces are preserved; this change removes broad same-PHY interface deletion.",
+    "debian12_native_shell_test": "passed: actual command template executed in Debian /bin/sh",
+    "debian12_generated_stub_syntax": "passed: sh -n"
+  }
+}

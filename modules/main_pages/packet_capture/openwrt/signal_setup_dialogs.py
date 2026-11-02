@@ -57,9 +57,19 @@ class _SetupDialog(FramelessDialog):
         self._busy = False
         self._close_pending = False
 
-    def message(self, text):
+    def message(self, text, *, error=False):
+        self._input_error_active = bool(error)
+        name = "settingsValidationError" if error else "settingsHint"
+        if self.status_label.objectName() != name:
+            self.status_label.setObjectName(name)
+            self.status_label.style().unpolish(self.status_label)
+            self.status_label.style().polish(self.status_label)
         self.status_label.setText(text)
         self.status_label.setVisible(bool(text))
+
+    def input_validation_changed(self, text):
+        if text or getattr(self, "_input_error_active", False):
+            self.message(text, error=bool(text))
 
     def set_busy(self, busy, text=""):
         """保持原窗口和密码直到后台恢复完毕，避免重建或提前释放。"""
@@ -170,6 +180,7 @@ class AccessPointSetupDialog(_SetupDialog):
         self.expert_section, self.expert_tabs = self._section("高级参数", ("兼容与漫游",))
         from .signal_advanced_fields import AdvancedFields
         self.expert_fields = AdvancedFields(*self.expert_tabs.pages["兼容与漫游"])
+        self.expert_fields.controls["maclist"].validationChanged.connect(self.input_validation_changed)
         self.form.addWidget(hint("一般只需填写名称和密码，其余选项可沿用当前路由器设置。", self.body))
         self.form.addStretch(1)
 

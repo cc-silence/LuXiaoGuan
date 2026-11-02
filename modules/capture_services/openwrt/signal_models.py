@@ -1,6 +1,6 @@
 """路由器信号管理的白名单快照，不保存无线密码或原始配置。"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from .signal_details import SignalDetails
 from .wireless_status_models import WirelessStatus
 
@@ -36,6 +36,15 @@ class SignalInventory:
 
 
 @dataclass(frozen=True)
+class SignalMutationResult:
+    """Publish the verified inventory and its editing environment together."""
+
+    inventory: SignalInventory
+    environment: object = field(repr=False)
+    inspection_error: str = field(default="", repr=False)
+
+
+@dataclass(frozen=True)
 class SignalFailure:
     """后台失败的结构化结果；code 供服务层分支，message 只含脱敏摘要。"""
 
@@ -64,3 +73,15 @@ class SignalSnapshot:
     wireless_status: WirelessStatus = WirelessStatus()
     wireless_status_stale: bool = True
     detail_level: str = "info"
+
+
+def same_signal_configuration(left, right):
+    """Compare saved signal metadata while allowing fresh runtime observations."""
+    if left is right:
+        return True
+    if (not isinstance(left.revision, str) or len(left.revision) != 64 or
+            right.revision != left.revision or right.pending_changes != left.pending_changes):
+        return False
+    def saved(row):
+        return replace(row, running="unknown", details=None, runtime_note="", runtime_ssid="", runtime_band="")
+    return tuple(map(saved,left.rows)) == tuple(map(saved,right.rows))

@@ -101,7 +101,7 @@ class SignalSetupActions(QObject):
             try:
                 request = replace(ap_request(dialog), revision=env.data["revision"])
             except ValueError as exc:
-                dialog.message(str(exc))
+                dialog.message(str(exc), error=True)
                 return
             self._save(dialog, request, apply=apply)
         dialog.saveRequested.connect(save)

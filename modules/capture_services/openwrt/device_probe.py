@@ -14,122 +14,9 @@ _IWDEV_MARKER = "__WINBOX_IWDEV__"
 
 
 def parse_radio_idle_status(wireless_text: str) -> dict[str, bool]:
-    """与 hcx_autocap.sh detect_idle_radios 严格对齐，解析射频真实业务空闲状态。
-
-    判定准则：
-    1. 若 UCI 中射频设备被显式声明禁用 (disabled == '1')，直接判定为空闲 (True)；
-    2. 若 wifi status JSON 中该射频处于未启用或无任何活跃发射接口，直接判定为空闲 (True)；
-    3. 若属于该射频的所有业务接口 (wifi-iface) 均声明了 disabled == '1' 或未配置业务接口，判定为空闲 (True)；
-    4. 只有在明确存在未禁用的业务 Wi-Fi 且该接口处于活跃发射中时，才判定为正在使用 (False)。
-    """
-    free_map = {}
-
-    # 1. 扫描 UCI wireless 配置节声明与属性，坚决不用节名字串猜测类型
-    section_types = {}    # sec -> "wifi-device" | "wifi-iface"
-    section_props = {}    # sec -> {prop: val}
-    anon_device_map = {}  # "@wifi-device[0]" -> "radio0"
-
-    device_idx = 0
-    for line in str(wireless_text or "").splitlines():
-        line = line.strip()
-        if not line.startswith("wireless."):
-            continue
-        m_decl = re.match(r"^wireless\.([A-Za-z0-9_@\[\]-]+)=['\"]?([A-Za-z0-9_-]+)['\"]?$", line)
-        if m_decl:
-            sec, stype = m_decl.groups()
-            section_types[sec] = stype
-            if stype == "wifi-device" and sec.startswith("@"):
-                anon_device_map[sec] = f"radio{device_idx}"
-                device_idx += 1
-            continue
-        m_prop = re.match(r"^wireless\.([A-Za-z0-9_@\[\]-]+)\.([A-Za-z0-9_]+)=(.*)$", line)
-        if m_prop:
-            sec, prop, val = m_prop.groups()
-            val = val.strip().strip('"\'')
-            if sec not in section_props:
-                section_props[sec] = {}
-            section_props[sec][prop] = val
-
-    # 2. 扫描 wifi status JSON
-    wifi_status_data = {}
-    if STATUS_MARKER in str(wireless_text or ""):
-        try:
-            payload = re.split(r"(?m)^__WINBOX_", wireless_text.split(STATUS_MARKER, 1)[1], maxsplit=1)[0]
-            data = json.loads(payload)
-            if isinstance(data, dict):
-                wifi_status_data = data
-        except Exception:
-            pass
-
-    # 3. 收集所有 radio 名称
-    all_radios = set(wifi_status_data.keys())
-    for sec, stype in section_types.items():
-        if stype == "wifi-device":
-            all_radios.add(anon_device_map.get(sec, sec))
-    for sec, props in section_props.items():
-        if "device" in props:
-            dev = props["device"]
-            all_radios.add(anon_device_map.get(dev, dev))
-        elif sec.startswith("radio") or (sec in section_types and section_types[sec] == "wifi-device"):
-            all_radios.add(anon_device_map.get(sec, sec))
-
-    def _is_disabled(val) -> bool:
-        return str(val).lower() in {"1", "true", "yes", "on", "disabled"}
-
-    for r in all_radios:
-        if not r or not re.match(r"^[A-Za-z0-9_]+$", r):
-            continue
-
-        # 规则 1: 检查 UCI 中 radio 设备本身是否被整卡禁用
-        r_sec_candidates = [r] + [sec for sec, mapped in anon_device_map.items() if mapped == r]
-        radio_disabled_in_uci = any(
-            _is_disabled(section_props.get(s, {}).get("disabled", "0"))
-            for s in r_sec_candidates
-        )
-        if radio_disabled_in_uci:
-            free_map[r] = True
-            continue
-
-        # 规则 2: 检查 wifi status JSON
-        st = wifi_status_data.get(r)
-        if isinstance(st, dict):
-            is_dis = _is_disabled(st.get("disabled", False))
-            is_up = st.get("up", True)
-            interfaces = st.get("interfaces", [])
-            has_running_iface = any(
-                isinstance(ifc, dict)
-                and ifc.get("up", True)
-                and not _is_disabled(ifc.get("config", {}).get("disabled", False))
-                for ifc in interfaces
-            )
-            # 若 radio 被禁用、未启动，或者根本没有正在发射的业务接口，直接视为空闲
-            if (is_dis or not is_up) or not has_running_iface:
-                free_map[r] = True
-                continue
-
-        # 规则 3: 检查属于该 radio 的所有 wifi-iface 业务接口
-        bound_ifaces = []
-        for sec, props in section_props.items():
-            dev = props.get("device", "")
-            mapped_dev = anon_device_map.get(dev, dev)
-            if mapped_dev == r:
-                bound_ifaces.append(sec)
-
-        if bound_ifaces:
-            # 如果配置在该 radio 上的所有 wifi-iface 都声明了 disabled='1'
-            if all(_is_disabled(section_props.get(sec, {}).get("disabled", "0")) for sec in bound_ifaces):
-                free_map[r] = True
-                continue
-        else:
-            # 根本没有配置任何业务接口且运行时也没有活动接口
-            if not st or not st.get("interfaces"):
-                free_map[r] = True
-                continue
-
-        # 默认存在未禁用的接口
-        free_map[r] = False
-
-    return free_map
+    """Configuration intent, retained for legacy snapshots; runtime uses radio_usage."""
+    from .radio_usage import configured_radios_idle
+    return configured_radios_idle(wireless_text)
 
 
 def _iwdev_text(wireless_text):
@@ -543,6 +430,16 @@ class OpenWrtDeviceProbe:
             identity_text = wireless.stdout
         wireless_text = identity_text + "\n__WINBOX_IWDEV__\n" + diag["raw"]
         device = self._parse(system.stdout, wireless_text, storage.stdout, diag["expected"])
+        if tools.stdout.strip() != "MISSING":
+            from .radio_usage import read_radio_usage
+            try:
+                usages = read_radio_usage(self.command_runner, cancel_event, snapshot=wireless_text)
+                device = replace(device, radios=tuple(replace(r, free=usages[r.name].free)
+                                 if r.name in usages else replace(r, free=None) for r in device.radios))
+            except InterruptedError:
+                raise
+            except (RuntimeError, TimeoutError):
+                device = replace(device, radios=tuple(replace(r, free=None) for r in device.radios))
         if (
             not device.version
             or not device.target
@@ -673,6 +570,8 @@ class OpenWrtDeviceProbe:
             channel = int(phy_channels.get(phy, 0) or 0)
             if not normalized_bands and channel > 0:
                 normalized_bands = ("5G",) if channel > 14 else ("2.4G",)
+            # Parsing old snapshots cannot establish administrative/link state.
+            # The live probe replaces this conservative value with shared usage.
             if interfaces:
                 is_free = False
             elif not phy:

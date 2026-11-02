@@ -101,6 +101,9 @@ class CaptureToolPanel(QWidget):
         self.open_dir_button = self._button(self, "打开包存储目录", "open_output_dir")
         # 该按钮比普通动作按钮高三分之一，在窄栏里更显眼，方便跑出结果后一眼找到。
         UiScaleManager.for_widget(self).bind_metrics(self.open_dir_button, min_height=35)
+        self.settings_button = self._button(self, "\u6293\u5305\u8bbe\u7f6e", "capture_settings")
+        UiScaleManager.for_widget(self).bind_metrics(self.settings_button, min_height=35)
+        root.addWidget(self.settings_button)
         root.addWidget(self.open_dir_button)
         root.addStretch(1)
 

@@ -21,3 +21,13 @@ QCheckBox::indicator:indeterminate, QAbstractItemView::indicator:indeterminate {
     background-image: none;
     border: 1px solid #7eaed2;
 }
+
+/* Explicit unavailable state for wireless roaming options. */
+QCheckBox#wirelessRoamingOption:disabled {
+    color: #929aa5;
+}
+QCheckBox#wirelessRoamingOption::indicator:disabled {
+    background: #e1e5ea;
+    border: 1px solid #bac1ca;
+    background-image: none;
+}

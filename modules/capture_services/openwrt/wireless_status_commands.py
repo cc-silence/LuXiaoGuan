@@ -55,6 +55,7 @@ local runtime=call('network.wireless','status')
 if not runtime then io.write(json.stringify({ok=false,code='unsupported'})); bus:close(); return end
 local dump=call('network.interface','dump') or {}
 local networks,total,limited={},0,false
+local links={}
 for radio,state in pairs(runtime) do
     if type(state)=='table' and state.up==true then
         for _,iface in ipairs(state.interfaces or {}) do
@@ -64,6 +65,7 @@ for radio,state in pairs(runtime) do
                 if #networks>=64 then limited=true; break end
                 local info=call('iwinfo','info',{device=device}) or {}
                 local devstate=call('network.device','status',{name=device})
+                if name(iface.section) and type(devstate)=='table' and type(devstate.up)=='boolean' then links[iface.section]=devstate.up end
                 if not devstate or devstate.up~=false then
                     local assoc=call('iwinfo','assoclist',{device=device})
                     local peers,available={},assoc~=nil and type(assoc.results)=='table'
@@ -127,8 +129,34 @@ for radio,state in pairs(runtime) do
         end
     end
 end
+local observations={}
+for section,cfg in pairs(configs) do
+    if (cfg.mode=='ap' or cfg.mode=='sta') and name(section) and name(cfg.device) then
+        if #observations>=256 then limited=true; break end
+        local state=runtime[cfg.device]
+        local running,note='unknown',''
+        if type(state)=='table' then
+            if state.pending==true then note='pending'
+            elseif state.retry_setup_failed==true then note='setup_failed' end
+            if type(state.up)=='boolean' and not state.pending then
+                running='inactive'
+                local matches=0
+                for _,iface in ipairs(state.interfaces or {}) do
+                    if iface.section==section then
+                        matches=matches+1
+                        if type(iface.ifname)=='string' and state.up then
+                            running=links[section]==true and 'active' or 'unknown'
+                        end
+                    end
+                end
+                if matches>1 then running='unknown' end
+            end
+        end
+        observations[#observations+1]={section=section,radio=cfg.device,mode=cfg.mode,running=running,note=note}
+    end
+end
 bus:close()
-io.write(json.stringify({ok=true,result={schema=1,networks=networks,limited=limited}}))
+io.write(json.stringify({ok=true,result={schema=1,networks=networks,limited=limited,runtime=observations}}))
 """
 
 

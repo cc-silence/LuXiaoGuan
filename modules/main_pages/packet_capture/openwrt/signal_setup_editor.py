@@ -36,12 +36,13 @@ def configure_ap(dialog, environment):
     dialog.password.set_stored_available(bool(old.get("has_key")))
     fill(dialog.channel, ([("自动", "auto")] if data.get("features", {}).get("ap_acs") else []) + [(str(c["channel"]) + (" · DFS" if c.get("restricted") else ""), str(c["channel"]))
          for c in radio.get("channels", []) if not c.get("restricted")], radio.get("channel"), preserve=True)
-    from .signal_radio_fields import configure_radio_fields
+    from .signal_radio_fields import configure_radio_fields, power_current_label
     configure_radio_fields(dialog, radio, data.get("features", {}))
     fill(dialog.country, [(c.get("iso3166", c.get("code", "")) + " · " + c.get("country", ""), c.get("iso3166", c.get("code")))
          for c in radio.get("countries", []) if len(c.get("iso3166", c.get("code", ""))) == 2], radio.get("country"), preserve=True)
     fill(dialog.power, [(str(p["dbm"]) + " dBm · " + str(p.get("mw", "?")) + " mW", str(p["dbm"]))
          for p in radio.get("powers", [])], radio.get("txpower"), preserve=True)
+    dialog.power.setItemText(0, power_current_label(radio))
     supported = [(label, value) for label, value in dialog._encryption_choices
                  if value not in ("sae", "sae-mixed") or data.get("features", {}).get("ap_sae")]
     supported = [(label, value) for label, value in supported if value != "owe" or data.get("features", {}).get("ap_owe")]

@@ -963,7 +963,7 @@ void KodoTerm::mousePressEvent(QMouseEvent *e) {
         m = (VTermModifier)(m | VTERM_MOD_ALT);
     }
     int r = e->pos().y() / m_cellSize.height(), c = e->pos().x() / m_cellSize.width();
-    if (m_mouseMode > 0 && !(e->modifiers() & Qt::ShiftModifier)) {
+    if (m_mouseMode > 0 && !m_localSelection && !(e->modifiers() & Qt::ShiftModifier)) {
         int b = 0;
         if (e->button() == Qt::LeftButton) {
             b = 1;
@@ -1016,7 +1016,7 @@ void KodoTerm::mousePressEvent(QMouseEvent *e) {
 
 void KodoTerm::mouseDoubleClickEvent(QMouseEvent *e) {
     if (e->button() != Qt::LeftButton ||
-        (m_mouseMode > 0 && !(e->modifiers() & Qt::ShiftModifier))) {
+        (m_mouseMode > 0 && !m_localSelection && !(e->modifiers() & Qt::ShiftModifier))) {
         return;
     }
     m_clickCount = 2;
@@ -1081,7 +1081,7 @@ void KodoTerm::mouseMoveEvent(QMouseEvent *e) {
     }
     VTermPos vp = mouseToPos(e->pos());
     int r = e->pos().y() / m_cellSize.height(), c = e->pos().x() / m_cellSize.width();
-    if (m_mouseMode > 0 && !(e->modifiers() & Qt::ShiftModifier)) {
+    if (m_mouseMode > 0 && !m_localSelection && !(e->modifiers() & Qt::ShiftModifier)) {
         vterm_mouse_move(m_vterm, r, c, m);
         vterm_screen_flush_damage(m_vtermScreen);
         return;
@@ -1105,7 +1105,7 @@ void KodoTerm::mouseReleaseEvent(QMouseEvent *e) {
         m = (VTermModifier)(m | VTERM_MOD_ALT);
     }
     int r = e->pos().y() / m_cellSize.height(), c = e->pos().x() / m_cellSize.width();
-    if (m_mouseMode > 0 && !(e->modifiers() & Qt::ShiftModifier)) {
+    if (m_mouseMode > 0 && !m_localSelection && !(e->modifiers() & Qt::ShiftModifier)) {
         int b = 0;
         if (e->button() == Qt::LeftButton) {
             b = 1;

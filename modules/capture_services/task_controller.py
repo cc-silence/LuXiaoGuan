@@ -41,12 +41,12 @@ class CaptureTaskController(QObject):
             CaptureSessionState.STOPPING,
         }
 
-    def begin(self, task_type, session_id, state=CaptureSessionState.STARTING):
+    def begin(self, task_type, session_id, state=CaptureSessionState.STARTING, *, cancel_event=None):
         """占用任务槽并返回独立取消事件；已有任务时返回 None。"""
 
         if not self._lock.acquire(blocking=False):
             return None
-        self._cancel_event = Event()
+        self._cancel_event = cancel_event if cancel_event is not None else Event()
         self._task_type = str(task_type or "")
         self._session_id = str(session_id or "")
         self.pause_control = (

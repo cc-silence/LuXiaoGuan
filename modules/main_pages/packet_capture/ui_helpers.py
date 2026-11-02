@@ -35,10 +35,11 @@ def create_capture_card(parent, title, description="", *, collapsible=False, exp
             outer.addLayout(text_layout, 1)
             layout.addLayout(outer)
             layout = text_layout
-        title_label = QLabel(title, card)
-        title_label.setObjectName("captureGroupTitle")
-        title_label.setWordWrap(icon_path is not None)
-        layout.addWidget(title_label)
+        if title:
+            title_label = QLabel(title, card)
+            title_label.setObjectName("captureGroupTitle")
+            title_label.setWordWrap(icon_path is not None)
+            layout.addWidget(title_label)
     card.setAttribute(Qt.WA_StyledBackground, True)
     if description:
         description_label = QLabel(description, card)

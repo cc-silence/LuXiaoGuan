@@ -78,7 +78,7 @@ class RouterLoginPage(QWidget):
             lambda _index: self.settingsChanged.emit()
         )
         root.addWidget(self.connection.card)
-        device_card, device_layout = create_capture_card(content, "设备信息", "SSH 登录完成后显示 OpenWrt 版本、架构、无线 radio、内存、存储和 SFTP 状态。")
+        device_card, device_layout = create_capture_card(content, "")
         self.device_status = DeviceStatusPanel(device_card)
         device_layout.addWidget(self.device_status)
         root.addWidget(device_card)

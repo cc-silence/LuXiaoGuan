@@ -116,7 +116,20 @@ class RouterBoundary:
             output = '\n'.join(('(1/1) Installing '+n+' (1)') if apk else
                                ('Installing '+n+' (1) to root...') for n in names) or 'OK:'
         elif name == 'dependency_install_sizes':
-            output = '\n'.join(n+'-1 installed size:\n1024 B' for n in self.all_names) if apk else '\n\n'.join('Package: '+n+'\nVersion: 1\nInstalled-Size: 1024' for n in self.all_names)
+            if apk:
+                output = '\n'.join(n+'-1 installed size:\n1024 B' for n in self.all_names)
+            else:
+                tokens = list(shlex.shlex(command, posix=True, punctuation_chars=True))
+                if tokens[:3] == ['for', 'package', 'in']:
+                    stop = tokens.index(';')
+                    selected = tokens[3:stop]
+                    if tokens[stop+1:stop+5] != ['do', 'opkg', 'info', '$package']:
+                        raise AssertionError('Unexpected opkg info loop')
+                else:
+                    # Real opkg info ignores selectors after its first one.
+                    selected = shlex.split(command)[2:3]
+                output = '\n\n'.join('Package: '+n+'\nVersion: 1\nInstalled-Size: 1024'
+                                       for n in selected if n in self.all_names)
         elif name=='dependency_update' and self.allow_online:
             output = ''
         elif name.startswith('dependency_install_') and name[len('dependency_install_'):] in self.all_names and self.allow_online:

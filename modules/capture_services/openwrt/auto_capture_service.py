@@ -33,6 +33,7 @@ from modules.capture_services.openwrt.models import OpenWrtRadioInfo
 from .auto_capture_boot_manager import AutoCaptureBootManager, AutoCaptureBootStatus
 from .auto_capture_log_analyzer import AutoCaptureLogAnalyzer, AutoCaptureDiagnosticReport
 from .radio_takeover import OpenWrtRadioTakeover, RadioTakeoverRecord
+from .radio_usage import read_radio_usage, usage_for_phy
 
 
 @dataclass
@@ -201,7 +202,7 @@ class AutoCaptureRadioSession:
 
             # 动态核准该射频对应的真实底层物理 phy (对齐 hcx_autocap.sh 三级动态探测)
             snapshot = takeover.snapshot_wireless(self._stop_event)
-            self.phy, live_interfaces = takeover.resolve_phy(self.radio_name, snapshot)
+            self.phy, _interfaces = takeover.resolve_phy(self.radio_name, snapshot)
             self.service.radioStreamOutput.emit(
                 self.radio_name,
                 f"📡 [射频绑定] 物理设备: {self.phy} (对应配置: wireless.{self.radio_name})\n",
@@ -209,8 +210,8 @@ class AutoCaptureRadioSession:
 
             # 1. 如果射频正在承载实际业务接口，且用户允许接管，才执行无线安全接管事务；
             # 若当前没有任何业务接口（例如重置后未开启无线或处于空闲），本身即无需接管
-            has_running_ifaces = bool(live_interfaces)
-            is_free = not has_running_ifaces
+            usage = usage_for_phy(read_radio_usage(self.runner, self._stop_event, snapshot=snapshot), self.phy)
+            is_free = usage.free
             if not is_free:
                 if not allow_takeover:
                     raise RuntimeError(f"射频 {self.radio_name} 当前正在使用，且未勾选允许接管，已拒绝启动。")
@@ -254,16 +255,7 @@ class AutoCaptureRadioSession:
             if hasattr(self.service,'diagnostics'):
                 self.service.diagnostics.recovery(self.radio_name,"preflight monitor cleanup: "+monitor_state)
 
-            # 清理本 PHY 上冲突的旧业务接口与旧占位接口(防止多接口或孤儿 AP 接口导致 hcxdumptool 报 failed to arm interface)
-            cleanup_stale_ap = (
-                f"for _stale in $(iw dev 2>/dev/null | grep -E \"phy#{self.idx}\\b\" -A 10 | grep 'Interface ' | awk '{{print $2}}'); do "
-                f"  case \"$_stale\" in "
-                f"    {self.mon_iface}) : ;; "
-                f"    *) iw dev \"$_stale\" del 2>/dev/null ;; "
-                f"  esac; "
-                f"done"
-            )
-            self.runner.run("cleanup_stale_ap", cleanup_stale_ap, timeout=6, cancel_event=self._stop_event)
+            # Inert AP/STA interfaces may belong to netifd. Never delete them.
 
             # 3. 下发标准内核纯净白名单 BPF 过滤器规则 (仅放行信标与四次握手，过滤大流量视频/下载数据帧)
             bpf_payload = (
@@ -299,6 +291,10 @@ class AutoCaptureRadioSession:
                 f"iw phy {self.phy} interface add {self.mon_iface} type monitor addr {wlan_mac} && "
                 f"ip link set {self.mon_iface} up && sleep 1"
             )
+            # Recheck after preparation and before touching the radio.
+            latest = usage_for_phy(read_radio_usage(self.runner, self._stop_event), self.phy)
+            if not latest.free:
+                raise RuntimeError(latest.reason)
             self._monitor_creation_attempted = True
             create_res = self.runner.run(
                 "add_mon_iface",
@@ -353,9 +349,10 @@ class AutoCaptureRadioSession:
                 "    _sname=\"hcxstub${_num}\"; "
                 "    _rand_mac=\"02:$(hexdump -n 5 -e '/1 \":%02x\"' /dev/urandom 2>/dev/null | cut -c 2-)\"; "
                 "    [ -z \"$_rand_mac\" ] && _rand_mac=\"02:77:88:99:aa:bb\"; "
-                "    if iw phy \"$_phy\" interface add \"$_sname\" type monitor addr \"$_rand_mac\" 2>/dev/null && "
-                "       ip link set \"$_sname\" up 2>/dev/null; then "
+                "    if iw phy \"$_phy\" interface add \"$_sname\" type monitor addr \"$_rand_mac\" 2>/dev/null; then "
                 "      echo \"STUB_CREATED:$_sname\"; "
+                "      if ! { printf %s routermanager:autocapture-stub > /sys/class/net/\"$_sname\"/ifalias && "
+                "             ip link set \"$_sname\" up 2>/dev/null; }; then echo STUB_FAILED; fi; "
                 "    fi; "
                 "  fi; "
                 "done"
@@ -367,6 +364,9 @@ class AutoCaptureRadioSession:
                         stub_name = line.split(":", 1)[1].strip()
                         if stub_name and stub_name not in self._created_stubs:
                             self._created_stubs.append(stub_name)
+
+            if "STUB_FAILED" in (stub_res.stdout or ""):
+                raise RuntimeError("Capture placeholder preparation failed; owned resources will be cleaned up.")
 
             # 5. 准备输出文件与本地日志文件
             stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -921,30 +921,42 @@ class AutoCaptureRadioSession:
 
     def _pull_capture_result(self):
         """将生成的 .pcapng 拉回本地。"""
+        from .capture_products import cap_product_note
+        from .result_converter import unique_result_path
+        dest_file = None
+        stable = False
         try:
             pcap_name = Path(self.remote_cap_file).name
-            dest_file = self.output_dir / pcap_name
-            with self.ssh_client.transfer(None, timeout=30):
-                sftp = self.ssh_client.open_sftp(timeout=10)
-                try:
-                    stat_info = sftp.stat(self.remote_cap_file)
-                    self.stats.file_size_bytes = stat_info.st_size
-                    if stat_info.st_size > 0:
-                        temp_dest = self.output_dir / f"{pcap_name}.part"
-                        sftp.get(self.remote_cap_file, str(temp_dest))
-                        if temp_dest.exists():
-                            if dest_file.exists():
-                                dest_file.unlink()
+            dest_file = unique_result_path(self.output_dir, Path(pcap_name).stem, ".pcapng")
+            temp_dest = dest_file.with_name(dest_file.name + "." + uuid4().hex + ".part")
+            try:
+                with self.ssh_client.transfer(None, timeout=30):
+                    sftp = self.ssh_client.open_sftp(timeout=10)
+                    try:
+                        before = sftp.stat(self.remote_cap_file)
+                        self.stats.file_size_bytes = before.st_size
+                        if before.st_size > 0:
+                            sftp.get(self.remote_cap_file, str(temp_dest))
+                            after = sftp.stat(self.remote_cap_file)
+                            stable = before.st_size == after.st_size == temp_dest.stat().st_size
+                            stable = stable and getattr(before, "st_mtime", None) == getattr(after, "st_mtime", None)
                             temp_dest.rename(dest_file)
-                            self.service.radioStreamOutput.emit(
-                                self.radio_name,
-                                f"📥 [成果] 抓包产物已拉回本地: {dest_file.name} ({dest_file.stat().st_size} 字节)\n",
-                            )
-                            self.service.messageGenerated.emit(f"抓包产物已拉回: {dest_file.name}", "success")
-                except FileNotFoundError:
-                    pass
+                    finally:
+                        sftp.close()
+            finally:
+                temp_dest.unlink(missing_ok=True)
+            if dest_file.exists():
+                if stable:
+                    _product, note = cap_product_note(dest_file)
+                else:
+                    note = "CAP \u672a\u751f\u6210\uff1a\u4e0b\u8f7d\u671f\u95f4\u539f\u59cb\u5305\u4ecd\u5728\u53d8\u5316\u6216\u672a\u4e0b\u8f7d\u5b8c\u6574\uff0c\u672c\u5730\u539f\u5305\u5df2\u4fdd\u7559\u3002"
+                self.service.radioStreamOutput.emit(self.radio_name, note + "\n")
+                self.service.messageGenerated.emit(note, "success" if stable and _product else "warning")
+        except FileNotFoundError:
+            return
         except Exception as exc:
             LOGGER.warning("Pull capture result failed: %s", exc)
+            self.service.radioStreamOutput.emit(self.radio_name, "\u6293\u5305\u6210\u679c\u4e0b\u8f7d\u5931\u8d25\uff0c\u8bf7\u91cd\u65b0\u62c9\u53d6\uff1a" + str(exc) + "\n")
 
     def _build_stats_dict(self) -> dict:
         return {
@@ -1079,6 +1091,9 @@ class AutoCaptureService(QObject):
 
     def stop_all(self):
         """停止所有正在抓包的射频。"""
+        cancel = getattr(self, "_idle_probe_cancel", None)
+        if cancel is not None:
+            cancel.set()
         for session in list(self.sessions.values()):
             session.stop()
         self._resource_timer.stop()
@@ -1233,7 +1248,21 @@ class AutoCaptureService(QObject):
     def pull_offline_artifacts(self, dest_dir: Optional[str] = None) -> list[str]:
         """从远端 /root/cap/ 拉取所有离线成果与日志到本地，返回成功拉取的文件绝对路径列表。"""
         target_dir = dest_dir or str(self.get_output_dir())
-        return self.boot_manager.pull_offline_artifacts(target_dir)
+        from .capture_products import cap_product_note
+        stable_captures = set()
+        pulled = self.boot_manager.pull_offline_artifacts(target_dir, stable_captures=stable_captures)
+        products = list(pulled)
+        for filename in pulled:
+            if Path(filename).suffix.lower() != ".pcapng":
+                continue
+            if filename in stable_captures:
+                product, note = cap_product_note(filename)
+            else:
+                product, note = None, "CAP \u672a\u751f\u6210\uff1a\u539f\u59cb\u5305\u4ecd\u5728\u53d8\u5316\u6216\u4e0b\u8f7d\u4e0d\u5b8c\u6574\uff0c\u5df2\u4fdd\u7559\uff0c\u8bf7\u505c\u6b62\u6293\u5305\u540e\u91cd\u65b0\u62c9\u53d6\u3002"
+            self.messageGenerated.emit(note, "success" if product else "warning")
+            if product is not None:
+                products.append(str(product))
+        return products
 
     def pull_offline_artifacts_async(self, dest_dir: Optional[str] = None):
         """异步从远端 /root/cap/ 拉取所有离线成果与日志到本地，并通过 Qt 信号在主线程通知完成。"""
@@ -1242,7 +1271,7 @@ class AutoCaptureService(QObject):
         def _task():
             try:
                 self.messageGenerated.emit("正在从路由器拉取离线抓包文件与日志...", "info")
-                pulled = self.boot_manager.pull_offline_artifacts(target_dir)
+                pulled = self.pull_offline_artifacts(target_dir)
                 self.offlineArtifactsPulled.emit(pulled, target_dir)
             except Exception as exc:
                 LOGGER.warning("Pull offline artifacts failed: %s", exc)
@@ -1317,28 +1346,25 @@ class AutoCaptureService(QObject):
             return
 
         self._is_probing_idle = True
+        cancel = threading.Event()
+        self._idle_probe_cancel = cancel
 
         def _task():
+            free_map = {r.name: None for r in getattr(getattr(snapshot, "device", None), "radios", ())}
             try:
-                cmd = (
-                    "uci show wireless 2>/dev/null; "
-                    "ip -o link 2>/dev/null; "
-                    "printf '\\n__WINBOX_SNAP_WIFISTATUS__\\n'; wifi status 2>/dev/null; "
-                    "printf '\\n__WINBOX_IWDEV__\\n'"
-                )
-                res = self.runner.run("probe_radio_idle", cmd, timeout=6)
-                if (res.exit_code == 0 and res.stdout and not self._disposed
-                        and getattr(self.ssh, "_client", None) is connection and self.ssh.connected):
-                    from .device_probe import parse_radio_idle_status
-                    free_map = parse_radio_idle_status(res.stdout)
-                    if free_map:
-                        if hasattr(self.owner, "update_openwrt_radio_idle_status"):
-                            self.owner.update_openwrt_radio_idle_status(free_map)
-                        self.radioIdleStatusUpdated.emit(free_map)
+                usages = read_radio_usage(self.runner, cancel)
+                free_map = {name: usage.free for name, usage in usages.items()}
             except Exception as exc:
                 LOGGER.debug("Probe radio idle status failed: %s", exc)
             finally:
-                self._is_probing_idle = False
+                try:
+                    if (free_map and not cancel.is_set() and not self._disposed
+                            and getattr(self.ssh, "_client", None) is connection and self.ssh.connected):
+                        if hasattr(self.owner, "update_openwrt_radio_idle_status"):
+                            self.owner.update_openwrt_radio_idle_status(free_map)
+                        self.radioIdleStatusUpdated.emit(free_map)
+                finally:
+                    self._is_probing_idle = False
 
         t = threading.Thread(target=_task, name="ProbeRadioIdle", daemon=True)
         t.start()

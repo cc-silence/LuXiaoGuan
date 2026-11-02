@@ -29,7 +29,8 @@ EXPORT QWidget* wb_create(QWidget* parent,WriteCallback write,ResizeCallback res
     view->setProperty("wb_write",QVariant::fromValue(reinterpret_cast<quintptr>(write)));
     view->setProperty("wb_resize",QVariant::fromValue(reinterpret_cast<quintptr>(resize)));
     auto config=view->getConfig();config.enableLogging=false;config.maxScrollback=2000;
-    config.pasteOnMiddleClick=false;config.copyOnSelect=false;
+    config.pasteOnMiddleClick=false;config.copyOnSelect=false;config.visualBell=false;
+    view->setLocalSelection(true);
     config.font=QFont("Consolas",12);view->setConfig(config);
     view->setProgram("winbox-external-transport");view->start();return view;
 }

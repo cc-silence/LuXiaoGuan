@@ -1,6 +1,6 @@
 """常驻路由器管理队列，复用现有 worker 退出管理。"""
 from collections import deque
-from threading import Event
+from modules.platform_services.cancellation import CancellationEvent as Event
 from uuid import uuid4
 from PySide6.QtCore import QObject, Qt, Signal, Slot
 from .openwrt.router_management import RouterManagement
@@ -118,7 +118,7 @@ class RouterManagementService(QObject):
         writer_cancel = None
         if not readonly:
             task_kind = 'router_inspect' if action in self.INSPECTIONS else 'router_management'
-            writer_cancel = self.owner.task_controller.begin(task_kind, key)
+            writer_cancel = self.owner.task_controller.begin(task_kind, key, cancel_event=cancel)
             if writer_cancel is None:
                 return
             cancel = writer_cancel
