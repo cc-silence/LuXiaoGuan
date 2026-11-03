@@ -41,26 +41,28 @@ class OpenWrtRadioTakeover:
 
     def _config_command(self, action, record, cancel_event):
         """执行设备内配置事务；输出仅含白名单状态，不传回配置或凭据。"""
-        from .signal_commands import signal_command, signal_probe_command, _LUA_BINS
-        if self._config_lua is None:
-            probe = self.command_runner.run("takeover_config_probe", signal_probe_command(), 20, cancel_event)
-            if probe.exit_code != 0 or probe.cancelled or probe.timed_out:
-                raise RuntimeError("信号接管依赖检查失败，未继续修改配置。")
-            data = json.loads(probe.stdout).get("result", {})
-            if not all(data.get(key) == 1 for key in ("lua", "uci", "ubus", "jsonc", "sha256sum")) or data.get("lua_bin") not in _LUA_BINS:
-                raise RuntimeError("信号接管缺少依赖，请在信号管理页检查安装后重试。")
-            self._config_lua = data["lua_bin"]
-        result = self.command_runner.run(action, signal_command(
-            action, self._config_lua, token=record.config_token, radio=record.radio), 60, cancel_event)
-        if result.exit_code != 0 or result.cancelled or result.timed_out:
-            raise RuntimeError("信号配置事务未完成，已保留恢复记录，请重新连接后核实。")
-        data = json.loads(result.stdout)
-        if data.get("ok") is not True:
-            from .signal_manager import _ERRORS
-            raise RuntimeError(_ERRORS.get(data.get("code"), "信号配置事务响应异常，恢复记录已保留。"))
-        expected = "prepared" if action == "takeover_prepare" else "committed"
-        if data.get("result", {}).get(expected) is not True:
-            raise RuntimeError("信号配置事务未返回完成凭据，已停止并保留现场。")
+        from .capture_takeover import takeover_transaction
+        with takeover_transaction(cancel_event):
+            from .signal_commands import signal_command, signal_probe_command, _LUA_BINS
+            if self._config_lua is None:
+                probe = self.command_runner.run("takeover_config_probe", signal_probe_command(), 20, cancel_event)
+                if probe.exit_code != 0 or probe.cancelled or probe.timed_out:
+                    raise RuntimeError("信号接管依赖检查失败，未继续修改配置。")
+                data = json.loads(probe.stdout).get("result", {})
+                if not all(data.get(key) == 1 for key in ("lua", "uci", "ubus", "jsonc", "sha256sum")) or data.get("lua_bin") not in _LUA_BINS:
+                    raise RuntimeError("信号接管缺少依赖，请在信号管理页检查安装后重试。")
+                self._config_lua = data["lua_bin"]
+            result = self.command_runner.run(action, signal_command(
+                action, self._config_lua, token=record.config_token, radio=record.radio), 60, cancel_event)
+            if result.exit_code != 0 or result.cancelled or result.timed_out:
+                raise RuntimeError("信号配置事务未完成，已保留恢复记录，请重新连接后核实。")
+            data = json.loads(result.stdout)
+            if data.get("ok") is not True:
+                from .signal_manager import _ERRORS
+                raise RuntimeError(_ERRORS.get(data.get("code"), "信号配置事务响应异常，恢复记录已保留。"))
+            expected = "prepared" if action == "takeover_prepare" else "committed"
+            if data.get("result", {}).get(expected) is not True:
+                raise RuntimeError("信号配置事务未返回完成凭据，已停止并保留现场。")
 
     def prepare_config_takeover(self, phy, radio, session_id, cancel_event=None):
         """先备份原始配置与运行接口；此步骤不禁用信号。"""

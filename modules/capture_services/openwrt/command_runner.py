@@ -94,18 +94,26 @@ class OpenWrtCommandRunner:
         operation_id = journal.record("command", operation=command_name, status="started",
             connected_before=connected_before, request_bytes=request_bytes,
             transport="stdin" if request_bytes > 8192 else "exec")
-        try:
-            result = self._run(command_name, command, timeout, cancel_event, output_limit=output_limit)
-        except Exception as exc:
-            reason = "channel_closed" if "channel closed" in str(exc).lower() else "exception"
-            journal.record("command", operation=command_name, operation_id=operation_id,
-                status="failed", stage=getattr(exc, "ssh_stage", "unknown"),
-                kind=getattr(exc, "ssh_kind", "command"), exception_type=type(exc).__name__,
-                reason=reason, elapsed_seconds=time.monotonic() - started,
-                connected_before=connected_before, connected_after=bool(self.ssh_client.connected))
-            if tracked:
-                diagnostics.query(command_name, command, error=exc, elapsed_seconds=time.monotonic() - started)
-            raise
+        for attempt in range(2):
+            try:
+                result = self._run(command_name, command, timeout, cancel_event, output_limit=output_limit)
+                break
+            except Exception as exc:
+                is_chan_closed = "channel closed" in str(exc).lower()
+                can_retry = attempt == 0 and is_chan_closed and bool(self.ssh_client.connected)
+                if can_retry and (cancel_event is None or not cancel_event.is_set()):
+                    LOGGER.info("Transient channel closed in %s, retrying after 0.3s...", command_name)
+                    time.sleep(0.3)
+                    continue
+                reason = "channel_closed" if is_chan_closed else "exception"
+                journal.record("command", operation=command_name, operation_id=operation_id,
+                    status="failed", stage=getattr(exc, "ssh_stage", "unknown"),
+                    kind=getattr(exc, "ssh_kind", "command"), exception_type=type(exc).__name__,
+                    reason=reason, elapsed_seconds=time.monotonic() - started,
+                    connected_before=connected_before, connected_after=bool(self.ssh_client.connected))
+                if tracked:
+                    diagnostics.query(command_name, command, error=exc, elapsed_seconds=time.monotonic() - started)
+                raise
         status = "cancelled" if result.cancelled else "timeout" if result.timed_out else (
             "completed" if result.exit_code == 0 else "failed")
         journal.record("command", operation=command_name, operation_id=operation_id, status=status,

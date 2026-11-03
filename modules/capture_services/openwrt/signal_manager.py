@@ -581,25 +581,27 @@ class RouterSignalManager:
 
     def _run_with_bin(self, action, lua_bin, cancel_event, **values):
         """用指定解释器执行 Lua 事务并校验信封；错误码原样透出。"""
-        stdout = self._execute(
-            "router_signal_" + action,
-            signal_command(action, lua_bin, **values), 20, cancel_event,
-        )
-        try:
-            data = json.loads(stdout)
-            if not isinstance(data, dict):
-                raise ValueError()
-        except (ValueError, TypeError):
-            raise SignalError("internal", "路由器响应不是完整 JSON；请检查固件依赖与连接后刷新。") from None
-        if data.get("ok") is not True:
-            code = data.get("code")
-            raise SignalError(
-                code if code in _ERRORS else "internal",
-                "路由器 wireless：" + _ERRORS.get(code, _ERRORS["internal"]),
+        from .capture_takeover import takeover_transaction
+        with takeover_transaction(cancel_event):
+            stdout = self._execute(
+                "router_signal_" + action,
+                signal_command(action, lua_bin, **values), 20, cancel_event,
             )
-        if not isinstance(data.get("result"), dict):
-            raise SignalError("internal", "路由器响应缺少核实结果；请刷新后重试。")
-        return data["result"]
+            try:
+                data = json.loads(stdout)
+                if not isinstance(data, dict):
+                    raise ValueError()
+            except (ValueError, TypeError):
+                raise SignalError("internal", "路由器响应不是完整 JSON；请检查固件依赖与连接后刷新。") from None
+            if data.get("ok") is not True:
+                code = data.get("code")
+                raise SignalError(
+                    code if code in _ERRORS else "internal",
+                    "路由器 wireless：" + _ERRORS.get(code, _ERRORS["internal"]),
+                )
+            if not isinstance(data.get("result"), dict):
+                raise SignalError("internal", "路由器响应缺少核实结果；请刷新后重试。")
+            return data["result"]
 
     def _run_command(self, command_name, command, timeout, cancel_event):
         """按连接证据分类失败；日志只保留阶段、类型和耗时，不记录远端正文。"""
