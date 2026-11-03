@@ -466,6 +466,33 @@ __WINBOX_IWDEV__
         self.assertTrue(free_map.get("radio0"), "radio0 应该被正确判定为空闲，因为其上的业务接口 default_radio0 已禁用")
         self.assertTrue(free_map.get("radio1"), "radio1 应该被正确判定为空闲，因为其上的业务接口 default_radio1 已禁用")
 
+    def test_probe_radio_free_status_when_interfaces_present_in_iwdev_but_radio_disabled(self):
+        """Legacy snapshots retain conservative occupancy until runtime evidence arrives."""
+        from modules.capture_services.openwrt.device_probe import OpenWrtDeviceProbe
+        from modules.capture_services.openwrt.radio_identity import IDENTITY_MARKER
+
+        system_text = "DISTRIB_RELEASE='23.05.0'\n__WINBOX_HOSTNAME__=OpenWrt\n"
+        storage_text = "/dev/root 100000 50000 50000 50% /\n"
+        wireless_text = (
+            "\nwireless.radio1=wifi-device\n"
+            "wireless.radio1.type='mac80211'\n"
+            "wireless.radio1.band='2g'\n"
+            "wireless.radio1.disabled='1'\n"
+            + IDENTITY_MARKER + '{"phys": ["phy1"], "radios": {"radio1": "phy1"}}\n'
+            "__WINBOX_SNAP_WIFISTATUS__\n"
+            '{\n  "radio1": {\n    "up": false,\n    "disabled": true,\n    "interfaces": []\n  }\n}\n'
+            "__WINBOX_IWDEV__\n"
+            "phy#1\n"
+            "    Interface wlan1\n"
+            "        ifindex 12\n"
+            "        type managed\n"
+        )
+        dev = OpenWrtDeviceProbe._parse(system_text, wireless_text, storage_text)
+        r1 = next((r for r in dev.radios if r.name == "radio1"), None)
+        self.assertIsNotNone(r1, "radio1 应该被成功探测出来")
+        self.assertEqual(r1.interfaces, ("wlan1",), "应当能读出 iw dev 中的接口 wlan1")
+        self.assertFalse(r1.free, "Legacy snapshot cannot prove an existing interface is inactive")
+
     def test_uci_radio_bands_and_phy_mapping_enhancement(self):
         from modules.capture_services.openwrt.radio_identity import uci_radio_bands
         from modules.capture_services.openwrt.device_probe import OpenWrtDeviceProbe
@@ -1658,6 +1685,96 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         self.assertTrue(any("网卡释放" in l for l in emitted_logs))
         self.assertTrue(any("抓包已安全停止" in l for l in emitted_logs))
 
+
+    def test_manual_start_script_transition_badge_and_recovery_from_same_status(self):
+        """验证手动启动过渡状态不会因相同状态回显而卡在正在启动。"""
+        service = MagicMock()
+        service.openwrt_backend = MagicMock()
+        service.openwrt_backend.command_runner = MagicMock()
+        service.openwrt_backend.ssh_client = MagicMock()
+        service.settings = {}
+
+        auto_cap_service = self.ui_service(service)
+        auto_cap_service.refresh_boot_status = MagicMock()
+        service.auto_capture = auto_cap_service
+
+        r0 = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",), free=True)
+        device = OpenWrtDeviceInfo(radios=(r0,))
+        snapshot = OpenWrtSessionSnapshot(
+            connection_state=OpenWrtConnectionState.CONNECTED,
+            device=device,
+        )
+        service.openwrt_snapshot = snapshot
+
+        page = AutoCapturePage(service, {})
+        idle_status = AutoCaptureBootStatus(
+            installed=True,
+            service_installed=True,
+            autostart_enabled=False,
+            is_running=False,
+            remote_script_exists=True,
+            local_version="1.0.0",
+        )
+        page._on_boot_status_changed(idle_status)
+        auto_cap_service._boot_status = idle_status
+        self.assertEqual(page.boot_status_badge.text(), "【自启服务已就绪】")
+        self.assertTrue(page.start_script_btn.isEnabled())
+
+        # 模拟点击手动启动脚本
+        with patch("modules.main_pages.packet_capture.openwrt.auto_capture_page.ConfirmDialog") as mock_confirm_cls:
+            mock_dialog = MagicMock()
+            mock_dialog.exec.return_value = 1
+            mock_confirm_cls.Accepted = 1
+            mock_confirm_cls.return_value = mock_dialog
+            with patch.object(auto_cap_service, "start_boot_script"):
+                page._on_start_script_clicked()
+
+        # 此时应处于过渡状态
+        self.assertEqual(page.boot_status_badge.text(), "【正在启动脚本...】")
+        self.assertFalse(page.start_script_btn.isEnabled())
+
+        # 当远端探针返回与点击前相同的 idle 状态时，必须打破缓存、执行回显并恢复按钮使能，禁止永久卡在正在启动
+        page._on_boot_status_changed(idle_status)
+        self.assertEqual(page.boot_status_badge.text(), "【自启服务已就绪】")
+        self.assertTrue(page.start_script_btn.isEnabled())
+
+    def test_start_boot_script_service_verification_and_failure_diagnostics(self):
+        """验证 AutoCaptureService 启动后台脚本的运行状态验证与无空闲射频诊断。"""
+        service = MagicMock()
+        service.openwrt_backend = MagicMock()
+        runner = MagicMock()
+        ssh = MagicMock()
+        service.openwrt_backend.command_runner = runner
+        service.openwrt_backend.ssh_client = ssh
+        auto_cap_service = AutoCaptureService(service)
+        auto_cap_service.ssh = ssh
+
+        # 1. 模拟启动成功且探测到 is_running=True
+        mock_bm = MagicMock()
+        running_status = AutoCaptureBootStatus(installed=True, is_running=True)
+        mock_bm.probe_boot_status.return_value = running_status
+        auto_cap_service.boot_manager = mock_bm
+
+        messages = []
+        auto_cap_service.messageGenerated.connect(lambda msg, lvl: messages.append((msg, lvl)))
+
+        with patch.object(auto_cap_service, "poll_boot_log") as mock_poll:
+            with patch("time.sleep", return_value=None):
+                # 同步执行 _verify_boot_script_started 逻辑
+                started = auto_cap_service._verify_boot_script_started()
+                self.assertTrue(started)
+                self.assertEqual(auto_cap_service.boot_status, running_status)
+
+        # 2. 模拟启动后因所有频段占用而退出，能诊断出无空闲射频并友好告警
+        idle_status = AutoCaptureBootStatus(installed=True, is_running=False)
+        mock_bm.probe_boot_status.return_value = idle_status
+        mock_bm.read_recent_session_log.return_value = "没有检测到空闲射频, 当前无线均在使用中"
+
+        messages.clear()
+        with patch("time.sleep", return_value=None):
+            auto_cap_service._diagnose_boot_script_exit()
+
+        self.assertTrue(any(lvl == "warning" and "未检测到空闲射频" in msg for msg, lvl in messages))
 
 if __name__ == "__main__":
     unittest.main()

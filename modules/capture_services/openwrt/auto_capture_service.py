@@ -36,6 +36,9 @@ from .radio_takeover import OpenWrtRadioTakeover, RadioTakeoverRecord
 from .radio_usage import read_radio_usage, usage_for_phy
 
 
+from .auto_capture_startup import CaptureStartupCoordinator
+
+
 @dataclass
 class RadioCaptureStats:
     """单路射频实时指标数据。"""
@@ -116,8 +119,9 @@ class AutoCaptureRadioSession:
         self._recovery = None
         self._bound_client = getattr(ssh_client, "_client", None)
         self._bound_fingerprint = getattr(ssh_client, "host_fingerprint", "")
+        self._coordinator: Optional[CaptureStartupCoordinator] = None
 
-    def start(self, channels: str, allow_takeover: bool):
+    def start(self, channels: str, allow_takeover: bool, coordinator: Optional[CaptureStartupCoordinator] = None):
         """启动该路抓包会话。"""
         if self.stats.state in {"starting", "capturing", "stopping"}:
             return
@@ -139,6 +143,7 @@ class AutoCaptureRadioSession:
         self._pmkid_set.clear()
         self._eapol_set.clear()
 
+        self._coordinator = coordinator
         # 启动后台工作线程
         self._worker_thread = threading.Thread(
             target=self._run_capture_pipeline,
@@ -159,9 +164,12 @@ class AutoCaptureRadioSession:
         )
         self.service.radioStateChanged.emit(self.radio_name, "stopping")
         self._stop_event.set()
+        if self._coordinator is not None:
+            self._coordinator.cancel()
 
     def _run_capture_pipeline(self, channels: str, allow_takeover: bool):
         """抓包完整流程：接管 -> 建口 -> 起 hcxdumptool -> 读流 -> 收尾回滚 -> 拉成果。"""
+        coordinator = self._coordinator
         takeover = OpenWrtRadioTakeover(self.runner)
         try:
             self.service.radioStreamOutput.emit(
@@ -199,176 +207,162 @@ class AutoCaptureRadioSession:
                 self.radio_name,
                 f"🔍 [工具就绪] 定位抓包工具路径: {found_bin}\n",
             )
-
-            # 动态核准该射频对应的真实底层物理 phy (对齐 hcx_autocap.sh 三级动态探测)
-            snapshot = takeover.snapshot_wireless(self._stop_event)
-            self.phy, _interfaces = takeover.resolve_phy(self.radio_name, snapshot)
-            self.service.radioStreamOutput.emit(
-                self.radio_name,
-                f"📡 [射频绑定] 物理设备: {self.phy} (对应配置: wireless.{self.radio_name})\n",
-            )
-
-            # 1. 如果射频正在承载实际业务接口，且用户允许接管，才执行无线安全接管事务；
-            # 若当前没有任何业务接口（例如重置后未开启无线或处于空闲），本身即无需接管
-            usage = usage_for_phy(read_radio_usage(self.runner, self._stop_event, snapshot=snapshot), self.phy)
-            is_free = usage.free
-            if not is_free:
-                if not allow_takeover:
-                    raise RuntimeError(f"射频 {self.radio_name} 当前正在使用，且未勾选允许接管，已拒绝启动。")
-                self.service.messageGenerated.emit(f"正在安全接管无线射频 {self.radio_name}...", "info")
+            from .capture_takeover import takeover_transaction
+            with takeover_transaction(self._stop_event):
+                # 动态核准该射频对应的真实底层物理 phy (对齐 hcx_autocap.sh 三级动态探测)
+                snapshot = takeover.snapshot_wireless(self._stop_event)
+                self.phy, _interfaces = takeover.resolve_phy(self.radio_name, snapshot)
                 self.service.radioStreamOutput.emit(
                     self.radio_name,
-                    f"🛡️ [安全接管] 射频 {self.radio_name} 正在承载无线业务，正在执行临时安全接管隔离...\n",
+                    f"📡 [射频绑定] 物理设备: {self.phy} (对应配置: wireless.{self.radio_name})\n",
                 )
-                from .auto_capture_recovery import AutoCaptureRecovery
-                self._recovery = AutoCaptureRecovery(self.service.owner.openwrt_backend, takeover)
+
+                # 1. 如果射频正在承载实际业务接口，且用户允许接管，才执行无线安全接管事务；
+                # 若当前没有任何业务接口（例如重置后未开启无线或处于空闲），本身即无需接管
+                usage = usage_for_phy(read_radio_usage(self.runner, self._stop_event, snapshot=snapshot), self.phy)
+                is_free = usage.free
+                if not is_free:
+                    if not allow_takeover:
+                        raise RuntimeError(f"射频 {self.radio_name} 当前正在使用，且未勾选允许接管，已拒绝启动。")
+                    self.service.messageGenerated.emit(f"正在安全接管无线射频 {self.radio_name}...", "info")
+                    self.service.radioStreamOutput.emit(
+                        self.radio_name,
+                        f"🛡️ [安全接管] 射频 {self.radio_name} 正在承载无线业务，正在执行临时安全接管隔离...\n",
+                    )
+                    from .auto_capture_recovery import AutoCaptureRecovery
+                    self._recovery = AutoCaptureRecovery(self.service.owner.openwrt_backend, takeover)
+                    try:
+                        self._recovery.prepare(self.phy, self.radio_name, self.mon_iface, self._stop_event)
+                    finally:
+                        self.takeover_record = self._recovery.record
+                        if self._recovery.workspace is not None:
+                            self.service.record_recovery_diagnostic(self._recovery.workspace)
+
+                self.service.radioStreamOutput.emit(
+                    self.radio_name,
+                    f"🧹 [环境净化] 扫描并清理残留旧监听接口与冲突进程...\n",
+                )
+                # 2. 清理旧残留监听口与残留外部抓包进程 (严格对齐 hcx_autocap.sh，绝不误伤或关闭同 PHY 其他接口，不误杀其它路抓包)
+                cleanup_script = (
+                    f"stale_pids=$(ps w 2>/dev/null | grep 'hcxdumptool' | grep -w '{self.mon_iface}' | grep -v grep | awk '{{print $1}}'); "
+                    f"if [ -n \"$stale_pids\" ]; then "
+                    f"  for p in $stale_pids; do kill -TERM \"$p\" 2>/dev/null; done; "
+                    f"  sleep 1; "
+                    f"  for p in $stale_pids; do kill -KILL \"$p\" 2>/dev/null; done; "
+                    f"fi; "
+                )
+                from .auto_capture_cleanup import monitor_removal_command, verified_monitor_result
+                cleanup_script += monitor_removal_command(self.mon_iface, self.phy)
+                sweep_result = self.runner.run("sweep_stale", cleanup_script, timeout=8, cancel_event=self._stop_event)
                 try:
-                    self._recovery.prepare(self.phy, self.radio_name, self.mon_iface, self._stop_event)
-                finally:
-                    self.takeover_record = self._recovery.record
-                    if self._recovery.workspace is not None:
-                        self.service.record_recovery_diagnostic(self._recovery.workspace)
+                    monitor_state = verified_monitor_result(sweep_result)
+                except Exception as exc:
+                    if hasattr(self.service, 'diagnostics'):
+                        self.service.diagnostics.recovery(self.radio_name, "preflight monitor cleanup: " + str(exc))
+                    raise
+                if hasattr(self.service, 'diagnostics'):
+                    self.service.diagnostics.recovery(self.radio_name, "preflight monitor cleanup: " + monitor_state)
 
-            self.service.radioStreamOutput.emit(
-                self.radio_name,
-                f"🧹 [环境净化] 扫描并清理残留旧监听接口与冲突进程...\n",
-            )
-            # 2. 清理旧残留监听口与残留外部抓包进程 (严格对齐 hcx_autocap.sh，绝不误伤或关闭同 PHY 其他接口，不误杀其它路抓包)
-            cleanup_script = (
-                f"stale_pids=$(ps w 2>/dev/null | grep 'hcxdumptool' | grep -w '{self.mon_iface}' | grep -v grep | awk '{{print $1}}'); "
-                f"if [ -n \"$stale_pids\" ]; then "
-                f"  for p in $stale_pids; do kill -TERM \"$p\" 2>/dev/null; done; "
-                f"  sleep 1; "
-                f"  for p in $stale_pids; do kill -KILL \"$p\" 2>/dev/null; done; "
-                f"fi; "
+                # 3. 下发标准内核纯净白名单 BPF 过滤器规则 (仅放行信标与四次握手，过滤大流量视频/下载数据帧)
+                bpf_payload = (
+                    "48 0 0 0\n21 1 0 0\n6 0 0 0\n48 0 0 3\n100 0 0 8\n7 0 0 0\n48 0 0 2\n"
+                    "76 0 0 0\n53 1 0 8\n6 0 0 0\n2 0 0 0\n7 0 0 0\n80 0 0 0\n21 4 0 128\n"
+                    "21 3 0 80\n21 8 0 8\n21 7 0 136\n6 0 0 0\n80 0 0 1\n84 0 0 199\n"
+                    "21 1 0 0\n6 0 0 0\n80 0 0 35\n5 0 0 35\n80 0 0 1\n84 0 0 196\n"
+                    "21 1 0 0\n6 0 0 0\n80 0 0 1\n84 0 0 3\n21 0 1 3\n6 0 0 0\n"
+                    "80 0 0 22\n84 0 0 15\n21 1 0 0\n6 0 0 0\n80 0 0 0\n21 1 0 136\n"
+                    "5 0 0 7\n80 0 0 24\n84 0 0 128\n21 1 0 0\n6 0 0 0\n135 0 0 0\n"
+                    "4 0 0 2\n7 0 0 0\n64 0 0 24\n21 1 0 2863268608\n6 0 0 0\n"
+                    "64 0 0 28\n21 1 0 34958\n6 0 0 0\n80 0 0 33\n21 1 0 3\n"
+                    "6 0 0 0\n72 0 0 34\n53 1 0 95\n6 0 0 0\n80 0 0 130\n97 0 0 0\n"
+                    "80 0 0 22\n84 0 0 15\n21 1 0 0\n6 0 0 0\n6 0 0 4294967295\n"
+                )
+                self.service.radioStreamOutput.emit(
+                    self.radio_name,
+                    f"🛡️ [内核过滤] 下发内核标准 BPF 纯净白名单 (仅放行信标与握手包，阻断高频数据流量)...\n",
+                )
+                bpf_file = f"/tmp/.hcx_{self.mon_iface}.bpf"
+                self.runner.run("init_bpf", f"cat << 'EOF' > {bpf_file}\n{bpf_payload}EOF", timeout=6)
 
-            )
-            from .auto_capture_cleanup import monitor_removal_command, verified_monitor_result
-            cleanup_script += monitor_removal_command(self.mon_iface,self.phy)
-            sweep_result = self.runner.run("sweep_stale",cleanup_script,timeout=8,cancel_event=self._stop_event)
-            try:
-                monitor_state = verified_monitor_result(sweep_result)
-            except Exception as exc:
-                if hasattr(self.service,'diagnostics'):
-                    self.service.diagnostics.recovery(self.radio_name,"preflight monitor cleanup: "+str(exc))
-                raise
-            if hasattr(self.service,'diagnostics'):
-                self.service.diagnostics.recovery(self.radio_name,"preflight monitor cleanup: "+monitor_state)
+                # 4. 生成有效单播 MAC 并创建监控接口 (严格对齐 hcx_autocap.sh 原生原子命令与 1 秒稳定延时)
+                self.service.radioStreamOutput.emit(
+                    self.radio_name,
+                    f"🌐 [网卡创建] 正在为 {self.phy} 创建专属虚拟监听网卡 {self.mon_iface}...\n",
+                )
+                rand_bytes = secrets.token_bytes(5)
+                wlan_mac = f"02:{rand_bytes[0]:02x}:{rand_bytes[1]:02x}:{rand_bytes[2]:02x}:{rand_bytes[3]:02x}:{rand_bytes[4]:02x}"
 
-            # Inert AP/STA interfaces may belong to netifd. Never delete them.
-
-            # 3. 下发标准内核纯净白名单 BPF 过滤器规则 (仅放行信标与四次握手，过滤大流量视频/下载数据帧)
-            bpf_payload = (
-                "48 0 0 0\n21 1 0 0\n6 0 0 0\n48 0 0 3\n100 0 0 8\n7 0 0 0\n48 0 0 2\n"
-                "76 0 0 0\n53 1 0 8\n6 0 0 0\n2 0 0 0\n7 0 0 0\n80 0 0 0\n21 4 0 128\n"
-                "21 3 0 80\n21 8 0 8\n21 7 0 136\n6 0 0 0\n80 0 0 1\n84 0 0 199\n"
-                "21 1 0 0\n6 0 0 0\n80 0 0 35\n5 0 0 35\n80 0 0 1\n84 0 0 196\n"
-                "21 1 0 0\n6 0 0 0\n80 0 0 1\n84 0 0 3\n21 0 1 3\n6 0 0 0\n"
-                "80 0 0 22\n84 0 0 15\n21 1 0 0\n6 0 0 0\n80 0 0 0\n21 1 0 136\n"
-                "5 0 0 7\n80 0 0 24\n84 0 0 128\n21 1 0 0\n6 0 0 0\n135 0 0 0\n"
-                "4 0 0 2\n7 0 0 0\n64 0 0 24\n21 1 0 2863268608\n6 0 0 0\n"
-                "64 0 0 28\n21 1 0 34958\n6 0 0 0\n80 0 0 33\n21 1 0 3\n"
-                "6 0 0 0\n72 0 0 34\n53 1 0 95\n6 0 0 0\n80 0 0 130\n97 0 0 0\n"
-                "80 0 0 22\n84 0 0 15\n21 1 0 0\n6 0 0 0\n6 0 0 4294967295\n"
-            )
-            self.service.radioStreamOutput.emit(
-                self.radio_name,
-                f"🛡️ [内核过滤] 下发内核标准 BPF 纯净白名单 (仅放行信标与握手包，阻断高频数据流量)...\n",
-            )
-            bpf_file = f"/tmp/.hcx_{self.mon_iface}.bpf"
-            self.runner.run("init_bpf", f"cat << 'EOF' > {bpf_file}\n{bpf_payload}EOF", timeout=6)
-
-            # 4. 生成有效单播 MAC 并创建监控接口 (严格对齐 hcx_autocap.sh 原生原子命令与 1 秒稳定延时)
-            self.service.radioStreamOutput.emit(
-                self.radio_name,
-                f"🌐 [网卡创建] 正在为 {self.phy} 创建专属虚拟监听网卡 {self.mon_iface}...\n",
-            )
-            rand_bytes = secrets.token_bytes(5)
-            wlan_mac = f"02:{rand_bytes[0]:02x}:{rand_bytes[1]:02x}:{rand_bytes[2]:02x}:{rand_bytes[3]:02x}:{rand_bytes[4]:02x}"
-
-            create_cmd = (
-                f"" \
-                f"iw phy {self.phy} interface add {self.mon_iface} type monitor addr {wlan_mac} && "
-                f"ip link set {self.mon_iface} up && sleep 1"
-            )
-            # Recheck after preparation and before touching the radio.
-            latest = usage_for_phy(read_radio_usage(self.runner, self._stop_event), self.phy)
-            if not latest.free:
-                raise RuntimeError(latest.reason)
-            self._monitor_creation_attempted = True
-            create_res = self.runner.run(
-                "add_mon_iface",
-                create_cmd,
-                timeout=12,
-                cancel_event=self._stop_event,
-            )
-            if create_res.exit_code != 0:
-                fallback_cmd = (
-                    f"iw phy {self.phy} interface add {self.mon_iface} type monitor && "
+                create_cmd = (
+                    f"iw phy {self.phy} interface add {self.mon_iface} type monitor addr {wlan_mac} && "
                     f"ip link set {self.mon_iface} up && sleep 1"
                 )
+                # Recheck after preparation and before touching the radio.
+                latest = usage_for_phy(read_radio_usage(self.runner, self._stop_event), self.phy)
+                if not latest.free:
+                    raise RuntimeError(latest.reason)
+                self._monitor_creation_attempted = True
                 create_res = self.runner.run(
-                    "add_mon_iface_fallback",
-                    fallback_cmd,
+                    "add_mon_iface",
+                    create_cmd,
                     timeout=12,
                     cancel_event=self._stop_event,
                 )
                 if create_res.exit_code != 0:
-                    raise RuntimeError(
-                        f"在射频 {self.phy} 上创建监听接口 {self.mon_iface} 失败: "
-                        f"{create_res.stderr or create_res.stdout or '内核或网卡驱动拒绝创建 monitor 模式'}"
+                    fallback_cmd = (
+                        f"iw phy {self.phy} interface add {self.mon_iface} type monitor && "
+                        f"ip link set {self.mon_iface} up && sleep 1"
                     )
+                    create_res = self.runner.run("add_mon_iface_fallback", fallback_cmd, timeout=12, cancel_event=self._stop_event)
+                    if create_res.exit_code != 0:
+                        raise RuntimeError(f"创建监听网卡 {self.mon_iface} 失败: {create_res.stderr or create_res.stdout}")
 
-            # 检查接口在内核网络协议栈中是否已就绪
-            chk_link = self.runner.run(
-                "chk_mon_link",
-                f"ip link show dev {self.mon_iface} 2>/dev/null",
-                timeout=6,
-                cancel_event=self._stop_event,
-            )
-            self.service.radioStreamOutput.emit(
-                self.radio_name,
-                f"✅ [网卡就绪] 监听网卡 {self.mon_iface} 已启用，网络协议栈链路正常 (UP)\n",
-            )
-            if chk_link.exit_code != 0:
-                raise RuntimeError(
-                    f"监听接口 {self.mon_iface} 创建后在网络接口列表中未呈现，"
-                    f"请检查无线硬件驱动是否支持 monitor 模式。"
+                # 防御 hcxdumptool 6.3.x 内部 Multi-PHY 枚举 Bug：
+                # 若系统中其他空闲物理卡处于零接口状态，hcxdumptool 会在 get_interfacelist 时
+                # 误判首个 PHY index 为 0 并直接报 failed to get interface list 崩溃退出。
+                # 为零接口物理卡挂载极轻量占位 stub 接口，保证工具正确枚举系统无线卡列表。
+                stub_script = (
+                    "for _p in /sys/class/ieee80211/*; do "
+                    "  [ -d \"$_p\" ] || continue; "
+                    "  _phy=$(basename \"$_p\"); "
+                    "  _num=\"${_phy#phy}\"; "
+                    "  if ! iw dev 2>/dev/null | grep -q \"phy#${_num}\"; then "
+                    "    _sname=\"hcxstub${_num}\"; "
+                    "    _rand_mac=\"02:$(hexdump -n 5 -e '/1 \":%02x\"' /dev/urandom 2>/dev/null | cut -c 2-)\"; "
+                    "    [ -z \"$_rand_mac\" ] && _rand_mac=\"02:77:88:99:aa:bb\"; "
+                    "    if iw phy \"$_phy\" interface add \"$_sname\" type monitor addr \"$_rand_mac\" 2>/dev/null; then "
+                    "      echo \"STUB_CREATED:$_sname\"; "
+                    "      if ! { printf %s routermanager:autocapture-stub > /sys/class/net/\"$_sname\"/ifalias && "
+                    "             ip link set \"$_sname\" up 2>/dev/null; }; then echo STUB_FAILED; fi; "
+                    "    fi; "
+                    "  fi; "
+                    "done"
                 )
+                stub_res = self.runner.run("ensure_phy_stubs", stub_script, timeout=8, cancel_event=self._stop_event)
+                if stub_res.stdout:
+                    for line in stub_res.stdout.splitlines():
+                        if line.startswith("STUB_CREATED:"):
+                            stub_name = line.split(":", 1)[1].strip()
+                            if stub_name and stub_name not in self._created_stubs:
+                                self._created_stubs.append(stub_name)
 
-            # 防御 hcxdumptool 6.3.x 内部 Multi-PHY 枚举 Bug：
-            # 若系统中其他空闲物理卡处于零接口状态，hcxdumptool 会在 get_interfacelist 时
-            # 误判首个 PHY index 为 0 并直接报 failed to get interface list 崩溃退出。
-            # 为零接口物理卡挂载极轻量占位 stub 接口，保证工具正确枚举系统无线卡列表。
-            stub_script = (
-                "for _p in /sys/class/ieee80211/*; do "
-                "  [ -d \"$_p\" ] || continue; "
-                "  _phy=$(basename \"$_p\"); "
-                "  _num=\"${_phy#phy}\"; "
-                "  if ! iw dev 2>/dev/null | grep -q \"phy#${_num}\"; then "
-                "    _sname=\"hcxstub${_num}\"; "
-                "    _rand_mac=\"02:$(hexdump -n 5 -e '/1 \":%02x\"' /dev/urandom 2>/dev/null | cut -c 2-)\"; "
-                "    [ -z \"$_rand_mac\" ] && _rand_mac=\"02:77:88:99:aa:bb\"; "
-                "    if iw phy \"$_phy\" interface add \"$_sname\" type monitor addr \"$_rand_mac\" 2>/dev/null; then "
-                "      echo \"STUB_CREATED:$_sname\"; "
-                "      if ! { printf %s routermanager:autocapture-stub > /sys/class/net/\"$_sname\"/ifalias && "
-                "             ip link set \"$_sname\" up 2>/dev/null; }; then echo STUB_FAILED; fi; "
-                "    fi; "
-                "  fi; "
-                "done"
-            )
-            stub_res = self.runner.run("ensure_phy_stubs", stub_script, timeout=8, cancel_event=self._stop_event)
-            if stub_res.stdout:
-                for line in stub_res.stdout.splitlines():
-                    if line.startswith("STUB_CREATED:"):
-                        stub_name = line.split(":", 1)[1].strip()
-                        if stub_name and stub_name not in self._created_stubs:
-                            self._created_stubs.append(stub_name)
+                if "STUB_FAILED" in (stub_res.stdout or ""):
+                    raise RuntimeError("Capture placeholder preparation failed; owned resources will be cleaned up.")
 
-            if "STUB_FAILED" in (stub_res.stdout or ""):
-                raise RuntimeError("Capture placeholder preparation failed; owned resources will be cleaned up.")
+            # 走出硬件拓扑变更串行锁；多射频并发启动时在此同步等待全射频就绪，杜绝 wifi reload 瞬态打断
+            if coordinator is not None:
+                coordinator.mark_ready(self.radio_name)
+                if len(coordinator._expected) > 1:
+                    self.service.radioStreamOutput.emit(
+                        self.radio_name,
+                        f"⏳ [阶段同步] 射频 {self.radio_name} 接口已就绪，等待其他射频完成准备并稳定无线状态...\n",
+                    )
+                if not coordinator.wait_ready(self.radio_name, timeout=30.0, cancel_event=self._stop_event):
+                    raise RuntimeError("Capture startup coordination was cancelled or timed out.")
 
-            # 5. 准备输出文件与本地日志文件
+            if self._stop_event.is_set():
+                return
+
+# 5. 准备输出文件与本地日志文件
             stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             self.remote_cap_file = f"/root/cap/{self.mon_iface}_{stamp}.pcapng"
 
@@ -491,6 +485,8 @@ class AutoCaptureRadioSession:
             self._stream_loop()
 
         except Exception as exc:
+            if coordinator is not None:
+                coordinator.mark_failed(self.radio_name, str(exc))
             LOGGER.exception("Auto capture session failed on %s", self.radio_name)
             self.stats.state = "stopping"
             self.stats.error_message = str(exc)
@@ -502,7 +498,12 @@ class AutoCaptureRadioSession:
             self.service.radioStateChanged.emit(self.radio_name, "stopping")
             self.service.messageGenerated.emit(f"射频 {self.radio_name} 抓包失败: {exc}", "error")
         finally:
-            self._cleanup_session(takeover)
+            cleanup_confirmed = False
+            try:
+                cleanup_confirmed = self._cleanup_session(takeover)
+            finally:
+                if coordinator is not None:
+                    coordinator.cleanup_finished(self.radio_name, cleanup_confirmed)
 
     def _probe_dialect(self) -> str:
         """探测远端 hcxdumptool 方言版本：'modern' (>= 6.3.x) 或 'legacy' (6.2.x)。"""
@@ -802,99 +803,138 @@ class AutoCaptureRadioSession:
                 getattr(self.ssh_client, "host_fingerprint", "") != self._bound_fingerprint):
             connection_unchanged = False
             cleanup_errors.append("\u8fde\u63a5\u6216\u8bbe\u5907\u8eab\u4efd\u5df2\u53d8\u5316\uff0c\u672a\u5411\u65b0\u8fde\u63a5\u53d1\u9001\u6e05\u7406\u547d\u4ee4\u3002")
-        # 1. 关闭 SSH 管道并优雅中断 hcxdumptool
-        if self._channel is not None:
-            try:
-                self._channel.send("\x03")  # 发送 Ctrl+C
-                time.sleep(0.5)
-                self._channel.close()
-            except Exception:
-                pass
-            self._channel = None
 
-        # 2. 精准停止本射频对应的远端 PID，确保进程彻底退出后再删网卡接口（杜绝 Device or resource busy -16）
-        kill_cmd = (
-            f"if [ -f /tmp/.hcx_{self.mon_iface}.pid ]; then "
-            f"PID=$(cat /tmp/.hcx_{self.mon_iface}.pid 2>/dev/null); "
-            f"case \"$PID\" in ''|*[!0-9]*) exit 44;; esac; "
-            f"[ \"$PID\" -gt 1 ] || exit 44; "
-            f"if kill -0 \"$PID\" 2>/dev/null; then "
-            f"kill -TERM \"$PID\" 2>/dev/null; sleep 1; "
-            f"if kill -0 \"$PID\" 2>/dev/null; then kill -9 \"$PID\" 2>/dev/null; fi; "
-            f"if kill -0 \"$PID\" 2>/dev/null; then exit 45; fi; "
-            f"fi; "
-            f"rm -f /tmp/.hcx_{self.mon_iface}.pid; "
-            f"fi"
-        )
-        try:
-            if self.remote_cap_file and not cleanup_errors:
-                from .command_runner import require_command_completion
-                killed = self.runner.run("kill_hcx_pid", kill_cmd, timeout=8)
-                require_command_completion(killed)
-                if killed.exit_code != 0:
-                    raise RuntimeError(killed.stderr or "Capture process cleanup failed")
-        except Exception as exc:
-            LOGGER.warning("Kill hcx pid failed: %s", exc)
-            cleanup_errors.append(str(exc))
+        from .capture_takeover import takeover_transaction
+        # 全局串行化保护收尾过程，杜绝多射频同时向同一个 Dropbear 连接发起并发 channel 开关冲突
+        with takeover_transaction(cancel_event=None):
+            # 1. 关闭 SSH 管道并优雅中断 hcxdumptool
+            if self._channel is not None:
+                try:
+                    self._channel.send("\x03")  # 发送 Ctrl+C
+                    time.sleep(0.3)
+                    self._channel.close()
+                except Exception:
+                    pass
+                self._channel = None
+                time.sleep(0.2)  # 给 Dropbear 传输线程平稳回收通道的时间
 
-        self.service.radioStreamOutput.emit(
-            self.radio_name,
-            f"\n⏹ [收尾流程] 正在安全停止抓包进程并释放占用资源...\n",
-        )
-        can_cleanup_interfaces = connection_unchanged and not cleanup_errors
-        # 3. 删除监控接口与本会话创建的 Multi-PHY 占位 stub 接口
-        if self._monitor_creation_attempted and can_cleanup_interfaces:
-            try:
-                from .auto_capture_cleanup import remove_monitor
-                removed = remove_monitor(self.runner, self.mon_iface, self.phy)
-                self._monitor_creation_attempted = False
-                detail = "\u5df2\u5220\u9664\u5e76\u786e\u8ba4\u4e0d\u5b58\u5728" if removed == "REMOVED" else "\u5df2\u786e\u8ba4\u4e0d\u5b58\u5728"
-                self.service.radioStreamOutput.emit(
-                    self.radio_name, f"[\u7f51\u5361\u91ca\u653e] {self.mon_iface} {detail}\n")
-            except Exception as exc:
-                LOGGER.warning("Delete monitor iface failed: %s", exc)
-                cleanup_errors.append(str(exc))
-                self.service.radioStreamOutput.emit(
-                    self.radio_name, f"[\u7f51\u5361\u91ca\u653e\u672a\u786e\u8ba4] {self.mon_iface}: {exc}\n")
-        elif not self._monitor_creation_attempted:
+            # 2. 精准停止本射频对应的远端 PID，确保进程彻底退出后再删网卡接口（杜绝 Device or resource busy -16）
+            kill_cmd = (
+                f"PIDFILE=\"/tmp/.hcx_{self.mon_iface}.pid\"; "
+                f"if [ -f \"$PIDFILE\" ]; then "
+                f"  PID=$(cat \"$PIDFILE\" 2>/dev/null); "
+                f"  case \"$PID\" in "
+                f"    ''|*[!0-9]*) rm -f \"$PIDFILE\" ;; "
+                f"    *) "
+                f"      if [ \"$PID\" -gt 1 ] 2>/dev/null; then "
+                f"        if kill -0 \"$PID\" 2>/dev/null; then "
+                f"          kill -TERM \"$PID\" 2>/dev/null; "
+                f"          _cnt=0; "
+                f"          while [ $_cnt -lt 10 ] && kill -0 \"$PID\" 2>/dev/null; do "
+                f"            usleep 200000 2>/dev/null || sleep 1; "
+                f"            _cnt=$((_cnt + 1)); "
+                f"          done; "
+                f"          if kill -0 \"$PID\" 2>/dev/null; then "
+                f"            kill -9 \"$PID\" 2>/dev/null; "
+                f"            _cnt=0; "
+                f"            while [ $_cnt -lt 5 ] && kill -0 \"$PID\" 2>/dev/null; do "
+                f"              usleep 200000 2>/dev/null || sleep 1; "
+                f"              _cnt=$((_cnt + 1)); "
+                f"            done; "
+                f"          fi; "
+                f"          if kill -0 \"$PID\" 2>/dev/null; then "
+                f"            _st=$(grep -i '^State:' /proc/$PID/status 2>/dev/null | awk '{{print $2}}'); "
+                f"            if [ \"$_st\" != \"Z\" ] && [ \"$_st\" != \"z\" ]; then exit 45; fi; "
+                f"          fi; "
+                f"        fi; "
+                f"      fi; "
+                f"      rm -f \"$PIDFILE\"; "
+                f"      ;; "
+                f"  esac; "
+                f"fi; "
+                f"printf PROCESS_STOPPED"
+            )
+            for attempt in range(2):
+                try:
+                    if self.remote_cap_file and not cleanup_errors:
+                        from .command_runner import require_command_completion
+                        killed = self.runner.run("kill_hcx_pid", kill_cmd, timeout=8)
+                        require_command_completion(killed)
+                        if killed.exit_code != 0:
+                            raise RuntimeError(killed.stderr or "Capture process cleanup failed")
+                    break
+                except Exception as exc:
+                    if attempt == 0 and "channel closed" in str(exc).lower() and getattr(self.ssh_client, "connected", False):
+                        time.sleep(0.4)
+                        continue
+                    LOGGER.warning("Kill hcx pid failed: %s", exc)
+                    cleanup_errors.append(str(exc))
+                    break
+
             self.service.radioStreamOutput.emit(
-                self.radio_name, "[\u7f51\u5361\u91ca\u653e] \u672c\u6b21\u672a\u8fdb\u5165\u76d1\u542c\u7f51\u5361\u521b\u5efa\u9636\u6bb5\uff0c\u65e0\u9700\u5220\u9664\u3002\n")
+                self.radio_name,
+                f"\n⏹ [收尾流程] 正在安全停止抓包进程并释放占用资源...\n",
+            )
+            can_cleanup_interfaces = connection_unchanged and not cleanup_errors
+            # 3. 删除监控接口与本会话创建的 Multi-PHY 占位 stub 接口
+            if self._monitor_creation_attempted and can_cleanup_interfaces:
+                for attempt in range(2):
+                    try:
+                        from .auto_capture_cleanup import remove_monitor
+                        removed = remove_monitor(self.runner, self.mon_iface, self.phy)
+                        self._monitor_creation_attempted = False
+                        detail = "\u5df2\u5220\u9664\u5e76\u786e\u8ba4\u4e0d\u5b58\u5728" if removed == "REMOVED" else "\u5df2\u786e\u8ba4\u4e0d\u5b58\u5728"
+                        self.service.radioStreamOutput.emit(
+                            self.radio_name, f"[\u7f51\u5361\u91ca\u653e] {self.mon_iface} {detail}\n")
+                        break
+                    except Exception as exc:
+                        if attempt == 0 and "channel closed" in str(exc).lower() and getattr(self.ssh_client, "connected", False):
+                            time.sleep(0.4)
+                            continue
+                        LOGGER.warning("Delete monitor iface failed: %s", exc)
+                        cleanup_errors.append(str(exc))
+                        self.service.radioStreamOutput.emit(
+                            self.radio_name, f"[\u7f51\u5361\u91ca\u653e\u672a\u786e\u8ba4] {self.mon_iface}: {exc}\n")
+                        break
+            elif not self._monitor_creation_attempted:
+                self.service.radioStreamOutput.emit(
+                    self.radio_name, "[\u7f51\u5361\u91ca\u653e] \u672c\u6b21\u672a\u8fdb\u5165\u76d1\u542c\u7f51\u5361\u521b\u5efa\u9636\u6bb5\uff0c\u65e0\u9700\u5220\u9664\u3002\n")
 
-        for stub in (list(self._created_stubs) if can_cleanup_interfaces else []):
-            try:
-                from .command_runner import require_command_completion
-                result = self.runner.run(
-                    "del_stub_iface", f"iw dev {stub} del && test ! -e /sys/class/net/{stub}", timeout=6)
-                require_command_completion(result)
-                if result.exit_code != 0:
-                    raise RuntimeError(result.stderr or "Stub interface removal could not be verified")
-                self._created_stubs.remove(stub)
-            except Exception as exc:
-                LOGGER.warning("Delete stub iface %s failed: %s", stub, exc)
-                cleanup_errors.append(str(exc))
+            for stub in (list(self._created_stubs) if can_cleanup_interfaces else []):
+                try:
+                    from .command_runner import require_command_completion
+                    del_cmd = f"if [ -e /sys/class/net/{stub} ]; then iw dev {stub} del 2>/dev/null || true; fi; test ! -e /sys/class/net/{stub}"
+                    result = self.runner.run("del_stub_iface", del_cmd, timeout=6)
+                    require_command_completion(result)
+                    if result.exit_code != 0:
+                        raise RuntimeError(result.stderr or f"Stub interface {stub} removal could not be verified")
+                    self._created_stubs.remove(stub)
+                except Exception as exc:
+                    LOGGER.warning("Delete stub iface %s failed: %s", stub, exc)
+                    cleanup_errors.append(str(exc))
 
-        if self._recovery is not None:
-            try:
-                had_takeover = self._recovery.record is not None
-                errors = self._recovery.finish(resources_confirmed=not cleanup_errors)
-                cleanup_errors.extend(errors)
-                self.takeover_record = self._recovery.record
-                self.stats.recovery_report = self._recovery.publish(self.output_dir, self.radio_name)
-                self.stats.recovery_message = "; ".join(errors) if errors else "\u672c\u6b21\u672a\u6267\u884c\u65e0\u7ebf\u63a5\u7ba1\uff0c\u65e0\u9700\u6062\u590d\u3002" if not had_takeover else "\u65e0\u7ebf\u6062\u590d\u5df2\u6838\u5bf9\uff0c\u68c0\u67e5\u901a\u8fc7\u3002"
-                report = self.stats.recovery_report
-                detail = self.stats.recovery_message + ("\n\u68c0\u67e5\u8bb0\u5f55: " + report if report else "")
-                if hasattr(self.service, 'diagnostics'):
-                    self.service.diagnostics.recovery(self.radio_name, detail, self._recovery.workspace)
-                if errors:
-                    self.service.messageGenerated.emit("\u65e0\u7ebf\u6062\u590d\u672a\u786e\u8ba4\uff0c\u8bf7\u91cd\u8fde\u539f\u8def\u7531\u5668\uff1b\u53ef\u5bfc\u51fa\u65e5\u5fd7\u6392\u67e5\u3002", "error")
-            except Exception as exc:
-                cleanup_errors.append(str(exc))
-                LOGGER.exception("Auto capture recovery reporting failed")
-                if hasattr(self.service, 'diagnostics'):
-                    self.service.diagnostics.recovery(self.radio_name, str(exc))
-                self.service.messageGenerated.emit("\u65e0\u7ebf\u6062\u590d\u672a\u786e\u8ba4\uff0c\u53ef\u5bfc\u51fa\u65e5\u5fd7\u6392\u67e5\u3002", "error")
-        elif self.takeover_record is not None:
-            cleanup_errors.append("\u65e0\u7ebf\u6062\u590d\u8bb0\u5f55\u7f3a\u5c11\u6301\u4e45\u5316\u4e0a\u4e0b\u6587\uff0c\u672a\u6267\u884c\u6062\u590d\u3002")
+            if self._recovery is not None:
+                try:
+                    had_takeover = self._recovery.record is not None
+                    errors = self._recovery.finish(resources_confirmed=not cleanup_errors, detail="; ".join(cleanup_errors) if cleanup_errors else "")
+                    cleanup_errors.extend(errors)
+                    self.takeover_record = self._recovery.record
+                    self.stats.recovery_report = self._recovery.publish(self.output_dir, self.radio_name)
+                    self.stats.recovery_message = "; ".join(errors) if errors else "\u672c\u6b21\u672a\u6267\u884c\u65e0\u7ebf\u63a5\u7ba1\uff0c\u65e0\u9700\u6062\u590d\u3002" if not had_takeover else "\u65e0\u7ebf\u6062\u590d\u5df2\u6838\u5bf9\uff0c\u68c0\u67e5\u901a\u8fc7\u3002"
+                    report = self.stats.recovery_report
+                    detail = self.stats.recovery_message + ("\n\u68c0\u67e5\u8bb0\u5f55: " + report if report else "")
+                    if hasattr(self.service, 'diagnostics'):
+                        self.service.diagnostics.recovery(self.radio_name, detail, self._recovery.workspace)
+                    if errors:
+                        self.service.messageGenerated.emit("\u65e0\u7ebf\u6062\u590d\u672a\u786e\u8ba4\uff0c\u8bf7\u91cd\u8fde\u539f\u8def\u7531\u5668\uff1b\u53ef\u5bfc\u51fa\u65e5\u5fd7\u6392\u67e5\u3002", "error")
+                except Exception as exc:
+                    cleanup_errors.append(str(exc))
+                    LOGGER.exception("Auto capture recovery reporting failed")
+                    if hasattr(self.service, 'diagnostics'):
+                        self.service.diagnostics.recovery(self.radio_name, str(exc))
+                    self.service.messageGenerated.emit("\u65e0\u7ebf\u6062\u590d\u672a\u786e\u8ba4\uff0c\u53ef\u5bfc\u51fa\u65e5\u5fd7\u6392\u67e5\u3002", "error")
+            elif self.takeover_record is not None:
+                cleanup_errors.append("\u65e0\u7ebf\u6062\u590d\u8bb0\u5f55\u7f3a\u5c11\u6301\u4e45\u5316\u4e0a\u4e0b\u6587\uff0c\u672a\u6267\u884c\u6062\u590d\u3002")
 
         # 4. 尝试拉回本次抓包产物 .pcapng
         if self.remote_cap_file and connection_unchanged:
@@ -914,10 +954,11 @@ class AutoCaptureRadioSession:
         if final_state == "idle":
             self.service.radioStreamOutput.emit(
                 self.radio_name,
-                "✅ [提示] 抓包已安全停止，无线监听接口已清理，Wi-Fi 业务已恢复正常。\n",
+                "\u2705 [\u63d0\u793a] \u6293\u5305\u5df2\u5b89\u5168\u505c\u6b62\uff0c\u65e0\u7ebf\u76d1\u542c\u63a5\u53e3\u5df2\u6e05\u7406\uff0cWi-Fi \u4e1a\u52a1\u5df2\u6062\u590d\u6b63\u5e38\u3002\n",
             )
         self.service.radioStateChanged.emit(self.radio_name, final_state)
         self.service.radioStatsUpdated.emit(self.radio_name, self._build_stats_dict())
+        return not cleanup_errors
 
     def _pull_capture_result(self):
         """将生成的 .pcapng 拉回本地。"""
@@ -1066,10 +1107,10 @@ class AutoCaptureService(QObject):
             self.sessions[radio_info.name] = session
         return self.sessions[radio_info.name]
 
-    def start_radio_capture(self, radio_info: OpenWrtRadioInfo, channels: str = "", allow_takeover: bool = False):
+    def start_radio_capture(self, radio_info: OpenWrtRadioInfo, channels: str = "", allow_takeover: bool = False, coordinator: Optional[CaptureStartupCoordinator] = None):
         """启动单路射频抓包。"""
         session = self.get_or_create_session(radio_info)
-        session.start(channels, allow_takeover)
+        session.start(channels, allow_takeover, coordinator=coordinator)
         if not self._resource_timer.isActive():
             self._resource_timer.start()
 
@@ -1082,18 +1123,23 @@ class AutoCaptureService(QObject):
 
     def start_all(self, radio_configs: List[dict]):
         """批量启动各路射频抓包。"""
-        for item in radio_configs:
+        valid_configs = [item for item in radio_configs if item.get("radio_info")]
+        coordinator = CaptureStartupCoordinator([item["radio_info"].name for item in valid_configs]) if len(valid_configs) > 1 else None
+        self._active_coordinator = coordinator
+        for item in valid_configs:
             radio_info = item.get("radio_info")
-            if radio_info:
-                channels = item.get("channels", "")
-                allow_takeover = item.get("allow_takeover", False)
-                self.start_radio_capture(radio_info, channels, allow_takeover)
+            channels = item.get("channels", "")
+            allow_takeover = item.get("allow_takeover", False)
+            self.start_radio_capture(radio_info, channels, allow_takeover, coordinator=coordinator)
 
     def stop_all(self):
         """停止所有正在抓包的射频。"""
         cancel = getattr(self, "_idle_probe_cancel", None)
         if cancel is not None:
             cancel.set()
+        if getattr(self, "_active_coordinator", None) is not None:
+            self._active_coordinator.cancel()
+            self._active_coordinator = None
         for session in list(self.sessions.values()):
             session.stop()
         self._resource_timer.stop()
@@ -1147,14 +1193,59 @@ class AutoCaptureService(QObject):
             raise
         return True
 
+    def _verify_boot_script_started(self) -> bool:
+        """在后台线程中验证抓包脚本是否已顺利拉起并处于运行状态。
+
+        由于 OpenWrt 端脚本启动为后台异步任务，需要 1~2 秒完成初始化、检测射频及写入 /tmp/.hcx_autocap.lock，
+        此处给予合理的验证窗口，确认真实状态后再行报告。
+        """
+        import time
+        connection = getattr(self.ssh, "_client", None)
+        started = False
+        for _ in range(6):
+            if self._disposed or not self.ssh.connected or getattr(self.ssh, "_client", None) is not connection:
+                break
+            time.sleep(0.5)
+            status = self.boot_manager.probe_boot_status()
+            if status.is_running:
+                started = True
+                self._boot_status = status
+                self.bootStatusChanged.emit(status)
+                break
+        return started
+
+    def _diagnose_boot_script_exit(self):
+        """当抓包脚本未能持续运行时，读取远端会话日志分析具体原因并向用户提示。"""
+        try:
+            log_text = self.boot_manager.read_recent_session_log(max_lines=20)
+            if "没有检测到空闲射频" in log_text or "当前无线均在使用中" in log_text:
+                self.messageGenerated.emit(
+                    "后台抓包未启动：路由器当前所有无线频段均正在发射 Wi-Fi 提供上网（未检测到空闲射频）。\n"
+                    "后台抓包遵循【不干扰现有正常业务 Wi-Fi】安全原则，请在路由器后台先停用一个不用的无线频段，或切换到【前台抓包】使用接管模式。",
+                    "warning"
+                )
+            elif log_text.strip():
+                lines = [l.strip() for l in log_text.strip().splitlines() if l.strip()]
+                last_line = lines[-1] if lines else ""
+                self.messageGenerated.emit(f"后台抓包脚本未持续运行: {last_line}", "warning")
+            else:
+                self.messageGenerated.emit("后台抓包脚本未持续运行，请检查路由器无线状态与系统日志。", "warning")
+        except Exception as exc:
+            LOGGER.warning("Diagnose boot script exit failed: %s", exc)
+            self.messageGenerated.emit(f"后台抓包未能保持运行: {exc}", "warning")
+
     def start_boot_script(self):
         """异步手动启动后台抓包脚本。"""
         def _task():
             try:
                 self.messageGenerated.emit("正在启动后台抓包脚本（仅启用空闲射频）...", "info")
                 self.boot_manager.start_script()
-                self.messageGenerated.emit("后台抓包脚本已成功启动！仅接管空闲射频，不影响正常业务 Wi-Fi。", "success")
-                self.refresh_boot_status()
+                if self._verify_boot_script_started():
+                    self.messageGenerated.emit("后台抓包脚本已成功启动！仅接管空闲射频，不影响正常业务 Wi-Fi。", "success")
+                    self.poll_boot_log()
+                else:
+                    self._diagnose_boot_script_exit()
+                    self.refresh_boot_status()
             except Exception as exc:
                 self.messageGenerated.emit(f"启动后台抓包脚本失败: {exc}", "error")
                 self.refresh_boot_status()
@@ -1170,8 +1261,12 @@ class AutoCaptureService(QObject):
                 self.boot_manager.install_or_update()
                 self.messageGenerated.emit("脚本部署完成，正在启动后台抓包脚本（仅启用空闲射频）...", "info")
                 self.boot_manager.start_script()
-                self.messageGenerated.emit("后台抓包脚本已成功启动！仅接管空闲射频，不影响正常业务 Wi-Fi。", "success")
-                self.refresh_boot_status()
+                if self._verify_boot_script_started():
+                    self.messageGenerated.emit("后台抓包脚本已成功启动！仅接管空闲射频，不影响正常业务 Wi-Fi。", "success")
+                    self.poll_boot_log()
+                else:
+                    self._diagnose_boot_script_exit()
+                    self.refresh_boot_status()
             except Exception as exc:
                 self.messageGenerated.emit(f"部署或启动脚本失败: {exc}", "error")
                 self.refresh_boot_status()
@@ -1236,6 +1331,14 @@ class AutoCaptureService(QObject):
             try:
                 self.messageGenerated.emit("正在结束并收尾后台抓包操作...", "info")
                 self.boot_manager.stop_and_cleanup_capture()
+                import time
+                for _ in range(6):
+                    time.sleep(0.5)
+                    status = self.boot_manager.probe_boot_status()
+                    if not status.is_running:
+                        self._boot_status = status
+                        self.bootStatusChanged.emit(status)
+                        break
                 self.messageGenerated.emit("后台抓包已成功结束！抓包数据已安全保存至 /root/cap/ 目录。", "success")
                 self.refresh_boot_status()
             except Exception as exc:

@@ -2,6 +2,16 @@
 
 
 TAKEOVER_LUA = r'''
+local function radio_sections(sections, target_radio)
+    local sub = {}
+    for name, s in pairs(sections) do
+        if name == target_radio or s.device == target_radio then
+            sub[name] = s
+        end
+    end
+    return sub
+end
+
 local function takeover_config()
     if type(request.token) ~= "string" or #request.token ~= 32 or
         not request.token:match("^%x+$") or not valid_name(request.radio) then fail("unsupported") end
@@ -60,9 +70,13 @@ local function takeover_config()
     if #targets == 0 then fail("backup") end
     local restoring = request.action == "takeover_restore"
     if not restoring and request.action ~= "takeover_disable" then fail("unsupported") end
-    if not same(current, original) and not same(current, expected) then fail("changed") end
+    local current_radio = radio_sections(current, request.radio)
+    local original_radio = radio_sections(original, request.radio)
+    local expected_radio = radio_sections(expected, request.radio)
+    if not same(current_radio, original_radio) and not same(current_radio, expected_radio) then fail("changed") end
     local desired = restoring and original or expected
-    if not same(current, desired) then
+    local desired_radio = restoring and original_radio or expected_radio
+    if not same(current_radio, desired_radio) then
         local revision = hash()
         local isolated = cursor(dir .. "/delta")
         if not same(all(isolated), current) then fail("changed") end
@@ -73,12 +87,12 @@ local function takeover_config()
             else ok = isolated:set("wireless", name, "disabled", value) end
             if not ok then fail("write") end
         end
-        if not same(all(isolated), desired) then fail("changed") end
+        if not same(radio_sections(all(isolated), request.radio), desired_radio) then fail("changed") end
         clean()
         if hash() ~= revision then fail("changed") end
         if not isolated:commit("wireless") then fail("commit") end
         clean()
-        if not same(all(cursor()), desired) then fail("unconfirmed") end
+        if not same(radio_sections(all(cursor()), request.radio), desired_radio) then fail("unconfirmed") end
     end
     if not shell("/sbin/wifi reload " .. request.radio) then fail("unconfirmed") end
     return {committed=true}

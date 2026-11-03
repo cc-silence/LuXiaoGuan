@@ -58,7 +58,7 @@ class AutoCaptureRecovery:
                 temporary.write_text(json.dumps(data, ensure_ascii=True), encoding="utf-8")
                 temporary.replace(path)
 
-    def finish(self, resources_confirmed=True):
+    def finish(self, resources_confirmed=True, detail=""):
         if self.workspace is None:
             return []
         self.backend.note_capture_finished(self.workspace.session_id)
@@ -66,16 +66,15 @@ class AutoCaptureRecovery:
             acknowledge_session(self.workspace, resources_confirmed)
             return []
         if not resources_confirmed:
-            self.report_path.write_text("\u4e34\u65f6\u8d44\u6e90\u505c\u6b62\u672a\u786e\u8ba4\uff0c\u65e0\u7ebf\u6062\u590d\u6682\u7f13\u3002\n", encoding="utf-8")
+            reason = f"（{detail}）" if detail else ""
+            self.report_path.write_text(f"\u4e34\u65f6\u8d44\u6e90\u505c\u6b62\u672a\u786e\u8ba4{reason}\uff0c\u65e0\u7ebf\u6062\u590d\u6682\u7f13\u3002\n", encoding="utf-8")
             acknowledge_session(self.workspace, False)
-            return ["\u4e34\u65f6\u8d44\u6e90\u505c\u6b62\u672a\u786e\u8ba4\uff0c\u65e0\u7ebf\u6062\u590d\u6682\u7f13\uff1b\u8bb0\u5f55\u5df2\u4fdd\u7559\u3002"]
+            return [f"\u4e34\u65f6\u8d44\u6e90\u505c\u6b62\u672a\u786e\u8ba4{reason}\uff0c\u65e0\u7ebf\u6062\u590d\u6682\u7f13\uff1b\u8bb0\u5f55\u5df2\u4fdd\u7559\u3002"]
         errors = restore_takeover(self.takeover, self.backend.ssh_client,
-                                  self.workspace, self.record, cancel_event=None)
+                                  self.workspace, self.record, cancel_event=None,
+                                  notify=self.backend._notify_signal_changed)
         if not errors:
             self.record = None
-            if not self.backend._notify_signal_changed(None):
-                errors.append("\u65e0\u7ebf\u6062\u590d\u5df2\u6838\u5bf9\uff0c\u4f46\u9875\u9762\u72b6\u6001\u540c\u6b65\u672a\u5b8c\u6210\u3002")
-        if not errors:
             for path in self.workspace.local_dir.glob("takeover-journal*.json"):
                 data = json.loads(path.read_text(encoding="utf-8"))
                 if data.get("cleanup_stage") == "restored":
@@ -110,9 +109,24 @@ def check_reconnect_resources(runner, journal):
     if not re.fullmatch(r"hcxmon[0-9]+", interface):
         raise RuntimeError("Unknown automatic-capture interface ownership")
     pidfile = q("/tmp/.hcx_" + interface + ".pid")
-    result = runner.run("auto_capture_recovery_process", "if [ -f " + pidfile +
-        " ]; then p=$(cat " + pidfile + "); case $p in ''|*[!0-9]*) exit 41;; esac; "
-        "if kill -0 \"$p\" 2>/dev/null; then exit 42; fi; fi; printf STOPPED", timeout=8)
+    check_script = (
+        f"if [ -f {pidfile} ]; then "
+        f"p=$(cat {pidfile} 2>/dev/null); "
+        f"case \"$p\" in "
+        f"  ''|*[!0-9]*) rm -f {pidfile};; "
+        f"  *) "
+        f"    if [ \"$p\" -gt 1 ] 2>/dev/null; then "
+        f"      if kill -0 \"$p\" 2>/dev/null; then "
+        f"        _st=$(grep -i '^State:' /proc/$p/status 2>/dev/null | awk '{{print $2}}'); "
+        f"        if [ \"$_st\" != \"Z\" ] && [ \"$_st\" != \"z\" ]; then exit 42; fi; "
+        f"      fi; "
+        f"    fi; "
+        f"    rm -f {pidfile};; "
+        f"esac; "
+        f"fi; "
+        f"printf STOPPED"
+    )
+    result = runner.run("auto_capture_recovery_process", check_script, timeout=8)
     require_command_completion(result)
     if result.exit_code != 0 or result.stdout.strip() != "STOPPED":
         raise RuntimeError("\u6293\u5305\u8fdb\u7a0b\u505c\u6b62\u672a\u786e\u8ba4\uff0c\u672a\u7ee7\u7eed\u6062\u590d\u65e0\u7ebf\u3002")
