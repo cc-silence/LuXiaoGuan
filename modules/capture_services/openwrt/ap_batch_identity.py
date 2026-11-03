@@ -49,6 +49,8 @@ def build_access_point_identities(snapshot, requested=None):
         if not isinstance(row,dict) or not isinstance(row.get("section"),str) or row["section"] not in targets or row["section"] in sections:
             raise ValueError("热点列表无效，请重新打开设置。")
         section=row["section"];name=row.get("name");mac=row.get("mac")
+        if isinstance(name, str) and not name.strip():
+            name = targets[section].get("ssid", "")
         if not isinstance(name,str) or not 1<=len(name.encode("utf-8"))<=32 or any(ord(c)<32 or ord(c)==127 for c in name):
             raise ValueError(section+"：Wi-Fi 名称需要 1 到 32 字节，不能包含控制字符。")
         if not valid_mac(mac):raise ValueError(section+"：请填写有效的单播 MAC 地址。")

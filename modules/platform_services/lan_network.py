@@ -46,31 +46,35 @@ def renew(adapter,timeout,permit=lambda:True):
     if timeout<=4:raise TimeoutError('Network recovery request expired')
     expected=adapter.get('expected_addresses', [])
     emit('adapter_before', **adapter_state(adapter, expected), snapshot_cached=True)
-    execution_error=None
-    try:
-        execute(dict(adapter),timeout-3,permit)
-    except Exception as exc:
-        emit('lease_process', getattr(exc, 'network_reason', 'system_error'))
-        # Permission/identity failures are final. A rejected lease request may
-        # still be followed by asynchronous DHCP readiness; never resubmit it.
-        if not getattr(exc, 'network_retryable', False):
-            # Failure feedback needs current state, not just the cached inventory.
-            remaining=timeout-(time.monotonic()-started)
-            if remaining>0 and permit():
-                try:
-                    inventory=inspect(timeout=min(2,remaining),adapter_id=adapter['id'])
-                    current=next((r for r in inventory['adapters'] if r['id']==adapter['id']),None)
-                    emit('adapter_after','inspection_failed' if inventory.get('error') else
-                         'adapter_changed' if current and current.get('mac')!=adapter['mac'] else
-                         'system_error',snapshot_cached=False,**adapter_state(current,expected,baseline=adapter))
-                except Exception:
-                    emit('adapter_after','inspection_failed',snapshot_cached=False)
-            raise
-        execution_error=exc
-    return _wait_for_address(adapter,timeout,started,permit,execution_error)
+    def request(budget):
+        if budget<=4 or not permit():raise InterruptedError("Network recovery request expired")
+        try:
+            execute(dict(adapter),budget-3,permit)
+        except Exception as exc:
+            emit('lease_process', getattr(exc, 'network_reason', 'system_error'))
+            # Permission/identity failures are final. A rejected lease request may
+            # still be followed by asynchronous DHCP readiness; never resubmit it.
+            if not getattr(exc, 'network_retryable', False):
+                # Failure feedback needs current state, not just the cached inventory.
+                remaining=timeout-(time.monotonic()-started)
+                if remaining>0 and permit():
+                    try:
+                        inventory=inspect(timeout=min(2,remaining),adapter_id=adapter['id'])
+                        current=next((r for r in inventory['adapters'] if r['id']==adapter['id']),None)
+                        emit('adapter_after','inspection_failed' if inventory.get('error') else
+                             'adapter_changed' if current and current.get('mac')!=adapter['mac'] else
+                             'system_error',snapshot_cached=False,**adapter_state(current,expected,baseline=adapter))
+                    except Exception:
+                        emit('adapter_after','inspection_failed',snapshot_cached=False)
+                raise
+            return exc
+        return None
+    execution_error=request(timeout)
+    return _wait_for_address(adapter,timeout,started,permit,execution_error,
+                             reacquire=request if execution_error is None else None)
 
 
-def _wait_for_address(adapter,timeout,started,permit,execution_error=None):
+def _wait_for_address(adapter,timeout,started,permit,execution_error=None,*,reacquire=None):
     expected=adapter.get('expected_addresses', [])
     attempts=0;previous=None;last_reason='address_pending'
     while True:
@@ -114,6 +118,17 @@ def _wait_for_address(adapter,timeout,started,permit,execution_error=None):
             return current
         else:
             last_reason='address_pending'
+        # A successful request can return the pre-migration lease. That is a
+        # completed stale transaction, not a pending one. Correct it once under
+        # the same deadline, without replaying failed or timed-out requests.
+        remaining=timeout-(time.monotonic()-started)
+        if reacquire is not None and last_reason=='address_pending' and remaining>8:
+            from .lease_transition import retained_old_lease
+            if retained_old_lease(adapter,current,expected):
+                request_again=reacquire;reacquire=None
+                emit('lease_process','old_lease_retained',snapshot_attempts=attempts)
+                execution_error=request_again(remaining)
+                continue
         signature=(last_reason,tuple(sorted(state.items())))
         if signature!=previous:
             emit('adapter_after',last_reason,**state,snapshot_attempts=attempts)

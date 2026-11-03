@@ -28,7 +28,7 @@ class LanRecoveryPanel(QWidget):
         self.payload=value
         text=str(value.get('guide',''))
         if self.guide.toPlainText()!=text:self.guide.setPlainText(text)
-        rows=[r for r in value.get('adapters',[]) if r.get('dhcp') is True and r.get('renewable')]
+        rows=[r for r in value.get('adapters',[]) if (r.get('dhcp') is True and r.get('renewable')) or (r.get('dhcp') is False and r.get('static_recovery'))]
         signature=(bool(value.get('selection_required')),tuple((r['id'],r.get('name',''),tuple(r.get('addresses',[]))) for r in rows))
         if signature!=self.signature:
             selected=self.adapters.currentData()
@@ -42,8 +42,16 @@ class LanRecoveryPanel(QWidget):
         self._sync();self.show()
     def _sync(self,*_):
         identity=self.adapters.currentData()
+        selected=next((r for r in self.payload.get('adapters',[]) if r.get('id')==identity),{})
+        self.button.setText('\u8c03\u6574\u56fa\u5b9a IP' if selected.get('static_recovery') else '\u91cd\u65b0\u83b7\u53d6\u7f51\u7edc\u5730\u5740')
         enabled=bool(identity) and self.payload.get('can_renew',False) and not self.payload.get('busy') and not self.payload.get('closed') and identity not in self.payload.get('used',[]) and identity not in self.payload.get('busy_adapters',[])
         self.button.setEnabled(enabled)
+        recommended=bool(enabled and self.payload.get("manual_recommended"))
+        if self.button.property("recoveryActionReady") != recommended:
+            self.button.setProperty("recoveryActionReady",recommended)
+            self.button.style().unpolish(self.button)
+            self.button.style().polish(self.button)
+            self.button.update()
         self.adapters.setEnabled(not self.payload.get('busy') and not self.payload.get('closed'))
     def _request(self):
         identity=self.adapters.currentData()

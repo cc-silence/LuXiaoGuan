@@ -1,0 +1,407 @@
+{
+  "checked_at": "2026-11-03T03:35:01.372339+00:00",
+  "sources": [
+    {
+      "release": "19.07.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.0/package/base-files/files/bin/config_generate",
+      "sha256": "d1ae1ae6dcdb12b01152a9c0115abc4191a308a11ec232fcfef625906c7bf9c7",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "19.07.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.1/package/base-files/files/bin/config_generate",
+      "sha256": "d1ae1ae6dcdb12b01152a9c0115abc4191a308a11ec232fcfef625906c7bf9c7",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "19.07.10",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.10/package/base-files/files/bin/config_generate",
+      "sha256": "d1ae1ae6dcdb12b01152a9c0115abc4191a308a11ec232fcfef625906c7bf9c7",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "19.07.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.2/package/base-files/files/bin/config_generate",
+      "sha256": "d1ae1ae6dcdb12b01152a9c0115abc4191a308a11ec232fcfef625906c7bf9c7",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "19.07.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.3/package/base-files/files/bin/config_generate",
+      "sha256": "d1ae1ae6dcdb12b01152a9c0115abc4191a308a11ec232fcfef625906c7bf9c7",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "19.07.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.4/package/base-files/files/bin/config_generate",
+      "sha256": "d1ae1ae6dcdb12b01152a9c0115abc4191a308a11ec232fcfef625906c7bf9c7",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "19.07.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.5/package/base-files/files/bin/config_generate",
+      "sha256": "d1ae1ae6dcdb12b01152a9c0115abc4191a308a11ec232fcfef625906c7bf9c7",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "19.07.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.6/package/base-files/files/bin/config_generate",
+      "sha256": "d1ae1ae6dcdb12b01152a9c0115abc4191a308a11ec232fcfef625906c7bf9c7",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "19.07.7",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.7/package/base-files/files/bin/config_generate",
+      "sha256": "d1ae1ae6dcdb12b01152a9c0115abc4191a308a11ec232fcfef625906c7bf9c7",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "19.07.8",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.8/package/base-files/files/bin/config_generate",
+      "sha256": "d1ae1ae6dcdb12b01152a9c0115abc4191a308a11ec232fcfef625906c7bf9c7",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "19.07.9",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.9/package/base-files/files/bin/config_generate",
+      "sha256": "d1ae1ae6dcdb12b01152a9c0115abc4191a308a11ec232fcfef625906c7bf9c7",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "21.02.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.0/package/base-files/files/bin/config_generate",
+      "sha256": "59b5acd0011e2acca128a4d39c95314fa0dce7b24ef472da7e39f02a5abdf8b4",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "21.02.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.1/package/base-files/files/bin/config_generate",
+      "sha256": "59b5acd0011e2acca128a4d39c95314fa0dce7b24ef472da7e39f02a5abdf8b4",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "21.02.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.2/package/base-files/files/bin/config_generate",
+      "sha256": "59b5acd0011e2acca128a4d39c95314fa0dce7b24ef472da7e39f02a5abdf8b4",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "21.02.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.3/package/base-files/files/bin/config_generate",
+      "sha256": "59b5acd0011e2acca128a4d39c95314fa0dce7b24ef472da7e39f02a5abdf8b4",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "21.02.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.4/package/base-files/files/bin/config_generate",
+      "sha256": "59b5acd0011e2acca128a4d39c95314fa0dce7b24ef472da7e39f02a5abdf8b4",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "21.02.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.5/package/base-files/files/bin/config_generate",
+      "sha256": "59b5acd0011e2acca128a4d39c95314fa0dce7b24ef472da7e39f02a5abdf8b4",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "21.02.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.6/package/base-files/files/bin/config_generate",
+      "sha256": "f92636f57a1c1fad61485513ea53c5d198d78eb75e8073dedc2bc48739575a0d",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "21.02.7",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.7/package/base-files/files/bin/config_generate",
+      "sha256": "f92636f57a1c1fad61485513ea53c5d198d78eb75e8073dedc2bc48739575a0d",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "22.03.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.0/package/base-files/files/bin/config_generate",
+      "sha256": "59b5acd0011e2acca128a4d39c95314fa0dce7b24ef472da7e39f02a5abdf8b4",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "22.03.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.1/package/base-files/files/bin/config_generate",
+      "sha256": "59b5acd0011e2acca128a4d39c95314fa0dce7b24ef472da7e39f02a5abdf8b4",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "22.03.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.2/package/base-files/files/bin/config_generate",
+      "sha256": "59b5acd0011e2acca128a4d39c95314fa0dce7b24ef472da7e39f02a5abdf8b4",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "22.03.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.3/package/base-files/files/bin/config_generate",
+      "sha256": "f92636f57a1c1fad61485513ea53c5d198d78eb75e8073dedc2bc48739575a0d",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "22.03.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.4/package/base-files/files/bin/config_generate",
+      "sha256": "f92636f57a1c1fad61485513ea53c5d198d78eb75e8073dedc2bc48739575a0d",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "22.03.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.5/package/base-files/files/bin/config_generate",
+      "sha256": "f92636f57a1c1fad61485513ea53c5d198d78eb75e8073dedc2bc48739575a0d",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "22.03.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.6/package/base-files/files/bin/config_generate",
+      "sha256": "f92636f57a1c1fad61485513ea53c5d198d78eb75e8073dedc2bc48739575a0d",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "22.03.7",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.7/package/base-files/files/bin/config_generate",
+      "sha256": "f92636f57a1c1fad61485513ea53c5d198d78eb75e8073dedc2bc48739575a0d",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "23.05.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.0/package/base-files/files/bin/config_generate",
+      "sha256": "8e24fac0b621227721ec7e0710d586a70fbb2e14119d319288c0052217a42d71",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "23.05.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.1/package/base-files/files/bin/config_generate",
+      "sha256": "8e24fac0b621227721ec7e0710d586a70fbb2e14119d319288c0052217a42d71",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "23.05.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.2/package/base-files/files/bin/config_generate",
+      "sha256": "8e24fac0b621227721ec7e0710d586a70fbb2e14119d319288c0052217a42d71",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "23.05.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.3/package/base-files/files/bin/config_generate",
+      "sha256": "8e24fac0b621227721ec7e0710d586a70fbb2e14119d319288c0052217a42d71",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "23.05.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/base-files/files/bin/config_generate",
+      "sha256": "8e24fac0b621227721ec7e0710d586a70fbb2e14119d319288c0052217a42d71",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "23.05.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.5/package/base-files/files/bin/config_generate",
+      "sha256": "8e24fac0b621227721ec7e0710d586a70fbb2e14119d319288c0052217a42d71",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "23.05.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.6/package/base-files/files/bin/config_generate",
+      "sha256": "8e24fac0b621227721ec7e0710d586a70fbb2e14119d319288c0052217a42d71",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "24.10.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.0/package/base-files/files/bin/config_generate",
+      "sha256": "38a50bd2af7e21b48227e7d37b708a7f887c6b2bdf576114068830ce0a214b46",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "24.10.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.1/package/base-files/files/bin/config_generate",
+      "sha256": "38a50bd2af7e21b48227e7d37b708a7f887c6b2bdf576114068830ce0a214b46",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "24.10.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.2/package/base-files/files/bin/config_generate",
+      "sha256": "38a50bd2af7e21b48227e7d37b708a7f887c6b2bdf576114068830ce0a214b46",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "24.10.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.3/package/base-files/files/bin/config_generate",
+      "sha256": "38a50bd2af7e21b48227e7d37b708a7f887c6b2bdf576114068830ce0a214b46",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "24.10.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.4/package/base-files/files/bin/config_generate",
+      "sha256": "38a50bd2af7e21b48227e7d37b708a7f887c6b2bdf576114068830ce0a214b46",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "24.10.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.5/package/base-files/files/bin/config_generate",
+      "sha256": "38a50bd2af7e21b48227e7d37b708a7f887c6b2bdf576114068830ce0a214b46",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "24.10.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.6/package/base-files/files/bin/config_generate",
+      "sha256": "38a50bd2af7e21b48227e7d37b708a7f887c6b2bdf576114068830ce0a214b46",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "24.10.7",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.7/package/base-files/files/bin/config_generate",
+      "sha256": "38a50bd2af7e21b48227e7d37b708a7f887c6b2bdf576114068830ce0a214b46",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "24.10.8",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.8/package/base-files/files/bin/config_generate",
+      "sha256": "38a50bd2af7e21b48227e7d37b708a7f887c6b2bdf576114068830ce0a214b46",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "25.12.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.0/package/base-files/files/bin/config_generate",
+      "sha256": "01166088aee15fc77c31249be3fd1e79a851c5541dc54652b1d4a70a28ec0174",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "25.12.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.1/package/base-files/files/bin/config_generate",
+      "sha256": "01166088aee15fc77c31249be3fd1e79a851c5541dc54652b1d4a70a28ec0174",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "25.12.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.2/package/base-files/files/bin/config_generate",
+      "sha256": "01166088aee15fc77c31249be3fd1e79a851c5541dc54652b1d4a70a28ec0174",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "25.12.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.3/package/base-files/files/bin/config_generate",
+      "sha256": "01166088aee15fc77c31249be3fd1e79a851c5541dc54652b1d4a70a28ec0174",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "25.12.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.4/package/base-files/files/bin/config_generate",
+      "sha256": "01166088aee15fc77c31249be3fd1e79a851c5541dc54652b1d4a70a28ec0174",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "25.12.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.5/package/base-files/files/bin/config_generate",
+      "sha256": "01166088aee15fc77c31249be3fd1e79a851c5541dc54652b1d4a70a28ec0174",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    },
+    {
+      "release": "25.12.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/base-files/files/bin/config_generate",
+      "sha256": "01166088aee15fc77c31249be3fd1e79a851c5541dc54652b1d4a70a28ec0174",
+      "default_mask_confirmed": true,
+      "default_lan_confirmed": true,
+      "reads_board_mask": true
+    }
+  ],
+  "errors": [],
+  "scope": "Read-only default subnet metadata; no changes to reset commands or firmware write semantics"
+}

@@ -27,17 +27,42 @@ local function scan_native()
   return result
  end
  if not req.interface:match("^[%w_.:%-]+$") then fail("radio") end
- local matches,owner=0,nil
- for radio,rs in pairs(status) do
-  if type(rs)=="table" then
-   for _,iface in ipairs(rs.interfaces or {}) do
-    if iface.ifname==req.interface then matches=matches+1;owner=radio end
+ local matches,owners={},{}
+ for radio,state in pairs(status) do
+  if type(state)=="table" then
+   for _,iface in ipairs(state.interfaces or {}) do
+    if type(iface.ifname)=="string" then
+     matches[iface.ifname]=(matches[iface.ifname] or 0)+1;owners[iface.ifname]=radio
+    end
    end
   end
  end
  local rs=status[req.radio]
- if matches~=1 or owner~=req.radio or type(rs)~="table" or not rs.up or rs.pending or
-    optional("network.device","status",{name=req.interface}).up~=true then fail("radio") end
- return rpc("iwinfo","scan",{device=req.interface})
+ if matches[req.interface] and (matches[req.interface]~=1 or owners[req.interface]~=req.radio) then fail("radio") end
+ if type(rs)~="table" or not rs.up or rs.pending then fail("radio") end
+ local candidates,seen={req.interface},{[req.interface]=true}
+ for _,iface in ipairs(rs.interfaces or {}) do
+  local name=iface.ifname
+  if type(name)=="string" and not seen[name] then candidates[#candidates+1]=name;seen[name]=true end
+ end
+ if #candidates>64 then fail("radio") end
+ local unavailable=0
+ for index,iface in ipairs(candidates) do
+  if #iface>64 or not iface:match("^[%w_.:%-]+$") then fail("radio") end
+  -- The preferred interface is a hint from an earlier snapshot. Only current,
+  -- uniquely owned members of this radio can be queried and used for scanning.
+  if matches[iface] then
+   if matches[iface]~=1 or owners[iface]~=req.radio then fail("radio") end
+   local device,err=bus:call("network.device","status",{name=iface})
+   if err and err~=2 then fail("scan_interface_read") end
+   if not err and type(device)=="table" and device.up==true then
+    local result=rpc("iwinfo","scan",{device=iface})
+    result.interface_selection={candidates=#candidates,unavailable=unavailable,selected_index=index,interface=iface}
+    return result
+   end
+  end
+  unavailable=unavailable+1
+ end
+ fail("scan_no_interface")
 end
 '''

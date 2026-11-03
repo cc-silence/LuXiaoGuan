@@ -1,7 +1,8 @@
+from contextlib import nullcontext
 """Package status messages must not hide real download failures."""
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from modules.capture_services.openwrt.dependency_manager import OpenWrtDependencyManager
 from modules.capture_services.openwrt.installation_sources import install_with_sources
@@ -14,6 +15,13 @@ SUCCESS = "Signature check passed.\n"
 
 
 class PackageErrorClassificationTests(unittest.TestCase):
+    def setUp(self):
+        # Isolate existing plan/error contracts from the separately tested source setup.
+        source = patch("modules.capture_services.openwrt.temporary_package_sources.domestic_sources",
+                       side_effect=lambda manager, base, cancel, tell: nullcontext(base))
+        source.start()
+        self.addCleanup(source.stop)
+
     def test_passed_signature_does_not_hide_network_failure(self):
         self.assertEqual(package_error_reason(SUCCESS + NETWORK_FAILURE), package_error_reason(NETWORK_FAILURE))
         self.assertNotEqual(package_error_reason(SUCCESS), package_error_reason("Signature check failed."))

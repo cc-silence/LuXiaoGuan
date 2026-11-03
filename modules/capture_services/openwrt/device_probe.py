@@ -147,7 +147,12 @@ def probe_monitor_capability(command_runner, phy, cancel_event=None):
         raise RuntimeError("探测 monitor 能力已取消。")
     if result.timed_out or result.exit_code != 0:
         return None, "无法读取无线能力，请检查连接和 iw 工具后重新检测。"
-    modes = _parse_supported_modes(result.stdout or "")
+    return monitor_capability_from_text(result.stdout or "")
+
+
+def monitor_capability_from_text(text):
+    """Interpret the same native mode evidence for selection and execution."""
+    modes = _parse_supported_modes(text)
     if modes is None:
         return None, "固件未提供可识别的无线模式能力，未确认监听支持。"
     if "monitor" in modes:
@@ -432,14 +437,15 @@ class OpenWrtDeviceProbe:
         device = self._parse(system.stdout, wireless_text, storage.stdout, diag["expected"])
         if tools.stdout.strip() != "MISSING":
             from .radio_usage import read_radio_usage
+            from .radio_usage_state import radio_usage_fields
             try:
                 usages = read_radio_usage(self.command_runner, cancel_event, snapshot=wireless_text)
-                device = replace(device, radios=tuple(replace(r, free=usages[r.name].free)
-                                 if r.name in usages else replace(r, free=None) for r in device.radios))
+                device = replace(device, radios=tuple(replace(r, **radio_usage_fields(usages[r.name]))
+                                 if r.name in usages else replace(r, **radio_usage_fields(None)) for r in device.radios))
             except InterruptedError:
                 raise
             except (RuntimeError, TimeoutError):
-                device = replace(device, radios=tuple(replace(r, free=None) for r in device.radios))
+                device = replace(device, radios=tuple(replace(r, **radio_usage_fields(None)) for r in device.radios))
         if (
             not device.version
             or not device.target

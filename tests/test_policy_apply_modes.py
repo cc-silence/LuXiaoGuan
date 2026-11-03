@@ -136,8 +136,32 @@ class ModeUiTests(unittest.TestCase):
             self.assertFalse(hasattr(dialog,"ack"))
             self.assertFalse(dialog.findChildren(QTextEdit))
             self.assertEqual(dialog.apply_button.text(),label)
-            self.assertEqual(dialog.backup_button.text(),"备份并"+label)
+            self.assertFalse(hasattr(dialog,"backup_button"))
             self.assertTrue(dialog.apply_button.isEnabled())
+
+    def test_short_boot_title_stays_at_frame_top_in_both_themes_and_scales(self):
+        from pathlib import Path
+        from modules.ui_scale_manager import UiScaleManager
+        from modules.config_manager import ConfigManager
+        from modules.dialog_theme import build_base_stylesheet
+        output=Path('build/boot-confirmation-layout');output.mkdir(parents=True,exist_ok=True)
+        for light in (False,True):
+            page,_=self.create_page(light)
+            for scale in (100,150):
+                page.parentWidget().scale_manager=UiScaleManager(scale)
+                style=build_base_stylesheet(ConfigManager(),light_theme=light,scale_manager=page.parentWidget().scale_manager)
+                for enabled in (False,True):
+                    with patch('modules.common_widgets.common_dialogs.build_current_base_stylesheet',return_value=style):
+                        dialog=PolicyReviewDialog(dict(kind='boot',boot_enabled=enabled),page)
+                    self.addCleanup(dialog.deleteLater)
+                    dialog.show();APP.processEvents()
+                    for extra in (0,80):
+                        dialog.resize(dialog.width(),dialog.height()+extra);APP.processEvents()
+                        self.assertEqual(dialog.title_bar.y(),dialog.window_frame.contentsRect().top())
+                    self.assertEqual(dialog.title_button_box_layout.count(),1)
+                    self.assertFalse(hasattr(dialog,'backup_button'))
+                    dialog.grab().save(str(output/(str(light)+'-'+str(scale)+'-'+str(enabled)+'.png')))
+                    dialog.reject()
 
     def test_direct_does_not_open_backup_picker_and_backup_does(self):
         for backup in (False,True):

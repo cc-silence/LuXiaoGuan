@@ -62,6 +62,23 @@ class CheckedApplyTests(unittest.TestCase):
             return remote.call("common_applied",sid=sid,config="network",review=review,values=values)["ready"]
         return device,channel,event,stage,verify
 
+    def test_rollback_rearms_dhcp_recovery_for_original_addresses(self):
+        from modules.capture_services.lan_client_recovery import RenewalGate
+        from tests.test_lan_client_recovery import adapter
+        from modules.capture_services.configuration_progress import reporting
+        device,channel,event,stage,verify=self.fixture()
+        gate=RenewalGate(dict(guide='restore',adapters=[adapter()],old_addresses=['192.168.8.1/24'],new_addresses=['192.168.22.1/24']))
+        observed=[]
+        def progress(value):
+            if gate.restoring and 'network_recovery' in value:
+                observed.append((gate.armed,gate.automatic_enabled))
+        with fast_deadlines(), reporting(progress), self.assertRaises(RuntimeError):
+            run_checked(channel,stage,lambda *_:False,event,candidates=('new',),original_host='old',
+                        client_recovery=gate,restore_verify=lambda *_:True)
+        self.assertEqual(observed,[(True,True)])
+        self.assertEqual(channel.calls.count('checked_apply'),1)
+        self.assertIn('checked_rollback',channel.calls)
+
     def test_native_apply_is_verified_and_confirmed_without_reboot(self):
         device,channel,event,stage,verify=self.fixture()
         result=run_checked(channel,stage,verify,event,candidates=("192.168.22.1",),original_host="192.168.8.1")

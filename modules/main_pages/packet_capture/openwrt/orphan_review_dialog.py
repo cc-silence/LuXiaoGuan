@@ -26,7 +26,7 @@ class OrphanReviewDialog(FramelessDialog):
         super().__init__("\u9057\u7559\u63a5\u53e3\u68c0\u67e5",parent,inherit_parent_stylesheet=False)
         scale=UiScaleManager.for_widget(self)
         self.setStyleSheet(build_base_stylesheet(ConfigManager(),light_theme=detect_light_theme(parent),scale_manager=scale))
-        self.set_scaled_size((620,340),(850,480))
+        self.set_scaled_size((620,340),(850,620))
         label=QLabel("确认无配置引用、未绑定设备且未运行的遗留接口可勾选。不要求必须由本软件创建；仅在防火墙区域中登记不影响清理。",self)
         label.setObjectName("settingsHint")
         label.setWordWrap(True)

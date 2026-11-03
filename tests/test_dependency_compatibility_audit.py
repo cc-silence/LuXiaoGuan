@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 """Cross-version installation and removal regressions grounded in native sources."""
 from pathlib import Path
 from threading import Event
@@ -8,6 +9,13 @@ from modules.capture_services.openwrt.package_manager import PackageManager
 
 
 class SignalSpaceTests(unittest.TestCase):
+    def setUp(self):
+        # Isolate existing plan/error contracts from the separately tested source setup.
+        source = patch("modules.capture_services.openwrt.temporary_package_sources.domestic_sources",
+                       side_effect=lambda manager, base, cancel, tell: nullcontext(base))
+        source.start()
+        self.addCleanup(source.stop)
+
     def test_small_install_uses_plan_size_instead_of_fixed_one_mb_gate(self):
         for pm in ('opkg', 'apk'):
             manager = RouterSignalManager(Mock())

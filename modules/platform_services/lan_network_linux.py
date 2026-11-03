@@ -69,8 +69,9 @@ def renew(adapter,timeout,permit):
         command(['nmcli','--wait',str(max(1,int(remaining)-1)),'connection','up','uuid',current['connection'],'ifname',current['name']],remaining)
     except (RuntimeError,TimeoutError,subprocess.TimeoutExpired) as exc:
         code=getattr(exc,'system_exit_code',None)
-        emit('lease_process','lease_timeout' if isinstance(exc,(TimeoutError,subprocess.TimeoutExpired)) else 'lease_failed',system_exit_code=code)
-        exc.network_retryable=code==3
-        exc.network_reason='lease_timeout' if code==3 else 'lease_failed'
+        timed_out=code==3 or isinstance(exc,(TimeoutError,subprocess.TimeoutExpired))
+        emit('lease_process','lease_timeout' if timed_out else 'lease_failed',system_exit_code=code)
+        exc.network_retryable=timed_out
+        exc.network_reason='lease_timeout' if timed_out else 'lease_failed'
         raise
     emit('lease_process','system_accepted',system_exit_code=0)

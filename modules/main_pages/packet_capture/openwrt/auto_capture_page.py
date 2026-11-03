@@ -14,7 +14,8 @@ import re
 import threading
 from typing import Dict, List, Optional
 
-from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize
+from PySide6.QtCore import Qt, Signal, QTimer, QSize, QObject
+from .service_page_slots import active_service_slot
 from PySide6.QtGui import QBrush, QColor, QFont, QTextCursor
 from PySide6.QtWidgets import (
     QButtonGroup,
@@ -633,21 +634,27 @@ class AutoCapturePage(QWidget):
         self.sub_tabs.currentChanged.connect(self._on_sub_tab_changed)
 
         # 连接服务信号
-        self.auto_capture_service.bootStatusChecking.connect(self._on_boot_status_checking)
-        self.auto_capture_service.bootStatusChanged.connect(self._on_boot_status_changed)
-        self.auto_capture_service.resourceStatsUpdated.connect(self._on_resource_stats_updated)
-        self.auto_capture_service.radioStatsUpdated.connect(self._on_radio_stats_updated)
-        self.auto_capture_service.radioStreamOutput.connect(self._on_radio_stream_output)
-        self.auto_capture_service.radioStateChanged.connect(self._on_radio_state_changed)
-        self.auto_capture_service.messageGenerated.connect(self._on_message_generated)
-        self.auto_capture_service.offlineArtifactsPulled.connect(self._on_pull_offline_success)
-        self.auto_capture_service.offlinePullFailed.connect(self._on_pull_offline_error)
-        self.auto_capture_service.radioIdleStatusUpdated.connect(self._on_radio_idle_status_updated)
-        self.auto_capture_service.bootLogUpdated.connect(self._on_boot_log_updated)
+        self._service_disposed = False
+        self._service_connections = []
+        from modules.capture_services.openwrt.capture_start_preflight import CaptureStartPreflight
+        self._start_preflight = CaptureStartPreflight(self.auto_capture_service, self)
+        self._connect_service_signal(self._start_preflight.finished, self._on_start_inspected)
+        self._connect_service_signal(self.auto_capture_service.bootStatusChecking, self._on_boot_status_checking)
+        self._connect_service_signal(self.auto_capture_service.bootStatusChanged, self._on_boot_status_changed)
+        self._connect_service_signal(self.auto_capture_service.bootScriptStarted, self._on_boot_script_started)
+        self._connect_service_signal(self.auto_capture_service.resourceStatsUpdated, self._on_resource_stats_updated)
+        self._connect_service_signal(self.auto_capture_service.radioStatsUpdated, self._on_radio_stats_updated)
+        self._connect_service_signal(self.auto_capture_service.radioStreamOutput, self._on_radio_stream_output)
+        self._connect_service_signal(self.auto_capture_service.radioStateChanged, self._on_radio_state_changed)
+        self._connect_service_signal(self.auto_capture_service.messageGenerated, self._on_message_generated)
+        self._connect_service_signal(self.auto_capture_service.offlineArtifactsPulled, self._on_pull_offline_success)
+        self._connect_service_signal(self.auto_capture_service.offlinePullFailed, self._on_pull_offline_error)
+        self._connect_service_signal(self.auto_capture_service.radioIdleStatusUpdated, self._on_radio_idle_status_updated)
+        self._connect_service_signal(self.auto_capture_service.bootLogUpdated, self._on_boot_log_updated)
 
         signals_service = getattr(self.service, "router_signals", None)
         if signals_service is not None and hasattr(signals_service, "snapshotChanged"):
-            signals_service.snapshotChanged.connect(self._on_signals_snapshot_changed)
+            self._connect_service_signal(signals_service.snapshotChanged, self._on_signals_snapshot_changed)
 
         # 连接建立时检测运行中抓包进程的弹窗控制标记
         self._connected_running_prompted = False
@@ -664,8 +671,11 @@ class AutoCapturePage(QWidget):
         if self.auto_capture_service.boot_status is not None:
             self._on_boot_status_changed(self.auto_capture_service.boot_status)
 
-        service.openwrtSnapshotChanged.connect(self._on_snapshot_changed)
+        self._connect_service_signal(service.openwrtSnapshotChanged, self._on_snapshot_changed)
         self._on_snapshot_changed(service.openwrt_snapshot)
+
+    def _connect_service_signal(self, signal, slot):
+        self._service_connections.append(signal.connect(slot))
 
     def _poll_bg_boot_status(self):
         """周期性轮询刷新后台自启与脚本状态。"""
@@ -675,6 +685,7 @@ class AutoCapturePage(QWidget):
         if connected and self.sub_tabs.currentIndex() == 1:
             self.auto_capture_service.refresh_boot_status()
 
+    @active_service_slot(object)
     def _on_signals_snapshot_changed(self, snapshot):
         """当在信号管理页面修改了信号状态后，自动触发前台射频业务状态异步刷新。"""
         conn_state = getattr(self.service.openwrt_snapshot, "connection_state", None)
@@ -688,21 +699,18 @@ class AutoCapturePage(QWidget):
         self._last_signal_inventory = inventory
         self.auto_capture_service.refresh_radio_idle_status()
 
+    @active_service_slot(dict)
     def _on_radio_idle_status_updated(self, free_map: dict):
         """远端射频业务状态异步返回后，立即精准刷新射频卡片的空闲/使用中徽章与接管复选框。"""
         for radio_name, is_free in free_map.items():
             card = self.radio_cards.get(radio_name)
             if card is not None:
                 from dataclasses import replace
-                card.radio_info = replace(card.radio_info, free=is_free)
+                from modules.capture_services.openwrt.radio_usage_state import radio_usage_fields
+                card.radio_info = replace(card.radio_info, **radio_usage_fields(is_free))
                 if not card._capturing:
-                    if is_free:
-                        card.status_badge.setText("【空闲】(安全无感)")
-                        card.status_badge.setStyleSheet("color: #10b981; font-weight: bold;")
-                    else:
-                        card.status_badge.setText("【正在使用】(业务已在线)")
-                        card.status_badge.setStyleSheet("color: #f59e0b; font-weight: bold;")
-                    card.takeover_check.setVisible(not is_free)
+                    from .radio_usage_view import apply_usage_status
+                    apply_usage_status(card)
 
     def _on_sub_tab_changed(self, index: int):
         """子标签页切换时响应：每当切换到前台抓包或后台抓包时，均刷新对应页面上的状态。"""
@@ -914,6 +922,7 @@ class AutoCapturePage(QWidget):
         if hasattr(self, "bg_autoscroll_check") and self.bg_autoscroll_check.isChecked():
             self.bg_console.moveCursor(QTextCursor.End)
 
+    @active_service_slot(str)
     def _on_boot_log_updated(self, log_text: str):
         """接收后台抓包日志流更新。"""
         if not hasattr(self, "bg_console_card") or self.bg_console_card.isHidden():
@@ -946,6 +955,7 @@ class AutoCapturePage(QWidget):
                 )
                 self.version_warning_detail.setStyleSheet("color: #fef3c7; line-height: 1.4;")
 
+    @active_service_slot()
     def _on_boot_status_checking(self):
         """后台抓包环境探测开始槽函数（仅首次加载未就绪时提示，后续静默巡检不打扰界面）。"""
         if not getattr(self, "_initial_loaded", False):
@@ -1036,7 +1046,7 @@ class AutoCapturePage(QWidget):
             b_status = self.auto_capture_service.boot_status or getattr(self, "_last_boot_status", None)
             script_desc = "抓包脚本已就绪" if (b_status and b_status.remote_script_exists) else "抓包脚本未部署"
             svc_desc = "自启服务已注册" if (b_status and b_status.installed) else ("已配置自启" if (b_status and b_status.autostart_enabled) else "自启未启用")
-            run_desc = "正在自主抓包" if (b_status and b_status.is_running) else "待机就绪"
+            run_desc = "脚本运行中（抓包待核实）" if (b_status and b_status.is_running) else "待机就绪"
             detail_msg = f"已连接设备: {dev_model}"
             if dev_arch:
                 detail_msg += f" · 架构: {dev_arch}"
@@ -1118,7 +1128,7 @@ class AutoCapturePage(QWidget):
         self.running_alert_widget.setStyleSheet(
             "background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; border-radius: 6px;"
         )
-        self.running_alert_label = QLabel("⚡ 检测到后台自主抓包正在运行中，抓包文件实时保存在路由器 (/root/cap/)", self.running_alert_widget)
+        self.running_alert_label = QLabel("⚡ 后台脚本已运行，抓包状态尚未确认；请查看后台会话日志", self.running_alert_widget)
         self.running_alert_label.setStyleSheet("color: #10b981; font-weight: bold;")
         r_layout.addWidget(self.running_alert_label, 1)
 
@@ -1372,7 +1382,7 @@ class AutoCapturePage(QWidget):
         guard_layout.addWidget(self.start_all_btn)
 
         self.stop_all_btn = create_page_text_button(self.guard_card, "⏹ 全部停止", "停止全部抓包并恢复 Wi-Fi")
-        self.stop_all_btn.clicked.connect(self.auto_capture_service.stop_all)
+        self.stop_all_btn.clicked.connect(self._on_stop_all_clicked)
         guard_layout.addWidget(self.stop_all_btn)
 
         self.open_output_dir_btn = QPushButton("📂 本地成果", self.guard_card)
@@ -1467,6 +1477,7 @@ class AutoCapturePage(QWidget):
         self._update_boot_metrics_style()
         self._update_status_banner_style()
 
+    @active_service_slot(object)
     def _on_snapshot_changed(self, snapshot):
         """根据快照同步探测射频与卡片状态。"""
         self._last_snapshot = snapshot
@@ -1648,6 +1659,7 @@ class AutoCapturePage(QWidget):
             self._view_mode = "tabbed"
         self._reposition_cards()
 
+    @active_service_slot(object)
     def _on_boot_status_changed(self, status: AutoCaptureBootStatus, force: bool = False):
         """自启状态更新，结构化指标看板展示。"""
         self._last_boot_status = status
@@ -1658,7 +1670,7 @@ class AutoCapturePage(QWidget):
         self._last_rendered_boot_status = status
         # 1. 顶部大号状态徽章
         if status.is_running:
-            self.boot_status_badge.setText("【抓包运行中】")
+            self.boot_status_badge.setText("【脚本运行中】")
             self.boot_status_badge.setStyleSheet("color: #10b981; font-weight: bold;")
         elif status.installed:
             self.boot_status_badge.setText("【自启服务已就绪】")
@@ -1726,7 +1738,7 @@ class AutoCapturePage(QWidget):
 
         # 进程状态
         if status.is_running:
-            self.metric_running_label.setText("⚡ 运行状态: 正在抓包")
+            self.metric_running_label.setText("⚡ 运行状态: 脚本运行中")
             self.metric_running_label.setStyleSheet("color: #10b981; font-weight: bold;")
         else:
             self.metric_running_label.setText("⚡ 运行状态: 空闲待机")
@@ -1768,13 +1780,14 @@ class AutoCapturePage(QWidget):
         if not connected:
             self.start_script_btn.setToolTip("请先连接路由器")
         elif status.is_running:
-            self.start_script_btn.setToolTip("后台抓包正在运行中\n【说明】：仅使用空闲无线频段在后台抓包，抓获的握手包实时保存在路由器 (/root/cap/)。如需停止请点击上方“结束并收尾抓包”。")
+            self.start_script_btn.setToolTip("后台脚本正在运行\n是否已开始抓包尚未确认，请查看后台会话日志。如需停止请点击上方“结束并收尾抓包”。")
         else:
             self.start_script_btn.setToolTip("立即在后台启动抓包\n【说明】：只会使用未开启 Wi-Fi 的空闲无线频段，正在正常上网的 Wi-Fi 不受任何影响；抓包数据实时保存，断电不丢失")
 
         if connected:
             self._update_loading_status("ready")
 
+    @active_service_slot(int, int, int, int, str)
     def _on_resource_stats_updated(self, mem_avail: int, mem_total: int, disk_avail: int, disk_total: int, level: str):
         """更新全局资源守卫看板。"""
         if level == "danger":
@@ -1793,14 +1806,17 @@ class AutoCapturePage(QWidget):
         self.disk_health_label.setText(f"Flash剩余: {disk_avail}MB / {disk_total}MB  {status_text}")
         self.disk_health_label.setStyleSheet(f"color: {color}; font-weight: bold;")
 
+    @active_service_slot(str, dict)
     def _on_radio_stats_updated(self, radio_name: str, stats: dict):
         if radio_name in self.radio_cards:
             self.radio_cards[radio_name].apply_stats(stats)
 
+    @active_service_slot(str, str)
     def _on_radio_stream_output(self, radio_name: str, text: str):
         if radio_name in self.radio_cards:
             self.radio_cards[radio_name].append_stream_text(text)
 
+    @active_service_slot(str, str)
     def _on_radio_state_changed(self, radio_name: str, state: str):
         if radio_name in self.radio_cards:
             session = self.auto_capture_service.sessions.get(radio_name)
@@ -1808,36 +1824,22 @@ class AutoCapturePage(QWidget):
             self.radio_cards[radio_name].apply_state(state, err_msg)
 
     def _on_card_start_requested(self, radio_info: OpenWrtRadioInfo, channels: str, allow_takeover: bool):
-        self.auto_capture_service.start_radio_capture(radio_info, channels, allow_takeover)
+        self._start_preflight.request([dict(radio_info=radio_info, channels=channels,
+                                           allow_takeover=allow_takeover)])
 
     def _on_card_stop_requested(self, radio_name: str):
+        self._start_preflight.cancel()
         self.auto_capture_service.stop_radio_capture(radio_name)
+
+    def _on_stop_all_clicked(self):
+        self._start_preflight.cancel()
+        self.auto_capture_service.stop_all()
 
     def _on_start_all_clicked(self):
         """全部开始抓包，带前置非空闲射频接管引导。"""
         if not self.radio_cards:
             MessageDialog("无法开始抓包", "当前未检测到任何可用的无线射频，请确认路由器已连接成功。", self).exec()
             return
-
-        busy_unauthorized = [
-            card for card in self.radio_cards.values()
-            if not card.radio_info.free and not card.takeover_check.isChecked()
-        ]
-        if busy_unauthorized:
-            names = [f"● 射频 {c.radio_name} ({'/'.join(c.radio_info.bands) if c.radio_info.bands else 'Wi-Fi'})" for c in busy_unauthorized]
-            names_text = "\n".join(names)
-            msg = (
-                f"检测到以下无线射频当前正在发射 Wi-Fi 业务，且尚未勾选允许接管：\n\n{names_text}\n\n"
-                "抓包必须临时安全接管射频以执行信道切换。\n"
-                "停止抓包后，软件将自动原子级回滚恢复原有 Wi-Fi 业务。\n\n"
-                "是否允许接管并全部开始抓包？"
-            )
-            dialog = ConfirmDialog("无线射频接管确认", msg, self)
-            if dialog.exec() == ConfirmDialog.Accepted:
-                for c in busy_unauthorized:
-                    c.takeover_check.setChecked(True)
-            else:
-                return
 
         configs = []
         for card in self.radio_cards.values():
@@ -1846,7 +1848,40 @@ class AutoCapturePage(QWidget):
                 "channels": card.channel_edit.text().strip(),
                 "allow_takeover": card.takeover_check.isChecked(),
             })
-        self.auto_capture_service.start_all(configs)
+        self._start_preflight.request(configs)
+
+    @active_service_slot(object)
+    def _on_start_inspected(self, result):
+        if not self._start_preflight.is_current(result):
+            return
+        if result.error:
+            MessageDialog("无法开始抓包", "无法核实路由器当前无线状态：" + result.error, self).exec()
+            return
+        self.service.update_openwrt_radio_idle_status(result.usages)
+        self._on_radio_idle_status_updated(result.usages)
+        configs = [dict(item) for item in result.configs]
+        busy_unauthorized = [item for item in configs
+                             if not item["radio_info"].free and not item["allow_takeover"]]
+        if busy_unauthorized:
+            names = ", ".join(item["radio_info"].name for item in busy_unauthorized)
+            dialog = ConfirmDialog("无线射频接管确认",
+                                   "当前仍有启用的无线业务：" + names +
+                                   "\n\n是否允许临时接管并开始抓包？停止后将恢复原有无线配置。", self)
+            if dialog.exec() != ConfirmDialog.Accepted:
+                return
+            for item in busy_unauthorized:
+                item["allow_takeover"] = True
+                card = self.radio_cards.get(item["radio_info"].name)
+                if card is not None:
+                    card.takeover_check.setChecked(True)
+        # A modal prompt can process connection-change events while it is open.
+        if not self._start_preflight.is_current(result):
+            return
+        if len(configs) == 1:
+            item = configs[0]
+            self.auto_capture_service.start_radio_capture(item["radio_info"], item["channels"], item["allow_takeover"])
+        else:
+            self.auto_capture_service.start_all(configs)
 
     def _on_boot_check_clicked(self, checked: bool):
         """响应用户点击开机自启开关。支持未部署时引导一键部署并开启。"""
@@ -1995,6 +2030,7 @@ class AutoCapturePage(QWidget):
         out_dir = self.auto_capture_service.get_output_dir()
         self.auto_capture_service.pull_offline_artifacts_async(str(out_dir))
 
+    @active_service_slot(list, str)
     def _on_pull_offline_success(self, pulled_files: list, local_dir: str):
         self.pull_offline_btn.setEnabled(True)
         if pulled_files:
@@ -2007,6 +2043,7 @@ class AutoCapturePage(QWidget):
         else:
             MessageDialog("提示", "路由器 /root/cap/ 目录下暂无抓包成果文件 (.pcapng / .log)。", self).exec()
 
+    @active_service_slot(str)
     def _on_pull_offline_error(self, err_msg: str):
         self.pull_offline_btn.setEnabled(True)
         MessageDialog("拉取成果失败", f"从路由器拉取离线成果时出现异常:\n{err_msg}", self).exec()
@@ -2029,49 +2066,40 @@ class AutoCapturePage(QWidget):
         except Exception:
             pass
 
-    @Slot(str, str)
+    @active_service_slot()
+    def _on_boot_script_started(self):
+        """Show the console from verified state, independent of translated messages."""
+        self._manual_boot_started = True
+        self.bg_console_card.setVisible(True)
+        self.append_bg_console_text("\u540e\u53f0\u811a\u672c\u5df2\u8fd0\u884c\uff1b\u662f\u5426\u5df2\u5f00\u59cb\u6293\u5305\u5c1a\u672a\u786e\u8ba4\uff0c\u8bf7\u4ee5\u540e\u53f0\u4f1a\u8bdd\u65e5\u5fd7\u4e3a\u51c6\u3002\n")
+
+    @active_service_slot(str, str)
     def _on_message_generated(self, message: str, level: str):
         """统一捕获后台服务生成的消息，出现错误时在主线程弹出醒目提示。"""
         if level == "error":
             MessageDialog("操作失败", message, self).exec()
         elif level == "success":
             # 关键操作反馈（如部署或恢复）
-            if "后台抓包脚本已成功启动" in message:
-                self._manual_boot_started = True
-                if hasattr(self, "bg_console_card"):
-                    self.bg_console_card.setVisible(True)
-                    from datetime import datetime
-                    self.append_bg_console_text(
-                        f"[{datetime.now().strftime('%H:%M:%S')}] ▶ 后台抓包脚本已启动成功！\n"
-                        f"⚡ 抓包进程正在后台自主运行，仅启用空闲无线频段，不影响正常业务 Wi-Fi\n"
-                        f"📁 抓包产物实时保存在路由器 /root/cap/ 目录，随时可点击【一键拉取离线包】拉回本地\n"
-                        f"----------------------------------------------------------------------\n"
-                    )
-                    self.auto_capture_service.poll_boot_log()
             if any(k in message for k in ("部署完成", "成功恢复", "已完全卸载")):
                 MessageDialog("操作成功", message, self).exec()
 
     def dispose(self):
         """释放页面时断开信号连接与停止定时器。"""
+        self._service_disposed = True
+        self._start_preflight.cancel()
         if getattr(self, "_upgrade_progress", None) is not None:
             self._upgrade_progress.dispose()
         try:
             self._bg_status_timer.stop()
         except Exception:
             pass
-        try:
-            self.service.openwrtSnapshotChanged.disconnect(self._on_snapshot_changed)
-        except Exception:
-            pass
-        try:
-            self.auto_capture_service.bootStatusChanged.disconnect(self._on_boot_status_changed)
-            self.auto_capture_service.resourceStatsUpdated.disconnect(self._on_resource_stats_updated)
-            self.auto_capture_service.radioStatsUpdated.disconnect(self._on_radio_stats_updated)
-            self.auto_capture_service.radioStreamOutput.disconnect(self._on_radio_stream_output)
-            self.auto_capture_service.radioStateChanged.disconnect(self._on_radio_state_changed)
-            self.auto_capture_service.messageGenerated.disconnect(self._on_message_generated)
-        except Exception:
-            pass
+        connections, self._service_connections = self._service_connections, []
+        for connection in connections:
+            try:
+                QObject.disconnect(connection)
+            except (RuntimeError, TypeError):
+                # The sender may already have been deleted during app shutdown.
+                pass
 
 
     def _on_upgrade_hcx_clicked(self):

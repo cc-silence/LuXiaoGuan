@@ -80,7 +80,7 @@ class RouterCommonSettingsPage(QWidget):
         self.restore_card, layout = create_capture_card(body, "恢复配置",
             "从备份恢复配置并重启，管理地址和密码可能改变。",
             icon_path=icon_root / "System Upload.png", actions_at_bottom=True)
-        self.restore_button = create_page_text_button(self.restore_card, "上传备份", "先预览，可选择保存当前配置备份，再恢复并重启。")
+        self.restore_button = create_page_text_button(self.restore_card, "上传备份", "选择备份文件，确认后恢复配置并重启。")
         layout.addWidget(self.restore_button)
         self.reset_card, layout = create_capture_card(body, "恢复出厂设置",
             "清空设置和后来安装的软件，回到当前固件初始状态。",

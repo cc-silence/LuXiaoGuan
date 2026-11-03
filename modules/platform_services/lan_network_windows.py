@@ -98,13 +98,20 @@ $nic=Read-SelectedAdapter
 Write-LeaseEvidence 'lease_before' $nic $null
 try{
  if([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() -ge __EXPIRES__){exit 12}
- $released=Invoke-CimMethod -InputObject $nic -MethodName ReleaseDHCPLease
- Write-LeaseEvidence 'lease_release' $nic ([int]$released.ReturnValue)
- if($released.ReturnValue -notin @(0,1,83)){exit (1000+[int]$released.ReturnValue)}
+ # Releasing a WLAN lease can disable IP while wireless reassociation is pending.
+ # Direct renewal avoids introducing that extra disconnect; Ethernet keeps its flow.
+ $releaseFirst=__RELEASE_FIRST__
+ $released=[pscustomobject]@{ReturnValue=0}
+ if($releaseFirst){
+  $released=Invoke-CimMethod -InputObject $nic -MethodName ReleaseDHCPLease
+  Write-LeaseEvidence 'lease_release' $nic ([int]$released.ReturnValue)
+  if($released.ReturnValue -notin @(0,1,83)){exit (1000+[int]$released.ReturnValue)}
+ }
  # Revalidate identity and DHCP mode; a rejected old lease must not block renewal.
  $nic=Read-SelectedAdapter
- Write-LeaseEvidence 'lease_after_release' $nic $null
- # Always reacquire after releasing, even if the deadline has just elapsed.
+ if($releaseFirst){Write-LeaseEvidence 'lease_after_release' $nic $null}
+ # Always reacquire after releasing; direct renewal still obeys the deadline.
+ if(!$releaseFirst -and [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() -ge __EXPIRES__){exit 12}
  $renewed=Invoke-CimMethod -InputObject $nic -MethodName RenewDHCPLease
  Write-LeaseEvidence 'lease_renew' $nic ([int]$renewed.ReturnValue)
  try {
@@ -115,7 +122,7 @@ try{
  if($released.ReturnValue -eq 1 -or $renewed.ReturnValue -eq 1){exit 15}
 }catch [System.UnauthorizedAccessException]{exit 5}
 catch [Microsoft.Management.Infrastructure.CimException]{if([int]$_.Exception.StatusCode -eq 2){exit 5};throw}
-    """.replace('__GUID__',identity).replace('__INDEX__',str(index)).replace('__MAC__',mac).replace('__EXPIRES__',str(expires)).replace('__EVIDENCE__',str(evidence_path).replace("'","''"))
+    """.replace('__RELEASE_FIRST__','$false' if adapter.get('wireless') is True else '$true').replace('__GUID__',identity).replace('__INDEX__',str(index)).replace('__MAC__',mac).replace('__EXPIRES__',str(expires)).replace('__EVIDENCE__',str(evidence_path).replace("'","''"))
         executable,args=powershell(script)
         native=None;code=None;authorization_failed=False
         def decode(code,elevated=False):
@@ -147,10 +154,13 @@ catch [Microsoft.Management.Infrastructure.CimException]{if([int]$_.Exception.St
             emit('lease_process','system_accepted')
         except subprocess.TimeoutExpired:
             emit('lease_process','lease_timeout')
-            raise RuntimeError('\u7b49\u5f85\u7f51\u5361\u91cd\u65b0\u83b7\u53d6\u5730\u5740\u8d85\u65f6\uff0c\u8bf7\u68c0\u67e5\u8be5\u7f51\u5361\u7684\u5f53\u524d\u914d\u7f6e\u3002') from None
+            error=RuntimeError('\u7b49\u5f85\u7f51\u5361\u91cd\u65b0\u83b7\u53d6\u5730\u5740\u8d85\u65f6\uff0c\u8bf7\u68c0\u67e5\u8be5\u7f51\u5361\u7684\u5f53\u524d\u914d\u7f6e\u3002')
+            error.network_retryable=True
+            error.network_reason="lease_timeout"
+            raise error from None
         except RuntimeError as exc:
             exc.network_reason='authorization_failed' if authorization_failed else 'permission_denied' if code==5 else 'lease_unsupported' if code==16 else 'reboot_required' if code==15 else 'lease_failed'
-            exc.network_retryable=not authorization_failed and code==14 and native==82
+            exc.network_retryable=not authorization_failed and code==14 and native in {82,84}
             emit('lease_process',exc.network_reason)
             raise
         finally:

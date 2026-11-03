@@ -136,25 +136,27 @@ class RouterSignalManager:
         if all(before[key] for key in ("lua", "uci", "ubus", "jsonc")):
             return before
         package_manager = self._installation_environment(before)
+        from .temporary_package_sources import domestic_sources
         try:
-            tell("正在更新软件源…", "info")
-            self._execute_stage(
-                "router_signal_update", package_manager.update(), 180, cancel_event, "更新软件源",
-            )
-            tell("正在安装信号依赖…", "info")
-            plan = self._execute_stage("router_signal_package_plan",
-                package_manager.change(SIGNAL_PACKAGES, simulate=True), 60, cancel_event,
-                "检查依赖安装计划")
-            try:
-                package_manager.verify_plan(plan, SIGNAL_PACKAGES)
-            except ValueError as exc:
-                raise SignalError("environment", str(exc)) from exc
-            from .dependency_manager import OpenWrtDependencyManager
-            from .package_space import check_plan_space
-            check_plan_space(OpenWrtDependencyManager(self.runner), package_manager, plan, cancel_event)
-            self._execute_stage(
-                "router_signal_install", package_manager.change(SIGNAL_PACKAGES), 240, cancel_event, "安装信号依赖",
-            )
+            with domestic_sources(self, package_manager, cancel_event, tell) as package_manager:
+                tell("正在更新软件源…", "info")
+                self._execute_stage(
+                    "router_signal_update", package_manager.update(), 180, cancel_event, "更新软件源",
+                )
+                tell("正在安装信号依赖…", "info")
+                plan = self._execute_stage("router_signal_package_plan",
+                    package_manager.change(SIGNAL_PACKAGES, simulate=True), 60, cancel_event,
+                    "检查依赖安装计划")
+                try:
+                    package_manager.verify_plan(plan, SIGNAL_PACKAGES)
+                except ValueError as exc:
+                    raise SignalError("environment", str(exc)) from exc
+                from .dependency_manager import OpenWrtDependencyManager
+                from .package_space import check_plan_space
+                check_plan_space(OpenWrtDependencyManager(self.runner), package_manager, plan, cancel_event)
+                self._execute_stage(
+                    "router_signal_install", package_manager.change(SIGNAL_PACKAGES), 240, cancel_event, "安装信号依赖",
+                )
         except SignalError as exc:
             if exc.code == "transport" and _looks_like_network(str(exc)):
                 from .installation_sources import network_retry_error
@@ -172,15 +174,20 @@ class RouterSignalManager:
     def install_auto(self, device, cache_dir, cancel_event, message=None, uploader=None):
         """Use the common offline bundle, then router/PC network installation.
 
-        Device identity is matched exactly; offline resources are downloaded
-        separately and are never embedded in the application.
+        Match device identity exactly; downloaded resources take precedence
+        over the two-package built-in fallback.
         """
         from .dependency_manager import OpenWrtDependencyManager
         from .common_bundle_installer import install_from_local
         from .installation_sources import install_with_sources, report_verified
         tell = message or (lambda *_: None)
+        before = self.probe_dependencies(cancel_event)
+        wanted = tuple(package for flag, package in zip(('lua','uci','ubus','jsonc'),SIGNAL_PACKAGES)
+                       if not before[flag])
+        if not wanted:
+            return before
         source = install_with_sources(
-            lambda: install_from_local(OpenWrtDependencyManager(self.runner), SIGNAL_PACKAGES, device,
+            lambda: install_from_local(OpenWrtDependencyManager(self.runner), wanted, device,
                 cache_dir, bool(getattr(device, "sftp_available", False)), cancel_event, tell, uploader),
             lambda: self.install_dependencies(cancel_event, tell),
             lambda: self.install_offline(device, cache_dir, cancel_event, tell, uploader), tell)
@@ -460,13 +467,17 @@ class RouterSignalManager:
         backup = f"/etc/winbox-wireless-backups/{token}/wireless"
         from .wireless_readiness_evidence import WirelessReadinessEvidence
         journal = getattr(self.runner, "operation_diagnostics", None)
-        with WirelessReadinessEvidence(journal, row.mode, row.band, "direct_toggle").observing() as evidence:
+        from .wireless_failure_evidence import capture_on_failure
+        with capture_on_failure(self.runner,row.radio,section,"direct_toggle",cancel_event), \
+                WirelessReadinessEvidence(journal, row.mode, row.band, "direct_toggle").observing() as evidence:
             try:
                 phase("\u6b63\u5728\u5e94\u7528\u65e0\u7ebf\u542f\u505c\u8bbe\u7f6e",seconds=20)
                 self._run("change", cancel_event, revision=inventory.revision,
                           section=section, enabled=enabled, token=token)
-                phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u542f\u505c\u7ed3\u679c",seconds=125)
-                deadline = time.monotonic() + SIGNAL_READY_SECONDS
+                phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u542f\u505c\u7ed3\u679c",seconds=SIGNAL_READY_SECONDS)
+                from .ap_startup_wait import ApStartupWait
+                startup = ApStartupWait(SIGNAL_READY_SECONDS)
+                deadline = startup.deadline
                 attempt = 0
                 while True:
                     if cancel_event is not None and cancel_event.is_set():
@@ -489,6 +500,12 @@ class RouterSignalManager:
                                "wireless_config_disabled" if actual.disabled != (not enabled) else "wireless_runtime_pending"))
                     if matches:
                         return current
+                    watch = pending + (((section, row.radio),) if enabled and row.mode == "ap" else ())
+                    for name, radio in watch:
+                        candidate = observed.get((name, radio))
+                        if candidate and not candidate.disabled and not candidate.radio_disabled:
+                            startup.observe(candidate.readiness, (name, radio))
+                    deadline = startup.deadline
                     if time.monotonic() >= deadline:
                         break
                     if cancel_event is not None:
@@ -525,13 +542,17 @@ class RouterSignalManager:
             raise SignalError("unsupported", "该信号配置为禁用，请直接点“启用”；修复只处理“已启用但未运行”。")
         if row.radio_disabled:
             raise SignalError("parent_disabled", _ERRORS["parent_disabled"])
+        if row.readiness.get("cac_active") is True:
+            raise SignalError("cac_active", "\u6b63\u5728\u8fdb\u884c\u96f7\u8fbe\u68c0\u6d4b\uff0c\u8bf7\u7b49\u5f85\u5b8c\u6210\uff1b\u672a\u91cd\u65b0\u52a0\u8f7d\u65e0\u7ebf\u7f51\u5361\u3002")
         if row.running == "active":
             raise SignalError("unsupported", "该信号运行正常，无需修复。")
         if not valid_radio_name(row.radio):
             raise SignalError("unsupported", "父 radio 无法唯一识别，请检查无线配置。")
         from .wireless_readiness_evidence import WirelessReadinessEvidence
-        with WirelessReadinessEvidence(getattr(self.runner, "operation_diagnostics", None),
-                                       row.mode, row.band, "repair").observing() as evidence:
+        from .wireless_failure_evidence import capture_on_failure
+        with capture_on_failure(self.runner,row.radio,section,"repair",cancel_event), \
+                WirelessReadinessEvidence(getattr(self.runner, "operation_diagnostics", None),
+                                          row.mode, row.band, "repair").observing() as evidence:
             phase("\u6b63\u5728\u91cd\u65b0\u542f\u7528\u65e0\u7ebf\u7f51\u5361",seconds=60)
             result = self._run_command(
                 "repair_wifi_up", f"wifi up {quote_argument(row.radio)}", timeout=60, cancel_event=cancel_event)
@@ -540,8 +561,10 @@ class RouterSignalManager:
             if result.timed_out or result.exit_code != 0:
                 raise SignalError(
                     "transport", "重新启用无线网卡超时或失败，状态未确认；请检查连接后刷新核对。")
-            phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u6062\u590d\u7ed3\u679c",seconds=328)
-            for attempt in range(15):
+            phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u6062\u590d\u7ed3\u679c",seconds=30)
+            from .ap_startup_wait import ApStartupWait
+            startup = ApStartupWait(30)
+            while True:
                 if cancel_event is not None and cancel_event.is_set():
                     raise SignalError("cancelled", "信号修复已取消；请刷新核对设备状态。")
                 current = self.read(cancel_event)
@@ -551,15 +574,19 @@ class RouterSignalManager:
                     interface_state=actual.running if actual else "missing"))
                 if actual and not actual.disabled and actual.running == "active":
                     return current
-                if attempt < 14:
-                    if cancel_event is not None:
-                        if cancel_event.wait(2):
-                            raise SignalError("cancelled", "信号修复已取消；请刷新核对设备状态。")
-                    else:
-                        time.sleep(2)
+                if actual and not actual.disabled and not actual.radio_disabled:
+                    startup.observe(actual.readiness, (section, row.radio))
+                remaining = startup.deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                if cancel_event is not None:
+                    if cancel_event.wait(min(1, remaining)):
+                        raise SignalError("cancelled", "信号修复已取消；请刷新核对设备状态。")
+                else:
+                    time.sleep(min(1, remaining))
             raise SignalError(
                 "unconfirmed",
-                f"已重新启用 {row.radio}，但该信号 30 秒内仍未运行；请在路由器管理界面检查，"
+                f"已重新启用 {row.radio}，但该信号在核验时限内仍未运行；请在路由器管理界面检查，"
                 "必要时重启路由器无线或整机后再刷新核对。")
 
     def _run(self, action, cancel_event, **values):

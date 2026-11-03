@@ -464,6 +464,11 @@ class RouterSignalPage(QWidget):
         config = "已禁用" if row.disabled else "已启用"
         if row.radio_disabled:
             run = "父 radio 已关闭"
+        elif not row.disabled and row.readiness.get("cac_active") is True:
+            run = "\u6b63\u5728\u8fdb\u884c\u96f7\u8fbe\u68c0\u6d4b"
+            remaining = row.readiness.get("cac_seconds_left")
+            if type(remaining) is int and remaining > 0:
+                run += f"\uff08\u9884\u8ba1\u5269\u4f59 {remaining} \u79d2\uff09"
         elif row.running == "active":
             run = "运行中"
         elif row.running == "inactive":
@@ -473,7 +478,7 @@ class RouterSignalPage(QWidget):
         text = f"{config} · {run}"
         if row.runtime_note:
             text += f"（{row.runtime_note}）"
-        elif row.running == "inactive" and not row.disabled and not row.radio_disabled:
+        elif row.running == "inactive" and not row.disabled and not row.radio_disabled and row.readiness.get("cac_active") is not True:
             text += "（原因尚未确定，请查看路由器无线日志）"
         if row.reason:
             text += f"（{row.reason}）"
@@ -500,7 +505,8 @@ class RouterSignalPage(QWidget):
         父 radio 关闭、有原因的行各回各家。
         """
         return (not row.disabled and not row.radio_disabled
-                and not row.reason and row.running == "inactive")
+                and not row.reason and row.running == "inactive"
+                and row.readiness.get("cac_active") is not True)
 
     @staticmethod
     def _button_text(row):

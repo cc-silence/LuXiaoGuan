@@ -14577,5 +14577,3571 @@
       "verified publication"
     ],
     "model_policy": "Retain verified source URLs and unknown models; platform coverage alone never confirms every model or third-party firmware."
+  },
+  "builtin_base": {
+    "archive": "base.zip",
+    "size": 2151444,
+    "sha256": "3e2d512f9113a69bd5af4ec4709d520f62419b089a2290577daa56ac0ce54037",
+    "roots": [
+      "libuci-lua",
+      "wpa-cli"
+    ],
+    "source_sha256": "3dfd646dc0ee940948611d8f95c74869f22acbc0fa75f908a69c6533406f8217",
+    "profiles": 549,
+    "objects": 108,
+    "exact_profiles": [
+      {
+        "release": "19.07.0",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.1",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.10",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.10",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.10",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.10",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.10",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.10",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.10",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.10",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.10",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.10",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.10",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.2",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.8",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.8",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.8",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.8",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.8",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.8",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.8",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.8",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.8",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.8",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.8",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.9",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.9",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.9",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.9",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.9",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.9",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.9",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.9",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.9",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.9",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "19.07.9",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.0",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.0",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.0",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.0",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.0",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.0",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.0",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.0",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.0",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.0",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.0",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.0",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.1",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.1",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.1",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.1",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.1",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.1",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.1",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.1",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.1",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.1",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.1",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.1",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.2",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.2",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.2",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.2",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.2",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.2",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.2",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.2",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.2",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.2",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.2",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.2",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.3",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.3",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.3",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.3",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.3",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.3",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.3",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.3",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.3",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.3",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.3",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.3",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.4",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.4",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.4",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.4",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.4",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.4",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.4",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.4",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.4",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.4",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.4",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.4",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.5",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.5",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.5",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.5",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.5",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.5",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.5",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.5",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.5",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.5",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.5",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.5",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.6",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.6",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.6",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.6",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.6",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.6",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.6",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.6",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.6",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.6",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.6",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.7",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.7",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.7",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.7",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.7",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.7",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.7",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.7",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.7",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.7",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.7",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "21.02.7",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.0",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.0",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.0",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.0",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.0",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.0",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.0",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.0",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.0",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.0",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.0",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.0",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.1",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.1",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.1",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.1",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.1",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.1",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.1",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.1",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.1",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.1",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.1",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.1",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.2",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.2",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.2",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.2",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.2",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.2",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.2",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.2",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.2",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.2",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.2",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.2",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.3",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.3",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.3",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.3",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.3",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.3",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.3",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.3",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.3",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.3",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.3",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.3",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.4",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.4",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.4",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.4",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.4",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.4",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.4",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.4",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.4",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.4",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.4",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.4",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.5",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.5",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.5",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.5",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.5",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.5",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.5",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.5",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.5",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.5",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.5",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.5",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.6",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.6",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.6",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.6",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.6",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.6",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.6",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.6",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.6",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.6",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.6",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.6",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.7",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.7",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.7",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.7",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.7",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.7",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.7",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.7",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.7",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.7",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.7",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "22.03.7",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.0",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.0",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.0",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.0",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.0",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.0",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.0",
+        "target": "ipq807x/generic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.0",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.0",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.0",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.0",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.0",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.0",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.0",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.1",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.1",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.1",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.1",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.1",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.1",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.1",
+        "target": "ipq807x/generic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.1",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.1",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.1",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.1",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.1",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.1",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.1",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.2",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.2",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.2",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.2",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.2",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.2",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.2",
+        "target": "ipq807x/generic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.2",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.2",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.2",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.2",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.2",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.2",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.2",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.3",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.3",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.3",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.3",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.3",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.3",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.3",
+        "target": "ipq807x/generic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.3",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.3",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.3",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.3",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.3",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.3",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.3",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.4",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.4",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.4",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.4",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.4",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.4",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.4",
+        "target": "ipq807x/generic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.4",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.4",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.4",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.4",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.4",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.4",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.4",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.5",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.5",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.5",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.5",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.5",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.5",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.5",
+        "target": "ipq807x/generic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.5",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.5",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.5",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.5",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.5",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.5",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.5",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.6",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.6",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.6",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.6",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.6",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.6",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.6",
+        "target": "ipq807x/generic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.6",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.6",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.6",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.6",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.6",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.6",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "23.05.6",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.0",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.0",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.0",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.0",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.0",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.0",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.0",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.0",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.0",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.0",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.0",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.0",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.0",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.0",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.1",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.1",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.1",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.1",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.1",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.1",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.1",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.1",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.1",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.1",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.1",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.1",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.1",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.1",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.2",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.2",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.2",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.2",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.2",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.2",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.2",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.2",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.2",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.2",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.2",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.2",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.2",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.2",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.3",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.3",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.3",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.3",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.3",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.3",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.3",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.3",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.3",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.3",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.3",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.3",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.3",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.3",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.4",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.4",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.4",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.4",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.4",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.4",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.4",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.4",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.4",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.4",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.4",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.4",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.4",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.4",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.5",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.5",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.5",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.5",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.5",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.5",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.5",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.5",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.5",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.5",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.5",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.5",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.5",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.5",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.6",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.6",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.6",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.6",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.6",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.6",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.6",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.6",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.6",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.6",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.6",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.6",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.6",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.6",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.7",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.7",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.7",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.7",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.7",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.7",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.7",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.7",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.7",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.7",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.7",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.7",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.7",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.7",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.8",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.8",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.8",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.8",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.8",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.8",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.8",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.8",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.8",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.8",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.8",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.8",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.8",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "24.10.8",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "opkg"
+      },
+      {
+        "release": "25.12.0",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.0",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.0",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.0",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.0",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.0",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.0",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.0",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.0",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.0",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.0",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.0",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.0",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.0",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.1",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.1",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.1",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.1",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.1",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.1",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.1",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.1",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.1",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.1",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.1",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.1",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.1",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.1",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.2",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.2",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.2",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.2",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.2",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.2",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.2",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.2",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.2",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.2",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.2",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.2",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.2",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.2",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.3",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.3",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.3",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.3",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.3",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.3",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.3",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.3",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.3",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.3",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.3",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.3",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.3",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.3",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.4",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.4",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.4",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.4",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.4",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.4",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.4",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.4",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.4",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.4",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.4",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.4",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.4",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.4",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.5",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.5",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.5",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.5",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.5",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.5",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.5",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.5",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.5",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.5",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.5",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.5",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.5",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.5",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.6",
+        "target": "ath79/generic",
+        "architecture": "mips_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.6",
+        "target": "ath79/nand",
+        "architecture": "mips_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.6",
+        "target": "bcm27xx/bcm2711",
+        "architecture": "aarch64_cortex-a72",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.6",
+        "target": "bcm53xx/generic",
+        "architecture": "arm_cortex-a9",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.6",
+        "target": "ipq40xx/generic",
+        "architecture": "arm_cortex-a7_neon-vfpv4",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.6",
+        "target": "ipq806x/generic",
+        "architecture": "arm_cortex-a15_neon-vfpv4",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.6",
+        "target": "mediatek/filogic",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.6",
+        "target": "mediatek/mt7622",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.6",
+        "target": "mvebu/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.6",
+        "target": "mvebu/cortexa9",
+        "architecture": "arm_cortex-a9_vfpv3-d16",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.6",
+        "target": "qualcommax/ipq807x",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.6",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.6",
+        "target": "sunxi/cortexa53",
+        "architecture": "aarch64_cortex-a53",
+        "package_manager": "apk"
+      },
+      {
+        "release": "25.12.6",
+        "target": "x86/64",
+        "architecture": "x86_64",
+        "package_manager": "apk"
+      }
+    ],
+    "package_names": [
+      "libuci-lua",
+      "wpa-cli"
+    ],
+    "unavailable_profiles": [
+      {
+        "release": "19.07.0",
+        "target": "bcm27xx/bcm2711",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.0",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.0",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.1",
+        "target": "bcm27xx/bcm2711",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.1",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.1",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.10",
+        "target": "bcm27xx/bcm2711",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.10",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.10",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.2",
+        "target": "bcm27xx/bcm2711",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.2",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.2",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.3",
+        "target": "bcm27xx/bcm2711",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.3",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.3",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.4",
+        "target": "bcm27xx/bcm2711",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.4",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.4",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.5",
+        "target": "bcm27xx/bcm2711",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.5",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.5",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.6",
+        "target": "bcm27xx/bcm2711",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.6",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.6",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.7",
+        "target": "bcm27xx/bcm2711",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.7",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.7",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.8",
+        "target": "bcm27xx/bcm2711",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.8",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.8",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.9",
+        "target": "bcm27xx/bcm2711",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.9",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "19.07.9",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.0",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.0",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.1",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.1",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.2",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.2",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.3",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.3",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.4",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.4",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.5",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.5",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.6",
+        "target": "bcm27xx/bcm2711",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.6",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.6",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.7",
+        "target": "mediatek/filogic",
+        "status": "not-provided-by-upstream"
+      },
+      {
+        "release": "21.02.7",
+        "target": "qualcommax/ipq807x",
+        "status": "not-provided-by-upstream"
+      }
+    ],
+    "includes_transitive_dependencies": false,
+    "live_router_tested": false
   }
 }

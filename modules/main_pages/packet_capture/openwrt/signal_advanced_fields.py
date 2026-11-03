@@ -35,6 +35,19 @@ class AdvancedFields:
             add_field(layout, page, spec.label, control, spec.help or "未修改时保留路由器原配置。")
             self.controls[spec.key] = control
         self.original = {}
+        self._mac_list_supported = False
+        self.controls["macfilter"].currentIndexChanged.connect(self._sync_mac_list)
+        self._sync_mac_list()
+
+    def _sync_mac_list(self):
+        mode = self.controls["macfilter"]
+        value = mode.currentData()
+        if value is None:
+            value = self.original.get("macfilter", "disable")
+        listing = self.controls["maclist"]
+        enabled = self._mac_list_supported and mode.isEnabled() and value in {"allow", "deny"}
+        listing.setEnabled(enabled)
+        listing.validationChanged.emit(listing.validation_message if enabled else "")
 
     def configure(self, radio, old, features):
         self.original = {}
@@ -67,6 +80,9 @@ class AdvancedFields:
                 control.clear()
                 control.setPlaceholderText("当前："+(" ".join(value) if isinstance(value, list) else str(value)) if value is not None else "留空沿用系统设置")
             control.setToolTip((spec.help or "未修改时保留路由器原配置。") if enabled else "设备未确认支持此项，保留原配置。")
+
+        self._mac_list_supported = self.controls["maclist"].isEnabled()
+        self._sync_mac_list()
 
     def values(self):
         values = {}

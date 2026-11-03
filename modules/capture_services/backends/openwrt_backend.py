@@ -412,12 +412,14 @@ class OpenWrtCaptureBackend(CaptureBackend):
         if not getattr(device, "radios", None):
             return self.snapshot
 
+        from modules.capture_services.openwrt.radio_usage_state import radio_usage_fields
         radios = []
         changed = False
         for r in device.radios:
-            if r.name in free_map and r.free != free_map[r.name]:
+            fields = radio_usage_fields(free_map[r.name]) if r.name in free_map else {}
+            if any(getattr(r, key) != value for key, value in fields.items()):
                 changed = True
-                radios.append(replace(r, free=free_map[r.name]))
+                radios.append(replace(r, **fields))
             else:
                 radios.append(r)
 
@@ -1733,7 +1735,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
             # 创建接口前由 RadioSession 再次核实；任何接管授权均不能覆盖严格模式。
             return None
         authorized = bool(settings.get("allow_radio_takeover"))
-        usage = usage_for_phy(read_radio_usage(self.command_runner, cancel_event), phy)
+        usage = usage_for_phy(read_radio_usage(self.command_runner, cancel_event), phy, runner=self.command_runner, cancel_event=cancel_event)
         if usage.free:
             return None
         if not authorized:
@@ -1955,7 +1957,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
             if usage.state not in ("idle", "business") or (idle_radio_only and not usage.free):
                 notes.append(usage.reason)
                 continue
-            if not self._phy_supports_band(usage.phy, band, cancel_event):
+            if not self._phy_supports_band(usage.phy, band, cancel_event, rejection_reasons=notes):
                 continue
             if target_channel and not self._phy_supports_channel(usage.phy, target_channel, cancel_event):
                 continue
@@ -1963,7 +1965,9 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 message_callback(usage.phy + ": " + usage.reason, "info")
             return usage.phy
         error = IdleRadioUnavailable if idle_radio_only else RuntimeError
-        raise error("\u672a\u627e\u5230\u53ef\u5b89\u5168\u4f7f\u7528\u7684\u5c04\u9891\uff0c\u8bf7\u5237\u65b0\u65e0\u7ebf\u72b6\u6001\u3002 " + " ".join(notes))
+        from modules.capture_services.openwrt.radio_usage_evidence import record_usage_conflicts
+        record_usage_conflicts(self.command_runner, usages, cancel_event)
+        raise error("\u6ca1\u6709\u7b26\u5408\u672c\u6b21\u6293\u5305\u6761\u4ef6\u7684\u5c04\u9891\u3002 " + " ".join(notes))
 
     @record_takeover_probe
     def probe_handshake_takeover(self, targets, settings, cancel_event=None):
@@ -2025,7 +2029,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         """复用公共只读信道核验，拒绝双 5G 射频不支持的目标信道。"""
         return phy_supports_channel(self.command_runner, phy, channel, cancel_event)
 
-    def _phy_supports_band(self, phy, band, cancel_event):
+    def _phy_supports_band(self, phy, band, cancel_event, *, rejection_reasons=None):
         """只读探测单个 phy 的频段能力，能力读取失败时不猜测支持。"""
 
         result = self.command_runner.run(
@@ -2040,9 +2044,11 @@ class OpenWrtCaptureBackend(CaptureBackend):
             raise RuntimeError("无线频段能力检查超时，请刷新无线信息后再试。")
         if result.exit_code != 0:
             return False
-        from modules.capture_services.openwrt.device_probe import _parse_supported_modes
-        modes = _parse_supported_modes(result.stdout)
-        if modes and "monitor" not in modes:
+        from modules.capture_services.openwrt.device_probe import monitor_capability_from_text
+        supported, reason = monitor_capability_from_text(result.stdout)
+        if supported is not True:
+            if rejection_reasons is not None:
+                rejection_reasons.append(phy + ": " + reason)
             return False
         low = (2400, 2500) if band == "2.4G" else (5000, 6000)
         for line in result.stdout.splitlines():

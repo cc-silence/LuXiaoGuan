@@ -17,7 +17,7 @@ from tests.test_lan_client_recovery import adapter
 
 @unittest.skipUnless(os.name=='nt','Requires Windows PowerShell')
 class LeaseRecoveryTests(unittest.TestCase):
-    def execute(self,release=83,renew=0,changed=False,static=False):
+    def execute(self,release=83,renew=0,changed=False,static=False,wireless=False):
         original=subprocess.run
         fake=r"""
 $script:reads=0
@@ -42,7 +42,7 @@ function Invoke-CimMethod {
         def sink(row):journal.record('configuration',operation='client_network_renew',status='progress',**row)
         error=None
         with patch.object(windows.subprocess,'run',side_effect=run),observing(sink):
-            try:windows.renew(adapter(),20,lambda:True)
+            try:windows.renew(adapter(wireless=wireless),20,lambda:True)
             except RuntimeError as exc:error=exc
         return error,sanitized_operation_evidence(journal.snapshot(),masker_for([]))['configuration']
 
@@ -75,6 +75,38 @@ function Invoke-CimMethod {
         error,rows=self.execute(release=64)
         self.assertIsInstance(error,RuntimeError)
         self.assertFalse(any(r['stage']=='lease_renew' for r in rows))
+
+
+    def test_wifi_direct_renewal_does_not_release_or_disable_ip(self):
+        error,rows=self.execute(release=64,renew=0,wireless=True)
+        self.assertIsNone(error)
+        self.assertFalse(any(row['stage'] in {'lease_release','lease_after_release'} for row in rows))
+        self.assertTrue(any(row['stage']=='lease_renew' and row.get('native_error')==0 for row in rows))
+
+    def test_wifi_pending_84_waits_for_delayed_address_without_another_request(self):
+        error,_=self.execute(release=0,renew=84,wireless=True)
+        self.assertIsInstance(error,RuntimeError)
+        self.assertTrue(error.network_retryable)
+        from tests.test_network_readiness_diagnostics import NetworkReadinessTests
+        old=adapter(connected=False,addresses=[],wireless=True)
+        ready=adapter(addresses=['192.168.22.23/24'],wireless=True)
+        samples=[dict(adapters=[old]) for _ in range(26)]+[dict(adapters=[ready])]
+        result,records,execute,_,elapsed=NetworkReadinessTests().run_case(samples,error,timeout=60)
+        self.assertEqual(result,ready)
+        self.assertEqual(elapsed,13)
+        execute.assert_called_once()
+        self.assertEqual(records[-1]['reason'],'address_ready')
+
+    def test_pending_84_uses_whole_budget_when_wifi_does_not_return(self):
+        error,_=self.execute(renew=84,wireless=True)
+        from tests.test_network_readiness_diagnostics import NetworkReadinessTests
+        result,records,execute,_,elapsed=NetworkReadinessTests().run_case(
+            lambda **kwargs:dict(adapters=[adapter(connected=False,addresses=[],wireless=True)]),error,timeout=60)
+        self.assertIs(result,error)
+        self.assertEqual(elapsed,60)
+        self.assertEqual(records[-1]['stage'],'address_wait')
+        execute.assert_called_once()
+
 
 
 class FailureSnapshotTests(unittest.TestCase):

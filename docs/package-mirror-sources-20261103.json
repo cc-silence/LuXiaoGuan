@@ -1,0 +1,494 @@
+{
+  "checked_at": "2026-11-03T12:14:55.531327+00:00",
+  "scope": "Native feed isolation and PC source routing; hardware-independent package operations",
+  "releases": [
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.0/package/system/opkg/Makefile",
+      "sha256": "f74622c8fdeabc5697ccaddb1e5017a25fac16ad5fe773efa306b60301eca6ed",
+      "release": "19.07.0",
+      "component": "opkg",
+      "commit": "dcbc142e51f5f5f2fb9e4e44657e013d3c36a52b"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.1/package/system/opkg/Makefile",
+      "sha256": "a6030559386d974181c84f5d4ceaeb4f1f7d17f885ef6a8276babce351906f08",
+      "release": "19.07.1",
+      "component": "opkg",
+      "commit": "c09fe2098718807ddbca13ee36e3e38801822946"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.2/package/system/opkg/Makefile",
+      "sha256": "a6030559386d974181c84f5d4ceaeb4f1f7d17f885ef6a8276babce351906f08",
+      "release": "19.07.2",
+      "component": "opkg",
+      "commit": "c09fe2098718807ddbca13ee36e3e38801822946"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.3/package/system/opkg/Makefile",
+      "sha256": "f812aa5b46b02ffb5a719b7a42c72b44e7cac670a547225e4be48724fa25fe76",
+      "release": "19.07.3",
+      "component": "opkg",
+      "commit": "f2166a89b7e96e2c60002959731eebc5f45fa318"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.4/package/system/opkg/Makefile",
+      "sha256": "f812aa5b46b02ffb5a719b7a42c72b44e7cac670a547225e4be48724fa25fe76",
+      "release": "19.07.4",
+      "component": "opkg",
+      "commit": "f2166a89b7e96e2c60002959731eebc5f45fa318"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.5/package/system/opkg/Makefile",
+      "sha256": "f812aa5b46b02ffb5a719b7a42c72b44e7cac670a547225e4be48724fa25fe76",
+      "release": "19.07.5",
+      "component": "opkg",
+      "commit": "f2166a89b7e96e2c60002959731eebc5f45fa318"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.6/package/system/opkg/Makefile",
+      "sha256": "f812aa5b46b02ffb5a719b7a42c72b44e7cac670a547225e4be48724fa25fe76",
+      "release": "19.07.6",
+      "component": "opkg",
+      "commit": "f2166a89b7e96e2c60002959731eebc5f45fa318"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.7/package/system/opkg/Makefile",
+      "sha256": "b38b5f39a7ad3a3b48e2b2d2a8e3e62c2f6fdc4134ac82559faf4f0b2342fb0e",
+      "release": "19.07.7",
+      "component": "opkg",
+      "commit": "c5dccea956b8be14eabf6ff69b331a3e9ac36749"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.8/package/system/opkg/Makefile",
+      "sha256": "b38b5f39a7ad3a3b48e2b2d2a8e3e62c2f6fdc4134ac82559faf4f0b2342fb0e",
+      "release": "19.07.8",
+      "component": "opkg",
+      "commit": "c5dccea956b8be14eabf6ff69b331a3e9ac36749"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.9/package/system/opkg/Makefile",
+      "sha256": "b38b5f39a7ad3a3b48e2b2d2a8e3e62c2f6fdc4134ac82559faf4f0b2342fb0e",
+      "release": "19.07.9",
+      "component": "opkg",
+      "commit": "c5dccea956b8be14eabf6ff69b331a3e9ac36749"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.10/package/system/opkg/Makefile",
+      "sha256": "b38b5f39a7ad3a3b48e2b2d2a8e3e62c2f6fdc4134ac82559faf4f0b2342fb0e",
+      "release": "19.07.10",
+      "component": "opkg",
+      "commit": "c5dccea956b8be14eabf6ff69b331a3e9ac36749"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.0/package/system/opkg/Makefile",
+      "sha256": "d4831b6a3ab233f2e2ae996a64bd8ac650339318b223781d1835b73217e13eaa",
+      "release": "21.02.0",
+      "component": "opkg",
+      "commit": "1bf042dd06751b693a8544d2317e5b969d666b69"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.1/package/system/opkg/Makefile",
+      "sha256": "d4831b6a3ab233f2e2ae996a64bd8ac650339318b223781d1835b73217e13eaa",
+      "release": "21.02.1",
+      "component": "opkg",
+      "commit": "1bf042dd06751b693a8544d2317e5b969d666b69"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.2/package/system/opkg/Makefile",
+      "sha256": "d4831b6a3ab233f2e2ae996a64bd8ac650339318b223781d1835b73217e13eaa",
+      "release": "21.02.2",
+      "component": "opkg",
+      "commit": "1bf042dd06751b693a8544d2317e5b969d666b69"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.3/package/system/opkg/Makefile",
+      "sha256": "d4831b6a3ab233f2e2ae996a64bd8ac650339318b223781d1835b73217e13eaa",
+      "release": "21.02.3",
+      "component": "opkg",
+      "commit": "1bf042dd06751b693a8544d2317e5b969d666b69"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.4/package/system/opkg/Makefile",
+      "sha256": "d4831b6a3ab233f2e2ae996a64bd8ac650339318b223781d1835b73217e13eaa",
+      "release": "21.02.4",
+      "component": "opkg",
+      "commit": "1bf042dd06751b693a8544d2317e5b969d666b69"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.5/package/system/opkg/Makefile",
+      "sha256": "d4831b6a3ab233f2e2ae996a64bd8ac650339318b223781d1835b73217e13eaa",
+      "release": "21.02.5",
+      "component": "opkg",
+      "commit": "1bf042dd06751b693a8544d2317e5b969d666b69"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.6/package/system/opkg/Makefile",
+      "sha256": "5ff181c929eed1d2c93b1384a28c05433a89cffed852af23072aaca47d0176f2",
+      "release": "21.02.6",
+      "component": "opkg",
+      "commit": "1bf042dd06751b693a8544d2317e5b969d666b69"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.7/package/system/opkg/Makefile",
+      "sha256": "5ff181c929eed1d2c93b1384a28c05433a89cffed852af23072aaca47d0176f2",
+      "release": "21.02.7",
+      "component": "opkg",
+      "commit": "1bf042dd06751b693a8544d2317e5b969d666b69"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.0/package/system/opkg/Makefile",
+      "sha256": "d9b5d2856dbc95f1823e9d36e3cad3ebf2e650ecd38a3dc08a0f82238ab16a68",
+      "release": "22.03.0",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.1/package/system/opkg/Makefile",
+      "sha256": "d9b5d2856dbc95f1823e9d36e3cad3ebf2e650ecd38a3dc08a0f82238ab16a68",
+      "release": "22.03.1",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.2/package/system/opkg/Makefile",
+      "sha256": "d9b5d2856dbc95f1823e9d36e3cad3ebf2e650ecd38a3dc08a0f82238ab16a68",
+      "release": "22.03.2",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.3/package/system/opkg/Makefile",
+      "sha256": "d9b5d2856dbc95f1823e9d36e3cad3ebf2e650ecd38a3dc08a0f82238ab16a68",
+      "release": "22.03.3",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.4/package/system/opkg/Makefile",
+      "sha256": "d9b5d2856dbc95f1823e9d36e3cad3ebf2e650ecd38a3dc08a0f82238ab16a68",
+      "release": "22.03.4",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.5/package/system/opkg/Makefile",
+      "sha256": "d9b5d2856dbc95f1823e9d36e3cad3ebf2e650ecd38a3dc08a0f82238ab16a68",
+      "release": "22.03.5",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.6/package/system/opkg/Makefile",
+      "sha256": "d9b5d2856dbc95f1823e9d36e3cad3ebf2e650ecd38a3dc08a0f82238ab16a68",
+      "release": "22.03.6",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.7/package/system/opkg/Makefile",
+      "sha256": "d9b5d2856dbc95f1823e9d36e3cad3ebf2e650ecd38a3dc08a0f82238ab16a68",
+      "release": "22.03.7",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.0/package/system/opkg/Makefile",
+      "sha256": "22a1d4adb56ab22a79f642212a7e6646dd321391a201eb6d8ff1ff3e4c6b9209",
+      "release": "23.05.0",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.1/package/system/opkg/Makefile",
+      "sha256": "22a1d4adb56ab22a79f642212a7e6646dd321391a201eb6d8ff1ff3e4c6b9209",
+      "release": "23.05.1",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.2/package/system/opkg/Makefile",
+      "sha256": "22a1d4adb56ab22a79f642212a7e6646dd321391a201eb6d8ff1ff3e4c6b9209",
+      "release": "23.05.2",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.3/package/system/opkg/Makefile",
+      "sha256": "22a1d4adb56ab22a79f642212a7e6646dd321391a201eb6d8ff1ff3e4c6b9209",
+      "release": "23.05.3",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/system/opkg/Makefile",
+      "sha256": "22a1d4adb56ab22a79f642212a7e6646dd321391a201eb6d8ff1ff3e4c6b9209",
+      "release": "23.05.4",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.5/package/system/opkg/Makefile",
+      "sha256": "22a1d4adb56ab22a79f642212a7e6646dd321391a201eb6d8ff1ff3e4c6b9209",
+      "release": "23.05.5",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.6/package/system/opkg/Makefile",
+      "sha256": "22a1d4adb56ab22a79f642212a7e6646dd321391a201eb6d8ff1ff3e4c6b9209",
+      "release": "23.05.6",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.0/package/system/opkg/Makefile",
+      "sha256": "5ed471d4e57084731b568be4e6e30efb9d02590ba6087e96bce6a82ebc7d705f",
+      "release": "24.10.0",
+      "component": "opkg",
+      "commit": "38eccbb1fd694d4798ac1baf88f9ba83d1eac616"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.1/package/system/opkg/Makefile",
+      "sha256": "5ed471d4e57084731b568be4e6e30efb9d02590ba6087e96bce6a82ebc7d705f",
+      "release": "24.10.1",
+      "component": "opkg",
+      "commit": "38eccbb1fd694d4798ac1baf88f9ba83d1eac616"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.2/package/system/opkg/Makefile",
+      "sha256": "5ed471d4e57084731b568be4e6e30efb9d02590ba6087e96bce6a82ebc7d705f",
+      "release": "24.10.2",
+      "component": "opkg",
+      "commit": "38eccbb1fd694d4798ac1baf88f9ba83d1eac616"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.3/package/system/opkg/Makefile",
+      "sha256": "5ed471d4e57084731b568be4e6e30efb9d02590ba6087e96bce6a82ebc7d705f",
+      "release": "24.10.3",
+      "component": "opkg",
+      "commit": "38eccbb1fd694d4798ac1baf88f9ba83d1eac616"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.4/package/system/opkg/Makefile",
+      "sha256": "5ed471d4e57084731b568be4e6e30efb9d02590ba6087e96bce6a82ebc7d705f",
+      "release": "24.10.4",
+      "component": "opkg",
+      "commit": "38eccbb1fd694d4798ac1baf88f9ba83d1eac616"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.5/package/system/opkg/Makefile",
+      "sha256": "5ed471d4e57084731b568be4e6e30efb9d02590ba6087e96bce6a82ebc7d705f",
+      "release": "24.10.5",
+      "component": "opkg",
+      "commit": "38eccbb1fd694d4798ac1baf88f9ba83d1eac616"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.6/package/system/opkg/Makefile",
+      "sha256": "5ed471d4e57084731b568be4e6e30efb9d02590ba6087e96bce6a82ebc7d705f",
+      "release": "24.10.6",
+      "component": "opkg",
+      "commit": "38eccbb1fd694d4798ac1baf88f9ba83d1eac616"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.7/package/system/opkg/Makefile",
+      "sha256": "5ed471d4e57084731b568be4e6e30efb9d02590ba6087e96bce6a82ebc7d705f",
+      "release": "24.10.7",
+      "component": "opkg",
+      "commit": "38eccbb1fd694d4798ac1baf88f9ba83d1eac616"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.8/package/system/opkg/Makefile",
+      "sha256": "5ed471d4e57084731b568be4e6e30efb9d02590ba6087e96bce6a82ebc7d705f",
+      "release": "24.10.8",
+      "component": "opkg",
+      "commit": "38eccbb1fd694d4798ac1baf88f9ba83d1eac616"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.0/package/system/apk/Makefile",
+      "sha256": "f783df236f94c0f148ff1706d1ca848dd4f159b82314d54b7de0407331052b73",
+      "release": "25.12.0",
+      "component": "apk",
+      "commit": "d093f7c198a64bff0cd58afeaf638909fda24ca8"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.1/package/system/apk/Makefile",
+      "sha256": "541cbd9ae9b07ddfc63475c3ecfd1ea4ac4ac9d58bfdc2c553b269888f100477",
+      "release": "25.12.1",
+      "component": "apk",
+      "commit": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.2/package/system/apk/Makefile",
+      "sha256": "541cbd9ae9b07ddfc63475c3ecfd1ea4ac4ac9d58bfdc2c553b269888f100477",
+      "release": "25.12.2",
+      "component": "apk",
+      "commit": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.3/package/system/apk/Makefile",
+      "sha256": "4a65d78e548028f58f16b82f540599d51cbe70133b1fe3e05aec78809e60f31d",
+      "release": "25.12.3",
+      "component": "apk",
+      "commit": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.4/package/system/apk/Makefile",
+      "sha256": "4a65d78e548028f58f16b82f540599d51cbe70133b1fe3e05aec78809e60f31d",
+      "release": "25.12.4",
+      "component": "apk",
+      "commit": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.5/package/system/apk/Makefile",
+      "sha256": "4a65d78e548028f58f16b82f540599d51cbe70133b1fe3e05aec78809e60f31d",
+      "release": "25.12.5",
+      "component": "apk",
+      "commit": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/system/apk/Makefile",
+      "sha256": "4a65d78e548028f58f16b82f540599d51cbe70133b1fe3e05aec78809e60f31d",
+      "release": "25.12.6",
+      "component": "apk",
+      "commit": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866"
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/database.c",
+      "sha256": "c149943732c74d78990076a056fc48318d133576c5c4b684107b03d174dd37c2",
+      "component": "apk",
+      "commit": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866",
+      "path": "src/database.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/apk.c",
+      "sha256": "929d3ae791aaf8fa7f3ae0881e307822ca0b38bb08a3debc23038d4d7115e5d9",
+      "component": "apk",
+      "commit": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866",
+      "path": "src/apk.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/d093f7c198a64bff0cd58afeaf638909fda24ca8/src/database.c",
+      "sha256": "91d111cc579efdc7548287ddecaf882da6cbcc3c014e35c30a1c35b97917272b",
+      "component": "apk",
+      "commit": "d093f7c198a64bff0cd58afeaf638909fda24ca8",
+      "path": "src/database.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/d093f7c198a64bff0cd58afeaf638909fda24ca8/src/apk.c",
+      "sha256": "929d3ae791aaf8fa7f3ae0881e307822ca0b38bb08a3debc23038d4d7115e5d9",
+      "component": "apk",
+      "commit": "d093f7c198a64bff0cd58afeaf638909fda24ca8",
+      "path": "src/apk.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/1bf042dd06751b693a8544d2317e5b969d666b69/libopkg/opkg_conf.c",
+      "sha256": "9a4d774fdcb9152db5e2bdcc1037c2b325f09aed72aaab5db655ed5a1da2bd2e",
+      "component": "opkg",
+      "commit": "1bf042dd06751b693a8544d2317e5b969d666b69",
+      "path": "libopkg/opkg_conf.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/1bf042dd06751b693a8544d2317e5b969d666b69/src/opkg-cl.c",
+      "sha256": "a057d4a065856bfea97eabcfb0c9d24153234e6d4c284782d5b128aa509d31fe",
+      "component": "opkg",
+      "commit": "1bf042dd06751b693a8544d2317e5b969d666b69",
+      "path": "src/opkg-cl.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/38eccbb1fd694d4798ac1baf88f9ba83d1eac616/libopkg/opkg_conf.c",
+      "sha256": "a11448edd38cfa2442f51da9d0516d61eae2993db12367a60271f957974d9191",
+      "component": "opkg",
+      "commit": "38eccbb1fd694d4798ac1baf88f9ba83d1eac616",
+      "path": "libopkg/opkg_conf.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/38eccbb1fd694d4798ac1baf88f9ba83d1eac616/src/opkg-cl.c",
+      "sha256": "a057d4a065856bfea97eabcfb0c9d24153234e6d4c284782d5b128aa509d31fe",
+      "component": "opkg",
+      "commit": "38eccbb1fd694d4798ac1baf88f9ba83d1eac616",
+      "path": "src/opkg-cl.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/c09fe2098718807ddbca13ee36e3e38801822946/libopkg/opkg_conf.c",
+      "sha256": "4c8ab63a6efbe6ee11c0a7c5a0749640a253379454a5bc679d7d92ecf241235c",
+      "component": "opkg",
+      "commit": "c09fe2098718807ddbca13ee36e3e38801822946",
+      "path": "libopkg/opkg_conf.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/c09fe2098718807ddbca13ee36e3e38801822946/src/opkg-cl.c",
+      "sha256": "a4a46806a31845a134194bf8550e828afbeee4979bfb94e34789ca5ddee1cc44",
+      "component": "opkg",
+      "commit": "c09fe2098718807ddbca13ee36e3e38801822946",
+      "path": "src/opkg-cl.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/c5dccea956b8be14eabf6ff69b331a3e9ac36749/libopkg/opkg_conf.c",
+      "sha256": "4c8ab63a6efbe6ee11c0a7c5a0749640a253379454a5bc679d7d92ecf241235c",
+      "component": "opkg",
+      "commit": "c5dccea956b8be14eabf6ff69b331a3e9ac36749",
+      "path": "libopkg/opkg_conf.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/c5dccea956b8be14eabf6ff69b331a3e9ac36749/src/opkg-cl.c",
+      "sha256": "35878d5d626e7522c7f69cf2da6cc7f46d149d88fc3796fb950ae3b64f8c780f",
+      "component": "opkg",
+      "commit": "c5dccea956b8be14eabf6ff69b331a3e9ac36749",
+      "path": "src/opkg-cl.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/d038e5b6d155784575f62a66a8bb7e874173e92e/libopkg/opkg_conf.c",
+      "sha256": "a11448edd38cfa2442f51da9d0516d61eae2993db12367a60271f957974d9191",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e",
+      "path": "libopkg/opkg_conf.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/d038e5b6d155784575f62a66a8bb7e874173e92e/src/opkg-cl.c",
+      "sha256": "a057d4a065856bfea97eabcfb0c9d24153234e6d4c284782d5b128aa509d31fe",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e",
+      "path": "src/opkg-cl.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/dcbc142e51f5f5f2fb9e4e44657e013d3c36a52b/libopkg/opkg_conf.c",
+      "sha256": "4c8ab63a6efbe6ee11c0a7c5a0749640a253379454a5bc679d7d92ecf241235c",
+      "component": "opkg",
+      "commit": "dcbc142e51f5f5f2fb9e4e44657e013d3c36a52b",
+      "path": "libopkg/opkg_conf.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/dcbc142e51f5f5f2fb9e4e44657e013d3c36a52b/src/opkg-cl.c",
+      "sha256": "a4a46806a31845a134194bf8550e828afbeee4979bfb94e34789ca5ddee1cc44",
+      "component": "opkg",
+      "commit": "dcbc142e51f5f5f2fb9e4e44657e013d3c36a52b",
+      "path": "src/opkg-cl.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/f2166a89b7e96e2c60002959731eebc5f45fa318/libopkg/opkg_conf.c",
+      "sha256": "4c8ab63a6efbe6ee11c0a7c5a0749640a253379454a5bc679d7d92ecf241235c",
+      "component": "opkg",
+      "commit": "f2166a89b7e96e2c60002959731eebc5f45fa318",
+      "path": "libopkg/opkg_conf.c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/f2166a89b7e96e2c60002959731eebc5f45fa318/src/opkg-cl.c",
+      "sha256": "35878d5d626e7522c7f69cf2da6cc7f46d149d88fc3796fb950ae3b64f8c780f",
+      "component": "opkg",
+      "commit": "f2166a89b7e96e2c60002959731eebc5f45fa318",
+      "path": "src/opkg-cl.c"
+    }
+  ],
+  "mirror_docs": [
+    "https://mirrors.tuna.tsinghua.edu.cn/help/openwrt/",
+    "https://mirrors.ustc.edu.cn/help/openwrt.html"
+  ],
+  "conclusions": [
+    "Direct uses HTTPS domestic mirrors; proxy uses official sources. Release, architecture and file path stay unchanged.",
+    "opkg isolation requires both OPKG_CONF_DIR and -f. APK --repositories-file bypasses default repository directories.",
+    "Mirror coverage is incomplete for historical releases. No version substitution or signature bypass is allowed.",
+    "This is source inspection and offline verification, not live router or domestic-network verification."
+  ]
+}

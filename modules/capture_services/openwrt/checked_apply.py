@@ -240,7 +240,10 @@ def _run_checked(channel, stage, verify, cancel, *, candidates, original_host, p
         if sid and not confirmed and not preserve_concurrent:
             if attempted:
                 recovery_deadline=max(deadline or 0,time.monotonic())+25
-                extra=dict(network_recovery=client_recovery.start(recovery_deadline,restoring=True)) if client_recovery else {}
+                extra={}
+                if client_recovery:
+                    client_recovery.start(recovery_deadline,restoring=True)
+                    extra=dict(network_recovery=client_recovery.arm(automatic=True))
                 phase("修改失败："+last_issue+"\n正在恢复原配置，请勿断电。",deadline=recovery_deadline,rollback=True,**extra)
                 restored=False
                 while time.monotonic()<recovery_deadline:

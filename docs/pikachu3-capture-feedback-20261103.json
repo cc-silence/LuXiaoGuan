@@ -1,0 +1,56 @@
+{
+  "date": "2026-11-03",
+  "status": "source_fixed_not_packaged",
+  "feedback_versions": [
+    "1.0.35_alpha",
+    "1.0.38_alpha"
+  ],
+  "device": "TP-Link TL-XDR6088 / OpenWrt 23.05.4 / mediatek-filogic",
+  "observations": [
+    "Both configured APs disabled; no runtime business interfaces or STA.",
+    "1.0.38 radio0 first start failed with Channel closed; a subsequent run received actual AP frames.",
+    "1.0.38 radio1 initialization failed to arm interface; PACKET_STATISTICS was emitted during cleanup.",
+    "Failed SFTP result downloads were previously followed by successful session completion."
+  ],
+  "merge_audit": {
+    "commit": "992058f61cedc48ed2f0d723aaa2f6b449039bd0",
+    "result": "wydev short-command retry was merged; original wydev and merged capture engine both bypassed it"
+  },
+  "fixes": [
+    "Capture and terminal streams share bounded, connection-bound channel ownership.",
+    "Capture retries Channel closed once only before command submission, within the same deadline.",
+    "No automatic resubmission after exec_request; log reports exact SSH failure stage.",
+    "Prepare all requested monitors before adding placeholders on remaining empty PHYs.",
+    "Replace only registered same-connection placeholders, checking interface alias and actual PHY.",
+    "Inventory failure cannot be treated as empty hardware; probe inventory once with exact PHY matching.",
+    "Rebuild closed/inactive cached SFTP channels; failed download remains a session error."
+  ],
+  "upstream_evidence": {
+    "url": "https://raw.githubusercontent.com/ZerBea/hcxdumptool/6.3.4/hcxdumptool.c",
+    "sha256": "c420a0c517a4924bd751f32036bc23275ceca9de2b4ce2bb56504fb35d0cc7c9",
+    "reproducer": "build/pikachu3-feedback-20261103/upstream-interface-proof.c",
+    "result": "Unmodified upstream nl_get_interfacelist selects hcxstub1 index51 over requested hcxmon1 index52 on same PHY under the supplied interface order.",
+    "limit": "This proves topology incompatibility; exact user-device enumeration order is unobserved."
+  },
+  "references": [
+    "https://docs.paramiko.org/en/stable/api/channel.html",
+    "https://docs.paramiko.org/en/stable/api/sftp.html"
+  ],
+  "validation": {
+    "runtime": ".venv Python / PySide6 6.3.2 / Paramiko 5.0.0",
+    "targeted_tests": 78,
+    "result": "PASS",
+    "test_modules": [
+      "test_idle_capture_feedback",
+      "test_auto_capture_feature",
+      "test_capture_integration_safety",
+      "test_ssh_channel_isolation",
+      "test_ssh_compatibility",
+      "test_ssh_empty_password",
+      "test_terminal_runtime"
+    ],
+    "earlier_wrong_runtime": "System Python used Qt 6.3.0, causing native Qt test crashes; those runs are excluded.",
+    "live_router": "Not performed. User-device retest remains required.",
+    "debian_desktop": "Not performed; shell syntax checked separately."
+  }
+}

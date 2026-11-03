@@ -202,11 +202,20 @@ class MissingHelperUiTests(unittest.TestCase):
 
 
 class RouterFeedSafetyTests(unittest.TestCase):
+    def setUp(self):
+        owner = patch("modules.capture_services.openwrt.temporary_package_sources.secrets.token_hex", return_value="a"*32)
+        owner.start()
+        self.addCleanup(owner.stop)
+        source = patch("modules.network_policy.configured_proxy_channels", return_value=[])
+        source.start()
+        self.addCleanup(source.stop)
+
     def manager(self, plan):
         from modules.capture_services.openwrt.dependency_manager import OpenWrtDependencyManager
         from modules.capture_services.openwrt.package_manager import PackageManager
         manager = OpenWrtDependencyManager(Mock())
         manager._preflight = Mock(return_value=PackageManager("opkg"))
+        manager._execute = Mock(return_value="/tmp/lxg-feeds."+"a"*32)
         manager._execute_stage = Mock(side_effect=lambda name, *_:
             plan if name == "dependency_package_plan" else "")
         return manager
@@ -222,12 +231,12 @@ class RouterFeedSafetyTests(unittest.TestCase):
             self.assertEqual(names, ["dependency_update", "dependency_package_plan"])
             computer.assert_not_called()
 
-    def test_online_add_only_plan_uses_existing_feeds_and_no_force_options(self):
+    def test_online_add_only_plan_uses_scoped_feeds_and_no_force_options(self):
         manager = self.manager("Installing wpa-cli (1) to root...")
         with patch("modules.capture_services.openwrt.package_space.check_plan_space"):
             manager._install_online(("wpa-cli",), Event(), Mock())
         commands = [call.args[1] for call in manager._execute_stage.call_args_list]
-        self.assertEqual(commands[0], "opkg update")
-        self.assertEqual(sum(command == "opkg install wpa-cli" for command in commands), 1)
-        self.assertTrue(all(command.startswith("opkg ") for command in commands))
+        self.assertTrue(commands[0].endswith(" update)"))
+        self.assertEqual(sum(command.endswith(" install wpa-cli)") and "--noaction" not in command for command in commands), 1)
+        self.assertTrue(all("OPKG_CONF_DIR=" in command and " -f " in command for command in commands))
         self.assertTrue(all("--force" not in command and "distfeeds" not in command for command in commands))

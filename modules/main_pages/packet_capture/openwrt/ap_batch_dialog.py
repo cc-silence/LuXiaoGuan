@@ -19,8 +19,6 @@ class AccessPointBatchDialog(FramelessDialog):
         self.set_scaled_size((720,650),(900,720))
         self.snapshot=snapshot;self.rows={}
         self.content_layout.addWidget(hint(description or "可手动修改每个热点的新名称和 MAC（无线地址），或点击随机同时重新生成两项。密码、频段和其他设置保留；下一步先预览。",self))
-        self.random_all=create_settings_button("全部重新随机",self,"secondary")
-        self.content_layout.addWidget(self.random_all)
         scroll=BounceScrollArea(self);scroll.setWidgetResizable(True);scroll.setFrameShape(QFrame.NoFrame)
         body=QWidget(scroll);layout=QVBoxLayout(body)
         for row in build_access_point_identities(snapshot):
@@ -32,7 +30,8 @@ class AccessPointBatchDialog(FramelessDialog):
             title.addWidget(label,1)
             button=create_settings_button("随机",panel,"secondary");title.addWidget(button);fields.addLayout(title)
             name=text_input(panel,row["name"]);mac=text_input(panel,row["mac"])
-            add_field(fields,panel,"新 Wi-Fi 名称",name,"")
+            add_field(fields,panel,"新 Wi-Fi 名称",name,"留空则保留原 Wi-Fi 名称。")
+            fields.addWidget(hint("留空则保留原 Wi-Fi 名称。",panel))
             mac.setReadOnly(not mac_editable)
             if mac_editable:
                 add_field(fields,panel,"新 MAC 地址",mac,"")
@@ -53,7 +52,6 @@ class AccessPointBatchDialog(FramelessDialog):
             self.button_layout.addWidget(self.discard_button)
         self.button_layout.addWidget(self.continue_button);self.button_layout.addWidget(cancel)
         self.continue_button.clicked.connect(self.accept);cancel.clicked.connect(self.reject)
-        self.random_all.clicked.connect(lambda:self.randomize())
 
     def _inputs(self):
         return [dict(section=section,name=name.text(),mac=mac.text().strip()) for section,(name,mac,_) in self.rows.items()]

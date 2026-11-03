@@ -411,11 +411,15 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
     _check_cancel(cancel_event)
     connection_budget = max(0, float(timeout))
     state = _download_state.get()
-    plans = list(_attempt_plans())
+    from .package_mirror_policy import route_requests,domestic_request,SourceRedirectHandler
+    base_plans=list(_attempt_plans())
+    plans=route_requests(url,base_plans)
     if state.get("message") is not None and not state.get("diagnostic_configuration"):
-        for line in configuration_lines(plans):_download_message(line,"diagnostic")
+        for line in configuration_lines(base_plans):_download_message(line,"diagnostic")
         state["diagnostic_configuration"]=True
     errors = []
+    missing_status = None
+    terminal_mirror_status = None
     round_plans = plans
     not_before = 0.0
     for round_number in range(2):
@@ -425,7 +429,7 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
         if round_number:
             _download_message("首轮线路均未成功；开始第 2/2 轮，重试临时网络故障的线路…")
         retry_plans = []
-        for position, (label, handler) in enumerate(round_plans):
+        for position, (label, handler, request_url) in enumerate(round_plans):
             wait_started = time.monotonic()
             if not _wait_download_retry(not_before, wait_started + connection_budget, cancel_event):
                 _raise_download_failure(errors, cancel_event)
@@ -433,27 +437,27 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
             remaining = connection_budget
             if remaining <= 0:
                 break
-            key = _route_key(label, url)
-            route = _route_description(label, url)
+            key = _route_key(label, request_url)
+            route = _route_description(label, request_url)
             if key in state["unavailable"]:
                 errors.append(state["unavailable"][key])
                 _download_message(state["unavailable"][key]+"\uff1b\u672c\u6b21\u4efb\u52a1\u5df2\u786e\u8ba4\u4e0d\u53ef\u7528\uff0c\u8df3\u8fc7\u3002","diagnostic")
                 continue
             try:
-                bypass=label!="\u76f4\u8fde" and urllib.request.proxy_bypass(urllib.request.Request(url).host)
+                bypass=label!="\u76f4\u8fde" and urllib.request.proxy_bypass(urllib.request.Request(request_url).host)
             except (OSError,ValueError):
                 bypass=None
-            diagnostic=AttemptDiagnostics(url,route,min(_ROUTE_TIMEOUT,remaining),round_number,bypass)
+            diagnostic=AttemptDiagnostics(request_url,route,min(_ROUTE_TIMEOUT,remaining),round_number,bypass)
             _download_message(diagnostic.start(),"diagnostic")
             _download_message(diagnostic.short_start())
             try:
                 # ProxyHandler mutates Request host, tunnel and authentication state.
-                request = urllib.request.Request(url, headers={"User-Agent": "LuXiaoGuan-offline/1.0"})
+                request = urllib.request.Request(request_url, headers={"User-Agent": "LuXiaoGuan-offline/1.0"})
                 with download_cancellation(cancel_event):
                     connect_started = time.monotonic()
                     try:
                         response = urllib.request.build_opener(
-                            handler, StreamingHTTPHandler(), StreamingHTTPSHandler()).open(
+                            handler, StreamingHTTPHandler(), StreamingHTTPSHandler(),SourceRedirectHandler(label,request_url)).open(
                                 request, timeout=min(_ROUTE_TIMEOUT, remaining))
                     finally:
                         connection_budget -= time.monotonic() - connect_started
@@ -462,7 +466,7 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
                         diagnostic.status=status
                         diagnostic.stage="\u8bfb\u53d6\u54cd\u5e94\u5185\u5bb9"
                         if status != 200:
-                            raise DownloadHTTPError(status)
+                            raise urllib.error.HTTPError(request_url,status,"HTTP status",response.headers,None)
                         payload = _read_body(response, limit, cancel_event, diagnostic)
                 _download_message(diagnostic.result(),"diagnostic")
                 _download_message(diagnostic.short_result(),"success")
@@ -476,6 +480,14 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
                 _download_message(diagnostic.result(exc),"diagnostic")
                 retry_delay = _retry_after_seconds(exc.headers) if status in (429, 503) else 0.0
                 exc.close()
+                if domestic_request(label, request_url) and status not in (407, 408, 429, 500, 502, 503, 504):
+                    if status in (404, 410):
+                        missing_status = status
+                    else:
+                        terminal_mirror_status = status
+                    errors.append(f'{route}: HTTP {status}')
+                    _download_message(diagnostic.short_result(failed=True), 'warning')
+                    continue
                 if status not in (407, 408, 429, 500, 502, 503, 504):
                     raise DownloadHTTPError(status) from None
                 not_before = max(not_before, time.monotonic() + retry_delay)
@@ -484,7 +496,7 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
                     failure += "（代理认证失败，请核对代理账号和密码）"
                     state["unavailable"][key] = failure
                 else:
-                    retry_plans.append((label, handler))
+                    retry_plans.append((label, handler, request_url))
                 errors.append(failure)
                 _download_message(f"{failure}" + ("；正在切换下一条线路…" if position + 1 < len(round_plans) else ""),"diagnostic")
                 _download_message(diagnostic.short_result(failed=True),"warning")
@@ -496,10 +508,16 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
                 if code in (10013, errno.EACCES, errno.EPERM) or _proxy_auth_error(exc):
                     state["unavailable"][key] = failure
                 elif not isinstance(reason, ssl.SSLCertVerificationError):
-                    retry_plans.append((label, handler))
+                    retry_plans.append((label, handler, request_url))
                 _download_message(f"{failure}" + ("；正在切换下一条线路…" if position + 1 < len(round_plans) else ""),"diagnostic")
                 _download_message(diagnostic.short_result(failed=True),"warning")
         round_plans = retry_plans
+    _check_cancel(cancel_event)
+    # A confirmed missing format may fall back even when another route timed out.
+    if missing_status is not None:
+        raise DownloadHTTPError(missing_status, "\u56fd\u5185\u955c\u50cf\u672a\u80fd\u53d6\u5f97\u8be5\u6587\u4ef6\uff0c\u8bf7\u4f7f\u7528\u4ee3\u7406\u8bbf\u95ee\u5b98\u65b9\u6e90\u6216\u4f7f\u7528\u5339\u914d\u7684\u79bb\u7ebf\u5305\u3002")
+    if terminal_mirror_status is not None:
+        raise DownloadHTTPError(terminal_mirror_status)
     _raise_download_failure(errors, cancel_event)
 
 

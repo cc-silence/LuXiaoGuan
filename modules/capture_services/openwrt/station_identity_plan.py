@@ -1,9 +1,33 @@
 """Group saved stations by DHCP interface before assigning identities."""
+import re
 from .relocation_identity import generate_relocation_hostname
 
 
 def words(value):
     return value if isinstance(value,list) else str(value or "").split()
+
+
+_BAND_SUFFIX = re.compile(r"[ _-](?:2(?:\.4)?|5|6)g(?:hz)?$", re.IGNORECASE)
+
+
+def station_name_groups(groups):
+    """Keep DHCP peers together and join matching SSIDs across interfaces."""
+    parents = {network: network for network, _, _ in groups}
+    owners = {}
+    def root(network):
+        while parents[network] != network:
+            parents[network] = parents[parents[network]]
+            network = parents[network]
+        return network
+    for network, members, _ in groups:
+        for _, row in members:
+            ssid = row.get("ssid")
+            if not isinstance(ssid, str) or not ssid:
+                continue
+            key = _BAND_SUFFIX.sub("", ssid) or ssid
+            previous = owners.setdefault(key, network)
+            parents[root(network)] = root(previous)
+    return {network: root(network) for network in parents}
 
 
 def build_station_batch(builder,targets):
@@ -20,6 +44,7 @@ def build_station_batch(builder,targets):
             builder.plan["skipped"].append(str(row.get("ssid",section))+" ["+section+"]\uff1a"+reason+"\u3002")
             continue
         groups.setdefault(networks[0],[]).append((section,row))
+    eligible = []
     for network,members in groups.items():
         net=builder.s["configs"].get("network",{}).get(network,{})
         peers=all_members[network]
@@ -39,7 +64,14 @@ def build_station_batch(builder,targets):
             for section,row in members:
                 builder.plan["skipped"].append(str(row.get("ssid",section))+" ["+section+"]\uff1a"+reason+"\u3002")
             continue
-        host=generate_relocation_hostname(net.get("hostname","")).replace("_","-")
+        eligible.append((network, members, net))
+    name_groups = station_name_groups(eligible)
+    names = {}
+    for network, members, net in eligible:
+        group = name_groups[network]
+        if group not in names:
+            names[group] = generate_relocation_hostname(net.get("hostname", "")).replace("_", "-")
+        host = names[group]
         assignments=[]
         for section,row in members:
             address=builder.mac()

@@ -39,7 +39,7 @@ class MixedDependencyInstallTests(unittest.TestCase):
             installed.update(batch)
             return True
         calls, manager = self.run_install(local)
-        self.assertEqual(calls,[('aircrack-ng','reaver'),('wpa-cli',)])
+        self.assertEqual(calls,[('aircrack-ng',),('reaver',),('wpa-cli',)])
         manager._install_online.assert_not_called()
         manager._install_offline.assert_not_called()
 
@@ -63,7 +63,7 @@ class MixedDependencyInstallTests(unittest.TestCase):
             installed.update(('aircrack-ng','reaver','wpa-cli'))
             return True
         calls,_ = self.run_install(local)
-        self.assertEqual(calls,[('aircrack-ng','reaver')])
+        self.assertEqual(calls,[('aircrack-ng',)])
 
     def test_cancellation_between_groups_never_starts_second_install(self):
         calls=[]
@@ -73,7 +73,7 @@ class MixedDependencyInstallTests(unittest.TestCase):
         with self.assertRaises(SignalError) as raised:
             self.run_install(local)
         self.assertEqual(raised.exception.code,'cancelled')
-        self.assertEqual(calls,[('aircrack-ng','reaver')])
+        self.assertEqual(calls,[('aircrack-ng',)])
 
     def test_safety_failure_does_not_continue_to_another_group_or_route(self):
         calls=[]
@@ -82,7 +82,7 @@ class MixedDependencyInstallTests(unittest.TestCase):
             raise SignalError('environment','signature mismatch')
         with self.assertRaisesRegex(SignalError,'signature mismatch'):
             self.run_install(local)
-        self.assertEqual(calls,[('aircrack-ng','reaver')])
+        self.assertEqual(calls,[('aircrack-ng',)])
 
     def test_single_bundle_and_unknown_packages_keep_exact_scope(self):
         for names in (('aircrack-ng','iw'),('wpa-cli','iw'),('hcxdumptool',)):

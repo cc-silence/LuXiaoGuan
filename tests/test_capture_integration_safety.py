@@ -95,3 +95,5 @@ class CaptureIntegrationSafetyTests(unittest.TestCase):
         gate.cleanup_finished.assert_called_once_with("radio7", True)
         gate.mark_failed.assert_called_once()
         client._client.get_transport.assert_not_called()
+        client.open_capture_stream.assert_not_called()
+        self.assertFalse(any(call.args[0] == "ensure_phy_stubs" for call in runner.run.call_args_list))

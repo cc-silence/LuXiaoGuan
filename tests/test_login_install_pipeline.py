@@ -210,10 +210,6 @@ class LoginInstallPipelineTests(unittest.TestCase):
             self.assertIsNone(prompt.progress)
             self.assertFalse(features['pmkid'])
             names = [name for name,_ in boundary.commands]
-            if old_batching:
-                self.assertTrue(result['error'])
-                self.assertFalse(boundary.uploads)
-                return
             if tamper:
                 self.assertTrue(result['error'])
                 self.assertNotIn('wpa-cli',boundary.installed)
@@ -230,7 +226,7 @@ class LoginInstallPipelineTests(unittest.TestCase):
                 required = REQUIRED_COMMON_KEYS | CAPTURE_KEYS
                 self.assertTrue(all(r.state.value in ('ready','disabled') for r in result['checked'] if r.key in required))
                 from modules.capture_services.openwrt.installation_sources import package_batches
-                self.assertEqual(names.count('apk_install' if apk else 'dependency_offline_install'),len(package_batches(tuple(n for n in missing if n not in ignored_missing)))-int(online))
+                self.assertEqual(names.count('apk_install' if apk else 'dependency_offline_install'),len(tuple(n for n in missing if n not in ignored_missing))-int(online))
                 self.assertEqual(any(n=='dependency_update' for n in names),online)
                 package_uploads=[name for name,_ in boundary.uploads if name.endswith(('.ipk','.apk'))]
                 self.assertEqual(len(package_uploads),len(set(package_uploads)))
@@ -243,7 +239,7 @@ class LoginInstallPipelineTests(unittest.TestCase):
     def test_login_to_apk_local_plan_install_cleanup_and_fresh_recheck(self):
         self.exercise(True)
 
-    def test_old_mixed_batching_reproduces_the_local_bundle_miss(self):
+    def test_legacy_grouping_cannot_merge_independent_transactions(self):
         self.exercise(old_batching=True)
 
     def test_declining_login_consent_never_writes_packages(self):

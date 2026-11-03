@@ -101,10 +101,14 @@ class AutomaticApDiagnosticsTests(unittest.TestCase):
         device=KernelApDevice();device.kernel_carrier="0"
         manager,journal,event=self.manager(device)
         manager._run_command=Mock(return_value=NS(cancelled=False,timed_out=False,exit_code=0))
-        with self.assertRaises(SignalError):manager.repair(manager.read(event),"home",event)
+        clock=[0.0]
+        event.wait.side_effect=lambda seconds:clock.__setitem__(0,clock[0]+seconds) or False
+        with patch("time.monotonic",side_effect=lambda:clock[0]):
+            with self.assertRaises(SignalError):manager.repair(manager.read(event),"home",event)
         failure=journal.snapshot()["configuration_failures"][-1]
         self.assertEqual((failure["source"],failure["ap_failure"]),("repair","kernel_carrier"))
-        self.assertEqual(failure["verify_attempts"],15)
+        self.assertEqual(failure["verify_attempts"],31)
+        self.assertEqual(failure["elapsed_seconds"],30)
         manager._run_command.assert_called_once()
 
     def test_native_periodic_refresh_keeps_probe_evidence_and_configuration_identity(self):

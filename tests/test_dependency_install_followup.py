@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 """Additional installation audits: route fallback, bounded cache, cancellation."""
 import hashlib
 import io
@@ -76,6 +77,13 @@ class ApkCacheTests(unittest.TestCase):
 
 
 class SignalSpaceTests(unittest.TestCase):
+    def setUp(self):
+        # Isolate existing plan/error contracts from the separately tested source setup.
+        source = patch("modules.capture_services.openwrt.temporary_package_sources.domestic_sources",
+                       side_effect=lambda manager, base, cancel, tell: nullcontext(base))
+        source.start()
+        self.addCleanup(source.stop)
+
     def test_online_signal_install_checks_complete_plan_before_writing(self):
         from modules.capture_services.openwrt.signal_manager import RouterSignalManager, SignalError
         manager = RouterSignalManager(Mock())

@@ -1,6 +1,7 @@
 """Ordinary relay identity is editable; blocked layouts explain the exact cause."""
 import copy
 import unittest
+from unittest.mock import patch
 from tests.test_router_policy import PolicyDevice
 from modules.capture_services.openwrt.router_policy_plan import build_plan
 
@@ -38,3 +39,40 @@ class StationBatchTests(unittest.TestCase):
         with self.assertRaises(ValueError) as error:build_plan(changed,"station")
         self.assertIn("eth9",str(error.exception))
         with self.assertRaises(RuntimeError):d.policy._transaction(changed,plan["operations"],d.cancel)
+
+    def test_matching_uplinks_share_name_across_networks_and_keep_distinct_macs(self):
+        pairs = (("202", "202"), ("202", "202_5G"),
+                 ("202_2.4G", "202_5g"), ("202-2.4GHz", "202-5GHz"))
+        for legacy in (True, False):
+            for first, second in pairs:
+                with self.subTest(legacy=legacy, first=first, second=second):
+                    d=PolicyDevice(legacy)
+                    d.config["wireless"]["station"]["ssid"]=first
+                    d.config["wireless"]["second"] = dict(d.config["wireless"]["station"],ssid=second,network="wwan2")
+                    d.config["network"]["wwan2"] = dict(d.config["network"]["wwan"])
+                    before=copy.deepcopy(d.config)
+                    with patch("modules.capture_services.openwrt.station_identity_plan.generate_relocation_hostname",return_value="Grouped-Name") as generate:
+                        snapshot=d.policy.read(d.cancel)
+                        plan=build_plan(snapshot,"station")
+                    self.assertEqual(generate.call_count,1)
+                    self.assertEqual({row["name"] for row in plan["identities"]},{"Grouped-Name"})
+                    self.assertEqual(len({row["mac"] for row in plan["identities"]}),2)
+                    d.policy._transaction(snapshot,plan["operations"],d.cancel)
+                    for section in ("station","second"):
+                        for key in ("ssid","key","network","device"):
+                            self.assertEqual(d.config["wireless"][section][key],before["wireless"][section][key])
+                    for network in ("wwan","wwan2"):
+                        self.assertEqual(d.config["network"][network]["hostname"],"Grouped-Name")
+
+    def test_similar_but_distinct_names_are_not_grouped(self):
+        from modules.capture_services.openwrt.station_identity_plan import station_name_groups
+        names=("202", "2020", "202_5G_guest", "Home", "home", "202_5")
+        groups=[(str(i),[(str(i),dict(ssid=name))],{}) for i,name in enumerate(names)]
+        self.assertEqual(len(set(station_name_groups(groups).values())),len(names))
+
+    def test_shared_interface_groups_are_joined_transitively(self):
+        from modules.capture_services.openwrt.station_identity_plan import station_name_groups
+        groups=[("one",[("a",dict(ssid="202")),("b",dict(ssid="303"))],{}),
+                ("two",[("c",dict(ssid="202_5G"))],{}),
+                ("three",[("d",dict(ssid="303_5G"))],{})]
+        self.assertEqual(len(set(station_name_groups(groups).values())),1)

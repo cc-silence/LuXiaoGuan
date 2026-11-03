@@ -176,7 +176,8 @@ class UsageRefreshTests(unittest.TestCase):
         usage=parse_radio_usage(snapshot(),runtime('I|phy2|wlan1|managed|0|0\n'))
         with patch(module+'threading.Thread',side_effect=start),patch(module+'read_radio_usage',return_value=usage):
             AutoCaptureService.refresh_radio_idle_status(page)
-        page.radioIdleStatusUpdated.emit.assert_called_with({'radio7':True})
+        page.radioIdleStatusUpdated.emit.assert_called_with(usage)
+        owner.update_openwrt_radio_idle_status.assert_called_with(usage)
         with patch(module+'threading.Thread',side_effect=start),patch(module+'read_radio_usage',side_effect=RuntimeError('incomplete')):
             AutoCaptureService.refresh_radio_idle_status(page)
         page.radioIdleStatusUpdated.emit.assert_called_with({'radio7':None})
@@ -195,3 +196,29 @@ class UsageRefreshTests(unittest.TestCase):
         with patch(module+'threading.Thread',side_effect=lambda **kwargs:NS(start=kwargs['target'])),patch(module+'read_radio_usage',side_effect=read):
             AutoCaptureService.refresh_radio_idle_status(page)
         page.radioIdleStatusUpdated.emit.assert_not_called()
+
+
+class IdleDualRadioAcceptanceTests(unittest.TestCase):
+    def topology(self, configured):
+        text = "wireless.radio7=wifi-device\nwireless.radio7.band='2g'\nwireless.radio3=wifi-device\nwireless.radio3.band='5g'\n"
+        if configured:
+            for radio in ('radio7','radio3'):
+                for mode in ('ap','sta'):
+                    name=radio+'_'+mode
+                    text += "wireless."+name+"=wifi-iface\nwireless."+name+".device='"+radio+"'\nwireless."+name+".mode='"+mode+"'\nwireless."+name+".disabled='1'\n"
+        text += IDENTITY_MARKER+json.dumps({'phys':['phy2','phy5'],'inventory_complete':True,'radios':{'radio7':'phy2','radio3':'phy5'}})+'\n'
+        return text
+
+    def test_both_radios_never_configured_are_available_without_opening_an_ap(self):
+        from modules.capture_services.openwrt.radio_usage import usage_for_phy
+        live='__RM_USAGE_BEGIN__\nP|phy2\nP|phy5\n__RM_USAGE_END__\n'
+        usages=parse_radio_usage(self.topology(False),live)
+        for phy in ('phy2','phy5'):
+            self.assertTrue(usage_for_phy(usages,phy).free)
+
+    def test_all_ap_and_sta_disabled_are_available_even_with_inert_interfaces(self):
+        from modules.capture_services.openwrt.radio_usage import usage_for_phy
+        live='__RM_USAGE_BEGIN__\nP|phy2\nP|phy5\nI|phy2|old_ap|ap|0|0\nI|phy5|old_sta|managed|1|0\n__RM_USAGE_END__\n'
+        usages=parse_radio_usage(self.topology(True),live)
+        for phy in ('phy2','phy5'):
+            self.assertTrue(usage_for_phy(usages,phy).free)

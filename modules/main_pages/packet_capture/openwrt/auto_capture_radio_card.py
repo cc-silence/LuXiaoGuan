@@ -26,7 +26,6 @@ from PySide6.QtWidgets import (
 )
 
 from modules.capture_services.openwrt.models import OpenWrtRadioInfo
-from modules.common_widgets.common_dialogs import ConfirmDialog
 from modules.main_pages.page_action_buttons import create_page_text_button
 from modules.ui_scale_manager import UiScaleManager
 
@@ -57,14 +56,7 @@ class AutoCaptureRadioCard(QFrame):
         header_row.setSpacing(10)
 
         # 状态放左边
-        is_free = bool(radio_info.free)
         self.status_badge = QLabel(self)
-        if is_free:
-            self.status_badge.setText("【空闲】(安全无感)")
-            self.status_badge.setStyleSheet("color: #10b981; font-weight: bold;")
-        else:
-            self.status_badge.setText("【正在使用】(发射 Wi-Fi 中)")
-            self.status_badge.setStyleSheet("color: #f59e0b; font-weight: bold;")
         header_row.addWidget(self.status_badge)
 
         self.takeover_check = QCheckBox("允许接管并自动恢复", self)
@@ -74,8 +66,10 @@ class AutoCaptureRadioCard(QFrame):
             "抓包停止后，软件自动原子级回滚恢复原有 Wi-Fi 信号与业务配置。"
         )
         self.takeover_check.setChecked(False)
-        self.takeover_check.setVisible(not is_free)
         header_row.addWidget(self.takeover_check)
+
+        from .radio_usage_view import apply_usage_status
+        apply_usage_status(self)
 
         # 弹性空白：将硬件信息推至最右侧
         header_row.addStretch(1)
@@ -307,14 +301,8 @@ class AutoCaptureRadioCard(QFrame):
             self.status_badge.setStyleSheet("color: #ef4444; font-weight: bold;")
         else:
             self.curr_channel_label.setText("当前信道: --")
-            is_free = bool(self.radio_info.free)
-            self.takeover_check.setVisible(not is_free)
-            if is_free:
-                self.status_badge.setText("【空闲】(安全无感)")
-                self.status_badge.setStyleSheet("color: #10b981; font-weight: bold;")
-            else:
-                self.status_badge.setText("【正在使用】(业务已在线)")
-                self.status_badge.setStyleSheet("color: #f59e0b; font-weight: bold;")
+            from .radio_usage_view import apply_usage_status
+            apply_usage_status(self)
 
     def refresh_status(self, session=None, latest_radio_info=None):
         """刷新卡片状态与回显指标。"""
@@ -337,23 +325,6 @@ class AutoCaptureRadioCard(QFrame):
     def _on_start_clicked(self):
         channels = self.channel_edit.text().strip()
         allow_takeover = self.takeover_check.isChecked()
-
-        is_free = bool(self.radio_info.free)
-        if not is_free and not allow_takeover:
-            bands_str = "/".join(self.radio_info.bands) if self.radio_info.bands else "Wi-Fi"
-            msg = (
-                f"射频 {self.radio_name} ({bands_str}) 当前正在发射 Wi-Fi 业务。\n\n"
-                "抓包需要临时安全接管该射频以切换跳频信道。\n"
-                "停止抓包后，软件将自动原子级回滚恢复原有 Wi-Fi 信号。\n\n"
-                "是否允许接管并立即开始抓包？"
-            )
-            dialog = ConfirmDialog("无线射频接管确认", msg, self)
-            if dialog.exec() == ConfirmDialog.Accepted:
-                self.takeover_check.setChecked(True)
-                allow_takeover = True
-            else:
-                self.append_stream_text("\n⚠ [提示] 用户取消操作：未授权接管正在发射 Wi-Fi 的无线射频。\n")
-                return
 
         self.startRequested.emit(self.radio_info, channels, allow_takeover)
 

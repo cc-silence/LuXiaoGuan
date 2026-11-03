@@ -167,7 +167,7 @@ for section,cfg in pairs(configs) do
             proof.retry_setup_failed=state.retry_setup_failed==true
         end
         if cfg.mode=='ap' and not proof.ap_failure then
-            proof.ap_failure=proof.runtime_pending and 'radio_pending' or proof.radio_up==false and 'radio_down' or not proof.interface_present and 'interface_missing' or 'interface_down'
+            proof.ap_failure=proof.runtime_pending and 'radio_pending' or proof.radio_up==false and 'radio_down' or not proof.interface_present and 'interface_missing' or proof.interface_up==false and 'interface_down' or 'device_state_unavailable'
         end
         observations[#observations+1]={section=section,radio=cfg.device,mode=cfg.mode,running=running,note=note,readiness=cfg.mode=='ap' and proof or nil}
     end

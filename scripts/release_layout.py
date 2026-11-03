@@ -41,6 +41,12 @@ def verify_files(package,version):
         "config/app_update.json","config/settings.ini",APPLICATION_ICON]
     if (ROOT/"tools/scripts/hcx_autocap.sh").is_file():
         required.append("bin/tools/scripts/hcx_autocap.sh")
+    from modules.capture_services.openwrt.builtin_base_identity import SIZE, SHA256
+    from modules.capture_services.openwrt.common_bundle_manifest import sha256_file
+    builtin=package/'bin/tools/openwrt_base/base.zip'
+    if builtin.stat().st_size!=SIZE or sha256_file(builtin)!=SHA256:
+        raise ValueError('Built-in base resource checksum mismatch')
+    required.append('bin/tools/openwrt_base/base.zip')
     for relative in required:
         if not (package/relative).is_file():raise ValueError("Missing release file: "+relative)
     from scripts.qt_runtime_contract import require_qt_runtime

@@ -281,9 +281,7 @@ init_bpf_filter
         self.assertFalse(page.pull_offline_btn.isEnabled())
         self.assertTrue(page.analyze_offline_btn.isEnabled())
 
-    @patch("modules.main_pages.packet_capture.openwrt.auto_capture_radio_card.ConfirmDialog")
-    def test_radio_card_takeover_prompt_and_error_state(self, mock_confirm):
-        mock_confirm.Accepted = 1
+    def test_radio_card_forwards_intent_without_cached_takeover_prompt(self):
         radio_busy = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",), free=False)
         card = AutoCaptureRadioCard(radio_busy)
 
@@ -294,19 +292,11 @@ init_bpf_filter
         self.assertEqual(header_layout.itemAt(3).widget(), card.title_label)
         self.assertTrue(bool(card.title_label.alignment() & Qt.AlignRight))
 
-        # 模拟用户点击取消接管
-        mock_confirm.return_value.exec.return_value = 0
-        card._on_start_clicked()
-        self.assertFalse(card.takeover_check.isChecked())
-        self.assertIn("用户取消操作", card.console.toPlainText())
-
-        # 模拟用户确认接管
-        mock_confirm.return_value.exec.return_value = mock_confirm.Accepted
         mock_slot = MagicMock()
         card.startRequested.connect(mock_slot)
         card._on_start_clicked()
-        self.assertTrue(card.takeover_check.isChecked())
-        mock_slot.assert_called_once_with(radio_busy, card.channel_edit.text().strip(), True)
+        self.assertFalse(card.takeover_check.isChecked())
+        mock_slot.assert_called_once_with(radio_busy, card.channel_edit.text().strip(), False)
 
         # 测试进入 error 状态
         card.apply_state("error", "未安装抓包工具")
@@ -347,8 +337,17 @@ init_bpf_filter
 
         # 测试全部开始抓包时主动引导未勾选接管的射频
         mock_confirm.return_value.exec.return_value = mock_confirm.Accepted
-        page._on_start_all_clicked()
+        from modules.capture_services.openwrt.radio_usage import RadioUsage
+        with patch("modules.capture_services.openwrt.capture_start_preflight.read_radio_usage",
+                   return_value={"radio0": RadioUsage("radio0", "phy0", "business", "enabled")}), \
+             patch.object(auto_cap_service, "start_radio_capture") as start_capture:
+            page._on_start_all_clicked()
+            page._start_preflight._thread.join(2)
+            self.app.processEvents()
         self.assertTrue(page.radio_cards["radio0"].takeover_check.isChecked())
+        start_capture.assert_called_once()
+        self.assertTrue(start_capture.call_args.args[2])
+        page.dispose()
 
     def test_parse_radio_idle_status_aligned_with_script(self):
         # 构造类似用户 10.0.0.1 路由器的无线输出
@@ -620,6 +619,8 @@ __WINBOX_KERNEL__=5.15.137
                 return RemoteCommandResult(name, 0, "__RM_USAGE_BEGIN__\nP|phy0\n__RM_USAGE_END__\n")
             if name in ("sweep_stale", "del_mon_iface"):
                 return RemoteCommandResult(name, 0, "ABSENT", "")
+            if name == "reset_iface":
+                return RemoteCommandResult(name, 0, "READY", "")
             if name == "ensure_phy_stubs":
                 return RemoteCommandResult(name, 0, "STUB_CREATED:hcxstub1\n", "")
             if name == "probe_hcx_dialect":
@@ -653,7 +654,7 @@ __WINBOX_KERNEL__=5.15.137
         # 模拟平稳运行超过检验时间
         second_channel.exit_status_ready.return_value = False
 
-        transport.open_session.side_effect = [first_channel, second_channel]
+        ssh.open_capture_stream.side_effect = [first_channel, second_channel]
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             session = AutoCaptureRadioSession(
@@ -690,7 +691,8 @@ __WINBOX_KERNEL__=5.15.137
             self.assertIn("ip link set hcxmon0 up", create_cmd)
 
             # 3. 验证多档自愈：第一档报错后成功切换到第二档无 BPF 模式，成功进入 capturing
-            self.assertEqual(transport.open_session.call_count, 2)
+            self.assertEqual(ssh.open_capture_stream.call_count, 2)
+            transport.open_session.assert_not_called()
             self.assertEqual(captured_states, ["capturing"])
             self.assertTrue(any("抓包已启动" in call.args[0] for call in service.messageGenerated.emit.call_args_list))
 
@@ -788,10 +790,12 @@ __WINBOX_KERNEL__=5.15.137
             auto_cap_service._boot_status = installed_status
             mock_run_dialog.assert_not_called()
 
-        self.assertIn("抓包运行中", page.boot_status_badge.text())
+        self.assertIn("脚本运行中", page.boot_status_badge.text())
+        self.assertIn("抓包状态尚未确认", page.running_alert_label.text())
+        self.assertIn("脚本运行中", page.metric_running_label.text())
         self.assertIn("已注册", page.metric_service_label.text())
         self.assertIn("已启用", page.metric_autostart_label.text())
-        self.assertIn("正在抓包", page.metric_running_label.text())
+        self.assertIn("脚本运行中", page.metric_running_label.text())
         self.assertFalse(page.running_alert_widget.isHidden())
 
         # 4.1 模拟断开连接时，绿色的运行提示横幅必须自动隐藏
@@ -897,7 +901,7 @@ __WINBOX_KERNEL__=5.15.137
         page._on_boot_status_changed(running_status)
         auto_cap_service._boot_status = running_status
         self.assertFalse(page.start_script_btn.isEnabled())
-        self.assertIn("正在运行中", page.start_script_btn.toolTip())
+        self.assertIn("后台脚本正在运行", page.start_script_btn.toolTip())
 
         # 4. 模拟就绪且空闲状态
         idle_status = AutoCaptureBootStatus(
@@ -1120,7 +1124,8 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         session._channel = mock_channel
         session._start_time = time.monotonic()
 
-        session._stream_loop()
+        with self.assertRaises(RuntimeError):
+            session._stream_loop()
         self.assertEqual(mock_channel.recv.call_count, 1)
 
     def test_background_capture_view_status_banner_and_lifecycle(self):
@@ -1588,7 +1593,7 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         # 验证 PMKID 状态为 OUTDATED（旧版本），决不能是 MISSING（缺少依赖）！
         self.assertEqual(pmkid_legacy.state, DependencyState.OUTDATED)
         self.assertIn("6.0.1", pmkid_legacy.detail)
-        self.assertIn("当前系统不支持新版本；常规抓包可正常使用", pmkid_legacy.detail)
+        self.assertIn("当前系统不支持新版本；常规抓包另需核实工具和网卡监听能力", pmkid_legacy.detail)
         self.assertNotIn("缺少命令", pmkid_legacy.detail)
 
         # 3. 验证登录页依赖组件状态文案与按钮文本联动
@@ -1638,17 +1643,20 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         self.assertTrue(page.bg_console_card.isHidden())
 
         # 2. 模拟手动启动成功消息到达：控制台显示出来，并打入启动日志
-        page._on_message_generated("后台抓包脚本已成功启动！仅接管空闲射频，不影响正常业务 Wi-Fi。", "success")
+        auto_cap_service.bootScriptStarted.emit()
         self.assertFalse(page.bg_console_card.isHidden())
-        self.assertIn("后台抓包脚本已启动成功", page.bg_console.toPlainText())
+        self.assertIn("抓包尚未确认", page.bg_console.toPlainText())
 
         # 3. 模拟接收后台会话日志更新
         page._on_boot_log_updated("hcxmon0: capturing on channel 1, packet count: 42")
         self.assertIn("hcxmon0: capturing", page.bg_console.toPlainText())
 
         # 4. 模拟点击结束收尾：控制台隐藏
-        page._on_stop_and_cleanup_clicked()
+        with patch.object(auto_cap_service, "stop_and_cleanup_capture") as stop_capture:
+            page._on_stop_and_cleanup_clicked()
+        stop_capture.assert_called_once()
         self.assertTrue(page.bg_console_card.isHidden())
+        page.dispose()
 
     def test_foreground_capture_pipeline_emits_full_lifecycle_logs(self):
         """测试前台抓包流水线在整个生命周期均有清晰的控制台日志输出。"""

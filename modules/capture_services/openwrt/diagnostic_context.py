@@ -28,6 +28,7 @@ def router_context_json(snapshot, masker, radio_evidence=None, app_version="",
             "name":sanitized_text(radio.name,masker),"bands":list(radio.bands),
             "driver":sanitized_text(radio.driver,masker),"channel":radio.channel,
             "free":radio.free,"monitor_supported":radio.monitor_supported,
+            "usage_state":getattr(radio,"usage_state","") if getattr(radio,"usage_state","") in ("idle","business","blocked","unknown") else "unknown",
             "interface_count":len(radio.interfaces),
         } for radio in device.radios[:256]]
         context["device"]=info

@@ -1,0 +1,69 @@
+{
+  "checked_at": "2026-11-03",
+  "scope": "Local Windows DHCP renewal and shared bounded wait budget; no OpenWrt command or configuration change.",
+  "sources": [
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/renewdhcplease-method-in-class-win32-networkadapterconfiguration",
+      "sha256": "1febb0ea71a50562196158cfe661a0a2ee76046caf34ec4ddcb8a56b43a6911c",
+      "local_source": "build\\lan-wifi-recovery-20261103\\renewdhcplease-method-in-class-win32-networkadapterconfiguration.html"
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/releasedhcplease-method-in-class-win32-networkadapterconfiguration",
+      "sha256": "4ea16ea9083620354be2eef57be298e4548d3c3de744a638448f595b82e62736",
+      "local_source": "build\\lan-wifi-recovery-20261103\\releasedhcplease-method-in-class-win32-networkadapterconfiguration.html"
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig",
+      "sha256": "f06e2085aad5931d6cf942479a1ee46e227b47bcb42434b7f09d16f4b2c40c24",
+      "local_source": "build\\lan-wifi-recovery-20261103\\ipconfig.html"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/NetworkManager/NetworkManager/1.42.4/man/nmcli.xml",
+      "version": "1.42.4",
+      "sha256": "93ce1abca880907c163461f789dcc7eeb03cee84206f3e6e61e9f5b75a33a713",
+      "local_source": "build\\network-recovery-audit-20261031\\sources\\nmcli-1.42.4.xml"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/rpcd/8d26a1ba3a175016b342cc5e25d340c08ae20eed/uci.c",
+      "commit": "8d26a1ba3a175016b342cc5e25d340c08ae20eed",
+      "sha256": "84e8e3ecc502476dda227df4671473a64c22a78f34849c1987b5e064cdedfe6f",
+      "local_source": "build\\network-recovery-audit-20261031\\sources\\rpcd-8d26a1b-uci.c"
+    }
+  ],
+  "observed": {
+    "wireless": true,
+    "automatic_release": 0,
+    "automatic_post_release_ip_enabled": false,
+    "automatic_renew": 84,
+    "automatic_failure_seconds": 2.547,
+    "manual_release": 83,
+    "manual_renew": 0,
+    "manual_ready_seconds": 11.406
+  },
+  "changes": [
+    "Use direct DHCP renewal for proven wireless adapters; retain Ethernet release-then-renew behavior.",
+    "Treat native DHCP 84 as pending and observe same adapter identity and target subnet until deadline.",
+    "Increase maximum shared recovery budget from 40 to 60 seconds, retaining 8 seconds for task completion."
+  ],
+  "validation_boundary": "Offline fake-CIM PowerShell and deterministic adapter-state tests; physical Wi-Fi LAN transition and Debian desktop retest pending.",
+  "followup_audit": {
+    "scope": "Windows/Linux lease timeout classification, original-address recovery gate and per-adapter worker handoff; existing router apply/rollback commands unchanged.",
+    "confirmed_regressions": [
+      "A request timeout at 57 seconds discarded an address that became ready at 59 seconds.",
+      "Rollback reset the recovery gate without rearming automatic or manual renewal.",
+      "A rollback renewal blocked by the previous phase worker was not resumed when that worker finished."
+    ],
+    "changes": [
+      "Observe same-adapter target-subnet readiness for remaining budget after a system request timeout; do not resubmit the request.",
+      "Rearm DHCP recovery with original address targets when rollback begins.",
+      "Resume only eligible pending automatic work after the per-adapter slot is free; recheck lifetime before emitting state."
+    ],
+    "validation": {
+      "modules": 16,
+      "tests": 173,
+      "all_passed": true,
+      "evidence": "build/lan-wifi-recovery-20261103/audit/summary.json",
+      "boundary": "Windows fake-CIM scripts and offline route/transaction models; actual Wi-Fi LAN transition and Debian 12 desktop remain unverified."
+    }
+  }
+}

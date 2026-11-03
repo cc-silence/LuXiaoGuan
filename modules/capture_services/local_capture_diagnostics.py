@@ -31,6 +31,9 @@ class AutoCaptureDiagnostics(QObject):
         self.device = device_key(service.owner.openwrt_snapshot)
         self.radio_devices = {}
         self._partial_lines = {}
+        self._attempt_numbers = {}
+        self._failure_epochs = {}
+        self._failure_streams = {}
         self._context_time = 0
         service.radioStreamOutput.connect(self.stream)
         service.radioStateChanged.connect(self.state)
@@ -41,6 +44,12 @@ class AutoCaptureDiagnostics(QObject):
         self.device = key
         self.radio_devices[radio] = key
         self._partial_lines.pop(radio, None)
+        self._attempt_numbers[radio]=(self._attempt_numbers.get(radio,0)+1)%(2**32-1) or 1
+        self._failure_streams[radio]=['','']
+        self._failure_epochs[radio]=self.service.owner.openwrt_backend.command_runner.operation_diagnostics.epoch
+        while len(self._attempt_numbers)>64:
+            old=next(iter(self._attempt_numbers))
+            self._attempt_numbers.pop(old,None);self._failure_epochs.pop(old,None);self._failure_streams.pop(old,None)
         if current_history():
             current_history().auto_capture_device = key
         history = current_history()
@@ -70,6 +79,10 @@ class AutoCaptureDiagnostics(QObject):
 
     @Slot(str,str)
     def stream(self, radio, text):
+        scene=self._failure_streams.get(radio)
+        if scene is not None:
+            scene[0]=(scene[0]+text)[:4096]
+            scene[1]=(scene[1]+text)[-4096:]
         history = current_history()
         if history:
             text = self._partial_lines.pop(radio, '') + text
@@ -86,6 +99,17 @@ class AutoCaptureDiagnostics(QObject):
     @Slot(str,str)
     def state(self, radio, state):
         history = current_history()
+        if state=='error':
+            journal=self.service.owner.openwrt_backend.command_runner.operation_diagnostics
+            from .openwrt.operation_diagnostics import OperationDiagnostics
+            if isinstance(journal,OperationDiagnostics):
+                from modules.log_history import HistoryMasker
+                first,last=self._failure_streams.get(radio,('',''))
+                journal.capture_failure(radio,self._attempt_numbers.get(radio,1),first,last,
+                                        history.masker if history else HistoryMasker(),
+                                        expected_epoch=self._failure_epochs.get(radio))
+        if state in ('idle','error'):
+            self._failure_streams.pop(radio,None)
         if history:
             if state in ('idle','error'):
                 partial = self._partial_lines.pop(radio, '')

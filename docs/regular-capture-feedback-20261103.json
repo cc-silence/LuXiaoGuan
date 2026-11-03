@@ -1,0 +1,194 @@
+{
+  "date": "2026-11-03",
+  "delivery": "Included in validated Windows 1.0.38_alpha package.",
+  "scope": "Correct status interpretation and messages; preserve driver admission, capture behavior, UI layout and styles. Native mode parser shared by scan selection and execution.",
+  "customer_feedback": {
+    "archives": [
+      "1.zip",
+      "2.zip"
+    ],
+    "app_version": "1.0.35_alpha",
+    "model": "Netgear R8000 BCM4709",
+    "driver": "brcmfmac",
+    "phy_count": 3,
+    "monitor_mode_advertised": false,
+    "raw_capability_queries_complete": true
+  },
+  "changes": [
+    "Selection retains per-phy monitor refusal instead of suggesting refresh. Unknown mode evidence remains unconfirmed and is not admitted.",
+    "Dependency command states and install queues remain command-level evidence. Details separately explain unsupported, mixed and unknown radio capabilities; remove old and modern hcx readiness promises.",
+    "Background status checks the lock PID plus an exact known script path argument. A random hcxdumptool process no longer makes our script appear running.",
+    "Both start entry points emit a structured script-start event. The console no longer depends on Chinese success text. Badge, banner, summary, metric and tooltip report script status only."
+  ],
+  "reviews": [
+    {
+      "round": 1,
+      "focus": "Shared capability parsing, three-radio unsupported/mixed/unknown evidence, dependency notes and both startup paths",
+      "tests_passed": 57
+    },
+    {
+      "round": 2,
+      "focus": "Cross-entry regression for radio usage, takeover, scan, DFS, dependency partial installation, built-in package, cleanup and startup",
+      "tests_passed": 258
+    },
+    {
+      "round": 3,
+      "focus": "Actual customer ZIP replay, Debian shell identity probe, Windows light/dark page rendering, event/lifecycle review and final affected tests",
+      "integration_tests_passed": 258,
+      "final_ui_tests_passed": 48,
+      "issues_found_and_fixed": "Message-driven console trigger and remaining summary/metric claims were removed. Old text assertions updated to new semantics."
+    }
+  ],
+  "platform_validation": {
+    "windows": "Qt offscreen rendered with explicitly registered Microsoft YaHei; badge and banner fit. Test process font database was initially empty; no product font change made.",
+    "debian12": "Actual /proc script probe passed matching PID, invalid/dead/missing locks and foreign hcxdumptool identity. Temporary processes terminated. Desktop startup/render/exit remain unverified because PySide6 is unavailable.",
+    "router": "Read-only customer logs only; no live router mutation or test performed."
+  },
+  "performance": "No added refresh query or polling interval. Existing status query replaces broad process listing with a bounded cmdline read. No new dependency installation.",
+  "references": [
+    {
+      "path": "cfg80211-v5.10.html",
+      "url": "https://www.kernel.org/doc/html/v5.10/driver-api/80211/cfg80211.html",
+      "sha256": "06f5d26184ce6ea6af0dd3e9f7c2abfd014616b06f947df255aea1142d841992",
+      "date": "2026-11-03"
+    },
+    {
+      "path": "proc-v5.10.html",
+      "url": "https://www.kernel.org/doc/html/v5.10/filesystems/proc.html",
+      "sha256": "4997ee8610fc08b40e068af6725bfddae6774586d104162a0b83b73d3e769bed",
+      "date": "2026-11-03"
+    }
+  ],
+  "compatibility": "Native iw capability interpretation and proc identity are driver/version independent. Kernel v5.10 docs read for the reported kernel. This is not a claim that all OpenWrt/hardware combinations have been tested. No radio number guessing or driver replacement.",
+  "sha256": {
+    "modules/capture_services/backends/openwrt_backend.py": "d5c06c475d1f09b45fab6d07039ad80c827b46cefaa2f600e7953a4232add085",
+    "modules/capture_services/openwrt/device_probe.py": "87b0ca0aff4ca59b17faf298a5cc9d44652fd68d05e5319f365c1f35ffdd4b5a",
+    "modules/capture_services/openwrt/dependency_manager.py": "22a7e21c877c7c58d645ae96d1f51f7afe2b4e5c857abbbfa646e14b5ce3ef79",
+    "modules/capture_services/openwrt/auto_capture_boot_manager.py": "8f2c8630ac3d53ad6911906e2536730c372dbc5a4bbee4c5dd8a9a8128c068bf",
+    "modules/capture_services/openwrt/boot_script_probe.py": "81e6ed72a0f230b9d1a4f2049aa429a8b1485d983beb757e534bd6df3114e15c",
+    "modules/capture_services/openwrt/capture_capability_feedback.py": "0f8878968375789aacb4241cae63e6cbabbcb76341ada7e8fd16b1bb9ffda350",
+    "modules/capture_services/openwrt/auto_capture_service.py": "49c9343fa23ba9d701cac95b841005c024d54e7c57512bdd8fb08ba79248b871",
+    "modules/main_pages/packet_capture/openwrt/auto_capture_page.py": "dea889c7ffd586e7bcfbfcb4ab01145a21ea3945dedcd3896a780c56ca7a5f24",
+    "tests/test_capture_capability_feedback.py": "5e1bf7b143cc2632840c0ea3dcdcf17b5e3a40884bc293d2b06fcdaa38fb086e",
+    "tests/test_auto_capture_feature.py": "7915780cc3434e8a34682a2dd14e9cabe2432a815797bc8be61efd6c35ce19be",
+    "modules/main_pages/packet_capture/openwrt/service_page_slots.py": "664be01f612e3d380932cb04b18e927635eb22b076943fbb2db8633f265f8b0c",
+    "tests/test_boot_script_identity.py": "3ab422e9ea37839478ce91feaf801b468a0a6c7856fcafe07e93da1a0cbd75a6",
+    "tests/test_read_only_probe_lifecycle.py": "f2372c90ee86134279877f147f85be8a643394b0ec941e80f0f95cabc4a34d4f"
+  },
+  "followup_recheck": {
+    "date": "2026-11-03",
+    "request": "Repeat three review rounds and verify with official sources.",
+    "round_1": {
+      "findings": [
+        "Legacy autocap.sh uses .autocap.lock; the prior single-lock probe missed it.",
+        "Page dispose did not unsubscribe all service events."
+      ],
+      "fixes": "Pair both supported script names with their own locks; scope and release all service connections.",
+      "targeted_tests": 48
+    },
+    "round_2": {
+      "focus": "Cross-entry failure, cancellation, unknown ownership and lifecycle regression.",
+      "tests_passed_before_final_queued_fix": 261
+    },
+    "round_3": {
+      "official_docs": "Qt documents that already queued events can still arrive after disconnect. Exact runtime Qt 6.3.2 implementation also posts and dispatches MetaCall events.",
+      "reproduced": "With the log panel visible, a worker log queued before dispose changed the disposed page. Regression failed before active-slot guard.",
+      "fix": "Common active_service_slot combines typed Qt slots with disposed-page guard; store connection handles and disconnect only owned subscriptions. Preserve QObject receiver and main-thread delivery.",
+      "final_tests_passed": 262,
+      "skipped": 0,
+      "thread_affinity": "Worker emission queued; live page callback runs on UI thread; disposed page ignores queued notification.",
+      "resource_check": "12 real Qt page create/dispose/delete cycles; all weak references cleared after normal deferred deletion.",
+      "debian12": "Real proc identity probe for current and legacy scripts passed matching, wrong, missing, invalid and dead locks; child processes cleaned up."
+    },
+    "references": [
+      {
+        "path": "qt-6.3.2-qobject.cpp",
+        "url": "https://raw.githubusercontent.com/qt/qtbase/v6.3.2/src/corelib/kernel/qobject.cpp",
+        "sha256": "6372155952775088e1441ec327dc4f5d5251755d029fc46ced9e603eb49720db",
+        "date": "2026-11-03"
+      },
+      {
+        "path": "qt-disconnect.html",
+        "url": "https://doc.qt.io/qtforpython-6.10/PySide6/QtCore/QObject.html",
+        "sha256": "e77768f61fef15bf0e6aa996aef1ce22cbc9d54a0cebbd6e2c9779f2ed29d23e",
+        "date": "2026-11-03"
+      },
+      {
+        "path": "qt-slots.html",
+        "url": "https://doc.qt.io/qtforpython-6.10/tutorials/basictutorial/signals_and_slots.html",
+        "sha256": "0053b4c8cccc6b7057c1b396615ad7249d850eb1e246612b68b53350fd5f1388",
+        "date": "2026-11-03"
+      },
+      {
+        "path": "rc.common-22.03.0",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.0/package/base-files/files/etc/rc.common",
+        "sha256": "143c915143c351bd96c5e8007d56e191b78975fd75a32709acd42243d68d230d",
+        "date": "2026-11-03"
+      }
+    ],
+    "boundaries": "Source only. No layout/style change, timer workaround or router writes. Live router and Debian desktop startup/render/exit remain pending. Qt guidance pages are current docs; exact Qt 6.3.2 source and runtime regression independently verify applicability."
+  },
+  "additional_reference_review": {
+    "date": "2026-11-03",
+    "request": "Another three review rounds grounded in official references.",
+    "rounds": [
+      {
+        "round": 1,
+        "topic": "Wireless capabilities",
+        "references": [
+          "linux-5.10-nl80211.c",
+          "linux-5.10-brcmfmac-cfg80211.c"
+        ],
+        "conclusion": "Supported interface types derive from wiphy.interface_modes. brcmfmac advertises monitor only under its MONITOR_FLAG capability. Therefore actual device evidence controls admission; neither model nor installed commands imply support. The upstream baseline does not prove the exact vendor snapshot has identical code."
+      },
+      {
+        "round": 2,
+        "topic": "Boot status and process identity",
+        "references": [
+          "proc-v5.10.html",
+          "rc.common-22.03.0"
+        ],
+        "conclusion": "Enabled startup links, a matching live script PID and successful capture are distinct facts. Current/legacy lock names and exact script arguments remain paired. No kill or configuration mutation was added by the probe."
+      },
+      {
+        "round": 3,
+        "topic": "Qt notifications, thread affinity and disposal",
+        "references": [
+          "qt-6.3.2-qobject.cpp",
+          "qt-slots.html",
+          "qt-disconnect.html"
+        ],
+        "conclusion": "All 14 service receivers have active typed slots. Owned connection handles are disconnected; queued callbacks are rejected after disposal. Actual Qt 6.3.2 regression confirms main-thread delivery and disposed-page rejection."
+      }
+    ],
+    "new_confirmed_defects": 0,
+    "product_source_changed_this_review": false,
+    "validation": {
+      "targeted_tests_passed": 36,
+      "debian12_actual_identity_probe": "passed for current and legacy names; wrong/missing/invalid/dead locks rejected",
+      "previous_integrated_suite": 262,
+      "integrated_suite_rerun_this_review": false
+    },
+    "limitations": [
+      "No live router retest.",
+      "Debian desktop startup/render/exit still pending without PySide6.",
+      "No new package built."
+    ],
+    "additional_sources": [
+      {
+        "path": "linux-5.10-nl80211.c",
+        "url": "https://raw.githubusercontent.com/torvalds/linux/v5.10/net/wireless/nl80211.c",
+        "sha256": "715cf905dc0ac90e2e3355bc8b8ff25c0c56a640144c89bb3f933af125886cd8",
+        "date": "2026-11-03"
+      },
+      {
+        "path": "linux-5.10-brcmfmac-cfg80211.c",
+        "url": "https://raw.githubusercontent.com/torvalds/linux/v5.10/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c",
+        "sha256": "4046bc0f6d0afae355d316c138aea416a6a230dee0c22a02eab2db69cf1b3ed4",
+        "date": "2026-11-03"
+      }
+    ]
+  },
+  "delivered_archive": "LuXiaoGuan_v1.0.38_alpha_20261103_170440.zip",
+  "delivered_archive_sha256": "97b57f5597320d67eb8bf25094ae014adac03922029db27e123f12cec9af2b1d"
+}
