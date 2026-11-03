@@ -116,7 +116,7 @@ class StartPreflightPageTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def fixture(self, free):
-        from test_auto_capture_feature import AutoCaptureFeatureTests
+        from tests.test_auto_capture_feature import AutoCaptureFeatureTests
         from modules.capture_services.openwrt.models import OpenWrtConnectionState, OpenWrtDeviceInfo, OpenWrtSessionSnapshot
         from modules.main_pages.packet_capture.openwrt.auto_capture_page import AutoCapturePage
         owner = MagicMock()
