@@ -1,0 +1,45 @@
+{
+  "checked_at": "2026-11-03",
+  "built_in": {
+    "bytes": 2151444,
+    "mib": 2.051776885986328,
+    "sha256": "3e2d512f9113a69bd5af4ec4709d520f62419b089a2290577daa56ac0ce54037",
+    "profiles": 549,
+    "objects": 108,
+    "roots": [
+      "libuci-lua",
+      "wpa-cli"
+    ],
+    "transitive_libraries_included": false
+  },
+  "priority": [
+    "downloaded matching complete bundle",
+    "built-in only if all requested roots are among the two",
+    "existing router and computer network routes"
+  ],
+  "batch_behavior": [
+    "independent package transactions",
+    "recheck and skip dependencies supplied by previous transactions",
+    "continue ordinary package failures and retain bounded original diagnostics",
+    "stop cancellation, changed/disconnected router, integrity/permission/space/database failures",
+    "fresh SFTP handshake after installation"
+  ],
+  "validation": {
+    "targeted_125": "passed",
+    "final_routes_32": "passed",
+    "final_small_16": "passed",
+    "windows": "Offline simulated router boundaries; no live device acceptance.",
+    "debian": "Actual Debian12 syntax, 108 object hashes and generated POSIX command parsing passed; PySide6 missing, no desktop acceptance."
+  },
+  "delivered_diagnostic_build": {
+    "version": "1.0.36_alpha",
+    "archive": "dist/LuXiaoGuan_v1.0.36_alpha_20261103_121107.zip",
+    "sha256": "71a17c8a42b0fe67da4120083640cd7becde35380a4dfdaf0aab4bd8c389a2f1",
+    "contains_new_builtin_and_partial_batch_changes": false
+  },
+  "sources": "build/builtin-base-audit-20261103/sources",
+  "remaining": [
+    "User-router 5G root cause awaits failure-scene evidence from 1.0.36.",
+    "New built-in and batch changes are source-only; no second app package requested or built."
+  ]
+}

@@ -110,7 +110,8 @@ class OpenWrtCommandRunner:
                     status="failed", stage=getattr(exc, "ssh_stage", "unknown"),
                     kind=getattr(exc, "ssh_kind", "command"), exception_type=type(exc).__name__,
                     reason=reason, elapsed_seconds=time.monotonic() - started,
-                    connected_before=connected_before, connected_after=bool(self.ssh_client.connected))
+                    connected_before=connected_before, connected_after=bool(self.ssh_client.connected),
+                    request_bytes=request_bytes, transport="stdin" if request_bytes > 8192 else "exec")
                 if tracked:
                     diagnostics.query(command_name, command, error=exc, elapsed_seconds=time.monotonic() - started)
                 raise
@@ -121,7 +122,8 @@ class OpenWrtCommandRunner:
             exception_type=result.exception_type, reason=result.failure_reason, exit_code=result.exit_code,
             timed_out=result.timed_out, cancelled=result.cancelled,
             elapsed_seconds=time.monotonic() - started, connected_before=connected_before,
-            connected_after=bool(self.ssh_client.connected))
+            connected_after=bool(self.ssh_client.connected),request_bytes=request_bytes,
+            transport="stdin" if request_bytes>8192 else "exec")
         if tracked:
             diagnostics.query(command_name, command, result=result, elapsed_seconds=time.monotonic() - started)
         return result

@@ -60,7 +60,7 @@ class BatchPlanTests(unittest.TestCase):
         good=[dict(section="default_radio7",name="One",mac="02:12:34:56:78:90"),
               dict(section="guest",name="Two",mac="02:12:34:56:78:92")]
         cases=[[],good[:1],good+[good[0]]]
-        for key,value in (("name",""),("name","x"*33),("name","\u70ed"*11),("name","line\nfeed"),
+        for key,value in (("name",None),("name","x"*33),("name","\u70ed"*11),("name","line\nfeed"),
                           ("mac","01:12:34:56:78:90"),("mac","00:00:00:00:00:00"),("mac",good[1]["mac"]),("section","station")):
             rows=copy.deepcopy(good);rows[0][key]=value;cases.append(rows)
         cases.append([good[0],good[0]])
@@ -94,16 +94,13 @@ class BatchEditorTests(unittest.TestCase):
         fresh=InitialPolicyDialog(self.snapshot);self.addCleanup(fresh.deleteLater)
         self.assertFalse(fresh.initial_ack.isChecked())
 
-    def test_single_and_all_random_are_isolated_and_manual_values_survive(self):
+    def test_single_random_is_isolated_and_manual_values_survive(self):
         dialog=AccessPointBatchDialog(self.snapshot);self.addCleanup(dialog.deleteLater)
         before=dialog.values();dialog.rows["guest"][2].click();after=dialog.values()
         before["identities"].sort(key=lambda r:r["section"]);after["identities"].sort(key=lambda r:r["section"])
         self.assertEqual(before["identities"][0],after["identities"][0])
         for key in ("name","mac"):self.assertNotEqual(before["identities"][1][key],after["identities"][1][key])
-        dialog.random_all.click();latest=dialog.values()
-        latest["identities"].sort(key=lambda r:r["section"])
-        for old,new in zip(after["identities"],latest["identities"]):
-            for key in ("name","mac"):self.assertNotEqual(old[key],new[key])
+        self.assertFalse(hasattr(dialog,"random_all"))
         dialog.rows["guest"][0].setText("Manual Guest")
         dialog.rows["guest"][1].setText("02:ab:cd:00:11:22")
         values=dialog.values();guest=next(r for r in values["identities"] if r["section"]=="guest")
@@ -154,3 +151,16 @@ class BatchEditorTests(unittest.TestCase):
                         dialog.grab().save(str(out/f"{name}-{light}-{percent}.png"))
                         self.assertTrue(dialog.continue_button.isVisible())
                         dialog.reject();dialog.deleteLater()
+
+    def test_blank_name_keeps_original_through_actual_batch_transaction(self):
+        for blank in ("", "   "):
+            dialog=AccessPointBatchDialog(self.snapshot)
+            self.addCleanup(dialog.deleteLater)
+            dialog.rows["guest"][0].setText(blank)
+            values=dialog.values()
+            identity=next(row for row in values["identities"] if row["section"]=="guest")
+            self.assertEqual(identity["name"],"Guest")
+            plan=build_plan(self.snapshot,"ap",values)
+            self.d.policy._transaction(self.snapshot,plan["operations"],self.d.cancel)
+            self.assertEqual(self.d.config["wireless"]["guest"]["ssid"],"Guest")
+            self.snapshot=self.d.policy.read(self.d.cancel)

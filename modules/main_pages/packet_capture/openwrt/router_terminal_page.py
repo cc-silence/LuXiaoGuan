@@ -321,9 +321,9 @@ class RouterTerminalPage(QWidget):
     def export_diagnostics(self):
         """导出终端诊断 ZIP；复用公共日志导出，含 router-info.json，不含终端内容。"""
         from modules.common_widgets.common_dialogs import MessageDialog
-        from modules.config_manager import user_downloads_dir
+        from modules.log_export_paths import choose_log_export_path
         from modules.display_privacy import Masker
-        from modules.log_services import LogExportService, build_export_filename
+        from modules.log_services import LogExportService
         owner=self.window() or self
         runtime=getattr(self.window(),'runtime',None)
         if runtime is not None:
@@ -335,8 +335,7 @@ class RouterTerminalPage(QWidget):
                 service=LogExportService(owner);owner.log_export_service=service
         if service.active:
             MessageDialog('导出终端诊断','已有日志正在导出，请等待完成。',owner).exec();return
-        picked,_=QFileDialog.getSaveFileName(owner,'导出终端诊断',
-            str(user_downloads_dir()/build_export_filename('router-terminal')),'ZIP (*.zip)')
+        picked=choose_log_export_path(owner,"\u5bfc\u51fa\u7ec8\u7aef\u8bca\u65ad","router-terminal")
         if not picked:return
         from modules.capture_services.openwrt.diagnostic_context import router_context_json
         masker=Masker()

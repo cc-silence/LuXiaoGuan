@@ -1,0 +1,53 @@
+{
+  "checked_at": "2026-11-03T13:01:42.708177+00:00",
+  "scope": "Second independent three-pass review of package mirror policy and task-owned repository lifecycle",
+  "baseline_sources": {
+    "manifest": "package-mirror-sources-20261103.json",
+    "releases_verified": 50,
+    "component_files_verified": 18
+  },
+  "references": [
+    {
+      "url": "https://mirrors.ustc.edu.cn/help/openwrt.html",
+      "status": "Read current operator help, including HTTPS and snapshots/RC redirect coverage limits."
+    },
+    {
+      "url": "https://docs.python.org/3.10/library/urllib.request.html",
+      "status": "Read Python 3.10 urllib proxy/response contracts; precise 3.10.11 source retained in earlier review."
+    },
+    {
+      "url": "https://openwrt.org/docs/guide-user/additional-software/opkg",
+      "status": "Wiki access denied; no claims derived from the blocked page. Exact version source cache used instead."
+    },
+    {
+      "url": "https://pubs.opengroup.org/onlinepubs/9699919799/utilities/mkdir.html",
+      "status": "HTTP 403; do not claim this page was read."
+    }
+  ],
+  "passes": [
+    {
+      "name": "Mirror addresses and HTTP policy",
+      "result": "No new confirmed defect. Retained exact source-family/HTTPS checks and incomplete historical/snapshot mirror coverage boundary."
+    },
+    {
+      "name": "Native preparation interrupted after execution before receipt",
+      "result": "Confirmed cleanup was skipped when the created directory path was lost with a cancellation/transport exception. Changed task ownership to a validated 128-bit task directory known before execution; guarded cleanup is always attempted. No new remote command/options required: existing mkdir, test, cat and rm operations are reused."
+    },
+    {
+      "name": "Integration and ownership safety",
+      "result": "Regression covers cancelled/lost preparation receipt, conflicting directory ownership, repeated cleanup, unexpected returned paths, original config preservation, proxy/direct routes, checks and both installation entrypoints."
+    }
+  ],
+  "limits": [
+    "If the router is unreachable, cleanup remains unconfirmed and produces a warning.",
+    "No guarantee against a remote preparation process outliving its disconnected SSH channel is claimed.",
+    "No real router writes or package installation performed; no full Debian runtime verification.",
+    "No repackaging or publication performed."
+  ],
+  "targeted_tests": {
+    "count": 149,
+    "result": "passed",
+    "real_router_installation": false,
+    "full_debian_runtime": false
+  }
+}

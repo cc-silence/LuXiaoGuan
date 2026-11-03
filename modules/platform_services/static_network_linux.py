@@ -1,5 +1,6 @@
 """NetworkManager static IPv4 transactions using reapply, never link down/up."""
 import ipaddress
+import json
 import shutil
 import time
 from .lan_network_linux import command, inspect
@@ -33,6 +34,16 @@ class Driver:
         def values(text):return [v.strip() for v in text.replace(';',',').split(',') if v.strip() and v.strip()!='--']
         return dict(addresses=sorted(str(ipaddress.IPv4Interface(v)) for v in values(get('ipv4.addresses'))),
                     gateways=values(get('ipv4.gateway')),dns=values(get('ipv4.dns')),metric=int(get('ipv4.route-metric')))
+
+    def verify_topology(self,plan):
+        from .static_network_topology import verify
+        inventory=json.loads(self.query(['ip','-j','-4','address','show']))
+        if not isinstance(inventory,list) or len(inventory)>128:
+            raise StaticMigrationError('Invalid live adapter inventory')
+        rows=[dict(id=str(row['ifindex']),connected='UP' in row.get('flags',[]),
+                   addresses=[str(a['local'])+'/'+str(a['prefixlen']) for a in row.get('addr_info',[])
+                              if a.get('family')=='inet']) for row in inventory]
+        verify(plan,rows)
 
     def read(self):return self.profile()
 

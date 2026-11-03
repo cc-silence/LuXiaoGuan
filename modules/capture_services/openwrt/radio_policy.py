@@ -17,7 +17,7 @@ def require_idle_phy(command_runner, phy, cancel_event=None, owned_interface="")
     from .radio_usage import read_radio_usage, usage_for_phy
     try:
         usage = usage_for_phy(read_radio_usage(command_runner, cancel_event,
-                              owned_interface=owned_interface), phy)
+                              owned_interface=owned_interface), phy, runner=command_runner, cancel_event=cancel_event)
     except (InterruptedError, TimeoutError):
         raise
     except RuntimeError as exc:

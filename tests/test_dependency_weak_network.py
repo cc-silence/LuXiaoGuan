@@ -147,7 +147,7 @@ class WeakNetworkTests(unittest.TestCase):
             self.assertEqual(feed.fetch_bytes(url, timeout=1, cancel_event=Event()), b"x" * 8)
         self.assertFalse(any(t.name == "Dependency-download-cancel" for t in threading.enumerate()))
 
-    def test_cancel_during_redirect_body_is_observed_before_final_response(self):
+    def test_cancel_during_final_body_after_skipped_redirect_body(self):
         received = Event()
         blocked_read = Event()
         release = Event()
@@ -157,8 +157,14 @@ class WeakNetworkTests(unittest.TestCase):
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self):
                 destinations.append(self.path)
-                self.send_response(302)
-                self.send_header("Location", "/final")
+                if self.path == "/start":
+                    self.send_response(302)
+                    self.send_header("Location", "/final")
+                    self.send_header("Content-Length", "1000000000")
+                    self.end_headers()
+                    release.wait(3)
+                    return
+                self.send_response(200)
                 self.send_header("Content-Length", "2")
                 self.end_headers()
                 self.wfile.write(b"x")
@@ -192,13 +198,14 @@ class WeakNetworkTests(unittest.TestCase):
                     self.assertTrue(blocked_read.wait(1))
                     cancel.set()
                     worker.join(.8)
-                    self.assertFalse(worker.is_alive(), "Redirect response ignored cancellation")
+                    self.assertFalse(worker.is_alive(), "Final response after redirect ignored cancellation")
                     self.assertEqual(outcome, ["cancelled"])
-                    self.assertEqual(destinations, ["/start"])
-                    self.assertEqual(len(readers), 1)
-                    self.assertTrue(readers[0].closed)
-                    self.assertTrue(readers[0].owner.closed)
-                    self.assertEqual(readers[0].connection_socket.fileno(), -1)
+                    self.assertEqual(destinations, ["/start", "/final"])
+                    self.assertEqual(len(readers), 2)
+                    for reader in readers:
+                        self.assertTrue(reader.closed)
+                        self.assertTrue(reader.owner.closed)
+                        self.assertEqual(reader.connection_socket.fileno(), -1)
                 finally:
                     cancel.set()
                     release.set()

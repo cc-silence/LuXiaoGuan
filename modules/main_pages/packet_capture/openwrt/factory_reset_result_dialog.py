@@ -5,5 +5,5 @@ from .network_recovery_result_dialog import NetworkRecoveryResultDialog
 
 class FactoryResetResultDialog(NetworkRecoveryResultDialog):
     def __init__(self,result,inventory,owner,parent=None):
-        super().__init__(result,factory_reset_plan(inventory),owner,parent,
+        super().__init__(result,factory_reset_plan(inventory,result.get('factory_login',{})),owner,parent,
                          requires_restart_confirmation=True)

@@ -1,0 +1,37 @@
+{
+  "checked_at": "2026-11-03",
+  "input": "CC_LuXiaoGuan_20261103_104536.zip",
+  "version": "1.0.35_alpha",
+  "device": "TP-Link TL-WDR7500 v3, OpenWrt 21.02.1, ath79/generic",
+  "observations": {
+    "initial_missing": "libuci-lua; workflow also reported wpa-cli, which is not a basic common-settings dependency",
+    "automatic": "02:43:12 UTC start; release and renewal both native 0, but original subnet/gateway/DHCP server retained; failed after 40s",
+    "manual": "02:44:02 UTC start; release and renewal native 0; target subnet/gateway/DHCP server ready at 02:44:10 UTC; apply confirmed",
+    "boundary": "Both calls share the implementation. Router transition timing versus guest/host DHCP origin cannot be established from this redacted log."
+  },
+  "changes": [
+    "Shared explicit capability errors for common settings and policy manager; unchanged dependency requirements and router commands.",
+    "A structured manual-recommended state selects existing green button styling after failure; clears on retry, phase reset, success and expiry.",
+    "Verified existing source changes skip current-config backup picker before restore; final confirmation and archive validation remain."
+  ],
+  "compatibility": {
+    "scope": "No changes to OpenWrt commands, parameters, package installation, archive validation or apply/rollback semantics. Dependency names follow existing signal package inventory and existing capability probe.",
+    "local_source": "build/lan-wifi-recovery-20261103/renewdhcplease-method-in-class-win32-networkadapterconfiguration.html",
+    "official_url": "https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/renewdhcplease-method-in-class-win32-networkadapterconfiguration",
+    "conclusion": "Request success is not target subnet readiness; retain separate address verification."
+  },
+  "validation": {
+    "windows": "36 original targeted tests and 70 follow-up targeted tests passed; no full-suite or live-router claim.",
+    "debian12": "Python 3.11.2 available; PySide6 absent, desktop validation not possible. Pure helper compilation and behavior checked separately.",
+    "live_router": "No live router operations; automatic stale lease cause unresolved.",
+    "package": "No new build requested or created."
+  },
+  "automatic_recovery_followup": {
+    "confirmed_defect": "A completed request returning the original DHCP lease was treated only as passive address_pending; no further request could occur without manual action.",
+    "fix": "When identity, DHCP mode, connected state, exact original IPv4 addresses, original DHCP server and gateway are all proven, reacquire once under the original deadline; verify target subnet. Do not replay failed/timed-out requests.",
+    "limits": "No arbitrary delay, no deadline extension, maximum two system calls. Unknown DHCP server metadata cannot trigger correction. Linux currently omits DHCP server metadata and retains observation/manual fallback.",
+    "diagnostic_reason": "old_lease_retained",
+    "validation": "70 targeted tests passed, including exact old lease -> second request -> target subnet, repeated stale lease stop, cancellation, insufficient budget and failed request no replay.",
+    "boundary": "An early apply acknowledgment and network-service transition race are plausible; router timing and virtual DHCP origin remain unconfirmed. The corrective request can also return an old lease; live retest required."
+  }
+}

@@ -113,12 +113,10 @@ class MaintenanceActions:
             if not self._current(identity):
                 page._message("连接已变化，请重新打开操作。")
                 return True
-            picked = self._destination(before=True)
+            picked = self._destination(before=True) if result["operation"] == "reset" else None
             if not self._current(identity) or picked is None and result["operation"]!="restore":
                 return True
             backup_path, expected = picked if picked is not None else (None,None)
-            if result["operation"] == "restore" and backup_path is not None and Path(backup_path).resolve() == Path(result["source"]).resolve():
-                raise ValueError("操作前备份不能覆盖即将恢复的源文件，请选择另一个路径。")
             dialog = MaintenanceReviewDialog(result, backup_path, page)
             try:
                 if dialog.exec() != dialog.Accepted:

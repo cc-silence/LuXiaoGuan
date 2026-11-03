@@ -190,7 +190,8 @@ QPushButton#settingsSecondaryButton:hover {
 }
 
 QPushButton#settingsMergeButton,
-QPushButton#settingsSecondaryButton[updateActionReady="true"]:enabled {
+QPushButton#settingsSecondaryButton[updateActionReady="true"]:enabled,
+QPushButton#settingsSecondaryButton[recoveryActionReady="true"]:enabled {
 	min-height: 28px;
 	padding: 0px 12px;
 	text-align: center;
@@ -200,20 +201,23 @@ QPushButton#settingsSecondaryButton[updateActionReady="true"]:enabled {
 }
 
 QPushButton#settingsMergeButton:hover,
-QPushButton#settingsSecondaryButton[updateActionReady="true"]:enabled:hover {
+QPushButton#settingsSecondaryButton[updateActionReady="true"]:enabled:hover,
+QPushButton#settingsSecondaryButton[recoveryActionReady="true"]:enabled:hover {
 	background-color: #285a3e;
 	border: 1px solid #57e391;
 	color: #ffffff;
 }
 
 QPushButton#settingsMergeButton:pressed,
-QPushButton#settingsSecondaryButton[updateActionReady="true"]:enabled:pressed {
+QPushButton#settingsSecondaryButton[updateActionReady="true"]:enabled:pressed,
+QPushButton#settingsSecondaryButton[recoveryActionReady="true"]:enabled:pressed {
 	background-color: #173622;
 	border: 1px solid #26a269;
 }
 
 QPushButton#settingsMergeButton:focus,
-QPushButton#settingsSecondaryButton[updateActionReady="true"]:enabled:focus {
+QPushButton#settingsSecondaryButton[updateActionReady="true"]:enabled:focus,
+QPushButton#settingsSecondaryButton[recoveryActionReady="true"]:enabled:focus {
 	border: 1px solid #57e391;
 }
 

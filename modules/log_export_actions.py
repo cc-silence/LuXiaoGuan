@@ -7,8 +7,8 @@ class LogExportActions:
     def _export_logs(self):
         from PySide6.QtWidgets import QFileDialog
         from modules.common_widgets.common_dialogs import MessageDialog
-        from modules.config_manager import user_downloads_dir
-        from modules.log_services import LogExportService, build_export_filename
+        from modules.log_export_paths import choose_log_export_path
+        from modules.log_services import LogExportService
         owner = self.window()
         runtime = getattr(owner, 'runtime', None)
         if runtime is not None:
@@ -23,8 +23,7 @@ class LogExportActions:
         if service.active:
             MessageDialog('\u5bfc\u51fa\u65e5\u5fd7', '\u5df2\u6709\u65e5\u5fd7\u6b63\u5728\u5bfc\u51fa\uff0c\u8bf7\u7b49\u5f85\u5b8c\u6210\u3002', owner).exec()
             return
-        picked, _ = QFileDialog.getSaveFileName(owner, '\u5bfc\u51fa\u65e5\u5fd7',
-            str(user_downloads_dir() / build_export_filename(self._log_category)), 'ZIP (*.zip)')
+        picked = choose_log_export_path(owner, '\u5bfc\u51fa\u65e5\u5fd7', self._log_category)
         if not picked:
             return
         if callable(self._diagnostic_provider):

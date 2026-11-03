@@ -76,7 +76,7 @@ class WirelessSetupManager:
             result = json.loads(text)
             if result.get("ok") is not True:
                 code = str(result.get("code", "internal"))
-                messages = {"common_values": "设置内容无效，请重新读取。", "common_section": "无法唯一确定系统配置，请先在路由器网页中核对。", "common_legacy": "旧式设备绑定需要保留，请在路由器网页中调整。", "scan_native": "当前驱动未能完成临时扫描，请核对无线驱动和 iwinfo 组件。", "scan_interface_busy": "存在同名临时扫描接口，为避免影响其他任务已停止。", "scan_recovery": "临时扫描接口的清理未确认，请保持设备在线并导出日志，勿连续重试。", "save_large": "配置超过安全保存上限，未执行保存。", "save_commit": "保存失败，已尝试恢复原配置，请重新读取核对。", "save_unsupported": "当前系统不支持独立保存而不应用，未执行保存。", "save_backup": "配置备份失败，未执行保存。", "save_recovery": "保存或恢复未确认，请停止重试并核对路由器 /tmp/rouxiaoguan-save.* 备份。", "orphan_runtime": "无法完整确认接口运行状态，未执行清理。", "orphan_large": "遗留接口数量超过检查上限，未执行清理。", "orphan_selection": "所选接口已变化或不可安全清理，请重新检查。", "radio": "无线网卡或接口不能明确对应，请刷新后重试。", "bridge_shared": "所选局域网已有中继配置，请编辑原连接，避免多条中继抢占同一网络。",
+                messages = {"scan_no_interface": "\u8be5\u7f51\u5361\u5f53\u524d\u6ca1\u6709\u53ef\u7528\u7684\u65e0\u7ebf\u63a5\u53e3\uff0c\u8bf7\u7b49\u5f85\u65e0\u7ebf\u5207\u6362\u5b8c\u6210\u540e\u5237\u65b0\u3002", "scan_interface_read": "\u672a\u80fd\u6838\u5b9e\u65e0\u7ebf\u63a5\u53e3\u72b6\u6001\uff0c\u8bf7\u68c0\u67e5\u8fde\u63a5\u548c\u6743\u9650\u5e76\u5bfc\u51fa\u65e5\u5fd7\u3002", "common_values": "设置内容无效，请重新读取。", "common_section": "无法唯一确定系统配置，请先在路由器网页中核对。", "common_legacy": "旧式设备绑定需要保留，请在路由器网页中调整。", "scan_native": "当前驱动未能完成临时扫描，请核对无线驱动和 iwinfo 组件。", "scan_interface_busy": "存在同名临时扫描接口，为避免影响其他任务已停止。", "scan_recovery": "临时扫描接口的清理未确认，请保持设备在线并导出日志，勿连续重试。", "save_large": "配置超过安全保存上限，未执行保存。", "save_commit": "保存失败，已尝试恢复原配置，请重新读取核对。", "save_unsupported": "当前系统不支持独立保存而不应用，未执行保存。", "save_backup": "配置备份失败，未执行保存。", "save_recovery": "保存或恢复未确认，请停止重试并核对路由器 /tmp/rouxiaoguan-save.* 备份。", "orphan_runtime": "无法完整确认接口运行状态，未执行清理。", "orphan_large": "遗留接口数量超过检查上限，未执行清理。", "orphan_selection": "所选接口已变化或不可安全清理，请重新检查。", "radio": "无线网卡或接口不能明确对应，请刷新后重试。", "bridge_shared": "所选局域网已有中继配置，请编辑原连接，避免多条中继抢占同一网络。",
                             "bridge_state": "中继停用状态已被其他管理工具改变，请重新编辑并保存。",
                             "bridge_transition": "切换两种桥接前，请先保存为独立子网，恢复原有地址分配。",
                             "bridge_zone": "中继需要包含所选局域网的防火墙区域：允许输入、输出与转发，并关闭地址伪装。",
@@ -297,6 +297,8 @@ exit 1
                     target = {} if interface else {"expected_phy": self._radio(env, radio["name"])["phy"]}
                     result = self._call("scan", cancel, timeout=SCAN_COMMAND_TIMEOUT_SECONDS,
                                         interface=interface, radio=radio["name"], **target)
+                    from .scan_interface_evidence import record_scan_selection
+                    record_scan_selection(self.runner, result, radio["name"])
                     def evidence(values):
                         journal = getattr(self.runner, "operation_diagnostics", None)
                         if journal is not None:
@@ -357,19 +359,21 @@ exit 1
             raise SignalError("radio", "无法唯一识别所选无线硬件，未按编号猜测，请刷新。")
         return values[0]
 
-    def _wait_ready(self, request, section, cancel, bssid="", *, network="", temporary=False, expected_mac="", band=""):
+    def _wait_ready(self, request, section, cancel, bssid="", *, network="", temporary=False, expected_mac="", band="", hard_deadline=None):
         """认证只看 COMPLETED 和所选接入点，不要求 IPv4 或访问外网。"""
         from .wireless_readiness_evidence import WirelessReadinessEvidence
         journal = getattr(self.runner, "operation_diagnostics", None)
         with WirelessReadinessEvidence(journal, request.mode, band).observing() as evidence:
             from .signal_recovery import SIGNAL_READY_SECONDS
-            deadline = time.monotonic() + SIGNAL_READY_SECONDS
+            from .ap_startup_wait import ApStartupWait
+            startup = ApStartupWait(SIGNAL_READY_SECONDS, hard_deadline=hard_deadline, rollback=True)
+            deadline = startup.deadline
             status = {}
             phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u8fd0\u884c\u72b6\u6001", deadline=deadline, rollback=True, cancellable=True)
             while time.monotonic() < deadline:
                 if cancel.is_set():
                     raise InterruptedError("无线操作已取消。")
-                status = self._call("status", cancel, radio=request.radio, section=section, mode=request.mode, timeout=8,
+                status = self._call("status", cancel, radio=request.radio, section=section, mode=request.mode, timeout=min(8, max(0.1, deadline-time.monotonic())),
                                     network=network, expected_mac=expected_mac, downstream=request.options.get("network", ""),
                                     bridge_mode="routed" if temporary else request.options.get("bridge_mode", "routed"))
                 matches = not bssid or str(status.get("bssid", "")).lower() == bssid.lower()
@@ -387,8 +391,13 @@ exit 1
                                 raise SignalError("subnet", "IPv4 中继的本机管理网段与上级冲突，已停止保存并恢复。请先修改局域网管理网段。")
                 if status.get("ready") is True and matches:
                     return
-                if cancel.wait(1):
+                if request.mode == "ap":
+                    startup.observe(status, (section, request.radio))
+                    deadline = startup.deadline
+                if cancel.wait(min(1, max(0, deadline-time.monotonic()))):
                     raise InterruptedError("无线操作已取消。")
+            if request.mode == "ap" and status.get("cac_active") is True:
+                raise SignalError("unconfirmed", "\u96f7\u8fbe\u68c0\u6d4b\u4ecd\u672a\u5b8c\u6210\uff0c\u5df2\u8fbe\u5230\u672c\u6b21\u914d\u7f6e\u5b89\u5168\u786e\u8ba4\u65f6\u9650\uff0c\u5c06\u5c1d\u8bd5\u6062\u590d\u539f\u914d\u7f6e\u3002")
             if request.mode == "ap" and status.get("native_error") == 4:
                 raise SignalError("ap_control_unavailable", "\u7236\u7f51\u5361\u5df2\u5c1d\u8bd5\u5f00\u542f\uff0c\u4f46\u70ed\u70b9\u72b6\u6001\u63a5\u53e3\u4e0d\u53ef\u7528\uff0c\u5185\u6838\u4e5f\u672a\u786e\u8ba4 Wi-Fi \u5df2\u542f\u52a8\u3002\u64cd\u4f5c\u5c06\u5c1d\u8bd5\u6062\u590d\u539f\u914d\u7f6e\uff0c\u8bf7\u5bfc\u51fa\u4fe1\u53f7\u7ba1\u7406\u65e5\u5fd7\u3002")
             raise SignalError("authentication", "未在时限内确认信号启动，请检查信道、加密及驱动兼容性。" if request.mode == "ap" else "未在时限内完成无线连接；请检查密码、信号强度及加密兼容性，不能据此断定密码错误。")
@@ -456,11 +465,12 @@ exit 1
         confirmed = False
         try:
             phase("\u6b63\u5728\u5e94\u7528\u65e0\u7ebf\u914d\u7f6e", seconds=90, rollback=True)
+            # Native rpcd rolls back after 90 seconds. Reserve ten for confirmation.
+            hard_deadline = time.monotonic() + 80
             result = self._call("delete_stage" if delete else "stage" if enabled is None else "stage_toggle", cancel, timeout=30, enabled=enabled, enable_parent=enable_parent, sid=sid, token=secrets.token_hex(8),
                                 revision=env.data["revision"], dhcp_revision=env.data.get("dhcp_revision", ""), values=asdict(request), temporary=temporary)
-            recovery_deadline = time.monotonic() + 45
             if enabled is False or delete:
-                deadline = time.monotonic() + 45
+                deadline = min(hard_deadline, time.monotonic() + 45)
                 phase("\u6b63\u5728\u6838\u5bf9\u65e0\u7ebf\u505c\u7528\u7ed3\u679c", deadline=deadline, rollback=True)
                 while True:
                     if cancel.is_set(): raise InterruptedError("无线操作已取消。")
@@ -473,31 +483,38 @@ exit 1
                     if time.monotonic() >= deadline: raise SignalError("unconfirmed", "无线配置更改后的运行状态未确认。")
                     if cancel.wait(1): raise InterruptedError("无线操作已取消。")
             else:
-                self._wait_ready(request, result["section"], cancel, bssid, network=result["network"], temporary=temporary, expected_mac=result.get("expected_mac", ""), band=radio_info.get("band", ""))
+                self._wait_ready(request, result["section"], cancel, bssid, network=result["network"], temporary=temporary, expected_mac=result.get("expected_mac", ""), band=radio_info.get("band", ""), hard_deadline=hard_deadline)
             if not temporary:
                 if enabled is not None:
                     def observe_ap(section, radio, timeout):
                         status = self._call("status", cancel, section=section, radio=radio, mode="ap", timeout=timeout)
-                        return status.get("ready") is True
+                        return status
+                    recovery_deadline = min(hard_deadline, time.monotonic() + 45)
                     wait_for_recovery(protected, observe_ap, cancel, recovery_deadline,
-                                      getattr(self.runner, "operation_diagnostics", None))
+                                      getattr(self.runner, "operation_diagnostics", None), hard_deadline=hard_deadline)
                     saved = self._call("toggle_saved_status", cancel, radio=request.radio,
-                                       section=result["section"], enabled=enabled)
+                                       section=result["section"], enabled=enabled, timeout=min(8, max(0.1, hard_deadline-time.monotonic())))
                     if saved.get("saved") is not True:
                         raise SignalError("unconfirmed", "无线开关保存未确认，正在恢复。")
                 if enabled is None and not delete:
                     saved = self._call("saved_status", cancel, values=asdict(request), section=result["section"],
-                                       network=result["network"], expected_mac=result.get("expected_mac"))
+                                       network=result["network"], expected_mac=result.get("expected_mac"),
+                                       timeout=min(8, max(0.1, hard_deadline-time.monotonic())))
                     if saved.get("saved") is not True:
                         raise SignalError("unconfirmed", "无线运行但配置保存未确认，正在恢复。")
                 if cancel.is_set():
                     raise InterruptedError("保存已取消。")
+                if time.monotonic() >= hard_deadline:
+                    raise SignalError("unconfirmed", "\u5df2\u8fbe\u5230\u914d\u7f6e\u5b89\u5168\u786e\u8ba4\u65f6\u9650\uff0c\u5c06\u5c1d\u8bd5\u6062\u590d\u539f\u914d\u7f6e\u3002")
                 phase("\u6b63\u5728\u786e\u8ba4\u4fdd\u7559\u65b0\u914d\u7f6e", seconds=10, rollback=True)
                 self._call("finish", cancel, sid=sid, confirm=True, unapplied=result.get("unchanged") is True, timeout=10)
                 confirmed = True
                 return {"section": result["section"], "network": result["network"], "retained_network": result.get("retained_network", False)}
         except Exception as exc:
             error = exc
+            if not isinstance(exc,InterruptedError) and getattr(exc,"code","")!="cancelled":
+                from .wireless_failure_evidence import collect_wireless_failure
+                collect_wireless_failure(self.runner,request.radio,request.section,"session_apply",cancel)
         finally:
             if not confirmed:
                 try:

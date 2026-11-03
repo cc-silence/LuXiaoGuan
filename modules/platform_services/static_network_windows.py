@@ -153,6 +153,14 @@ class Driver:
             emit('static_command',elapsed_seconds=time.monotonic()-started,system_exit_code=code)
             return code
 
+    def verify_topology(self,plan):
+        from .lan_network_windows import inspect
+        from .static_network_topology import verify
+        if self.cancel is not None and self.cancel.is_set():raise InterruptedError('Static network operation cancelled')
+        remaining=self.deadline-time.monotonic()
+        if remaining<=0:raise TimeoutError('Static network inspection expired')
+        verify(plan,inspect(timeout=min(5,remaining)))
+
     def read(self):
         if self.cancel is not None and self.cancel.is_set():raise InterruptedError('Static network operation cancelled')
         from .static_network_windows_read import read

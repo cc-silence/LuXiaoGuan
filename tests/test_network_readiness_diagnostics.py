@@ -205,11 +205,12 @@ class PowerShellNativeCodeTests(unittest.TestCase):
         import subprocess
         from pathlib import Path
         if os.name!='nt':self.skipTest('Requires the Windows PowerShell parser')
-        with patch.object(windows.subprocess,'run',return_value=NS(returncode=0)) as mocked:
-            windows.renew(adapter(),20,lambda:True)
-        script=base64.b64decode(mocked.call_args.args[0][-1]).decode('utf-16-le')
         for release,renew,expected in ((0,0,0),(83,0,0),(0,82,2082),(91,0,1091),(0,64,2064)):
             with self.subTest(release=release,renew=renew):
+                # Each native-code case receives its own normal request deadline.
+                with patch.object(windows.subprocess,'run',return_value=NS(returncode=0)) as mocked:
+                    windows.renew(adapter(),20,lambda:True)
+                script=base64.b64decode(mocked.call_args.args[0][-1]).decode('utf-16-le')
                 prefix="function Get-CimInstance { [pscustomobject]@{DHCPEnabled=$true;InterfaceIndex=14;MACAddress='00:50:56:2B:29:2D'} };"
                 prefix+="function Invoke-CimMethod { param($InputObject,$MethodName) if($MethodName -eq 'ReleaseDHCPLease') { [pscustomobject]@{ReturnValue="+str(release)+"} } else { [pscustomobject]@{ReturnValue="+str(renew)+"} } };"
                 executable,args=windows.powershell(prefix+script)

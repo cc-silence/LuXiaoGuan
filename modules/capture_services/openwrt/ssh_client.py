@@ -19,7 +19,7 @@ class SshChannelTimeout(TimeoutError):
     """带阶段的通道超时，用于区分连接建立与已建立通道内的失败。"""
 
     def __init__(self, kind, stage, timeout):
-        labels = {"channel_open": "建立通道", "exec_request": "等待命令确认",
+        labels = {"pty_request": "\u7533\u8bf7\u7ec8\u7aef", "channel_open": "建立通道", "exec_request": "等待命令确认",
                   "sftp_subsystem": "启动文件传输子系统", "sftp_negotiation": "协商文件传输协议"}
         super().__init__(f"OpenWrt {labels[stage]}超时（{timeout} 秒）。")
         self.ssh_stage = stage
@@ -338,9 +338,14 @@ class OpenWrtSshClient:
         with self._lock:
             if not self.connected:
                 raise RuntimeError("OpenWrt SSH 尚未连接，不能打开 SFTP。" + self._failure_detail)
+            stale = None
             if self._sftp is not None:
-                return self._sftp
+                channel = self._sftp.get_channel()
+                if channel.closed is not True and channel.active is not False:
+                    return self._sftp
+                stale, self._sftp = self._sftp, None
             client = self._client
+        _close_resource(stale)
         def open_transfer(register):
             from paramiko import SFTPClient
             channel = client.get_transport().open_session(timeout=timeout)
@@ -375,24 +380,55 @@ class OpenWrtSshClient:
         _close_resource(resource)
 
     def open_terminal(self, connection, cancel_event, timeout=15, *, command=None):
-        """为已确认的连接创建独立 PTY；取消只回收本通道，不重登、不执行脚本。"""
-        with self._lock:
-            if self._client is not connection or not self.connected:
-                raise RuntimeError("路由器连接已变化，请重新登录。")
-        def opener(register):
-            channel=connection.get_transport().open_session(timeout=timeout)
-            register(channel,"exec_request")
-            channel.settimeout(timeout)
-            channel.get_pty(term="xterm-256color",width=80,height=24)
-            if command is None:channel.invoke_shell()
-            else:channel.exec_command(command)
-            return channel
-        channel=self._open_owned(connection,opener,_close_resource,timeout,cancel_event,"terminal")
-        with self._lock:
-            if self._client is not connection or not self.connected:
-                _close_resource(channel)
-                raise RuntimeError("路由器连接已变化。")
-        return channel
+        return self._open_pty_stream(connection, cancel_event, timeout, command=command,
+                                     kind="terminal", term="xterm-256color", width=80, height=24)
+
+    def open_capture_stream(self, connection, command, cancel_event, timeout=10):
+        """Open a capture channel; retry only before any command submission."""
+        return self._open_pty_stream(connection, cancel_event, timeout, command=command,
+                                     kind="capture", term="vt100", width=120, height=40,
+                                     retry_pre_exec=True, read_timeout=1.0)
+
+    def _open_pty_stream(self, connection, cancel_event, timeout, *, command, kind,
+                         term, width, height, retry_pre_exec=False, read_timeout=None):
+        deadline = time.monotonic() + timeout
+        for attempt in range(2 if retry_pre_exec else 1):
+            with self._lock:
+                if self._client is not connection or not self.connected:
+                    raise RuntimeError("\u8def\u7531\u5668\u8fde\u63a5\u5df2\u53d8\u5316\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55\u3002")
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise SshChannelTimeout(kind, "channel_open", timeout)
+
+            def opener(register):
+                channel = connection.get_transport().open_session(timeout=remaining)
+                register(channel, "pty_request")
+                channel.settimeout(remaining)
+                channel.get_pty(term=term, width=width, height=height)
+                register(channel, "exec_request")
+                if command is None:
+                    channel.invoke_shell()
+                else:
+                    channel.exec_command(command)
+                channel.settimeout(remaining if read_timeout is None else read_timeout)
+                return channel
+
+            try:
+                return self._open_owned(connection, opener, _close_resource, remaining,
+                                        cancel_event, kind)
+            except Exception as exc:
+                from paramiko.ssh_exception import SSHException
+                with self._lock:
+                    same_connection = self._client is connection and self.connected
+                safe_retry = (retry_pre_exec and attempt == 0 and same_connection
+                              and isinstance(exc, SSHException)
+                              and any(marker in str(exc).lower() for marker in ("channel closed", "channel is not open"))
+                              and getattr(exc, "ssh_stage", "") in ("channel_open", "pty_request")
+                              and (cancel_event is None or not cancel_event.is_set()))
+                if not safe_retry:
+                    raise
+                LOGGER.info("Rebuilding %s channel before command submission stage=%s",
+                            kind, exc.ssh_stage)
 
     def exec_command(self, command, timeout=15, cancel_event=None):
         """返回 Paramiko command channel；具体读取和取消由 command_runner 负责。

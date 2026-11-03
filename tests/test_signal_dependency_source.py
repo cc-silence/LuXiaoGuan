@@ -14,7 +14,7 @@ class SignalDependencySourceTests(unittest.TestCase):
         self.device = SimpleNamespace(version="22.03.7", target="ramips/mt7621",
             package_architecture="mipsel_24kc", package_manager="opkg", distribution="OpenWrt")
         self.ready = dict(lua=True, uci=True, ubus=True, jsonc=True)
-        self.manager.probe_dependencies = Mock(return_value=self.ready)
+        self.manager.probe_dependencies = Mock(side_effect=[dict.fromkeys(self.ready, False), self.ready])
         self.manager.install_dependencies = Mock(return_value=self.ready)
         self.manager.install_offline = Mock(return_value=self.ready)
         self.event = Event()
@@ -31,6 +31,7 @@ class SignalDependencySourceTests(unittest.TestCase):
 
     @patch("modules.capture_services.openwrt.common_bundle_installer.install_from_local", return_value=True)
     def test_incomplete_local_install_is_not_reported_as_success(self, local):
+        self.manager.probe_dependencies.side_effect = None
         self.manager.probe_dependencies.return_value = dict(self.ready, uci=False)
         with self.assertRaises(SignalError):
             self.manager.install_auto(self.device, None, self.event)

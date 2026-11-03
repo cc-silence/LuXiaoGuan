@@ -1,4 +1,4 @@
-"""A cancelled optional backup picker skips backup, not restoration or final consent."""
+"""Restore proceeds directly after final consent, without a backup picker."""
 import tempfile,threading,unittest
 from pathlib import Path
 from unittest.mock import Mock,patch
@@ -24,11 +24,11 @@ class OptionalRestoreTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 manager.execute(manager.preview('reset','',event),None,None,event,Mock())
 
-    def test_cancel_extra_backup_continues_to_final_restore_confirmation(self):
+    def test_restore_skips_backup_picker_and_proceeds_to_final_confirmation(self):
         page,_=self.create_page();actions=page.maintenance_actions
         review=dict(operation='restore',model='Router',version='23.05',source='source.tar.gz',files=['etc/config/network'],entries=1,size=100)
         actions.pending['preview']=('preview',actions._identity())
-        with patch.object(actions,'_destination',return_value=None),patch(
+        with patch.object(actions,'_destination',side_effect=AssertionError('Restore must not request a backup')),patch(
                 'modules.main_pages.packet_capture.openwrt.maintenance_actions.MaintenanceReviewDialog') as dialog:
             dialog.return_value.Accepted=1;dialog.return_value.exec.return_value=1
             self.assertTrue(actions.completed('preview',review))
@@ -41,10 +41,30 @@ class OptionalRestoreTests(unittest.TestCase):
         self.assertIn('\u4e0d\u751f\u6210',dialog.warning_text.toPlainText())
         self.assertNotIn('None',dialog.warning_text.toPlainText())
         self.assertEqual(dialog.go.text(),'\u6062\u590d\u5e76\u91cd\u542f')
-        self.assertFalse(dialog.go.isEnabled())
+        self.assertTrue(dialog.go.isEnabled())
         actions=page.maintenance_actions;actions.pending['preview']=('preview',actions._identity())
-        with patch.object(actions,'_destination',return_value=None),patch(
+        with patch.object(actions,'_destination',side_effect=AssertionError('Restore must not request a backup')),patch(
                 'modules.main_pages.packet_capture.openwrt.maintenance_actions.MaintenanceReviewDialog') as final:
             final.return_value.Accepted=1;final.return_value.exec.return_value=0
             actions.completed('preview',review)
         page.manager.submit.assert_not_called()
+
+    def test_boot_toggle_has_only_direct_apply_and_cancel(self):
+        from modules.main_pages.packet_capture.openwrt.router_policy_dialogs import PolicyReviewDialog
+        for light in (False, True):
+            page,_=self.create_page(light)
+            for enabled in (False, True):
+                dialog=PolicyReviewDialog(dict(kind="boot",boot_enabled=enabled),page)
+                self.addCleanup(dialog.deleteLater)
+                dialog.show()
+                from tests.common_settings_fixture import APP
+                APP.processEvents()
+                self.assertFalse(hasattr(dialog,"backup_button"))
+                self.assertTrue(dialog.apply_button.isEnabled())
+                self.assertFalse(dialog.backup_requested)
+                output=Path("build/maintenance-review")
+                output.mkdir(parents=True,exist_ok=True)
+                dialog.grab().save(str(output/("boot-"+str(light)+"-"+str(enabled)+".png")))
+                dialog.apply_button.click()
+                self.assertEqual(dialog.result(),dialog.Accepted)
+                self.assertFalse(dialog.backup_requested)

@@ -1,0 +1,56 @@
+{
+  "date": "2026-11-03",
+  "delivery": "Included in validated Windows 1.0.38_alpha package.",
+  "capture_feedback": {
+    "application_version": "1.0.36_alpha",
+    "confirmed": "UI mapped blocked and unknown radio states to business online. Admission refused an existing monitor or reserved capture interface before takeover. Actual interface ownership was absent from the supplied evidence.",
+    "fix": "Shared idle/business/blocked/unknown status propagation and view formatting. Unknown monitor ownership remains a safety refusal.",
+    "diagnostics": {
+      "failure_only": true,
+      "scene_limit": 8,
+      "process_limit": 1024,
+      "argv_byte_limit": 8192,
+      "matches_limit": 64,
+      "timeout_seconds": 3,
+      "dedup_limit": 32,
+      "dedup_scope": "fresh radio snapshot token plus radio",
+      "privacy": "Only process ID, allowed tool name and matching interface; no full command line. Ownership remains unconfirmed. Current connection and journal epoch are checked."
+    }
+  },
+  "three_radio_feedback": {
+    "application_version": "1.0.35_alpha",
+    "device": "Netgear R8000, bcm53xx/generic, brcmfmac, OpenWrt 22.03-SNAPSHOT r0-e2a228b4",
+    "identified_radios": 3,
+    "mapping": {
+      "radio0": "5 GHz, channel 149",
+      "radio1": "2.4 GHz, channel 11",
+      "radio2": "5 GHz, channel 48"
+    },
+    "confirmed": "Scan preferred the first interface from an older snapshot. radio1 AP wlan1 was unavailable while same-radio station wlan1-1 remained available.",
+    "fix": "Validate current unique radio ownership and select an up interface only within the requested radio. Skip missing device error 2; permissions, timeout and other errors remain failures. No changes to UCI, AP configuration, driver or radio mapping.",
+    "limitations": [
+      "Earlier SSH channel timeout is separate and is not claimed fixed by interface selection.",
+      "All three radios reported monitor_supported=false; this scan fix does not add capture support.",
+      "Customer firmware and actual router retest remain pending."
+    ]
+  },
+  "reference": [
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/76d2d41b7355e02f95fbfa79affbd232fb090595/ubus.c",
+      "sha256": "8242c94830a4ad2a26a0362a5bdb09ee2b64c687d17592b1177d8d69d837c502",
+      "path": "netifd/ubus.c"
+    }
+  ],
+  "validation": {
+    "python_compile_files": 19,
+    "windows_regression_suite": "210 tests across 19 modules passed; 0 failures, 0 skips.",
+    "rendered_ui": [
+      "build/radio-feedback-20261103/statuses-light.png",
+      "build/radio-feedback-20261103/statuses-dark.png"
+    ],
+    "debian12": "Actual read-only process probe matched a controlled process; shell syntax and command-line privacy passed. PySide6 unavailable, so Linux desktop startup/render/exit are not verified.",
+    "test_shell": "Git Bash used explicitly for monitor shell tests; Windows default bash resolves to WSL and is incompatible with the existing test harness."
+  },
+  "delivered_archive": "LuXiaoGuan_v1.0.38_alpha_20261103_170440.zip",
+  "delivered_archive_sha256": "97b57f5597320d67eb8bf25094ae014adac03922029db27e123f12cec9af2b1d"
+}

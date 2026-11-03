@@ -1,0 +1,152 @@
+{
+  "date": "2026-11-03",
+  "input": "XRJ_LuXiaoGuan_auto_capture_20261103_194211.zip",
+  "input_sha256": "d4b2ce99f3c4f2bb3c047f02bed6cd06c8f28357554758d04dc751bfa56f36e2",
+  "status": "source_fixed_not_packaged",
+  "current_run_version": "1.0.38_alpha",
+  "previous_run_version": "1.0.36_alpha",
+  "device": "TP-Link TL-XDR6088 / OpenWrt 23.05.4 / mediatek-filogic / mt798x-wmac",
+  "confirmed_log_facts": [
+    "No Channel closed found in this archive.",
+    "Current run radio0 received actual AP frames from 19:34:31 to manual stop at 19:42:05 Asia/Shanghai.",
+    "Current run radio1 failed to arm interface in all five modes, with no packet headers or received packets.",
+    "All five reset_iface commands returned exit 1; exact stderr was not retained.",
+    "All configured AP and STA interfaces were disabled at the radio1 failure snapshot.",
+    "Current run radio0 download failed with Socket is closed but the session then reported success.",
+    "Previous run version 1.0.36_alpha contains real radio1 reception, so permanent monitor incompatibility is not established.",
+    "User reports radio1 now fails on every retry; this archive does not identify which set_interface check failed."
+  ],
+  "confirmed_source_fixes": [
+    "Reset attempt-local capture path, creation marker, statistics and completed recovery context on retry. Preserve unconfirmed recovery and registered resources.",
+    "Reject a new attempt until the previous worker exits; cancel the new startup coordinator rather than overlapping workers.",
+    "Check interface type, PHY and UP flag before a fallback. Stop on preparation failure with stage and bounded stderr.",
+    "Do not kill an old recorded PID after SSH already confirms process exit. Remove the fixed fractional sleep from fallback preparation.",
+    "Share placeholder deletion verification between replacement and cleanup; require application marker and matching PHY.",
+    "Refuse a new start on a different device while old placeholders remain registered."
+  ],
+  "added_evidence": {
+    "field": "capture_initialization_scenes",
+    "phases": [
+      "prepared",
+      "engine_failed",
+      "after_cleanup"
+    ],
+    "limit": 8,
+    "per_probe_timeout_seconds": 3,
+    "per_probe_output_bytes": 16384,
+    "captures": [
+      "Kernel interface name, index, PHY and UP flag",
+      "Filtered iw interface inventory",
+      "Application stub marker separately from current-connection registration",
+      "Read-only hcxdumptool -L interface list on first initialization error; only when help advertises list-and-terminate support",
+      "Target presence and matching kernel/tool interface index"
+    ],
+    "privacy": "No MAC, SSID, keys, raw command lines or raw hcx output retained.",
+    "safety": "Original connection/fingerprint and diagnostic epoch are checked. Probe failures do not replace original operation failures."
+  },
+  "references": [
+    "https://raw.githubusercontent.com/ZerBea/hcxdumptool/6.3.4/hcxdumptool.c",
+    "https://raw.githubusercontent.com/mirror/busybox/1_36_stable/coreutils/sleep.c"
+  ],
+  "validation": {
+    "runtime": "Project .venv / PySide6 6.3.2 / Paramiko 5.0.0",
+    "integrated_tests": 111,
+    "diagnostics_and_new_feature_tests": 28,
+    "all_passed": true,
+    "debian12": [
+      "Generated shell syntax checks passed.",
+      "Actual POSIX shell reset fixture: matching PHY returned READY and exit 0; wrong PHY returned exit 43.",
+      "Python parser and sanitizer smoke passed."
+    ],
+    "live_router": "Not performed; persistent radio1 failure still requires a run with the updated code.",
+    "linux_desktop": "Not verified."
+  },
+  "unresolved": [
+    "Exact failed step inside hcxdumptool set_interface is unknown.",
+    "This archive does not contain a full contemporaneous kernel/tool interface comparison; placeholder conflict is not proven for this individual run.",
+    "Do not describe generic driver-is-broken advice as a diagnosis."
+  ],
+  "reference_audit": {
+    "request": "Recheck upstream references and the dual-radio idle acceptance rule.",
+    "acceptance": [
+      "Both radios never configured: available without creating or enabling an AP.",
+      "All AP/STA disabled: available, including inert runtime interface remnants.",
+      "Failed attempt retry: no previous artifact path, creation marker, completed recovery object or overlapping worker reused.",
+      "Concurrent startup: real monitor preparation precedes placeholders; only registered, correctly marked matching-PHY placeholders are removed."
+    ],
+    "references": [
+      "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/channel.py",
+      "https://docs.paramiko.org/en/stable/api/channel.html",
+      "https://raw.githubusercontent.com/ZerBea/hcxdumptool/6.3.4/hcxdumptool.c",
+      "https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-class-net",
+      "https://www.kernel.org/doc/Documentation/networking/operstates.txt"
+    ],
+    "findings": [
+      "Paramiko exit_status_ready is true for a closed channel even without a server exit status. Negative exit status cannot authorize an automatic fallback.",
+      "Unexpected stream EOF or read error must retain an error rather than report an ordinary stop.",
+      "Pending final channel data must be consumed before interpreting exit, with bounded reads and memory.",
+      "Capture pre-exec safe retry also recognizes the upstream Channel is not open error; command-submission failure is never blindly retried.",
+      "Final process cleanup now checks comm, exact interface argument and non-zombie status before each signal; unreadable identity refuses confirmation.",
+      "hcxdumptool 6.3.4 -L returns before set_interface; close_fds/close_sockets/close_lists do not modify interfaces.",
+      "IFF_UP is administrative state, not proof of receiving frames; the initial observation window is not described as full hardware compatibility."
+    ],
+    "validation": {
+      "combined_tests": 153,
+      "result": "PASS",
+      "runtime": "Project .venv / Qt 6.3.2 / Paramiko 5.0.0",
+      "log": "build/pikachu3-feedback-20261103/final-audit-regression.log",
+      "real_loopback_ssh": "Server sends final text and closes without exit status; login remains connected and another command succeeds.",
+      "debian_shell": "Owned same-interface process receives TERM; different comm or interface receives no signal; unreadable cmdline exits 47.",
+      "test_isolation": "Two UI tests formerly started real background jobs against mocks and left queued modal errors. They now assert the intended service call without running it and dispose their pages. No product UI changes."
+    },
+    "limitations": [
+      "No live router operation or new package build performed.",
+      "Empty/disabled admission acceptance is verified offline; actual 5G recovery still needs the updated package on the affected router."
+    ]
+  },
+  "three_round_reference_audit": {
+    "date": "2026-11-03",
+    "rounds": [
+      {
+        "round": 1,
+        "scope": "Idle PHY preparation and upstream interface enumeration",
+        "references": [
+          "https://raw.githubusercontent.com/ZerBea/hcxdumptool/6.3.4/hcxdumptool.c",
+          "https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-class-net"
+        ],
+        "finding": "The router hexdump fallback was ineffective: 02: stays nonempty after command failure. Generate a valid six-byte locally administered unicast address on the client with a two-byte PHY suffix.",
+        "verification": "29 usage/placeholder tests passed; Debian fixture without hexdump created distinct valid addresses for phy0 and phy260."
+      },
+      {
+        "round": 2,
+        "scope": "Fresh admission versus cached badges; SSH ownership and retry",
+        "references": [
+          "https://docs.paramiko.org/en/stable/api/channel.html",
+          "https://www.kernel.org/doc/Documentation/networking/operstates.txt"
+        ],
+        "finding": "The capture worker already rereads router state, but both UI takeover prompts previously consulted cached card data. Both entrypoints now use one cancellable background preflight, update shared state on the main thread, and ask for takeover only for current business. Unknown/blocked/failed inspection never falls back to cached admission. Worker transaction-time reread remains. Existing page-entry and signal-change refresh remain; no periodic timer added."
+      },
+      {
+        "round": 3,
+        "scope": "Cancellation, Qt delivery, cleanup and bounded evidence",
+        "references": [
+          "https://doc.qt.io/qt-6/threads-qobject.html",
+          "https://docs.paramiko.org/en/stable/api/channel.html"
+        ],
+        "finding": "Pending inspections are cancelled on stop/dispose. Changed connection/fingerprint or disposed service invalidates results, also after modal confirmation. Repeated clicks cannot spawn parallel queries. Early conflicts retain diagnostic collection. Reviewed existing process identity checks and bounded initialization/stream evidence.",
+        "verification": "Tests cover stale busy/fresh idle without prompt, stale idle/fresh business with cancellation, queued results after stop/dispose, main-thread Qt delivery and conflict diagnostics."
+      }
+    ],
+    "validation": {
+      "tests": 165,
+      "result": "PASS",
+      "runtime": "Project .venv / PySide6 6.3.2 / Paramiko 5.0.0",
+      "log": "build/pikachu3-feedback-20261103/three-round-regression.log"
+    },
+    "limits": [
+      "No live router operation or package build performed.",
+      "Previously delivered ZIP does not contain these new source changes.",
+      "Exact persistent 5G initialization failure remains unconfirmed. Stale badges alone do not establish the cause of Channel closed or failed to arm interface."
+    ]
+  }
+}

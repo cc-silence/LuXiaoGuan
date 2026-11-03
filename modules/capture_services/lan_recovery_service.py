@@ -35,6 +35,8 @@ class LanRecoveryService(QObject):
         if isinstance(payload,dict) and isinstance(payload.get('control'),RenewalGate):
             self.offers[key]=(payload['control'],dict(value))
         elif key in self.offers:self.offers[key]=(self.offers[key][0],dict(value))
+        self._start_automatic(key)
+    def _start_automatic(self,key):
         if key not in self.standalone and key in self.offers and key in self.owner._openwrt_workers:
             gate=self.offers[key][0]
             if not any(row['id'] in self.adapter_jobs for row in gate.adapters):
@@ -49,6 +51,9 @@ class LanRecoveryService(QObject):
             current=self.offers.get(key)
             if current is None or current[0] is not gate:continue
             if any(row['id']==identity for row in gate.adapters):
+                self._start_automatic(key)
+                current=self.offers.get(key)
+                if current is None or current[0] is not gate:continue
                 self.owner.configurationProgressChanged.emit(key,dict(current[1],network_recovery=self.payload(key)))
 
     def request(self,key,identity,*,automatic=False):
@@ -68,10 +73,10 @@ class LanRecoveryService(QObject):
         phase_restoring=gate.restoring
         token=uuid4().hex
         self.adapter_jobs[identity]=token
-        def finish(message,current=None):
+        def finish(message,current=None,*,manual_recommended=False):
             if self.adapter_jobs.get(identity)!=token:return
             self.adapter_jobs.pop(identity)
-            gate.finish_renewal(message,current)
+            gate.finish_renewal(message,current,manual_recommended=manual_recommended)
             self._notify_adapter(identity)
         def operation(cancel):
             from modules.platform_services.lan_network import renew
@@ -90,11 +95,17 @@ class LanRecoveryService(QObject):
                             restoring=phase_restoring, automatic=automatic, **fields)
                 with observing(record):
                     emit('network_context', timeout_seconds=timeout)
+                    if adapter.get('dhcp') is False:
+                        if key not in self.standalone or automatic:raise RuntimeError('Static recovery requires an explicit post-task request')
+                        from modules.platform_services.local_static_recovery import recover
+                        return recover(gate.plan['static_migration'],cancel,permitted,timeout=timeout)
                     return renew(adapter,timeout,permitted)
             return trace.execute(perform,cancel,lambda *_:None)
         def completed(result):
             addresses=', '.join(result.get('addresses',[])) if isinstance(result,dict) else ''
             message='\u5df2\u91cd\u65b0\u83b7\u53d6\u7f51\u5361\u5730\u5740\u3002'
+            if isinstance(result,dict) and result.get('local_settings_updated'):
+                message='\u7535\u8111\u56fa\u5b9a IP \u8bbe\u7f6e\u5df2\u66f4\u65b0\u5e76\u6838\u5bf9\u3002'
             if addresses:message+='\u5f53\u524d\u5730\u5740\uff1a'+addresses+'\u3002'
             message+=('\u8bf7\u7528\u8def\u7531\u5668\u5f53\u524d\u5730\u5740\u767b\u5f55\u3002' if key in self.standalone else
                       '\u6b63\u5728\u5c1d\u8bd5\u8fde\u63a5\u8def\u7531\u5668\u3002')
@@ -102,7 +113,10 @@ class LanRecoveryService(QObject):
         def failed(message,detail):
             prefix='\u81ea\u52a8\u91cd\u65b0\u83b7\u53d6\u5730\u5740\u5931\u8d25\uff1a' if automatic else '\u91cd\u65b0\u83b7\u53d6\u672a\u5b8c\u6210\uff1a'
             retry='\n\u8bf7\u5728\u5269\u4f59\u65f6\u95f4\u5185\u70b9\u51fb\u201c\u91cd\u65b0\u83b7\u53d6\u7f51\u7edc\u5730\u5740\u201d\u91cd\u8bd5\uff1bWi-Fi \u8bf7\u5148\u786e\u8ba4\u5df2\u8fde\u56de\u8be5\u8def\u7531\u5668\u3002' if gate.payload().get('can_renew') else '\n\u5269\u4f59\u65f6\u95f4\u4e0d\u8db3\uff0c\u8bf7\u7b49\u5f85\u6062\u590d\u7ed3\u679c\u3002'
-            finish(prefix+message+retry)
+            if adapter.get('dhcp') is False:
+                prefix='\u56fa\u5b9a IP \u8c03\u6574\u672a\u5b8c\u6210\uff1a'
+                retry='\n\u8bf7\u6838\u5bf9\u7535\u8111 IP \u548c\u7f51\u5173\uff0c\u786e\u8ba4\u8fde\u63a5\u5230\u6062\u590d\u540e\u7684\u8def\u7531\u5668\uff0c\u518d\u70b9\u51fb\u201c\u8c03\u6574\u56fa\u5b9a IP\u201d\u91cd\u8bd5\u3002'
+            finish(prefix+message+retry,manual_recommended=True)
         self._notify_adapter(identity)
         from .task_completion import start_capture_task
         try:

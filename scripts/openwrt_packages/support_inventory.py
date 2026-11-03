@@ -134,4 +134,25 @@ def render(data,path):
     lines += ["", "\u56fa\u4ef6\u5fc5\u987b\u81ea\u5e26: "+", ".join(data.get("firmware_provided_requirements",[])),
         "\u5185\u6838\u3001\u65e0\u7ebf\u9a71\u52a8\u3001wpad \u7b49\u56fa\u4ef6\u7ec4\u4ef6\u4e0d\u7531\u901a\u7528\u79bb\u7ebf\u5305\u5f3a\u884c\u66ff\u6362\u3002",
         "\u666e\u901a Q30 \u4ecd\u5f85\u786e\u8ba4\uff1b\u4fdd\u7559\u5728\u7ebf\u5b89\u88c5\u8def\u5f84\uff0c\u662f\u5426\u6210\u529f\u4ee5\u5b9e\u9645\u56fa\u4ef6\u548c\u8f6f\u4ef6\u6e90\u4e3a\u51c6\u3002"]
+    builtin=data.get('builtin_base')
+    if builtin:
+        lines += ['', 'Built-in base: '+', '.join(builtin['roots'])+'; '+str(builtin['size'])
+                  +' bytes; '+str(builtin['profiles'])+' exact profiles; transitive libraries are firmware-provided.']
     Path(path).write_text("\n".join(lines)+"\n",encoding="utf-8")
+
+
+def write_builtin_inventory(archive, catalog, identity, docs=DOCS):
+    """Record the built-in subset independently of downloadable bundle status."""
+    docs=Path(docs);path=docs/'support.json'
+    data=json.loads(path.read_text(encoding='utf-8'))
+    row=dict(archive=Path(archive).name,**identity,roots=catalog['roots'],
+        source_sha256=catalog['source_sha256'],profiles=len(catalog['profiles']),
+        objects=len({r['blob'] for p in catalog['profiles'] for r in p['packages']}),
+        exact_profiles=[{k:p[k] for k in ('release','target','architecture','package_manager')}
+                        for p in catalog['profiles']],
+        package_names=sorted({r['name'] for p in catalog['profiles'] for r in p['packages']}),
+        unavailable_profiles=catalog.get('unavailable_profiles',[]),
+        includes_transitive_dependencies=False,live_router_tested=False)
+    data['builtin_base']=row
+    path.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    render(data,docs/'support.txt')

@@ -53,6 +53,17 @@ class AutomaticRecoveryTests(unittest.TestCase):
         gate=self.gate();gate.start(time.monotonic()+10);gate.arm(automatic=True)
         self.assertIsNone(gate.take_automatic())
 
+    def test_wifi_and_wired_get_sixty_seconds_without_exceeding_apply_deadline(self):
+        from modules.capture_services.lan_client_recovery import RenewalGate
+        with patch('modules.capture_services.lan_client_recovery.time.monotonic',return_value=100):
+            for wireless in (True,False):
+                for remaining,expected in ((90,60),(50,42),(25,17)):
+                    gate=self.gate(adapter(wireless=wireless))
+                    gate.start(100+remaining);gate.arm(automatic=True)
+                    selected,budget=gate.claim(adapter()['id'])
+                    self.assertEqual(budget,expected)
+                    self.assertEqual(selected['wireless'],wireless)
+
     def test_wifi_and_wired_use_same_dhcp_route(self):
         for name in ('Wi-Fi','wlan0','Ethernet0'):
             with self.subTest(name=name):
@@ -61,6 +72,30 @@ class AutomaticRecoveryTests(unittest.TestCase):
                 selected,budget=gate.claim(adapter()['id'])
                 self.assertEqual(selected['name'],name)
                 self.assertEqual(selected['expected_addresses'],['192.168.22.1/24'])
+
+    def test_pending_rollback_renewal_starts_when_previous_phase_worker_finishes(self):
+        from tests.test_router_policy_worker import Owner
+        from modules.capture_services.lan_recovery_service import LanRecoveryService
+        from PySide6.QtCore import Signal
+        class Service(Owner):configurationProgressChanged=Signal(str,object)
+        owner=Service(Mock(),Mock());owner._openwrt_workers['apply']=object()
+        broker=LanRecoveryService(owner);gate=self.gate();gate.arm(automatic=True)
+        try:
+            with patch('modules.capture_services.task_completion.start_capture_task',return_value=True) as start:
+                broker.observe('apply',dict(network_recovery=gate.payload()))
+                self.assertEqual(start.call_count,1)
+                old_failed=start.call_args.args[5]
+                gate.start(time.monotonic()+25,restoring=True);gate.arm(automatic=True)
+                broker.observe('apply',dict(network_recovery=gate.payload()))
+                self.assertEqual(start.call_count,1)
+                old_failed('old phase expired','')
+                self.assertEqual(start.call_count,2)
+                self.assertTrue(gate.busy)
+                start.call_args.args[5]('restoration not ready','')
+                self.assertEqual(start.call_count,2)
+                self.assertFalse(gate.busy)
+        finally:
+            owner._openwrt_workers.clear();broker.release('apply');owner.deleteLater()
 
     def test_auto_failure_leaves_time_for_manual_retry(self):
         from tests.test_router_policy_worker import Owner

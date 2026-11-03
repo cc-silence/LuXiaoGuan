@@ -71,3 +71,5 @@ Download: https://routermanager-updates.routermanager-update-gateway.workers.dev
 固件必须自带: uci, ubus, netifd, hostapd, wpa_supplicant, wireless drivers, rpcd UCI rollback API, libc, libpthread, librt, kernel, busybox, package manager
 内核、无线驱动、wpad 等固件组件不由通用离线包强行替换。
 普通 Q30 仍待确认；保留在线安装路径，是否成功以实际固件和软件源为准。
+
+Built-in base: libuci-lua, wpa-cli; 2151444 bytes; 549 exact profiles; transitive libraries are firmware-provided.

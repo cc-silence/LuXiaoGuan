@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 """Three-pass dependency installation review regressions."""
 from threading import Event
 import unittest
@@ -11,6 +12,13 @@ from modules.capture_services.openwrt.signal_manager import SignalError
 
 
 class OnlineRouteReviewTests(unittest.TestCase):
+    def setUp(self):
+        # Isolate existing plan/error contracts from the separately tested source setup.
+        source = patch("modules.capture_services.openwrt.temporary_package_sources.domestic_sources",
+                       side_effect=lambda manager, base, cancel, tell: nullcontext(base))
+        source.start()
+        self.addCleanup(source.stop)
+
     def test_network_failure_during_complete_plan_allows_pc_retry(self):
         manager = OpenWrtDependencyManager(Mock())
         manager._preflight = Mock(return_value=PackageManager("opkg"))

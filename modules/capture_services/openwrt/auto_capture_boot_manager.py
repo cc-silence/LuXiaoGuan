@@ -21,6 +21,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from modules.capture_services.capture_logging import LOGGER
+from modules.capture_services.openwrt.boot_script_probe import BOOT_SCRIPT_RUNNING_PROBE
 from modules.config_manager import BASE_DIR
 
 REMOTE_SCRIPT_PATH = "/root/hcx_autocap.sh"
@@ -167,14 +168,7 @@ class AutoCaptureBootManager:
             "else R_VER=\"\"; R_EXIST=0; fi; "
             "[ -f /etc/init.d/luxiaoguan-autocap ] && S_INSTALLED=1 || S_INSTALLED=0; "
             "ls /etc/rc.d/S*luxiaoguan-autocap >/dev/null 2>&1 && S_ENABLED=1 || S_ENABLED=0; "
-            "R_RUNNING=0; "
-            "if [ -f /tmp/.hcx_autocap.lock ]; then "
-            "PID=$(cat /tmp/.hcx_autocap.lock 2>/dev/null); "
-            "if [ -n \"$PID\" ] && kill -0 \"$PID\" 2>/dev/null; then R_RUNNING=1; fi; "
-            "fi; "
-            "if [ \"$R_RUNNING\" = \"0\" ]; then "
-            "if ps w 2>/dev/null | grep 'hcxdumptool' | grep -v grep >/dev/null 2>&1; then R_RUNNING=1; fi; "
-            "fi; "
+            + BOOT_SCRIPT_RUNNING_PROBE +
             "printf '__AUTOCAP_STATUS__:%s:%s:%s:%s:%s:%s\\n' \"$R_EXIST\" \"$R_VER\" \"$S_INSTALLED\" \"$S_ENABLED\" \"$R_RUNNING\" \"$R_PATH\""
         )
         res = self.runner.run("probe_autocap_status", cmd, timeout=12, cancel_event=cancel_event)

@@ -1,5 +1,5 @@
 """Final human confirmation for configuration restore and factory reset."""
-from PySide6.QtWidgets import QVBoxLayout, QWidget, QCheckBox, QLineEdit, QTextEdit
+from PySide6.QtWidgets import QVBoxLayout, QWidget, QLineEdit, QTextEdit
 from modules.common_widgets.frameless_dialog import FramelessDialog
 from modules.common_widgets.common_dialogs import apply_common_dialog_theme
 from modules.settings_pages.settings_widgets import create_dialog_ok_cancel_buttons
@@ -43,16 +43,12 @@ class MaintenanceReviewDialog(FramelessDialog):
             listing.setReadOnly(True)
             listing.setPlainText("\n".join(review["files"]))
             self.content_layout.addWidget(listing, 1)
-            self.trusted = QCheckBox("我确认备份来自本路由器、适用于当前固件，并理解重启后需重新登录。", self)
-            self.content_layout.addWidget(self.trusted)
         self.go, cancel = create_dialog_ok_cancel_buttons(self, "备份后执行重置" if reset else ("备份后恢复并重启" if backup_path else "恢复并重启"), "取消")
-        self.go.setEnabled(False)
+        self.go.setEnabled(not reset)
         self.go.setProperty("dangerAction", True)
         self.button_layout.addWidget(self.go)
         self.button_layout.addWidget(cancel)
         if reset:
             self.input.textChanged.connect(lambda text: self.go.setEnabled(text.strip() == "恢复出厂"))
-        else:
-            self.trusted.toggled.connect(self.go.setEnabled)
         self.go.clicked.connect(self.accept)
         cancel.clicked.connect(self.reject)

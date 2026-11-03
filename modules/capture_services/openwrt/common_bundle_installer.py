@@ -14,7 +14,7 @@ from .candidate_policy import CandidatePlanRejected
 CAPTURE_INSTALLABLE = CAPTURE_ROOTS | HCX_LIBRARIES
 
 
-def install_from_local(manager, wanted, device, cache_dir, sftp_available, cancel, tell,
+def _install_downloaded(manager, wanted, device, cache_dir, sftp_available, cancel, tell,
                        uploader=None, repository=None):
     """\u5339\u914d\u65f6\u5b8c\u5168\u4f7f\u7528\u672c\u5730\u8d44\u6e90\uff0c\u4e0d\u5339\u914d\u624d\u8fd4\u56de False \u4ea4\u7ed9\u539f\u6d41\u7a0b\u3002"""
     wanted = tuple(wanted)
@@ -124,3 +124,16 @@ def install_from_local(manager, wanted, device, cache_dir, sftp_available, cance
         raise SignalError("environment", "\u672c\u5730\u79bb\u7ebf\u4f9d\u8d56\u65e0\u6cd5\u4f7f\u7528\uff1a" + str(exc)) from None
     finally:
         resources.close()
+
+
+def install_from_local(manager, wanted, device, cache_dir, sftp_available, cancel, tell,
+                       uploader=None, repository=None):
+    """Downloaded bundle first; only a non-match may consult the built-in roots."""
+    wanted=tuple(wanted)
+    if _install_downloaded(manager,wanted,device,cache_dir,sftp_available,cancel,tell,uploader,repository):
+        return True
+    if repository is not None or not wanted or not set(wanted).issubset({'libuci-lua','wpa-cli'}):
+        return False
+    from .builtin_base_installer import install_builtin
+    installed=install_builtin(manager,wanted,device,cache_dir,sftp_available,cancel,tell,uploader)
+    return "\u8f6f\u4ef6\u5185\u7f6e\u57fa\u7840\u79bb\u7ebf\u5305" if installed else False

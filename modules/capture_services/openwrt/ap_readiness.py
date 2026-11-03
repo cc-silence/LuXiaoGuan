@@ -1,5 +1,7 @@
 """Positive AP readiness proof independent of optional hostapd ubus control."""
-AP_READINESS_LUA = r'''
+from .ap_dfs_observation import AP_DFS_LUA
+
+AP_READINESS_LUA = AP_DFS_LUA + r'''
 local function ap_fail(evidence,reason)
  evidence.ap_failure=reason;return false
 end
@@ -36,7 +38,7 @@ local function ap_kernel_ready(iface,ssid,evidence)
  if not evidence.kernel_interface_up then return ap_fail(evidence,"kernel_down") end
  local carrier=ap_file(iface,"carrier")
  if type(carrier)=="string" and carrier:match("^[01]%s*$") then evidence.ap_carrier=carrier:match("^1")~=nil end
- if evidence.ap_carrier~=true then return ap_fail(evidence,"kernel_carrier") end
+ if evidence.ap_carrier~=true then ap_dfs_observe(iface,evidence);return ap_fail(evidence,"kernel_carrier") end
  local pipe=io.popen("iw dev '"..iface.."' info 2>/dev/null")
  if not pipe then return ap_fail(evidence,"kernel_iw") end
  local text=pipe:read(8193);local closed=pipe:close()
@@ -78,8 +80,10 @@ local function ap_ready(bus,iface,ssid,evidence,device)
    if dfs.cac_active==true or dfs.cac_active==1 then evidence.cac_active=true end
    if dfs.cac_active==false or dfs.cac_active==0 then evidence.cac_active=false end
    if type(dfs.cac_seconds)=="number" and dfs.cac_seconds>=0 and dfs.cac_seconds<=3600 then evidence.cac_seconds=dfs.cac_seconds end
+   if type(dfs.cac_seconds_left)=="number" and dfs.cac_seconds_left>=0 and dfs.cac_seconds_left<=3600 then evidence.cac_seconds_left=dfs.cac_seconds_left end
   end
  end
+ if evidence.ap_state=="DFS" and evidence.cac_active==nil then ap_dfs_observe(iface,evidence) end
  if not err then
   if type(value)~="table" or value.status~="ENABLED" then return ap_fail(evidence,"control_state") end
   if value.ssid~=nil then evidence.ssid_matches=value.ssid==ssid;return evidence.ssid_matches or ap_fail(evidence,"ssid_mismatch") end

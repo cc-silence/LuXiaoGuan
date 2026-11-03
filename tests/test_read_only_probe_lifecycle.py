@@ -100,4 +100,56 @@ class ReadOnlyLifecycleTests(unittest.TestCase):
   AutoCapturePage._on_signals_snapshot_changed(page,replace(new,busy=False))
   self.assertEqual(probe.call_count,2)
 
+class AutoCaptureSubscriptionTests(unittest.TestCase):
+ def test_disposed_page_receives_no_later_service_events_and_reopen_receives_once(self):
+  from PySide6.QtCore import QObject, Signal
+  class Signals(QObject):
+   snapshotChanged=Signal(object)
+  owner=Owner();owner.openwrt_snapshot=OpenWrtSessionSnapshot(connection_state=OpenWrtConnectionState.CONNECTED)
+  owner.router_signals=Signals()
+  auto=AutoCaptureService(owner);owner.auto_capture=auto
+  auto.refresh_boot_status=Mock(return_value=False);auto.refresh_radio_idle_status=Mock(return_value=False)
+  auto.poll_boot_log=Mock();auto.stop_all=Mock()
+  class Page(AutoCapturePage):
+   def _on_signals_snapshot_changed(self,value):self.received_signals=getattr(self,'received_signals',0)+1
+  first=Page(owner,{})
+  auto.bootScriptStarted.emit()
+  before=first.bg_console.toPlainText()
+  from threading import Thread
+  queued=Thread(target=lambda:auto.bootLogUpdated.emit("queued-before-dispose"))
+  queued.start();queued.join(timeout=3)
+  self.assertFalse(queued.is_alive())
+  first.dispose();first.dispose()
+  APP.processEvents()
+  second=Page(owner,{})
+  self.assertEqual(first._service_connections,[])
+  auto.bootScriptStarted.emit();auto.bootLogUpdated.emit('fresh-session-line')
+  owner.router_signals.snapshotChanged.emit(None)
+  self.assertEqual(first.bg_console.toPlainText(),before)
+  self.assertTrue(getattr(first,'_manual_boot_started',False))
+  self.assertEqual(getattr(first,'received_signals',0),0)
+  self.assertEqual(second.bg_console.toPlainText().count('fresh-session-line'),1)
+  self.assertEqual(second.received_signals,1)
+  second.dispose();first.close();second.close()
+  auto.stop_all.assert_not_called()
+  auto._resource_timer.stop();owner.deleteLater()
+
+ def test_worker_notifications_run_on_ui_thread_only_while_page_is_active(self):
+  from threading import Thread, get_ident
+  owner=Owner();owner.openwrt_snapshot=OpenWrtSessionSnapshot(connection_state=OpenWrtConnectionState.CONNECTED)
+  auto=AutoCaptureService(owner);owner.auto_capture=auto
+  auto.refresh_boot_status=Mock(return_value=False);auto.refresh_radio_idle_status=Mock(return_value=False)
+  page=AutoCapturePage(owner,{})
+  auto.bootScriptStarted.emit()
+  threads=[];append=page.append_bg_console_text
+  def record(text):threads.append(get_ident());append(text)
+  page.append_bg_console_text=record
+  worker=Thread(target=lambda:auto.bootLogUpdated.emit('queued-active-page'))
+  worker.start();worker.join(timeout=3)
+  self.assertFalse(worker.is_alive());self.assertEqual(threads,[])
+  APP.processEvents()
+  self.assertEqual(threads,[get_ident()])
+  self.assertIn('queued-active-page',page.bg_console.toPlainText())
+  page.dispose();page.close();auto._resource_timer.stop();owner.deleteLater()
+
 if __name__=='__main__':unittest.main()

@@ -49,3 +49,5 @@ KINDS |= {"homepage"}
 SITE_MODULES |= {"router_homepage_dialog"}
 
 CODES |= {"firewall_shared_local"}
+
+SITE_MODULES |= {"local_static_recovery","factory_client_recovery"}

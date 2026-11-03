@@ -1,0 +1,69 @@
+{
+  "scope": "DFS/CAC startup recognition shared by AP readiness, ordinary toggles, runtime repair, native configuration application and original AP recovery",
+  "confirmed_feedback": "OpenWrt 23.05.4, HE160, hostapd DFS-CAC-START cac_time=60s; AP-ENABLED about 65 seconds later; prior 45-second deadline failed first.",
+  "proof": {
+    "primary": "hostapd get_status dfs.cac_active/cac_seconds/cac_seconds_left",
+    "fallback": "Only missing BSS object plus administrative UP and no carrier; bounded timestamped hostapd logs, exact interface or live sysfs phy match; no guessed radio numbering",
+    "ready": "CAC evidence never means ready. Existing live hostapd/kernel positive AP verification is still required."
+  },
+  "bounds": {
+    "normal_toggle_seconds": 45,
+    "normal_repair_seconds": 30,
+    "cac_max_seconds": 3600,
+    "post_cac_verification_allowance_seconds": 10,
+    "log_tail_lines": 128,
+    "log_bytes": 65536,
+    "event_cache": 128,
+    "native_apply": "Original rpcd rollback is 90 seconds. Device-driven extensions cannot exceed a conservative 80-second deadline started before stage; final confirmation has ten seconds reserved. Longer CAC is reported unconfirmed and recovery attempted.",
+    "logs": "No raw SSID, credentials or router logs added to routine readiness evidence. Evidence is sanitized and transitions remain bounded."
+  },
+  "compatibility": {
+    "official_logread_versions": 50,
+    "pinned_ubox_sources": 6,
+    "matrix": "build/dfs-readiness-20261103/logread-audit/matrix.json",
+    "live_router_retest": false,
+    "limitations": "Source contracts and synthetic Lua devices only. Vendor-modified logread or evicted/missing CAC records may prevent detection; unsupported output never triggers a guessed delay."
+  },
+  "builtin_package": {
+    "relative_release_path": "bin/tools/openwrt_base/base.zip",
+    "bytes": 2151444,
+    "verified": "Formal seed_assets and make_zip executed in an isolated resource regression; archive member and SHA256 match, corrupt input rejected by verify_files.",
+    "old_1_0_36_contains_builtin": false
+  },
+  "release": "Source changes only; no new full application package produced in this turn.",
+  "files": {
+    "modules/capture_services/openwrt/ap_dfs_observation.py": "d8f36b44602178b5421e0c4de4081e60aa2bbfd5d4d9e9025b56d6887c9a4c2c",
+    "modules/capture_services/openwrt/ap_startup_wait.py": "990849f055c39a94efb5243f6de2dd30d0434c8804ef6e11e6493e29e28e120d",
+    "modules/capture_services/openwrt/ap_readiness.py": "9ae23f94c95889a5bdbc46c56e9cbaf9be75902d16ae9ed3ba77dd1ab339bfcd",
+    "modules/capture_services/openwrt/readiness_diagnostics.py": "81be6aa32aa3c787225aa20a0f546d4fedb30b6d40a0cc547b905be838358344",
+    "modules/capture_services/openwrt/signal_manager.py": "0f243754ca72da02d6e150573e5113d25f7e6fdd13889bcd2697cd6617ecfe79",
+    "modules/capture_services/openwrt/signal_recovery.py": "8c39db2d5e8d8e84ccb51bd850ca045d4e51ece0616b1fb68ccdf81286b1ffff",
+    "modules/capture_services/openwrt/wireless_setup_manager.py": "8308d99b6d565bc23aa97d0f33eb59ee57e8c3d179abc95b1ec3024d97435095",
+    "modules/main_pages/packet_capture/openwrt/router_signal_page.py": "2dcbda5c5fd242b44b0d4670a2de5b723b6d6ff06b873e9ae70acca73b1b8e41",
+    "tests/test_ap_dfs_readiness.py": "58fbc720e5b6fda830c24291874e7fca3a300f098838529bdc19913dd0139a8d",
+    "tests/test_automatic_ap_diagnostics.py": "0ab86822ba6a7f25daeace803925aae43a175b6c497173024b5590df8e319259",
+    "tests/test_builtin_base.py": "a296e520f65357e63835ed1289b565b662213796e8eb16361446f4e00c6a397a"
+  },
+  "review": {
+    "date": "2026-11-03",
+    "corrected": [
+      "Backend runtime repair now rejects a snapshot already reporting active CAC before any wireless reload.",
+      "Native CAC without an event identifier recognizes an explicitly restarted countdown or a new active cycle; unchanged or missing remaining-time fields never renew the same cycle indefinitely."
+    ],
+    "regressions": "165 targeted tests passed, including native Lua readiness, virtual-time restarts, cancellation, native rollback limits, bridge/save/UI behavior, builtin resource collection and partial dependency installation.",
+    "scope_limit": "No live router validation and no new full application release built."
+  },
+  "second_review": {
+    "date": "2026-11-03",
+    "root_case": "Multiple BSS records on one live sysfs phy: an older own CAC start could override a newer sibling CAC cycle or revive after its completion.",
+    "resolution": "Keep the most recent local BSS lifecycle and radio CAC lifecycle separately. Use observed log order, including equal millisecond stamps, and require positive duration before calling an event active. A sibling BSS stop does not cancel an ongoing radio CAC.",
+    "verification": "170 targeted tests passed on Windows; final code unchanged during run. Includes same-phy new cycles, completion followed by AP-ENABLED, local stop isolation, equal timestamps and integer-second/fractional-log precision.",
+    "platform_scope": "Shared Python/Lua strategy, no new desktop OS branches. Debian 12 desktop startup, dependencies and shutdown remain unverified this turn.",
+    "pending_acceptance": [
+      "On a real affected router, enable its 60-second DFS AP and confirm ready ends immediately after AP start.",
+      "Verify two same-radio APs and a new CAC cycle, cancellation and failed configuration recovery.",
+      "On Debian 12 x86-64 with application dependencies, verify imports/startup, signal task, dependency installation and exit cleanup."
+    ],
+    "source_scope": "Existing exact-release get_status/logread source contracts preserved. Exact OpenWrt 23.05.4 logd tail ordering re-read. No claim that vendor firmware or all physical chipsets passed live testing."
+  }
+}

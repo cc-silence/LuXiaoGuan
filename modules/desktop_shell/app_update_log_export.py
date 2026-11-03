@@ -14,8 +14,7 @@ class UpdateLogExport(QObject):
         self._service = None
 
     def start(self, owner):
-        from modules.config_manager import user_downloads_dir
-        from modules.log_services import build_export_filename
+        from modules.log_export_paths import choose_log_export_path
         from modules.app_update_services.diagnostics import snapshot
         from modules.app_update_services.diagnostics_export import export_update_logs
         runtime = self.presenter.runtime
@@ -26,8 +25,7 @@ class UpdateLogExport(QObject):
             self.message = "\u5df2\u6709\u65e5\u5fd7\u6b63\u5728\u5bfc\u51fa\uff0c\u8bf7\u7b49\u5f85\u5b8c\u6210\u3002"
             self.changed.emit()
             return
-        picked, _ = QFileDialog.getSaveFileName(owner, "\u5bfc\u51fa\u66f4\u65b0\u65e5\u5fd7",
-            str(user_downloads_dir() / build_export_filename('update')), 'ZIP (*.zip)')
+        picked = choose_log_export_path(owner, "\u5bfc\u51fa\u66f4\u65b0\u65e5\u5fd7", "update")
         if not picked or runtime._exiting:
             return
         self._service = service

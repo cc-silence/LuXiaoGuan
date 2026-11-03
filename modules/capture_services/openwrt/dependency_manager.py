@@ -188,11 +188,14 @@ class OpenWrtDependencyManager:
                                 packages.append("hcxdumptool")
                         else:
                             feature_state = DependencyState.OUTDATED
-                            detail = f"已安装旧版 hcxdumptool {hcx_ver or ''}，当前系统不支持新版本；常规抓包可正常使用"
+                            detail = f"已安装旧版 hcxdumptool {hcx_ver or ''}，当前系统不支持新版本；常规抓包另需核实工具和网卡监听能力"
                             packages = [p for p in packages if p != "hcxdumptool"]
                     else:
                         feature_state = DependencyState.READY
-                        detail = f"命令可用：hcxdumptool {hcx_ver}，支持无损 Netlink 虚拟监听接口并发抓包。"
+                        detail = f"命令可用：hcxdumptool {hcx_ver}，实际抓包仍需核实网卡监听能力。"
+            if feature in {"scan", "handshake", "pmkid", "wps"}:
+                from .capture_capability_feedback import dependency_capability_note
+                detail += dependency_capability_note(device)
             results.append(
                 DependencyInfo(
                     feature,
@@ -306,53 +309,14 @@ class OpenWrtDependencyManager:
         """
         tell = message or (lambda _text, _level: None)
         tell("正在检查缺失依赖…", "info")
-        def checked():
+        def checked(*, final=False):
+            nonlocal sftp_available
+            if final and include_sftp:
+                sftp_available = self._probe_sftp(cancel_event, sftp_available)
             return tuple(item for item in self.check(enabled_features, sftp_available, cancel_event, device=device)
                          if include_sftp or item.key != "sftp")
-        initial = checked()
-        if enabled_features.get('signal') and any(item.key == 'signal' and item.state != DependencyState.READY for item in initial):
-            from .signal_manager import RouterSignalManager
-            RouterSignalManager(self.command_runner).install_auto(device, cache_dir, cancel_event, tell, uploader)
-            initial = checked()
-        wanted = self._missing_packages(initial)
-        if not wanted:
-            tell("依赖齐全，无需安装。", "success")
-            return checked()
-        tell("本次安装：" + "、".join(wanted) + "。", "info")
-        # Eligible devices use the designated 6.3.4 from the unified capture bundle.
-        if "hcxdumptool" in wanted:
-            if self._try_install_modern_hcxdumptool(device, sftp_available, cancel_event, tell, cache_dir, uploader):
-                initial = checked()
-                wanted = self._missing_packages(initial)
-                if not wanted:
-                    tell("抓包依赖已全部就绪（hcxdumptool 6.3.4 部署成功）！", "success")
-                    return initial
-
-        from .common_bundle_installer import install_from_local
-        from .installation_sources import install_with_sources, report_verified, package_batches
-        sources = []
-        for index, batch in enumerate(package_batches(wanted)):
-            if cancel_event is not None and cancel_event.is_set():
-                raise SignalError("cancelled", "依赖安装已取消。")
-            if index:
-                # Earlier groups may have supplied a shared/transitive dependency.
-                remaining = set(self._missing_packages(checked()))
-                batch = tuple(name for name in batch if name in remaining)
-            if not batch:
-                continue
-            source = install_with_sources(
-                lambda: install_from_local(self, batch, device, cache_dir, sftp_available, cancel_event, tell, uploader),
-                lambda: self._install_online(batch, cancel_event, tell),
-                lambda: self._install_offline(batch, device, cache_dir, sftp_available, cancel_event, tell, uploader), tell)
-            if source not in sources:
-                sources.append(source)
-        source = " / ".join(sources)
-        tell("正在复测依赖…", "info")
-        if include_sftp:
-            sftp_available = self._probe_sftp(cancel_event, sftp_available)
-        result = checked()
-        report_verified(source, all(installation_satisfied(item)
-                                    for item in result if item.key != "converter"), tell)
+        from .dependency_batch_install import install_packages
+        result = install_packages(self,checked,device,cache_dir,sftp_available,cancel_event,tell,uploader)
 
         # 抓包工具兼容性与版本深度诊断报告
         pmkid_item = next((item for item in result if item.key == "pmkid"), None)
@@ -550,21 +514,22 @@ class OpenWrtDependencyManager:
     def _install_online(self, packages, cancel_event, tell):
         """按实际包管理器更新源后逐包安装；联网失败转 offline_retry，其他失败诚实报错。"""
         package_manager = self._preflight(0, cancel_event)
-        tell("正在更新软件源…", "info")
+        from .temporary_package_sources import domestic_sources
         from .installation_sources import network_retry_error
         try:
-            self._execute_stage(
-                "dependency_update", package_manager.update(), 180, cancel_event, "更新软件源")
-            self._package_change(package_manager, tuple(packages), cancel_event)
-            total = len(packages)
-            for position, package in enumerate(packages, start=1):
-                tell(f"正在下载安装 {package}（第 {position}/{total} 个）…", "info")
-                command = self._package_change(package_manager, (package,), cancel_event)
+            with domestic_sources(self,package_manager,cancel_event,tell) as package_manager:
                 self._execute_stage(
-                    "dependency_install_" + package,
-                    command,
-                    600, cancel_event, f"安装 {package}")
-                tell(f"{package} 安装完成。", "success")
+                    "dependency_update", package_manager.update(), 180, cancel_event, "更新软件源")
+                self._package_change(package_manager, tuple(packages), cancel_event)
+                total = len(packages)
+                for position, package in enumerate(packages, start=1):
+                    tell(f"正在下载安装 {package}（第 {position}/{total} 个）…", "info")
+                    command = self._package_change(package_manager, (package,), cancel_event)
+                    self._execute_stage(
+                        "dependency_install_" + package,
+                        command,
+                        600, cancel_event, f"安装 {package}")
+                    tell(f"{package} 安装完成。", "success")
         except SignalError as exc:
             if exc.code == "transport" and _looks_like_network(str(exc)):
                 raise network_retry_error(exc) from None

@@ -1,0 +1,27 @@
+{
+  "scope": "Finish confirmed readiness defects and automatic failure evidence; capture does not require an AP.",
+  "changes": [
+    "The ordinary toggle no longer fails at six samples; shared 45-second readiness deadline remains authoritative.",
+    "Missing network.device status is recorded as unavailable, not proven down.",
+    "Ordinary toggle, re-enable, session apply before rollback, and automatic capture failures collect one read-only scene with 3-second timeout and 48 KiB output cap.",
+    "Scene includes safe configuration metadata, independent kernel interface evidence even when carrier is false, and recent redacted hostapd/netifd/driver/Dropbear log lines.",
+    "Eight wireless scenes, 32 command failures, and up to eight capture failure summaries per radio within a 16-summary global bound survive subsequent successful attempts.",
+    "Device connection epochs prevent old failures from entering a new device context."
+  ],
+  "privacy": "SSID and wireless credentials removed on router; secret-bearing service lines omitted; only approved config fields/booleans retained, export repeats redaction.",
+  "validation": {
+    "signal_and_history_group": "111 tests passed",
+    "capture_transport_group": "72 tests passed; overlaps with signal group",
+    "latest_scene_and_protocol_group": "13 tests passed",
+    "native_ssh": "Actual loopback SSH reject/next-command success, two-channel cancellation isolation and repeated/parallel short requests passed. This does not reproduce the user router cause.",
+    "gui_module": "Full test_auto_capture_feature process exited before summary; isolated idle-state test passed. No full GUI module acceptance claimed.",
+    "debian": "Actual Debian 12 syntax and generated POSIX shell validation passed; desktop/runtime and device not accepted.",
+    "format": "Changed-file UTF-8, py_compile and diff check passed; unrelated test_relocation_access_points.py has a trailing blank line outside this change."
+  },
+  "remaining": [
+    "User router 5G failure root cause not proven; automatic scene is intended to expose original service/driver failure.",
+    "Real cold radio with no AP/STA must be tested on target router.",
+    "No release package created in this turn."
+  ],
+  "sources": "build/wireless-failure-audit-20261103/sources/manifest.json"
+}

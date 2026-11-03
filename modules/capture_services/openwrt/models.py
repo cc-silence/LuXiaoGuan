@@ -120,6 +120,8 @@ class OpenWrtRadioInfo:
     interfaces: Tuple[str, ...] = field(default_factory=tuple)
     channel: int = 0
     free: Optional[bool] = False
+    usage_state: str = ""
+    usage_reason: str = ""
 
 
 @dataclass(frozen=True)

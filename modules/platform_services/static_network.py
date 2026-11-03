@@ -10,7 +10,8 @@ from .network_diagnostics import emit
 
 
 class StaticMigrationError(RuntimeError):
-    pass
+    def __init__(self,message,*,reason=''):
+        super().__init__(message);self.reason=reason
 
 
 def migration_plan(plan):
@@ -30,7 +31,7 @@ def migration_plan(plan):
     local=related[0]
     if local.ip==new[0].ip:
         emit('network_plan','address_conflict',address_conflicts_target=True)
-        raise StaticMigrationError('\u65b0\u8def\u7531\u5668 IP \u4e0e\u7535\u8111\u5f53\u524d IP \u76f8\u540c\uff0c\u8bf7\u4f7f\u7528\u4e0d\u540c\u5730\u5740\uff1b\u672a\u4fee\u6539\u7535\u8111\u548c\u8def\u7531\u5668\u3002')
+        raise StaticMigrationError('\u65b0\u8def\u7531\u5668 IP \u4e0e\u7535\u8111\u5f53\u524d IP \u76f8\u540c\uff0c\u8bf7\u4f7f\u7528\u4e0d\u540c\u5730\u5740\uff1b\u672a\u4fee\u6539\u7535\u8111\u548c\u8def\u7531\u5668\u3002',reason='address_conflict')
     if local.network==new[0].network or (local.ip in new[0].network and new[0].ip in local.network):
         wanted=ipaddress.IPv4Interface(str(local.ip)+'/'+str(new[0].network.prefixlen))
     else:
@@ -41,7 +42,7 @@ def migration_plan(plan):
         wanted=ipaddress.IPv4Interface(str(ipaddress.IPv4Address(candidate))+'/'+str(new[0].network.prefixlen))
         if wanted.ip==new[0].ip:
             emit('network_plan','address_conflict',address_conflicts_target=True)
-            raise StaticMigrationError(f'\u65b0\u8def\u7531\u5668 IP\uff1a{new[0].ip}\n\u6309\u539f\u56fa\u5b9a IP \u6362\u7b97\u540e\u7684\u7535\u8111 IP\uff1a{wanted.ip}\n\n\u4e24\u4e2a\u5730\u5740\u76f8\u540c\uff0c\u4f1a\u9020\u6210 IP \u51b2\u7a81\u3002\u8bf7\u8fd4\u56de\u91cd\u65b0\u8f93\u5165\u5176\u4ed6\u8def\u7531\u5668 IPv4 \u5730\u5740\u3002\n\u672a\u4fee\u6539\u7535\u8111\u548c\u8def\u7531\u5668\u8bbe\u7f6e\u3002')
+            raise StaticMigrationError(f'\u65b0\u8def\u7531\u5668 IP\uff1a{new[0].ip}\n\u6309\u539f\u56fa\u5b9a IP \u6362\u7b97\u540e\u7684\u7535\u8111 IP\uff1a{wanted.ip}\n\n\u4e24\u4e2a\u5730\u5740\u76f8\u540c\uff0c\u4f1a\u9020\u6210 IP \u51b2\u7a81\u3002\u8bf7\u8fd4\u56de\u91cd\u65b0\u8f93\u5165\u5176\u4ed6\u8def\u7531\u5668 IPv4 \u5730\u5740\u3002\n\u672a\u4fee\u6539\u7535\u8111\u548c\u8def\u7531\u5668\u8bbe\u7f6e\u3002',reason='address_conflict')
     if not wanted.network.network_address < wanted.ip < wanted.network.broadcast_address:
         raise StaticMigrationError('\u7f29\u5c0f\u7f51\u6bb5\u540e\uff0c\u7535\u8111 IP \u4f1a\u53d8\u6210\u7f51\u7edc\u5730\u5740\u6216\u5e7f\u64ad\u5730\u5740\uff0c\u672a\u4fee\u6539\u7f51\u7edc\u3002')
     return dict(adapter=row,old_router=str(old[0].ip),new_router=str(new[0].ip),old_address=str(local),new_address=str(wanted))
@@ -60,6 +61,7 @@ def transition(current,before,after):
 class StaticMigration:
     def __init__(self,plan,driver=None,folder=None):
         self.plan=plan
+        self.local_confirmed=False;self.deadline=None
         if driver is None:
             if current_os()==WINDOWS:
                 from .static_network_windows import Driver
@@ -77,7 +79,7 @@ class StaticMigration:
 
     def _save(self):
         self.folder.mkdir(parents=True,exist_ok=True)
-        payload=dict(schema=1,plan=self.plan,baseline=self.baseline,expected=self.expected,pending=self.pending,router_confirmed=self.router_confirmed,confirmation_pending=self.confirmation_pending)
+        payload=dict(schema=1,plan=self.plan,baseline=self.baseline,expected=self.expected,pending=self.pending,router_confirmed=self.router_confirmed,confirmation_pending=self.confirmation_pending,local_confirmed=self.local_confirmed)
         temp=self.path.with_suffix('.tmp')
         with temp.open('w',encoding='utf-8') as stream:
             json.dump(payload,stream,ensure_ascii=True);stream.flush();os.fsync(stream.fileno())
@@ -88,9 +90,14 @@ class StaticMigration:
         verify=getattr(self.driver,'verify',None)
         if verify is not None:verify(state)
 
+    def _verify_topology(self):
+        verify=getattr(self.driver,'verify_topology',None)
+        if verify is not None:verify(self.plan)
+
     def _write(self,wanted):
         current=self.driver.read()
         if current!=self.expected:raise StaticMigrationError('Local network changed outside this operation; not overwriting it')
+        self._verify_topology()
         self.pending=copy.deepcopy(wanted);self._save()
         self.driver.write(self.expected,wanted)
         actual=self.driver.read()
@@ -110,13 +117,13 @@ class StaticMigration:
             old_plan=saved['plan'];old_adapter=old_plan['adapter']
             identity=all(old_adapter[k]==self.plan['adapter'][k] for k in ('id','index','mac'))
             restored=(saved.get('router_confirmed') is False
-                      and saved.get('confirmation_pending') is False
+                      and saved.get('confirmation_pending') is False and not saved.get('local_confirmed')
                       and saved.get('baseline')==current and saved.get('expected')==current
                       and 'pending' in saved and saved['pending'] in (None,current)
                       and old_plan['old_router']==self.plan['old_router']
                       and old_plan['old_address']==self.plan['old_address'])
             completed=False
-            if saved.get('router_confirmed') is True and isinstance(saved.get('expected'),dict):
+            if (saved.get('router_confirmed') is True or saved.get('local_confirmed') is True) and isinstance(saved.get('expected'),dict):
                 final=copy.deepcopy(saved['expected'])
                 final['addresses']=sorted(set(a for a in final['addresses'] if a!=old_plan['old_address']) | {old_plan['new_address']})
                 completed=(current==final and 'pending' in saved and saved['pending'] in (None,final)
@@ -134,13 +141,14 @@ class StaticMigration:
     def prepare(self,cancel):
         if cancel.is_set():raise InterruptedError('Cancelled before local network preparation')
         self.driver.cancel=cancel
-        self.driver.deadline=time.monotonic()+60
+        self.driver.deadline=min(time.monotonic()+60,self.deadline or float('inf'))
         self.baseline=self.driver.read();self.expected=copy.deepcopy(self.baseline)
         original=self.plan['adapter']
         if set(self.baseline['addresses'])!=set(original['addresses']) or self.baseline['gateways']!=original['gateways'] or self.baseline['dns']!=original['dns']:
             raise StaticMigrationError('Static network snapshot is stale; reopen LAN settings')
         if len(self.baseline['gateways'])>1:raise StaticMigrationError('Multiple default routes require manual review')
         self._verify_live(self.baseline)
+        self._verify_topology()
         self._reconcile_record(self.baseline)
         self._save()
         wanted=copy.deepcopy(self.baseline)
@@ -157,7 +165,7 @@ class StaticMigration:
         self.driver.cancel=None
 
     def activate(self,deadline=None):
-        self.driver.deadline=min(time.monotonic()+25,deadline or float('inf'))
+        self.driver.deadline=min(time.monotonic()+25,deadline or float('inf'),self.deadline or float('inf'))
         wanted=copy.deepcopy(self.expected)
         for key in ('gateways','dns'):
             wanted[key]=list(dict.fromkeys(self.plan['new_router'] if v==self.plan['old_router'] else v for v in wanted[key]))
@@ -182,11 +190,23 @@ class StaticMigration:
         self.router_confirmed=True
         self._save()
         self.driver.deadline=time.monotonic()+25
+        self._write(self._final_state())
+        self.committed=True;self.path.unlink(missing_ok=True)
+        emit('static_commit','system_accepted')
+
+    def _final_state(self):
         wanted=copy.deepcopy(self.expected)
         if self.plan['old_address']!=self.plan['new_address']:
             wanted['addresses']=sorted(set(v for v in wanted['addresses'] if v!=self.plan['old_address']) | {self.plan['new_address']})
-        self._write(wanted)
-        self.committed=True;self.path.unlink(missing_ok=True)
+        return wanted
+
+    def commit_local(self):
+        """Complete an explicitly requested PC-only repair; no router verification claim."""
+        self.driver.deadline=min(time.monotonic()+25,self.deadline or float('inf'))
+        self._write(self._final_state())
+        self.local_confirmed=True
+        self._save()
+        self.path.unlink(missing_ok=True);self.committed=True
         emit('static_commit','system_accepted')
 
     def rollback(self):
@@ -198,10 +218,12 @@ class StaticMigration:
         actual=self.driver.read()
         if actual!=self.expected and (self.pending is None or not transition(actual,self.expected,self.pending)):
             raise StaticMigrationError('\u7535\u8111\u7f51\u7edc\u5df2\u88ab\u5176\u4ed6\u64cd\u4f5c\u4fee\u6539\uff0c\u672a\u8986\u76d6\uff1b\u6062\u590d\u8bb0\u5f55\u5df2\u4fdd\u7559\u3002')
+        self.local_confirmed=False
         self.expected=copy.deepcopy(actual);self.pending=copy.deepcopy(self.baseline);self._save()
         if actual!=self.baseline:self.driver.write(actual,self.baseline)
         if self.driver.read()!=self.baseline:raise StaticMigrationError('Original local network restoration could not be verified')
         self._verify_live(self.baseline)
+        self.expected=copy.deepcopy(self.baseline);self.pending=None;self._save()
         self.path.unlink(missing_ok=True);self.baseline=None;self.record_owned=False
         emit('static_restore','system_accepted')
 

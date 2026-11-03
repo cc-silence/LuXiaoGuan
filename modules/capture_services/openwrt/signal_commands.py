@@ -133,7 +133,7 @@ local function inventory()
             if matches > 1 then readiness.ap_failure="ambiguous_interface";state = "unknown"; runtime_ssid=""; runtime_band="" end
         end
         if s.mode=="ap" and not readiness.ap_failure then
-            readiness.ap_failure=readiness.runtime_pending and "radio_pending" or readiness.radio_up==false and "radio_down" or not readiness.interface_present and "interface_missing" or "interface_down"
+            readiness.ap_failure=readiness.runtime_pending and "radio_pending" or readiness.radio_up==false and "radio_down" or not readiness.interface_present and "interface_missing" or readiness.interface_up==false and "interface_down" or "device_state_unavailable"
         end
         local runtime_note = ""
         if type(rs) == "table" then

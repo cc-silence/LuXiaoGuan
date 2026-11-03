@@ -16,22 +16,37 @@ def pending_recovery(targets, ready):
     return tuple(target for target in targets if not ready(*target))
 
 
-def wait_for_recovery(targets, observe, cancel, deadline, journal=None):
+def wait_for_recovery(targets, observe, cancel, deadline, journal=None, *, hard_deadline=None):
     """Use the operation deadline and cancellation; do not schedule a UI timer."""
     import time
     from .signal_manager import SignalError
     from .wireless_readiness_evidence import WirelessReadinessEvidence
     if not targets:
         return
+    from .ap_startup_wait import ApStartupWait
+    startup = ApStartupWait(deadline=deadline, hard_deadline=hard_deadline, rollback=True)
+    deadline = startup.deadline
     with WirelessReadinessEvidence(journal, "ap").observing() as evidence:
         while time.monotonic() < deadline:
             if cancel.is_set():
                 raise InterruptedError("Wireless recovery cancelled")
+            observations = []
             def ready(section, radio):
                 remaining = deadline - time.monotonic()
-                return remaining > 0 and observe(section, radio, min(8, remaining))
+                if remaining <= 0:
+                    return False
+                status = observe(section, radio, min(8, remaining))
+                if isinstance(status, dict):
+                    observations.append(status)
+                    if status.get("ready") is not True:
+                        startup.observe(status, (section, radio))
+                    return status.get("ready") is True
+                return status is True
             pending = pending_recovery(targets, ready)
-            evidence.sample(dict(ready=not pending, runtime_pending=bool(pending)))
+            deadline = startup.deadline
+            proof = next((row for row in observations if row.get("cac_active") is True),
+                         next((row for row in observations if row.get("ready") is not True), {}))
+            evidence.sample(dict(proof, ready=not pending, runtime_pending=bool(pending)))
             if not pending:
                 return
             if cancel.wait(min(1, max(0, deadline - time.monotonic()))):

@@ -82,14 +82,14 @@ def client_plan(review,values):
 class RenewalGate:
     def __init__(self,plan):
         self.plan=copy.deepcopy(plan);self.adapters=copy.deepcopy(self.plan["adapters"]);self.lock=threading.Lock();self.busy=False;self.closed=False
-        self.selected_id=None;self.armed=False;self.deadline=0;self.message='';self.attempted=set();self.restoring=False;self.automatic_started=False;self.automatic_enabled=False
+        self.selected_id=None;self.armed=False;self.deadline=0;self.message='';self.attempted=set();self.restoring=False;self.automatic_started=False;self.automatic_enabled=False;self.manual_recommended=False
     def payload(self):
         with self.lock:
             return dict(control=self,guide=self.restore_guide() if self.restoring else self.plan['guide'],adapters=copy.deepcopy(self.adapters),used=list(self.attempted),
-                        busy=self.busy,can_renew=self.armed and not self.closed and self.deadline-time.monotonic()>=15,closed=self.closed or not self.armed,message=self.message,selection_required=self.plan.get("selection_required",False))
+                        manual_recommended=self.manual_recommended,busy=self.busy,can_renew=self.armed and not self.closed and self.deadline-time.monotonic()>=15,closed=self.closed or not self.armed,message=self.message,selection_required=self.plan.get("selection_required",False))
     def start(self,deadline,restoring=False):
         with self.lock:
-            self.deadline=deadline;self.closed=False;self.armed=False;self.attempted.clear();self.restoring=restoring;self.automatic_started=False;self.automatic_enabled=False
+            self.deadline=deadline;self.closed=False;self.armed=False;self.attempted.clear();self.restoring=restoring;self.automatic_started=False;self.automatic_enabled=False;self.manual_recommended=False
         return self.payload()
     def arm(self,*,automatic=False):
         with self.lock:self.armed=True;self.automatic_enabled=bool(automatic)
@@ -110,17 +110,17 @@ class RenewalGate:
             if self.deadline-time.monotonic()<15:
                 self.message='剩余时间不足，已停止发起新的网卡操作，请等待恢复结果。'
                 return None
-            row=next((a for a in self.adapters if a['id']==identity and a.get('dhcp') is True and a.get('renewable')),None)
+            row=next((a for a in self.adapters if a['id']==identity and ((a.get('dhcp') is True and a.get('renewable')) or (a.get('dhcp') is False and a.get('static_recovery') and self.plan.get('static_migration',{}).get('adapter',{}).get('id')==identity))),None)
             if row is None:return None
-            self.selected_id=identity;self.busy=True;self.attempted.add(identity);self.message='\u6b63\u5728\u91cd\u65b0\u83b7\u53d6\u6240\u9009\u7f51\u5361\u5730\u5740\uff0c\u8bf7\u7b49\u5f85\u3002'
+            self.selected_id=identity;self.busy=True;self.manual_recommended=False;self.attempted.add(identity);self.message='\u6b63\u5728\u91cd\u65b0\u83b7\u53d6\u6240\u9009\u7f51\u5361\u5730\u5740\uff0c\u8bf7\u7b49\u5f85\u3002'
             selected=copy.deepcopy(row)
             selected["expected_addresses"]=copy.deepcopy(self.plan.get("old_addresses" if self.restoring else "new_addresses",[]))
-            return selected,min(40,self.deadline-time.monotonic()-8)
+            return selected,min(60,self.deadline-time.monotonic()-8)
     def permit(self):
         with self.lock:return self.armed and not self.closed and self.deadline-time.monotonic()>8
-    def finish_renewal(self,message,current=None):
+    def finish_renewal(self,message,current=None,*,manual_recommended=False):
         with self.lock:
-            self.busy=False;self.message=str(message);self.attempted.clear()
+            self.busy=False;self.message=str(message);self.attempted.clear();self.manual_recommended=bool(manual_recommended)
             if isinstance(current,dict):
                 for index,row in enumerate(self.adapters):
                     if row['id']==current.get('id') and row.get('mac')==current.get('mac'):
@@ -149,9 +149,10 @@ def recovery_for(review,values):
     return RenewalGate(plan) if plan['guide'] else None
 
 
-def factory_reset_plan(inventory):
-    """Prefer the original route, never change static settings or all adapters."""
-    rows=inventory.get('adapters',[]) if isinstance(inventory,dict) else []
+def factory_reset_plan(inventory,defaults=None):
+    """Prefer the proven route; static recovery uses the ordinary LAN policy."""
+    inventory=inventory if isinstance(inventory,dict) else {}
+    rows=inventory.get('adapters',[])
     rows=[copy.deepcopy(row) for row in rows if isinstance(row,dict) and row.get('connected')]
     routed=[row for row in rows if row.get('route')]
     selected=routed if len(routed)==1 else rows
@@ -159,4 +160,8 @@ def factory_reset_plan(inventory):
     guide='请先等待路由器重启完成。如果无法连接默认地址，请点“重新获取网络地址”，再登录路由器。'
     if not renewable:
         guide='未找到可自动获取地址的网卡。请等路由器重启后，在系统网络设置中重新连接；手动 IP 需自行调整到默认地址所在网段。'
-    return dict(guide=guide,adapters=selected,selection_required=len(routed)!=1)
+    plan=dict(guide=guide,adapters=selected,selection_required=len(routed)!=1)
+    if defaults is not None:
+        from .factory_client_recovery import add_static_recovery
+        plan=add_static_recovery(plan,inventory,defaults)
+    return plan

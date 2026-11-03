@@ -116,6 +116,7 @@ class AutoCaptureRadioSession:
         self._eapol_set = set()
         self._created_stubs: list[str] = []
         self._monitor_creation_attempted = False
+        self._initialization_failed = False
         self._recovery = None
         self._bound_client = getattr(ssh_client, "_client", None)
         self._bound_fingerprint = getattr(ssh_client, "host_fingerprint", "")
@@ -126,12 +127,33 @@ class AutoCaptureRadioSession:
         if self.stats.state in {"starting", "capturing", "stopping"}:
             return
 
+        if self._worker_thread is not None and self._worker_thread.is_alive():
+            if coordinator is not None:
+                coordinator.cancel()
+            self.service.messageGenerated.emit(
+                "\u4e0a\u6b21\u6293\u5305\u4ecd\u5728\u6536\u5c3e\uff0c\u8bf7\u7b49\u6536\u5c3e\u7ed3\u675f\u540e\u518d\u542f\u52a8\u3002", "warning")
+            return
+
         if self._recovery is not None and not self._recovery.recovered_on_reconnect():
             self.service.messageGenerated.emit(
                 "\u4e0a\u6b21\u63a5\u7ba1\u6062\u590d\u672a\u786e\u8ba4\uff0c\u8bf7\u5148\u91cd\u65b0\u8fde\u63a5\u540c\u4e00\u8def\u7531\u5668\u5b8c\u6210\u6062\u590d\u3002", "error")
             return
+        if self._created_stubs and (not self._bound_fingerprint or
+                getattr(self.ssh_client, "host_fingerprint", "") != self._bound_fingerprint):
+            if coordinator is not None:
+                coordinator.cancel()
+            self.service.messageGenerated.emit(
+                "\u4e0a\u6b21\u4e34\u65f6\u63a5\u53e3\u5c1a\u672a\u786e\u8ba4\u6e05\u7406\uff0c\u8bbe\u5907\u8eab\u4efd\u5df2\u53d8\u5316\uff0c\u5df2\u963b\u6b62\u672c\u6b21\u542f\u52a8\u3002", "error")
+            return
         if hasattr(self.service, 'diagnostics'):
             self.service.diagnostics.begin(self.radio_name)
+        # Attempt-local state must not authorize cleanup of the previous attempt.
+        self.remote_cap_file = ""
+        self._monitor_creation_attempted = False
+        self._initialization_failed = False
+        self._recovery = None
+        self._start_time = 0
+        self.stats = RadioCaptureStats()
         self.takeover_record = None
         self._bound_client = getattr(self.ssh_client, "_client", None)
         self._bound_fingerprint = getattr(self.ssh_client, "host_fingerprint", "")
@@ -219,7 +241,7 @@ class AutoCaptureRadioSession:
 
                 # 1. 如果射频正在承载实际业务接口，且用户允许接管，才执行无线安全接管事务；
                 # 若当前没有任何业务接口（例如重置后未开启无线或处于空闲），本身即无需接管
-                usage = usage_for_phy(read_radio_usage(self.runner, self._stop_event, snapshot=snapshot), self.phy)
+                usage = usage_for_phy(read_radio_usage(self.runner, self._stop_event, snapshot=snapshot), self.phy, runner=self.runner, cancel_event=self._stop_event)
                 is_free = usage.free
                 if not is_free:
                     if not allow_takeover:
@@ -297,9 +319,11 @@ class AutoCaptureRadioSession:
                     f"ip link set {self.mon_iface} up && sleep 1"
                 )
                 # Recheck after preparation and before touching the radio.
-                latest = usage_for_phy(read_radio_usage(self.runner, self._stop_event), self.phy)
+                latest = usage_for_phy(read_radio_usage(self.runner, self._stop_event), self.phy, runner=self.runner, cancel_event=self._stop_event)
                 if not latest.free:
                     raise RuntimeError(latest.reason)
+                from .capture_placeholders import release_owned_placeholder
+                release_owned_placeholder(self)
                 self._monitor_creation_attempted = True
                 create_res = self.runner.run(
                     "add_mon_iface",
@@ -316,38 +340,6 @@ class AutoCaptureRadioSession:
                     if create_res.exit_code != 0:
                         raise RuntimeError(f"创建监听网卡 {self.mon_iface} 失败: {create_res.stderr or create_res.stdout}")
 
-                # 防御 hcxdumptool 6.3.x 内部 Multi-PHY 枚举 Bug：
-                # 若系统中其他空闲物理卡处于零接口状态，hcxdumptool 会在 get_interfacelist 时
-                # 误判首个 PHY index 为 0 并直接报 failed to get interface list 崩溃退出。
-                # 为零接口物理卡挂载极轻量占位 stub 接口，保证工具正确枚举系统无线卡列表。
-                stub_script = (
-                    "for _p in /sys/class/ieee80211/*; do "
-                    "  [ -d \"$_p\" ] || continue; "
-                    "  _phy=$(basename \"$_p\"); "
-                    "  _num=\"${_phy#phy}\"; "
-                    "  if ! iw dev 2>/dev/null | grep -q \"phy#${_num}\"; then "
-                    "    _sname=\"hcxstub${_num}\"; "
-                    "    _rand_mac=\"02:$(hexdump -n 5 -e '/1 \":%02x\"' /dev/urandom 2>/dev/null | cut -c 2-)\"; "
-                    "    [ -z \"$_rand_mac\" ] && _rand_mac=\"02:77:88:99:aa:bb\"; "
-                    "    if iw phy \"$_phy\" interface add \"$_sname\" type monitor addr \"$_rand_mac\" 2>/dev/null; then "
-                    "      echo \"STUB_CREATED:$_sname\"; "
-                    "      if ! { printf %s routermanager:autocapture-stub > /sys/class/net/\"$_sname\"/ifalias && "
-                    "             ip link set \"$_sname\" up 2>/dev/null; }; then echo STUB_FAILED; fi; "
-                    "    fi; "
-                    "  fi; "
-                    "done"
-                )
-                stub_res = self.runner.run("ensure_phy_stubs", stub_script, timeout=8, cancel_event=self._stop_event)
-                if stub_res.stdout:
-                    for line in stub_res.stdout.splitlines():
-                        if line.startswith("STUB_CREATED:"):
-                            stub_name = line.split(":", 1)[1].strip()
-                            if stub_name and stub_name not in self._created_stubs:
-                                self._created_stubs.append(stub_name)
-
-                if "STUB_FAILED" in (stub_res.stdout or ""):
-                    raise RuntimeError("Capture placeholder preparation failed; owned resources will be cleaned up.")
-
             # 走出硬件拓扑变更串行锁；多射频并发启动时在此同步等待全射频就绪，杜绝 wifi reload 瞬态打断
             if coordinator is not None:
                 coordinator.mark_ready(self.radio_name)
@@ -362,7 +354,13 @@ class AutoCaptureRadioSession:
             if self._stop_event.is_set():
                 return
 
-# 5. 准备输出文件与本地日志文件
+            from .capture_placeholders import prepare_placeholders
+            with takeover_transaction(cancel_event=self._stop_event):
+                prepare_placeholders(self)
+            from .capture_initialization_evidence import collect_scene
+            collect_scene(self, "prepared")
+
+            # 5. 准备输出文件与本地日志文件
             stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             self.remote_cap_file = f"/root/cap/{self.mon_iface}_{stamp}.pcapng"
 
@@ -392,10 +390,12 @@ class AutoCaptureRadioSession:
                 )
                 wrapped_cmd = f"sh -c 'echo $$ > /tmp/.hcx_{self.mon_iface}.pid; exec {cmd_str}'"
 
-                self._channel = transport.open_session(timeout=10)
-                self._channel.get_pty(term="vt100", width=120, height=40)
-                self._channel.settimeout(1.0)
-                self._channel.exec_command(wrapped_cmd)
+                try:
+                    self._channel = self.ssh_client.open_capture_stream(
+                        client, wrapped_cmd, self._stop_event, timeout=10)
+                except Exception as exc:
+                    stage = getattr(exc, "ssh_stage", "unknown")
+                    raise RuntimeError("\u6293\u5305\u901a\u9053\u8bf7\u6c42\u5931\u8d25\uff0c\u9636\u6bb5=" + stage + ": " + str(exc)) from exc
 
                 # 耐心等待 3.5 秒检验是否闪退 (对齐 hcx_autocap.sh verify_captures 与 netlink 物理能力探测耗时)
                 crashed = False
@@ -408,17 +408,20 @@ class AutoCaptureRadioSession:
                         exit_code = self._channel.recv_exit_status()
                         break
 
+                if self._stop_event.is_set():
+                    return
+
                 if crashed:
-                    chunks = []
-                    try:
-                        while self._channel.recv_ready():
-                            chunk = self._channel.recv(4096).decode("utf-8", errors="replace")
-                            if not chunk:
-                                break
-                            chunks.append(chunk)
-                    except Exception:
-                        pass
-                    err_text = "".join(chunks).strip()
+                    from .capture_channel_state import drain_capture_tail, require_capture_exit_status
+                    err_text = drain_capture_tail(self._channel).strip()
+                    if exit_code < 0 and err_text:
+                        self.service.radioStreamOutput.emit(self.radio_name, err_text + "\n")
+                    require_capture_exit_status(exit_code)
+                    if (not self._initialization_failed and any(marker in err_text for marker in
+                            ("failed to arm interface", "failed to get interface list", "failed to open control sockets"))):
+                        self._initialization_failed = True
+                        from .capture_initialization_evidence import collect_scene
+                        collect_scene(self, "engine_failed", enumerate_engine=True)
                     core_lines = [
                         l.strip() for l in err_text.splitlines()
                         if l.strip()
@@ -441,19 +444,12 @@ class AutoCaptureRadioSession:
                         self._channel.close()
                     except Exception:
                         pass
-                    # 清理空文件与残留 PID，并幂等确保接口处于 UP 状态 (对齐 hcx_autocap.sh，绝不粗暴 down 网卡导致驱动状态机重置)
-                    self.runner.run(
-                        "reset_iface",
-                        f"[ ! -s {self.remote_cap_file} ] && rm -f {self.remote_cap_file}; "
-                        f"kill -9 $(cat /tmp/.hcx_{self.mon_iface}.pid 2>/dev/null) 2>/dev/null; "
-                        f"rm -f /tmp/.hcx_{self.mon_iface}.pid; "
-                        f"ip link set {self.mon_iface} up 2>/dev/null; "
-                        f"sleep 0.5",
-                        timeout=5,
-                    )
+                    from .auto_capture_cleanup import reset_finished_attempt
+                    reset_finished_attempt(self.runner, self.mon_iface, self.phy,
+                                           self.remote_cap_file, self._stop_event)
                     continue
 
-                # 持续平稳运行超过 3.5 秒，代表该档位完全适配该网卡硬件与驱动！
+                # The process survived initial observation; stream failures remain monitored.
                 started = True
                 break
 
@@ -490,6 +486,10 @@ class AutoCaptureRadioSession:
             LOGGER.exception("Auto capture session failed on %s", self.radio_name)
             self.stats.state = "stopping"
             self.stats.error_message = str(exc)
+            if (getattr(self.ssh_client,"_client",None) is self._bound_client and
+                    getattr(self.ssh_client,"host_fingerprint","")==self._bound_fingerprint):
+                from .wireless_failure_evidence import collect_wireless_failure
+                collect_wireless_failure(self.runner,self.radio_name,"","auto_capture",self._stop_event)
             # 在对应卡片的控制台醒目打印错误日志
             self.service.radioStreamOutput.emit(
                 self.radio_name,
@@ -695,23 +695,38 @@ class AutoCaptureRadioSession:
         return cmd_list
 
     def _stream_loop(self):
-        """Read PTY output; the service recorder owns redacted disk evidence."""
+        """Read PTY output and distinguish manual stop from unexpected EOF."""
+        from .capture_channel_state import drain_capture_tail, require_capture_exit_status
         while not self._stop_event.is_set():
-            if self._channel is None or self._channel.exit_status_ready():
-                break
-            try:
-                data = self._channel.recv(2048)
-                if not data:
+            channel = self._channel
+            if channel is None:
+                raise RuntimeError("\u6293\u5305\u6570\u636e\u901a\u9053\u4e0d\u5b58\u5728\u3002")
+            if channel.exit_status_ready():
+                tail = drain_capture_tail(channel)
+                if tail:
+                    self.service.radioStreamOutput.emit(self.radio_name, tail)
+                    self._parse_stream_stats(tail)
+                if self._stop_event.is_set():
                     break
+                code = require_capture_exit_status(channel.recv_exit_status())
+                raise RuntimeError("\u6293\u5305\u8fdb\u7a0b\u610f\u5916\u9000\u51fa\uff0c\u9000\u51fa\u7801=" + str(code))
+            try:
+                data = channel.recv(2048)
+                if not data:
+                    if self._stop_event.is_set():
+                        break
+                    raise RuntimeError("\u6293\u5305\u6570\u636e\u901a\u9053\u63d0\u524d\u7ed3\u675f\uff0c\u8fdb\u7a0b\u9000\u51fa\u72b6\u6001\u5c1a\u672a\u786e\u8ba4\u3002")
                 text = data.decode("utf-8", errors="replace")
                 self.service.radioStreamOutput.emit(self.radio_name, text)
                 self._parse_stream_stats(text)
             except socket.timeout:
                 pass
             except Exception as exc:
+                if self._stop_event.is_set():
+                    break
                 if hasattr(self.service, 'diagnostics'):
                     self.service.diagnostics.recovery(self.radio_name, "stream exception: " + type(exc).__name__)
-                break
+                raise
             self.stats.duration_seconds = int(time.monotonic() - self._start_time)
             self.service.radioStatsUpdated.emit(self.radio_name, self._build_stats_dict())
 
@@ -819,41 +834,8 @@ class AutoCaptureRadioSession:
                 time.sleep(0.2)  # 给 Dropbear 传输线程平稳回收通道的时间
 
             # 2. 精准停止本射频对应的远端 PID，确保进程彻底退出后再删网卡接口（杜绝 Device or resource busy -16）
-            kill_cmd = (
-                f"PIDFILE=\"/tmp/.hcx_{self.mon_iface}.pid\"; "
-                f"if [ -f \"$PIDFILE\" ]; then "
-                f"  PID=$(cat \"$PIDFILE\" 2>/dev/null); "
-                f"  case \"$PID\" in "
-                f"    ''|*[!0-9]*) rm -f \"$PIDFILE\" ;; "
-                f"    *) "
-                f"      if [ \"$PID\" -gt 1 ] 2>/dev/null; then "
-                f"        if kill -0 \"$PID\" 2>/dev/null; then "
-                f"          kill -TERM \"$PID\" 2>/dev/null; "
-                f"          _cnt=0; "
-                f"          while [ $_cnt -lt 10 ] && kill -0 \"$PID\" 2>/dev/null; do "
-                f"            usleep 200000 2>/dev/null || sleep 1; "
-                f"            _cnt=$((_cnt + 1)); "
-                f"          done; "
-                f"          if kill -0 \"$PID\" 2>/dev/null; then "
-                f"            kill -9 \"$PID\" 2>/dev/null; "
-                f"            _cnt=0; "
-                f"            while [ $_cnt -lt 5 ] && kill -0 \"$PID\" 2>/dev/null; do "
-                f"              usleep 200000 2>/dev/null || sleep 1; "
-                f"              _cnt=$((_cnt + 1)); "
-                f"            done; "
-                f"          fi; "
-                f"          if kill -0 \"$PID\" 2>/dev/null; then "
-                f"            _st=$(grep -i '^State:' /proc/$PID/status 2>/dev/null | awk '{{print $2}}'); "
-                f"            if [ \"$_st\" != \"Z\" ] && [ \"$_st\" != \"z\" ]; then exit 45; fi; "
-                f"          fi; "
-                f"        fi; "
-                f"      fi; "
-                f"      rm -f \"$PIDFILE\"; "
-                f"      ;; "
-                f"  esac; "
-                f"fi; "
-                f"printf PROCESS_STOPPED"
-            )
+            from .auto_capture_cleanup import owned_capture_stop_command
+            kill_cmd = owned_capture_stop_command(self.mon_iface)
             for attempt in range(2):
                 try:
                     if self.remote_cap_file and not cleanup_errors:
@@ -903,7 +885,8 @@ class AutoCaptureRadioSession:
             for stub in (list(self._created_stubs) if can_cleanup_interfaces else []):
                 try:
                     from .command_runner import require_command_completion
-                    del_cmd = f"if [ -e /sys/class/net/{stub} ]; then iw dev {stub} del 2>/dev/null || true; fi; test ! -e /sys/class/net/{stub}"
+                    from .capture_placeholders import placeholder_removal_command
+                    del_cmd = placeholder_removal_command(stub, "phy" + stub[7:])
                     result = self.runner.run("del_stub_iface", del_cmd, timeout=6)
                     require_command_completion(result)
                     if result.exit_code != 0:
@@ -912,6 +895,10 @@ class AutoCaptureRadioSession:
                 except Exception as exc:
                     LOGGER.warning("Delete stub iface %s failed: %s", stub, exc)
                     cleanup_errors.append(str(exc))
+
+            if self._initialization_failed:
+                from .capture_initialization_evidence import collect_scene
+                collect_scene(self, "after_cleanup")
 
             if self._recovery is not None:
                 try:
@@ -997,7 +984,9 @@ class AutoCaptureRadioSession:
             return
         except Exception as exc:
             LOGGER.warning("Pull capture result failed: %s", exc)
-            self.service.radioStreamOutput.emit(self.radio_name, "\u6293\u5305\u6210\u679c\u4e0b\u8f7d\u5931\u8d25\uff0c\u8bf7\u91cd\u65b0\u62c9\u53d6\uff1a" + str(exc) + "\n")
+            detail = "\u6293\u5305\u6210\u679c\u4e0b\u8f7d\u5931\u8d25\uff0c\u8bf7\u91cd\u65b0\u62c9\u53d6\uff1a" + str(exc)
+            self.stats.error_message = (self.stats.error_message + "; " if self.stats.error_message else "") + detail
+            self.service.radioStreamOutput.emit(self.radio_name, detail + "\n")
 
     def _build_stats_dict(self) -> dict:
         return {
@@ -1021,11 +1010,12 @@ class AutoCaptureService(QObject):
     radioStreamOutput = Signal(str, str)                    # radio_name, text_chunk
     radioStateChanged = Signal(str, str)                    # radio_name, state
     bootStatusChecking = Signal()                           # 开始探测自启与抓包环境
+    bootScriptStarted = Signal()                           # Our background script identity verified
     bootStatusChanged = Signal(object)                      # AutoCaptureBootStatus
     offlineArtifactsPulled = Signal(list, str)              # pulled_files, local_dir
     offlinePullFailed = Signal(str)                         # error_message
     messageGenerated = Signal(str, str)                     # message, level
-    radioIdleStatusUpdated = Signal(dict)                   # {radio_name: is_free}
+    radioIdleStatusUpdated = Signal(dict)                   # {radio_name: RadioUsage}; accepts legacy bool/None values in receivers
     bootLogUpdated = Signal(str)                            # 最新后台会话日志文本
 
     def __init__(self, owner):
@@ -1241,7 +1231,8 @@ class AutoCaptureService(QObject):
                 self.messageGenerated.emit("正在启动后台抓包脚本（仅启用空闲射频）...", "info")
                 self.boot_manager.start_script()
                 if self._verify_boot_script_started():
-                    self.messageGenerated.emit("后台抓包脚本已成功启动！仅接管空闲射频，不影响正常业务 Wi-Fi。", "success")
+                    self.bootScriptStarted.emit()
+                    self.messageGenerated.emit("后台脚本已运行；是否已开始抓包尚未确认，请查看后台会话日志。", "info")
                     self.poll_boot_log()
                 else:
                     self._diagnose_boot_script_exit()
@@ -1262,7 +1253,8 @@ class AutoCaptureService(QObject):
                 self.messageGenerated.emit("脚本部署完成，正在启动后台抓包脚本（仅启用空闲射频）...", "info")
                 self.boot_manager.start_script()
                 if self._verify_boot_script_started():
-                    self.messageGenerated.emit("后台抓包脚本已成功启动！仅接管空闲射频，不影响正常业务 Wi-Fi。", "success")
+                    self.bootScriptStarted.emit()
+                    self.messageGenerated.emit("后台脚本已运行；是否已开始抓包尚未确认，请查看后台会话日志。", "info")
                     self.poll_boot_log()
                 else:
                     self._diagnose_boot_script_exit()
@@ -1456,7 +1448,7 @@ class AutoCaptureService(QObject):
             free_map = {r.name: None for r in getattr(getattr(snapshot, "device", None), "radios", ())}
             try:
                 usages = read_radio_usage(self.runner, cancel)
-                free_map = {name: usage.free for name, usage in usages.items()}
+                free_map = usages
             except Exception as exc:
                 LOGGER.debug("Probe radio idle status failed: %s", exc)
             finally:

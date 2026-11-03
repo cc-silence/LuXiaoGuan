@@ -11,7 +11,7 @@ from modules.ui_scale_manager import UiScaleManager
 
 
 class MacInputFeedbackTests(unittest.TestCase):
-    def editor(self, light=False, existing=None):
+    def editor(self, light=False, existing=None, mode="allow"):
         parent = QWidget()
         parent.scale_manager = UiScaleManager(100)
         from modules.config_manager import ConfigManager
@@ -19,6 +19,7 @@ class MacInputFeedbackTests(unittest.TestCase):
         parent.setStyleSheet(build_base_stylesheet(ConfigManager(), light_theme=light,
                                                    scale_manager=parent.scale_manager))
         env = environment()
+        env.data["rows"][0]["macfilter"] = mode
         if existing is not None:
             env.data["rows"][0]["maclist"] = existing
         service = PendingSetup()
@@ -89,6 +90,47 @@ class MacInputFeedbackTests(unittest.TestCase):
         listing._rows[0][1].setText("02-11-22-33-44-55")
         self.assertTrue(listing._rows[0][1].property("inputError"))
         self.assertEqual(dialog.status_label.objectName(), "settingsValidationError")
+
+
+    def test_disabled_filter_grays_all_list_controls_and_preserves_contents(self):
+        from PySide6.QtWidgets import QPushButton
+        from pathlib import Path
+        for light in (False, True):
+            dialog, listing, actions, _ = self.editor(light, existing=["02:11:22:33:44:55"], mode="disable")
+            mode=dialog.expert_fields.controls["macfilter"]
+            self.assertFalse(listing.isEnabled())
+            self.assertFalse(listing._rows[0][1].isEnabled())
+            self.assertTrue(all(not button.isEnabled() for button in listing.findChildren(QPushButton)))
+            original=listing.values()
+            for value in ("allow", "deny"):
+                mode.setCurrentIndex(mode.findData(value))
+                self.assertTrue(listing.isEnabled())
+                self.assertTrue(listing.add_button.isEnabled())
+                self.assertEqual(listing.values(),original)
+            mode.setCurrentIndex(mode.findData("disable"))
+            self.assertFalse(listing.isEnabled())
+            self.assertEqual(listing.values(),original)
+            self.assertNotIn("maclist",dialog.expert_fields.values())
+            dialog.save_only_button.click()
+            actions._save.assert_called_once()
+            output=Path("build/mac-filter-disabled");output.mkdir(parents=True,exist_ok=True)
+            dialog.scroll_area.ensureWidgetVisible(listing)
+            APP.processEvents()
+            dialog.grab().save(str(output/("light.png" if light else "dark.png")))
+
+    def test_inherited_mode_tracks_original_and_disabled_list_does_not_block_save(self):
+        for original in (None, "disable", "allow", "deny"):
+            dialog, listing, actions, _ = self.editor(mode=original)
+            mode=dialog.expert_fields.controls["macfilter"]
+            mode.setCurrentIndex(0)
+            self.assertEqual(listing.isEnabled(),original in ("allow","deny"))
+            mode.setCurrentIndex(mode.findData("allow"))
+            listing._rows[0][1].setText("invalid")
+            self.assertTrue(listing.validation_message)
+            mode.setCurrentIndex(mode.findData("disable"))
+            dialog.save_only_button.click()
+            actions._save.assert_called_once()
+            self.assertNotIn("maclist",actions._save.call_args.args[1].options)
 
 
 if __name__ == "__main__":

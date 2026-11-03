@@ -1,5 +1,5 @@
 """Shared, fresh capture admission: interface existence is not wireless business."""
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import re
 from .command_runner import require_command_completion
 from .radio_identity import snapshot_radio_mapping, uci_radio_bands
@@ -49,6 +49,10 @@ class RadioUsage:
     state: str  # idle, business, blocked, unknown
     reason: str
     interfaces: tuple = ()
+    observations: tuple = ()
+    evidence_epoch: int | None = None
+    connection_id: int | None = None
+    probe_token: str = ""
 
     @property
     def free(self):
@@ -124,14 +128,14 @@ def parse_radio_usage(snapshot, runtime, owned_interface=""):
         state, reason = "unknown", "\u65e0\u6cd5\u786e\u8ba4\u5c04\u9891\u5f52\u5c5e\uff0c\u8bf7\u5237\u65b0\u65e0\u7ebf\u72b6\u6001\u3002"
         if phy in phys:
             if any(r[2] == "monitor" or re.fullmatch(r"(?:hcxmon[0-9]+|wbmon[A-Za-z0-9]{1,8})", r[1]) for r in current):
-                state, reason = "blocked", "\u5c04\u9891\u4e0a\u5b58\u5728\u5176\u4ed6\u6293\u5305\u63a5\u53e3\uff0c\u8bf7\u5148\u505c\u6b62\u5bf9\u5e94\u4efb\u52a1\u3002"
+                state, reason = "blocked", "\u68c0\u6d4b\u5230\u76d1\u542c\u6216\u6293\u5305\u4e13\u7528\u63a5\u53e3\uff0c\u5f52\u5c5e\u5c1a\u672a\u786e\u8ba4\uff1b\u5df2\u505c\u6b62\u63a5\u7ba1\uff0c\u8bf7\u5bfc\u51fa\u8bca\u65ad\u65e5\u5fd7\u3002"
             elif any(r[3] and (r[4] or r[2] not in ("managed", "ap", "ap/vlan")) for r in current):
                 state, reason = "business", "\u5c04\u9891\u4ecd\u6709\u65e0\u7ebf\u4e1a\u52a1\u8fd0\u884c\u3002"
             elif idle.get(radio) is True:
                 state, reason = "idle", "\u65e0\u542f\u7528\u7684\u65e0\u7ebf\u4e1a\u52a1\u4e14\u65e0\u6d3b\u52a8\u8fde\u63a5\u3002"
             elif idle.get(radio) is False:
                 state, reason = "business", "\u5c04\u9891\u4ecd\u6709\u542f\u7528\u7684\u65e0\u7ebf\u4e1a\u52a1\uff08\u5305\u62ec\u7b49\u5f85\u91cd\u8fde\u7684\u6865\u63a5\uff09\u3002"
-        result[radio] = RadioUsage(radio, phy, state, reason, interfaces.get(phy, ()))
+        result[radio] = RadioUsage(radio, phy, state, reason, interfaces.get(phy, ()), tuple(current))
     if not result:
         raise RuntimeError("No verifiable wireless configuration; refresh wireless status.")
     return result
@@ -140,6 +144,10 @@ def parse_radio_usage(snapshot, runtime, owned_interface=""):
 def read_radio_usage(runner, cancel_event=None, *, snapshot=None, owned_interface=""):
     if cancel_event is not None and cancel_event.is_set():
         raise InterruptedError("Radio usage inspection cancelled.")
+    from .operation_diagnostics import OperationDiagnostics
+    journal = getattr(runner, "operation_diagnostics", None)
+    epoch = journal.epoch if isinstance(journal, OperationDiagnostics) else None
+    client = getattr(getattr(runner, "ssh_client", None), "_client", None)
     if snapshot is None:
         from .radio_takeover import OpenWrtRadioTakeover
         snapshot = OpenWrtRadioTakeover(runner).snapshot_wireless(cancel_event)
@@ -147,11 +155,21 @@ def read_radio_usage(runner, cancel_event=None, *, snapshot=None, owned_interfac
     require_command_completion(result)
     if result.exit_code != 0:
         raise RuntimeError("Cannot inspect wireless business; refresh wireless status.")
-    return parse_radio_usage(snapshot, result.stdout, owned_interface)
+    if (getattr(getattr(runner, "ssh_client", None), "_client", None) is not client
+            or isinstance(journal, OperationDiagnostics) and journal.epoch != epoch):
+        raise RuntimeError("Wireless connection changed during usage inspection; refresh wireless status.")
+    from uuid import uuid4
+    token = uuid4().hex
+    return {name: replace(usage, evidence_epoch=epoch, connection_id=id(client), probe_token=token)
+            for name, usage in parse_radio_usage(snapshot, result.stdout, owned_interface).items()}
 
 
-def usage_for_phy(usages, phy):
+def usage_for_phy(usages, phy, *, runner=None, cancel_event=None):
     matches = [u for u in usages.values() if u.phy == phy]
     if len(matches) != 1:
         raise RuntimeError("Cannot uniquely identify radio ownership; refresh wireless status.")
-    return matches[0].require_available()
+    usage = matches[0]
+    if usage.state == "blocked" and runner is not None:
+        from .radio_usage_evidence import record_usage_conflicts
+        record_usage_conflicts(runner, {usage.radio: usage}, cancel_event)
+    return usage.require_available()

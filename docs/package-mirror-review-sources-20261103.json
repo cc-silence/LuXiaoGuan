@@ -1,0 +1,50 @@
+{
+  "checked_at": "2026-11-03T12:42:40.978295+00:00",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/repoparser.c",
+      "commit": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866",
+      "sha256": "205415a3b1b2b24e1fdece2c8c5272045ce40ac8989c59ac0367f029cac4cb18"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/d093f7c198a64bff0cd58afeaf638909fda24ca8/src/repoparser.c",
+      "commit": "d093f7c198a64bff0cd58afeaf638909fda24ca8",
+      "sha256": "205415a3b1b2b24e1fdece2c8c5272045ce40ac8989c59ac0367f029cac4cb18"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/python/cpython/v3.10.11/Lib/urllib/request.py",
+      "version": "3.10.11",
+      "sha256": "427cf0739626d58180c6549fa6f09e489a67cac0e1e021f2dd16900973eb5183"
+    }
+  ],
+  "completed_at": "2026-11-03T12:50:36.484258+00:00",
+  "baseline_verified": {
+    "releases": 50,
+    "components": 18
+  },
+  "documentation_excerpts": {
+    "representation": "ASCII-escaped JSON containing web-tool rendered excerpts, not original HTML",
+    "path": "build/package-mirror-review-20261103/web-source-excerpts.json",
+    "sha256": "6730cd4fe8e42868f4ac97f623a570bf3db26fdd5dd38602415da6ccdff6eca7"
+  },
+  "passes": [
+    {
+      "name": "PC route and redirect resource handling",
+      "finding": "Accepted redirects were drained without a body bound by Python 3.10.11. Close the unused HTTP response before following."
+    },
+    {
+      "name": "Native opkg/apk source isolation",
+      "finding": "Quoted opkg proxy names and quoted/variable remote source values escaped token-prefix checks. Cover quoted proxy options; scan embedded URLs; route dynamic APK source configuration through the existing PC resolver."
+    },
+    {
+      "name": "Failure, integrity and lifecycle integration",
+      "finding": "145 targeted tests passed, including real loopback HTTP redirect with a stalled 1 GB response, native shell fixture isolation, cancellation, source family restrictions and both native install entrypoints."
+    }
+  ],
+  "boundaries": [
+    "No real router configuration or installation was performed.",
+    "No full Debian runtime verification was performed.",
+    "Local mirror HEAD probes are observations only. USTC TLS verification failed, TUNA/NJU snapshots returned 404. TLS checks were retained.",
+    "Historical/snapshot mirror completeness is not guaranteed; no firmware version or architecture substitution is permitted."
+  ]
+}

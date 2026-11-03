@@ -8,6 +8,7 @@ from .command_runner import require_command_completion
 from .router_policy_commands import policy_command, CONFIGS, FILES
 from .router_policy_plan import build_plan, boot_state
 from .uci_booleans import netifd_bool
+from .management_requirements import require_management
 from .signal_manager import RouterSignalManager
 from .wireless_setup_manager import WirelessSetupManager
 from .router_backup import RouterBackupManager
@@ -77,8 +78,7 @@ class RouterPolicyManager:
             return self._apply_channel.call(action,timeout=timeout,**values)
         if self.lua_bin is None:
             probe=RouterSignalManager(self.manager.runner).probe_dependencies(cancel)
-            if not all(probe.get(k) for k in ("lua","uci","ubus","jsonc","root","sha256sum")):
-                raise RuntimeError("\u7f3a\u5c11\u914d\u7f6e\u7ba1\u7406\u7ec4\u4ef6\u6216\u7ba1\u7406\u5458\u6743\u9650\uff0c\u672a\u4fee\u6539\u8bbe\u5907\u3002")
+            require_management(probe)
             self.lua_bin=probe.get("lua_bin") or "lua"
         text=self._run(action,policy_command(action,self.lua_bin,**values),cancel,timeout)
         try:

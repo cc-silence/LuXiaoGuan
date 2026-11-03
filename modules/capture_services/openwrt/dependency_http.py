@@ -124,9 +124,9 @@ class StreamingHTTPSHandler(urllib.request.HTTPSHandler):
 
 class DownloadHTTPError(RuntimeError):
     """Preserve the status for safe format fallback without parsing messages."""
-    def __init__(self, code):
+    def __init__(self, code, detail=""):
         self.code = code
-        super().__init__("\u4e0b\u8f7d\u5931\u8d25\uff1aHTTP %d\u3002" % code)
+        super().__init__(("\u4e0b\u8f7d\u5931\u8d25\uff1aHTTP %d\u3002" % code) + detail)
 
 
 @contextmanager

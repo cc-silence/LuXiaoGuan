@@ -3,6 +3,7 @@ import ipaddress
 import re
 from threading import Event
 from .wireless_setup_manager import WirelessSetupManager
+from .management_requirements import require_management
 from .signal_manager import SignalError
 from .command_builder import quote_argument
 from .command_runner import require_command_completion
@@ -65,8 +66,7 @@ def validate_values(review, values):
 def _manager(runner,cancel):
     manager=WirelessSetupManager(runner)
     base=manager.signal.probe_dependencies(cancel)
-    if not all(base.get(k) for k in ("lua","uci","ubus","jsonc","root","sha256sum")):
-        raise RuntimeError("缺少配置管理组件或管理员权限，未修改路由器。")
+    require_management(base)
     manager.signal._lua_bin=base.get("lua_bin") or "lua"
     return manager
 

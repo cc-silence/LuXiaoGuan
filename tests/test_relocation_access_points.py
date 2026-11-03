@@ -164,6 +164,8 @@ end
                     dialog=relocation_identity_editor(review,parent)
                 self.addCleanup(dialog.deleteLater)
                 dialog.show();APP.processEvents()
+                self.assertFalse(hasattr(dialog,"random_all"))
+                self.assertTrue(any("\u7559\u7a7a" in label.text() and label.isVisible() for label in dialog.findChildren(QLabel)))
                 self.assertTrue(dialog.discard_button.isVisible())
                 self.assertGreaterEqual(dialog.discard_button.width(),
                     dialog.discard_button.fontMetrics().horizontalAdvance(dialog.discard_button.text()))
@@ -184,6 +186,21 @@ end
                 output=Path('build/review/relocation-preserve-hotspots');output.mkdir(parents=True,exist_ok=True)
                 self.assertTrue(dialog.grab().save(str(output/(('light' if light else 'dark')+'-'+str(scale)+'.png'))))
                 dialog.reject();APP.processEvents()
+
+    def test_blank_editor_name_preserves_original_in_relocation_apply(self):
+        review=self.manager.preview(self.cancel)
+        dialog=relocation_identity_editor(review,None)
+        self.addCleanup(dialog.deleteLater)
+        dialog.rows["home"][0].clear()
+        values=dialog.values()
+        identity=next(row for row in values["identities"] if row["section"]=="home")
+        original=self.device.config["wireless"]["home"]["ssid"]
+        self.assertEqual(identity["name"],original)
+        for row in review["plan"]["access_points"]:
+            replacement=next(value for value in values["identities"] if value["section"]==row["section"])
+            row.update(replacement)
+        self.manager.apply(review,self.cancel,Mock())
+        self.assertEqual(self.device.config["wireless"]["home"]["ssid"],original)
 
 
 class RelocationEditorFlowTests(unittest.TestCase):

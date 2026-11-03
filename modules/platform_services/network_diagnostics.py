@@ -8,7 +8,7 @@ import socket
 _sink = ContextVar('network_diagnostic_sink', default=None)
 STAGES = frozenset({'static_inspect', 'static_command', 'static_prepare', 'static_activate', 'static_commit', 'static_restore', 'lease_before', 'lease_after_release', 'lease_after_renew', 'adapter_before', 'adapter_after', 'address_wait', 'lease_release',
     'lease_renew', 'lease_process', 'network_plan', 'network_context'})
-REASONS = frozenset({'address_ready', 'address_pending', 'adapter_missing', 'adapter_changed',
+REASONS = frozenset({'old_lease_retained','address_ready', 'address_pending', 'adapter_missing', 'adapter_changed',
     'address_conflict', 'route_pending', 'adapter_disconnected', 'dhcp_disabled', 'inspection_failed', 'authorization_failed', 'permission_denied',
     'lease_failed', 'lease_timeout', 'lease_unsupported', 'reboot_required', 'request_expired',
     'system_accepted', 'system_error', 'connection_refused', 'connection_reset',

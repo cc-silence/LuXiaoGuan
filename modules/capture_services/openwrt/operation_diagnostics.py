@@ -19,7 +19,7 @@ SAFE_VALUES = {
         "unexpected_error", "restore_reported_errors", "phase_completed", "native_identity_available",
         "native_identity_unavailable", "configuration_untouched"}),
 }
-SAFE_VALUES["operation"] |= ACTIONS | {"configuration_apply", "wireless_readiness"}
+SAFE_VALUES["operation"] |= ACTIONS | {"configuration_apply", "wireless_readiness", "wireless_scan_interface"}
 SAFE_VALUES["stage"] |= {"queue","progress","preflight","commit","download","publish","reboot","validation","connect","capabilities","session","stage","apply","verify","confirm","rollback","restore_verify","discard","finish"}
 SAFE_VALUES["reason"] |= {"accepted","unchanged","reply_lost","verified","verification_false","native_rpc_error","exception","restored","restore_unconfirmed","renewal_busy",
     "saved_values","runtime_missing","runtime_pending","runtime_up","runtime_proto","runtime_device","runtime_ipv4","runtime_ipv4_mask","runtime_gateway4","runtime_gateway6","runtime_ipv6","runtime_old_ipv6","runtime_prefix6","runtime_invalid"}
@@ -56,16 +56,18 @@ def _safe_protocol_value(name,value):
 
 MAX_EVENTS = 64
 MAX_FAILURES = 8
+MAX_COMMAND_FAILURES = 32
+MAX_CAPTURE_FAILURES = 16
 MAX_WORKFLOWS = 32
 MAX_MANAGEMENT = 128
 MAX_MANAGEMENT_FAILURES = 16
 MAX_CONFIGURATION = 128
 MAX_CONFIGURATION_FAILURES = 16
 STRING_FIELDS = frozenset({"timestamp", "event", "operation", "status", "stage", "kind",
-    "selection_source", "connection_reason", "exception_type", "cause_reason", "cause_type", "cause_site", "reason", "code_site", "last_stage", "last_reason", "outcome", "transport", "band", "source", "task_band", "ap_state", "ap_failure", "interface_state"})
+    "selection_source", "connection_reason", "exception_type", "cause_reason", "cause_type", "cause_site", "reason", "code_site", "last_stage", "last_reason", "outcome", "transport", "band", "source", "task_band", "ap_state", "ap_failure", "interface_state", "scan_interface"})
 NUMBER_FIELDS = frozenset({"id", "errno", "winerror", "operation_id", "elapsed_seconds", "connected_before",
     "connected_after", "exit_code", "timed_out", "cancelled", "request_bytes",
-    "force_apply", "rollback", "trace_id", "connect_attempts", "verify_attempts", "restore_attempts", "native_error", "candidate_index", "original_target", "remaining_seconds", "restored",
+    "force_apply", "rollback", "trace_id", "connect_attempts", "verify_attempts", "restore_attempts", "native_error", "candidate_index", "candidate_count", "unavailable_count", "original_target", "remaining_seconds", "restored",
     "task_id", "saved", "applied", "verified", "changed", "reboot_requested", "boot_state",
     "selected_count", "operation_count", "skipped_count", "identity_count",
     "completed_count", "row_count", "target_count", "removed_count", "mac_count",
@@ -103,6 +105,12 @@ class OperationDiagnostics:
         self._context = local()
         self._events = deque(maxlen=MAX_EVENTS)
         self._failures = deque(maxlen=MAX_FAILURES)
+        self._command_failures = deque(maxlen=MAX_COMMAND_FAILURES)
+        self._capture_initialization_scenes = deque(maxlen=8)
+        self._wireless_failures = deque(maxlen=8)
+        self._radio_usage_failures = deque(maxlen=8)
+        self._radio_usage_probes = deque(maxlen=32)
+        self._capture_failures = deque(maxlen=MAX_CAPTURE_FAILURES)
         self._workflows = deque(maxlen=MAX_WORKFLOWS)
         self._management = deque(maxlen=MAX_MANAGEMENT)
         self._management_failures = deque(maxlen=MAX_MANAGEMENT_FAILURES)
@@ -116,6 +124,12 @@ class OperationDiagnostics:
                 self._epoch += 1
                 self._events.clear()
                 self._failures.clear()
+                self._command_failures.clear()
+                self._capture_initialization_scenes.clear()
+                self._wireless_failures.clear()
+                self._radio_usage_failures.clear()
+                self._radio_usage_probes.clear()
+                self._capture_failures.clear()
                 self._workflows.clear()
                 self._management.clear()
                 self._management_failures.clear()
@@ -150,6 +164,8 @@ class OperationDiagnostics:
             row = _fields(dict(fields, event=event, id=self._sequence,
                 timestamp=datetime.now(timezone.utc).isoformat()))
             self._events.append(row)
+            if event=="command" and row.get("status") in {"failed","timeout"}:
+                self._command_failures.append(row)
             if event=="management" or (scope is not None and event=="command"):
                 self._management.append(row)
                 if row.get("status") in {"failed","timeout","cancelled","blocked","uncertain"}:
@@ -166,10 +182,55 @@ class OperationDiagnostics:
                 self._failures.append(row)
             return self._sequence
 
+    def wireless_failure(self, scene, expected_epoch):
+        from .wireless_failure_evidence import sanitize_scene
+        from modules.log_history import HistoryMasker
+        clean=sanitize_scene(scene,HistoryMasker())
+        with self._lock:
+            if expected_epoch==self._epoch:self._wireless_failures.append(deepcopy(clean))
+
+    def claim_radio_usage_probe(self, token, radio, expected_epoch):
+        with self._lock:
+            key = (token, radio)
+            if expected_epoch != self._epoch or key in self._radio_usage_probes:
+                return False
+            self._radio_usage_probes.append(key)
+            return True
+
+    def radio_usage_failure(self, scene, expected_epoch):
+        from .radio_usage_evidence import sanitize_usage_scene
+        from modules.log_history import HistoryMasker
+        clean = sanitize_usage_scene(scene, HistoryMasker())
+        with self._lock:
+            if expected_epoch == self._epoch:
+                self._radio_usage_failures.append(deepcopy(clean))
+
+    def capture_initialization_scene(self, scene, expected_epoch):
+        from .capture_initialization_evidence import sanitize_scene
+        clean = sanitize_scene(scene)
+        with self._lock:
+            if expected_epoch == self._epoch:
+                self._capture_initialization_scenes.append(deepcopy(clean))
+
+    def capture_failure(self, radio, attempt, first_log, last_log, masker, expected_epoch=None):
+        from .capture_failure_evidence import sanitize_capture_failure
+        clean=sanitize_capture_failure(dict(radio=radio,attempt=attempt,first_log=first_log,last_log=last_log,
+            timestamp=datetime.now(timezone.utc).isoformat()),masker)
+        with self._lock:
+            if expected_epoch is not None and expected_epoch!=self._epoch:return
+            matching=[row for row in self._capture_failures if row['radio']==clean['radio']]
+            if len(matching)>=8:self._capture_failures.remove(matching[0])
+            self._capture_failures.append(clean)
+
     def snapshot(self):
         with self._lock:
             result = {"schema_version": 1, "events": deepcopy(list(self._events)),
                     "failures": deepcopy(list(self._failures)),
+                    "command_failures": deepcopy(list(self._command_failures)),
+                    "wireless_failures": deepcopy(list(self._wireless_failures)),
+                    "capture_initialization_scenes": deepcopy(list(self._capture_initialization_scenes)),
+                    "radio_usage_failures": deepcopy(list(self._radio_usage_failures)),
+                    "capture_failures": deepcopy(list(self._capture_failures)),
                     "workflows": deepcopy(list(self._workflows)),
                     "management": deepcopy(list(self._management)),
                     "management_failures": deepcopy(list(self._management_failures)),
@@ -188,7 +249,7 @@ def sanitized_operation_evidence(data, masker):
     if not isinstance(data, dict) or data.get("schema_version") != 1:
         raise ValueError("unsupported operation diagnostic evidence")
     result = {"schema_version": 1}
-    for key, limit in (("events", MAX_EVENTS), ("failures", MAX_FAILURES), ("workflows", MAX_WORKFLOWS),
+    for key, limit in (("events", MAX_EVENTS), ("failures", MAX_FAILURES), ("command_failures", MAX_COMMAND_FAILURES), ("workflows", MAX_WORKFLOWS),
                        ("action_failures", len(ACTIONS)), ("management", MAX_MANAGEMENT), ("management_failures", MAX_MANAGEMENT_FAILURES),
                        ("configuration", MAX_CONFIGURATION), ("configuration_failures", MAX_CONFIGURATION_FAILURES)):
         rows = data.get(key, [])
@@ -196,6 +257,17 @@ def sanitized_operation_evidence(data, masker):
             raise ValueError("operation diagnostic record limit exceeded")
         result[key] = [{name: (value if _safe_protocol_value(name,value) else sanitized_text(value, masker)) if isinstance(value, str) else value
                         for name, value in _fields(row).items()} for row in rows]
+    from .wireless_failure_evidence import sanitize_scene, MAX_SCENES
+    from .capture_failure_evidence import sanitize_capture_failure
+    from .radio_usage_evidence import sanitize_usage_scene
+    from .capture_initialization_evidence import sanitize_scene as sanitize_initialization
+    for key,limit,sanitize in (("capture_initialization_scenes",8,sanitize_initialization),
+                               ("radio_usage_failures",8,sanitize_usage_scene),
+                               ("wireless_failures",MAX_SCENES,sanitize_scene),
+                               ("capture_failures",MAX_CAPTURE_FAILURES,sanitize_capture_failure)):
+        rows=data.get(key,[])
+        if not isinstance(rows,list) or len(rows)>limit:raise ValueError("failure scene limit exceeded")
+        result[key]=[sanitize(row,masker) for row in rows]
     if "login_attempts" in data:
         from .login_diagnostics import sanitized_login_attempts
         result["login_attempts"] = sanitized_login_attempts(data["login_attempts"])
