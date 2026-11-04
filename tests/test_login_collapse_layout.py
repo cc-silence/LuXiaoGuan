@@ -12,8 +12,8 @@ class LoginCollapseLayoutTests(unittest.TestCase):
     def setUpClass(cls):
         standalone.StandaloneTests.setUpClass()
         cls.window = standalone.StandaloneTests.window
-        cls.page = cls.window.packet_capture_page.openwrt_tab.login_page
-        cls.window.packet_capture_page.openwrt_tab.tabs.setCurrentIndex(0)
+        cls.page = cls.window.packet_capture_page.openwrt_tab.dependency_page
+        cls.window.packet_capture_page.openwrt_tab.tabs.setCurrentIndex(1)
 
     @classmethod
     def tearDownClass(cls):
@@ -35,7 +35,8 @@ class LoginCollapseLayoutTests(unittest.TestCase):
         section.header_button.setFocus()
         self.settle(35)
         def state():
-            return (bar.value(), self.page.connection.card.height(), section.y(),
+            top_metric = self.page.dependencies.card.height() if section is not self.page.dependencies.card else section.y()
+            return (bar.value(), top_metric, section.y(),
                     section.header_button.mapTo(self.page.scroll_area.viewport(), QPoint()).y())
         before = state()
         frames = []
@@ -83,7 +84,7 @@ class LoginCollapseLayoutTests(unittest.TestCase):
         bar = self.page.scroll_area.verticalScrollBar()
         bar.setValue(bar.maximum())
         self.settle(30)
-        height = self.page.connection.card.height()
+        height = self.page.dependencies.card.height()
         section.header_button.click()
         self.settle(40)
         section.header_button.click()
@@ -91,6 +92,6 @@ class LoginCollapseLayoutTests(unittest.TestCase):
         section.header_button.click()
         self.page.apply_snapshot(standalone.StandaloneTests.runtime.capture_service.openwrt_snapshot)
         self.settle()
-        self.assertEqual(self.page.connection.card.height(), height)
+        self.assertEqual(self.page.dependencies.card.height(), height)
         self.assertTrue(section._expanded)
         self.assertEqual(section.content_frame.maximumHeight(), 16777215)

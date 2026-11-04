@@ -67,7 +67,7 @@ class InfoDockTests(unittest.TestCase):
                     self.assertLessEqual(abs(dock.splitter.sizes()[1]-old[1]),2)
                     self.assertTrue(window.grab().save(str(output/(name+"-"+theme+"-expanded.png"))))
 
-    def test_login_handle_drag_changes_width(self):
+    def test_login_handle_drag_changes_height(self):
         self.window.apply_appearance(100,"default","dark.qss")
         host = self.window.packet_capture_page.openwrt_tab
         host.tabs.setCurrentIndex(0)
@@ -75,11 +75,11 @@ class InfoDockTests(unittest.TestCase):
         dock = host.login_page.info_dock
         before = dock.splitter.sizes()
         handle = dock.splitter.handle(1)
-        self.assertEqual(handle.cursor().shape(),Qt.SplitHCursor)
+        self.assertEqual(handle.cursor().shape(),Qt.SplitVCursor)
         start = handle.rect().center()
         QTest.mousePress(handle,Qt.LeftButton,Qt.NoModifier,start)
-        QTest.mouseMove(handle,start-QPoint(60,0))
-        QTest.mouseRelease(handle,Qt.LeftButton,Qt.NoModifier,start-QPoint(60,0))
+        QTest.mouseMove(handle,start-QPoint(0,60))
+        QTest.mouseRelease(handle,Qt.LeftButton,Qt.NoModifier,start-QPoint(0,60))
         APP.processEvents()
         self.assertGreater(dock.splitter.sizes()[1],before[1])
         dock.toggle_button.click()

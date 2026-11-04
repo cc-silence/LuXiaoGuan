@@ -3,11 +3,12 @@
 from PySide6.QtCore import QSignalBlocker, Signal
 from modules.ui_scale_manager import UiScaleManager
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHBoxLayout, QSplitter, QTabWidget, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QSplitter, QTabWidget, QVBoxLayout, QWidget, QStackedWidget
 
 from modules.common_widgets.common_dialogs import ConfirmDialog
 from modules.common_widgets.action_scroll_area import ActionScrollArea
 from .router_login_page import RouterLoginPage
+from .router_dependency_page import RouterDependencyPage
 
 
 class OpenWrtCapturePage(QWidget):
@@ -20,6 +21,7 @@ class OpenWrtCapturePage(QWidget):
     advancedWpsRequested = Signal()
     columnWidthsChanged = Signal(object)
     settingsChanged = Signal()
+    pageChanged = Signal(str)
 
     def __init__(self, service, settings, info_panel=None, parent=None):
         super().__init__(parent)
@@ -171,6 +173,7 @@ class OpenWrtPage(QWidget):
 
     actionRequested = Signal(str)
     settingsChanged = Signal()
+    pageChanged = Signal(str)
 
     def __init__(self, service, settings, info_panel=None, settings_info_panel=None, parent=None, signal_info_panel=None, file_info_panel=None, common_info_panel=None):
         super().__init__(parent)
@@ -179,33 +182,79 @@ class OpenWrtPage(QWidget):
         self.settings = settings
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+        self.stack = QStackedWidget(self)
+        self.stack.setObjectName("openwrtPageStack")
+        root.addWidget(self.stack)
+
         self.tabs = QTabWidget(self)
         self.tabs.setObjectName("openwrtCaptureTabs")
+        self.dependency_page = RouterDependencyPage(
+            service,
+            settings,
+            self.tabs,
+        )
         self.login_page = RouterLoginPage(
             service,
             settings,
             settings_info_panel,
             self.tabs,
+            dependency_page=self.dependency_page,
         )
+        self.tabs.addTab(self.login_page, "路由器登录")
+        self.tabs.addTab(self.dependency_page, "安装依赖")
+        self.stack.addWidget(self.tabs)
+
         self._created_pages = {}
         self._settings_dialog = None
-        pages = (("common", "\u5e38\u7528\u8bbe\u7f6e"), ("signal", "信号管理"), ("files", "文件管理"),
-                 ("terminal", "路由器终端"), ("auto_capture", "自动抓包"), ("capture", "常规抓包"))
-        self._page_indices = {name: index for index, (name, _title) in enumerate(pages, 1)}
+        self._page_names = ("login", "common", "signal", "files", "terminal", "auto_capture", "capture")
+        self._page_indices = {name: index for index, name in enumerate(self._page_names)}
+        self._current_page_name = "login"
         self._panels = {"common": common_info_panel, "capture": info_panel, "signal": signal_info_panel, "files": file_info_panel}
         for panel in self._panels.values():
             if panel is not None:
                 panel.hide()
         self._light_theme = False
-        self.tabs.addTab(self.login_page, "路由器登录")
-        for _name, title in pages:
-            self.tabs.addTab(QWidget(self.tabs), title)
-        self.tabs.setCurrentIndex(0)
-        root.addWidget(self.tabs)
+
         self.login_page.actionRequested.connect(self.actionRequested)
         self.login_page.settingsChanged.connect(self.settingsChanged)
-        self.tabs.currentChanged.connect(self._tab_changed)
+        self.dependency_page.actionRequested.connect(self.actionRequested)
+        self.dependency_page.settingsChanged.connect(self.settingsChanged)
         self.service.router_management.passwordChanged.connect(self._password_changed)
+
+        orig_set_current_index = self.tabs.setCurrentIndex
+        def _compat_set_current_index(index):
+            if index in range(self.tabs.count()):
+                self.show_page("login")
+                orig_set_current_index(index)
+            elif index in range(len(self._page_names)):
+                self.show_page(self._page_names[index])
+            else:
+                orig_set_current_index(index)
+        self.tabs.setCurrentIndex = _compat_set_current_index
+
+        orig_current_index = self.tabs.currentIndex
+        def _compat_current_index():
+            if self.stack.currentWidget() is self.tabs:
+                return orig_current_index()
+            return self._page_indices.get(self._current_page_name, 0)
+        self.tabs.currentIndex = _compat_current_index
+
+        orig_current_widget = self.tabs.currentWidget
+        def _compat_current_widget():
+            if self.stack.currentWidget() is self.tabs:
+                return orig_current_widget()
+            return self.stack.currentWidget()
+        self.tabs.currentWidget = _compat_current_widget
+
+        orig_widget = self.tabs.widget
+        def _compat_widget(index):
+            if index in range(self.tabs.count()):
+                return orig_widget(index)
+            if index in range(len(self._page_names)):
+                return self._ensure_subpage(self._page_names[index])
+            return orig_widget(index)
+        self.tabs.widget = _compat_widget
 
     @property
     def common_page(self):
@@ -235,19 +284,45 @@ class OpenWrtPage(QWidget):
     def terminal_page(self):
         return self._ensure_subpage("terminal")
 
+    @property
+    def current_page_name(self):
+        return self._current_page_name
+
+    def show_page(self, name):
+        if isinstance(name, int):
+            if 0 <= name < len(self._page_names):
+                name = self._page_names[name]
+            else:
+                return None
+        if name in ("login", "router", "login_page"):
+            self.stack.setCurrentWidget(self.tabs)
+            self._current_page_name = "login"
+            self.pageChanged.emit("login")
+            return self.login_page
+        page = self._ensure_subpage(name)
+        if page is not None:
+            self.stack.setCurrentWidget(page)
+            self._current_page_name = name
+            if name in ("files", "terminal", "auto_capture"):
+                page.enter()
+            self.pageChanged.emit(name)
+            self.settingsChanged.emit()
+            return page
+        return None
+
     def _ensure_subpage(self, name):
-        """首次使用才构造子页；原位替换占位页，保持标签顺序和当前选项。"""
+        """首次使用才构造子页并挂载到主堆栈，不往上方标签栏添加额外标签。"""
         if name in self._created_pages:
             return self._created_pages[name]
         if name == "capture":
-            page = OpenWrtCapturePage(self.service, self.settings, self._panels[name], self.tabs)
+            page = OpenWrtCapturePage(self.service, self.settings, self._panels[name], self)
             page.actionRequested.connect(self._handle_capture_action)
             page.settingsChanged.connect(self.settingsChanged)
             page.columnWidthsChanged.connect(self._column_widths_changed)
             page.advancedWpsRequested.connect(self._on_advanced_wps_requested)
         elif name == "auto_capture":
             from .auto_capture_page import AutoCapturePage
-            page = AutoCapturePage(self.service, self.settings, self.tabs)
+            page = AutoCapturePage(self.service, self.settings, self)
             page.set_light_theme(self._light_theme)
         elif name == "settings":
             from .capture_settings_dialog import CaptureSettingsDialog
@@ -259,33 +334,25 @@ class OpenWrtPage(QWidget):
             page._refresh_history_button()
         elif name == "common":
             from .router_common_settings_page import RouterCommonSettingsPage
-            page = RouterCommonSettingsPage(self.service, self.connection_settings, self.tabs, info_panel=self._panels[name])
+            page = RouterCommonSettingsPage(self.service, self.connection_settings, self, info_panel=self._panels[name])
         elif name == "signal":
             from .router_signal_page import RouterSignalPage
-            page = RouterSignalPage(self.service.router_signals, self._panels[name], self.tabs)
-            page.loginRequested.connect(lambda: self.tabs.setCurrentIndex(0))
+            page = RouterSignalPage(self.service.router_signals, self._panels[name], self)
+            page.loginRequested.connect(lambda: self.show_page("login"))
         elif name == "files":
             from .router_files_page import RouterFilesPage
-            page = RouterFilesPage(self.service.router_management, self._panels[name], self.tabs)
+            page = RouterFilesPage(self.service.router_management, self._panels[name], self)
             page.terminalRequested.connect(self._open_terminal_path)
             page.set_light_theme(self._light_theme)
         else:
             from .router_terminal_page import RouterTerminalPage
-            page = RouterTerminalPage(self.service.router_terminal, self.tabs)
+            page = RouterTerminalPage(self.service.router_terminal, self)
             page.set_light_theme(self._light_theme)
         self._created_pages[name] = page
         if name == "settings":
             self._sync_settings_dialog_appearance()
             return page
-        index = self._page_indices[name]
-        placeholder = self.tabs.widget(index)
-        current = self.tabs.currentIndex()
-        title = self.tabs.tabText(index)
-        with QSignalBlocker(self.tabs):
-            self.tabs.removeTab(index)
-            self.tabs.insertTab(index, page, title)
-            self.tabs.setCurrentIndex(current)
-        placeholder.deleteLater()
+        self.stack.addWidget(page)
         panel = self._panels.get(name)
         if panel is not None:
             panel.show()
@@ -326,24 +393,24 @@ class OpenWrtPage(QWidget):
                 page.enter()
         self.settingsChanged.emit()
 
-    def _open_terminal_path(self,path,script):
-        if self.terminal_page.open_path(path,script):
-            self.tabs.setCurrentWidget(self.terminal_page)
+    def _open_terminal_path(self, path, script):
+        if self.terminal_page.open_path(path, script):
+            self.show_page("terminal")
 
     def _on_advanced_wps_requested(self):
         """高级 PIN 入口先过依赖门禁；缺依赖弹窗指引去登录页。"""
-
         for item in self.service.openwrt_snapshot.dependencies:
             if item.key == "wps" and item.state.value == "missing":
                 packages = "、".join(item.missing_packages or ()) or "对应软件包"
                 if ConfirmDialog(
                     "WPS 缺少依赖",
-                    f"WPS 需要依赖：{packages}。\n\n请到“路由器登录”页安装依赖后再试。",
+                    f"WPS 需要依赖：{packages}。\n\n请到“安装依赖”页安装依赖后再试。",
                     self,
-                    yes_text="去登录页安装",
+                    yes_text="去安装依赖",
                     no_text="取消",
                 ).exec() == ConfirmDialog.Accepted:
-                    self.tabs.setCurrentIndex(0)
+                    self.show_page("login")
+                    self.tabs.setCurrentIndex(1)
                 return
         self.capture_page.show_advanced_wps()
 
@@ -364,6 +431,7 @@ class OpenWrtPage(QWidget):
         if "settings" in self._created_pages:
             data.update(self._created_pages["settings"].collect_settings())
         data.update(self.login_page.collect_settings())
+        data.update(self.dependency_page.collect_settings())
         if "capture" in self._created_pages:
             data.update(self._created_pages["capture"].tools.collect_settings())
             data.update(self._created_pages["capture"].access_points.mask_state())
@@ -376,8 +444,7 @@ class OpenWrtPage(QWidget):
         for name in ("files", "terminal", "auto_capture"):
             if name in self._created_pages:
                 self._created_pages[name].set_light_theme(enabled)
-        self.login_page.common_tools.set_light_theme(enabled)
-        self.login_page.dependencies.offline_controls.set_light_theme(enabled)
+        self.dependency_page.set_light_theme(enabled)
 
         return None
 
@@ -415,6 +482,5 @@ class OpenWrtPage(QWidget):
                 page.dispose()
         if getattr(self.login_page, "dependency_prompt", None) is not None:
             self.login_page.dependency_prompt.dispose()
-        self.login_page.common_tools.dispose()
-        self.login_page.dependencies.dispose()
+        self.dependency_page.dispose()
         self.service.openwrtSnapshotChanged.disconnect(self.login_page._apply_snapshot)
