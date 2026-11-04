@@ -518,6 +518,8 @@ class AutoCaptureRadioSession:
 
             # 2. 精准匹配版本号（如 hcxdumptool 6.2.4、hcxdumptool 6.0.1、hcxdumptool 6.3.4 等）
             m_ver = re.search(r"hcxdumptool\s+v?(\d+)\.(\d+)(?:\.(\d+))?", out, re.IGNORECASE)
+            if not m_ver:
+                m_ver = re.search(r"\b(\d+)\.(\d+)(?:\.(\d+))?\b", out[:200])
             if m_ver:
                 major = int(m_ver.group(1))
                 minor = int(m_ver.group(2))
@@ -1071,6 +1073,7 @@ class AutoCaptureService(QObject):
         self._is_polling_boot_log = False
         self._boot_connection = None
         self._diagnostic_lock = threading.Lock()
+        self._setup_lock = threading.Lock()
         self._recovery_diagnostics = deque(maxlen=32)
         backend.capture_diagnostic_callback = self.record_recovery_diagnostic
         self._disposed = False
@@ -1500,9 +1503,15 @@ class AutoCaptureService(QObject):
         self._idle_probe_cancel = cancel
 
         def _task():
-            free_map = {r.name: None for r in getattr(getattr(snapshot, "device", None), "radios", ())}
+            radios = getattr(getattr(snapshot, "device", None), "radios", ())
+            free_map = {r.name: None for r in radios}
+            owned = set()
+            for r in radios:
+                idx_m = re.search(r"\d+", r.name)
+                if idx_m:
+                    owned.add(f"hcxmon{idx_m.group(0)}")
             try:
-                usages = read_radio_usage(self.runner, cancel)
+                usages = read_radio_usage(self.runner, cancel, owned_interface=owned)
                 free_map = usages
             except Exception as exc:
                 LOGGER.debug("Probe radio idle status failed: %s", exc)

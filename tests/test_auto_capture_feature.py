@@ -1795,5 +1795,95 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
 
         self.assertTrue(any(lvl == "warning" and "未检测到空闲射频" in msg for msg, lvl in messages))
 
+    def test_hcx_dialect_probing_6_2_4_legacy(self):
+        """测试在 hcxdumptool 6.2.4 实机输出下准确识别 legacy 方言并构建包含 -o 的旧版指令。"""
+        radio = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("2.4G",))
+        service = MagicMock()
+        runner = MagicMock()
+        help_624 = (
+            "hcxdumptool 6.2.4 (C) 2021 by ZeroBeat\n"
+            "usage  : hcxdumptool <options>\n"
+            "short options:\n"
+            "-i <interface> : interface (monitor mode will be enabled by hcxdumptool)\n"
+            "-o <dump file> : output file in pcapng format, filename '-' outputs to stdout\n"
+            "-c <digit>     : set channel (1,2,3, ...)\n"
+            "--enable_status=15\n"
+        )
+        runner.run.return_value = MagicMock(exit_code=0, stdout=help_624, stderr="")
+        ssh_client = MagicMock()
+        session = AutoCaptureRadioSession(radio, runner, ssh_client, Path(tempfile.gettempdir()), service)
+
+        # 1. 验证方言识别为 legacy
+        dialect = session._probe_dialect()
+        self.assertEqual(dialect, "legacy")
+
+        # 2. 验证构建的阶梯命令为旧版 -o 格式，且绝不包含新版未识别的 -w
+        attempts = session._build_attempt_commands("1,6,11", "/tmp/test.bpf")
+        descs = [a[0] for a in attempts]
+        self.assertTrue(any("legacy-chan" in d for d in descs))
+        self.assertTrue(any("legacy-nochan" in d for d in descs))
+        self.assertTrue(any("legacy-min" in d for d in descs))
+        for desc, cmd in attempts:
+            self.assertIn(" -o ", cmd)
+            self.assertNotIn(" -w ", cmd)
+            self.assertNotIn("--attemptapmax", cmd)
+
+    def test_hcx_dialect_probing_options_fallback_without_version(self):
+        """测试无版本号暴露但帮助文本含 -o <dump file> 时可靠回退至 legacy。"""
+        radio = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",))
+        service = MagicMock()
+        runner = MagicMock()
+        unversioned_legacy_help = (
+            "usage: hcxdumptool <options>\n"
+            "-i <interface> : interface\n"
+            "-o <dump file> : output file\n"
+        )
+        runner.run.return_value = MagicMock(exit_code=0, stdout=unversioned_legacy_help, stderr="")
+        session = AutoCaptureRadioSession(radio, runner, MagicMock(), Path(tempfile.gettempdir()), service)
+        self.assertEqual(session._probe_dialect(), "legacy")
+
+    def test_script_log_capping_and_enable_status_noise_reduction(self):
+        """验证 hcx_autocap.sh 脚本日志精简机制：6.2.x 降噪与容量硬封顶守护。"""
+        from modules.capture_services.openwrt.auto_capture_boot_manager import (
+            read_local_script_content,
+            read_local_script_version,
+        )
+        from modules.capture_services.openwrt.auto_capture_log_analyzer import AutoCaptureLogAnalyzer
+
+        # 1. 验证脚本版本已递增至 v26.11.1
+        ver = read_local_script_version()
+        self.assertTrue(ver.startswith("v26.11"))
+
+        content = read_local_script_content()
+
+        # 2. 验证 6.2.x legacy 状态已由 15 优化为 1 (仅 EAPOL，剔除 Beacon 刷屏)
+        self.assertIn('_flags="--enable_status=1"', content)
+        self.assertNotIn('_flags="--enable_status=15"', content)
+
+        # 3. 验证具备 MAX_RUNLOG_KB 与 cap_runlogs 容量守护逻辑
+        self.assertIn("MAX_RUNLOG_KB=", content)
+        self.assertIn("cap_runlogs()", content)
+        # 必须是原地覆盖写入保持 inode 连续性
+        self.assertIn('cat "${_cap_tmp}" > "${_cap_file}"', content)
+
+        # 4. 验证经容量守卫截断后的日志在 AutoCaptureLogAnalyzer 中依然能完整识别首尾信息
+        truncated_mock_log = (
+            "[2026-11-03 10:00:00] 启动命令(形态=new-chan): /usr/bin/hcxdumptool -i hcxmon0 -w /root/cap/dump.pcapng -c 1a\n"
+            "固件: OpenWrt 23.05.2\n"
+            "hcxdumptool: 6.3.4\n"
+            "hcxdumptool 方言: new\n"
+            "\n[--- 日志容量守卫就地截断 (已达 256KB 上限): 保留首部启动环境与尾部最新排障记录 ---]\n\n"
+            "   1 10:30:00       + + 64bf6be17c64 MyAP_Handshake\n"
+            "退出原因: 收到中断信号，正常收尾并同步落盘\n"
+            "退出码: 130\n"
+        )
+        report = AutoCaptureLogAnalyzer.analyze_log_text(truncated_mock_log)
+        self.assertEqual(report.firmware_info, "OpenWrt 23.05.2")
+        self.assertEqual(report.hcx_version, "6.3.4")
+        self.assertEqual(report.exit_code, 130)
+        self.assertEqual(report.health_level, "normal")
+        self.assertEqual(report.pmkid_count, 1)
+
+
 if __name__ == "__main__":
     unittest.main()
