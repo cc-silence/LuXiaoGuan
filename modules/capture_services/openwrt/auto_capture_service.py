@@ -1258,11 +1258,37 @@ class AutoCaptureService(QObject):
             raise
         return True
 
-    def start_boot_log_stream(self):
+    def is_boot_log_streaming(self) -> bool:
+        """检查后台日志实时流式监听线程是否处于活跃状态。"""
+        with self._boot_log_lock:
+            return bool(
+                self._boot_log_thread is not None
+                and self._boot_log_thread.is_alive()
+                and not self._boot_log_stop_event.is_set()
+            )
+
+    def start_boot_log_stream(self, restart: bool = False):
         """开启后台会话日志的 SSH tail -f 流式实时推送，无需定时器轮询。"""
+        old_thread = None
         with self._boot_log_lock:
             if self._boot_log_thread is not None and self._boot_log_thread.is_alive():
-                return
+                if not restart:
+                    return
+                # 需要重启时，先通知终止旧线程与通道
+                self._boot_log_stop_event.set()
+                chan = self._boot_log_channel
+                self._boot_log_channel = None
+                if chan is not None:
+                    try:
+                        chan.close()
+                    except Exception:
+                        pass
+                old_thread = self._boot_log_thread
+
+        if old_thread is not None and old_thread.is_alive():
+            old_thread.join(timeout=1.0)
+
+        with self._boot_log_lock:
             self._boot_log_stop_event.clear()
             self._boot_log_thread = threading.Thread(
                 target=self._run_boot_log_stream,
@@ -1274,19 +1300,22 @@ class AutoCaptureService(QObject):
     def stop_boot_log_stream(self):
         """停止后台会话日志的流式推送，安全关闭 channel。"""
         self._boot_log_stop_event.set()
-        chan = self._boot_log_channel
+        with self._boot_log_lock:
+            chan = self._boot_log_channel
+            self._boot_log_channel = None
         if chan is not None:
             try:
                 chan.close()
             except Exception:
                 pass
-            self._boot_log_channel = None
 
     def _run_boot_log_stream(self):
         """后台日志流式读取工作线程循环。"""
         import socket
         client = getattr(self.ssh, "_client", None)
         if client is None or not getattr(self.ssh, "connected", False):
+            return
+        if self._boot_log_stop_event.is_set():
             return
 
         cmd = (
@@ -1304,20 +1333,27 @@ class AutoCaptureService(QObject):
             "fi"
         )
         try:
-            self._boot_log_channel = self.ssh.open_capture_stream(
+            chan = self.ssh.open_capture_stream(
                 client, cmd, self._boot_log_stop_event, timeout=10
             )
         except Exception:
             return
 
+        with self._boot_log_lock:
+            if self._boot_log_stop_event.is_set():
+                try:
+                    chan.close()
+                except Exception:
+                    pass
+                return
+            self._boot_log_channel = chan
+
         try:
             while not self._boot_log_stop_event.is_set():
-                if self._boot_log_channel is None:
-                    break
-                if self._boot_log_channel.exit_status_ready():
+                if chan.exit_status_ready():
                     break
                 try:
-                    data = self._boot_log_channel.recv(2048)
+                    data = chan.recv(2048)
                     if not data:
                         break
                     text = data.decode("utf-8", errors="replace")
@@ -1327,13 +1363,13 @@ class AutoCaptureService(QObject):
                 except Exception:
                     break
         finally:
-            chan = self._boot_log_channel
-            if chan is not None:
-                try:
-                    chan.close()
-                except Exception:
-                    pass
-                self._boot_log_channel = None
+            try:
+                chan.close()
+            except Exception:
+                pass
+            with self._boot_log_lock:
+                if self._boot_log_channel is chan:
+                    self._boot_log_channel = None
 
     def refresh_boot_status(self):
         """在后台异步刷新开机自启状态。"""

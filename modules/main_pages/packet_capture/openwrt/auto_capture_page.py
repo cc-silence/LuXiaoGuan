@@ -344,7 +344,8 @@ class AutoCapturePage(QWidget):
         conn_state = getattr(snapshot, "connection_state", None)
         connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
         if connected and hasattr(self, "bg_console_card") and self.bg_console_card.isVisible():
-            self.auto_capture_service.poll_boot_log()
+            if not getattr(self.auto_capture_service, "is_boot_log_streaming", lambda: False)():
+                self.auto_capture_service.poll_boot_log()
 
     def _poll_bg_boot_status(self):
         """周期性轮询刷新后台自启与脚本状态。"""
@@ -354,7 +355,8 @@ class AutoCapturePage(QWidget):
         if connected and self.sub_tabs.currentIndex() == 1:
             self.auto_capture_service.refresh_boot_status()
             if hasattr(self, "bg_console_card") and self.bg_console_card.isVisible():
-                self.auto_capture_service.poll_boot_log()
+                if not getattr(self.auto_capture_service, "is_boot_log_streaming", lambda: False)():
+                    self.auto_capture_service.poll_boot_log()
 
     @active_service_slot(object)
     def _on_signals_snapshot_changed(self, snapshot):
@@ -1766,7 +1768,7 @@ class AutoCapturePage(QWidget):
                 self._manual_boot_started = True
                 if hasattr(self, "bg_console_card"):
                     self.bg_console_card.setVisible(True)
-                    self.auto_capture_service.start_boot_log_stream()
+                    self.auto_capture_service.stop_boot_log_stream()
                     from datetime import datetime
                     self.append_bg_console_text(
                         f"\n[{datetime.now().strftime('%H:%M:%S')}] ▶ 正在准备并启动后台抓包脚本...\n"
@@ -1791,7 +1793,7 @@ class AutoCapturePage(QWidget):
             self._manual_boot_started = True
             if hasattr(self, "bg_console_card"):
                 self.bg_console_card.setVisible(True)
-                self.auto_capture_service.start_boot_log_stream()
+                self.auto_capture_service.stop_boot_log_stream()
                 from datetime import datetime
                 self.append_bg_console_text(
                     f"\n[{datetime.now().strftime('%H:%M:%S')}] ▶ 正在手动启动后台抓包脚本...\n"
@@ -1874,8 +1876,9 @@ class AutoCapturePage(QWidget):
     def _on_boot_script_started(self):
         """Show the console from verified state, independent of translated messages."""
         self._manual_boot_started = True
-        self.bg_console_card.setVisible(True)
-        self.auto_capture_service.start_boot_log_stream()
+        if hasattr(self, "bg_console_card"):
+            self.bg_console_card.setVisible(True)
+            self.auto_capture_service.start_boot_log_stream(restart=True)
         self.append_bg_console_text("\u540e\u53f0\u811a\u672c\u5df2\u8fd0\u884c\uff1b\u662f\u5426\u5df2\u5f00\u59cb\u6293\u5305\u5c1a\u672a\u786e\u8ba4\uff0c\u8bf7\u4ee5\u540e\u53f0\u4f1a\u8bdd\u65e5\u5fd7\u4e3a\u51c6\u3002\n")
 
     @active_service_slot(str, str)
@@ -1894,7 +1897,7 @@ class AutoCapturePage(QWidget):
                 self._manual_boot_started = True
                 if hasattr(self, "bg_console_card"):
                     self.bg_console_card.setVisible(True)
-                    self.auto_capture_service.start_boot_log_stream()
+                    self.auto_capture_service.start_boot_log_stream(restart=True)
                     from datetime import datetime
                     self.append_bg_console_text(
                         f"[{datetime.now().strftime('%H:%M:%S')}] ▶ 后台抓包脚本已启动成功！\n"

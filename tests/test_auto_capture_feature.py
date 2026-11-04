@@ -1727,6 +1727,66 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
 
         page.dispose()
 
+    def test_background_capture_stream_restart_on_script_started_and_poll_suppression(self):
+        """测试脚本启动成功时重启流式监听接入新输出，且活跃流抑制冗余的15秒日志轮询。"""
+        service = MagicMock()
+        service.openwrt_backend = MagicMock()
+        service.settings = {}
+        auto_cap_service = self.ui_service(service)
+        service.auto_capture = auto_cap_service
+
+        page = AutoCapturePage(service, {})
+        page.show()
+        page.sub_tabs.setCurrentIndex(1)
+        page.bg_console_card.setVisible(True)
+
+        # 1. 验证脚本启动发出 bootScriptStarted 时，页面槽函数调用 start_boot_log_stream(restart=True)
+        with patch.object(auto_cap_service, "start_boot_log_stream") as mock_start:
+            auto_cap_service.bootScriptStarted.emit()
+            from PySide6.QtWidgets import QApplication
+            QApplication.processEvents()
+            mock_start.assert_called_with(restart=True)
+
+        # 2. 验证流活跃时抑制 poll_boot_log，流停止时兜底调用 poll_boot_log
+        with patch.object(auto_cap_service, "refresh_boot_status"),              patch.object(auto_cap_service, "poll_boot_log") as mock_poll:
+            snapshot = MagicMock()
+            snapshot.connection_state = OpenWrtConnectionState.CONNECTED
+            service.openwrt_snapshot = snapshot
+            page._on_snapshot_changed(snapshot)
+
+            # 流活跃状态
+            with patch.object(auto_cap_service, "is_boot_log_streaming", return_value=True):
+                page._poll_bg_boot_status()
+                mock_poll.assert_not_called()
+
+            # 流未活跃状态
+            with patch.object(auto_cap_service, "is_boot_log_streaming", return_value=False):
+                page._poll_bg_boot_status()
+                mock_poll.assert_called_once()
+
+        # 3. 验证底层 start_boot_log_stream(restart=True) 在旧线程存在时的安全重启
+        mock_old_thread = MagicMock()
+        mock_old_thread.is_alive.return_value = True
+        auto_cap_service._boot_log_thread = mock_old_thread
+        mock_chan = MagicMock()
+        auto_cap_service._boot_log_channel = mock_chan
+
+        with patch("threading.Thread") as mock_thread_cls:
+            mock_new_thread = MagicMock()
+            mock_thread_cls.return_value = mock_new_thread
+
+            # restart=False 时直接返回，不创建新线程
+            auto_cap_service.start_boot_log_stream(restart=False)
+            mock_thread_cls.assert_not_called()
+
+            # restart=True 时终止旧线程并启动新线程
+            auto_cap_service.start_boot_log_stream(restart=True)
+            mock_old_thread.join.assert_called_once()
+            mock_chan.close.assert_called_once()
+            mock_new_thread.start.assert_called_once()
+
+        page.dispose()
+
     def test_foreground_capture_pipeline_emits_full_lifecycle_logs(self):
         """测试前台抓包流水线在整个生命周期均有清晰的控制台日志输出。"""
         service = MagicMock()
