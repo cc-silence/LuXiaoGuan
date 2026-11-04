@@ -1,0 +1,77 @@
+{
+  "checked_at": "2026-11-04",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/ZerBea/hcxdumptool/6.2.4/hcxdumptool.c",
+      "path": "hcx-6.2.4.c",
+      "sha256": "4a65bb01b555cbc58b981c121807b4b97702719b66638a1eaffaf3a3122b8dec",
+      "bytes": 309618
+    },
+    {
+      "url": "https://raw.githubusercontent.com/ZerBea/hcxdumptool/6.3.4/hcxdumptool.c",
+      "path": "hcx-6.3.4.c",
+      "sha256": "c420a0c517a4924bd751f32036bc23275ceca9de2b4ce2bb56504fb35d0cc7c9",
+      "bytes": 189333
+    },
+    {
+      "url": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/jberg/iw/+/refs/tags/v6.9/interface.c?format=TEXT",
+      "path": "iw-v6.9-interface.c",
+      "sha256": "f412e2dc196bb6aded7165f1c5fff9c83d26da3494226e2f56bf11e514fe54a1",
+      "bytes": 25738
+    },
+    {
+      "release": "19.07.10",
+      "makefile_url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.10/package/network/utils/iw/Makefile",
+      "makefile_sha256": "c1c54bddd2e78da31794db3532becefe191875761de0016aa54f858804926909",
+      "iw_ref": "refs/tags/v5.0.1",
+      "url": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/jberg/iw/+/refs/tags/v5.0.1/interface.c?format=TEXT",
+      "sha256": "b590c2e18cad6813f83114674cfb5c2be2ee1b2c916c664fa5eecc8437312c8b",
+      "conclusion": "interface add is registered for CIB_PHY; explicit phy selector supported"
+    },
+    {
+      "release": "21.02.7",
+      "makefile_url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.7/package/network/utils/iw/Makefile",
+      "makefile_sha256": "83adf32d3cf42822f13d415389ee95fcc963865cf662af9b29c02b842543d0a8",
+      "iw_ref": "8fab0c9ee9db217587a58efcc37421c86edcb638",
+      "url": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/jberg/iw/+/8fab0c9ee9db217587a58efcc37421c86edcb638/interface.c?format=TEXT",
+      "sha256": "212a020c1623eb668b3bd01bbc2a323365dd1d0db3329811831ce660a22fd6dd",
+      "conclusion": "interface add is registered for CIB_PHY; explicit phy selector supported"
+    },
+    {
+      "release": "22.03.7",
+      "makefile_url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.7/package/network/utils/iw/Makefile",
+      "makefile_sha256": "f9b1f3fa24f0e2edb725a757b1fecaf8ffd7ebd8a1a08836ca59951805d0b45e",
+      "iw_ref": "refs/tags/v5.16",
+      "url": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/jberg/iw/+/refs/tags/v5.16/interface.c?format=TEXT",
+      "sha256": "212a020c1623eb668b3bd01bbc2a323365dd1d0db3329811831ce660a22fd6dd",
+      "conclusion": "interface add is registered for CIB_PHY; explicit phy selector supported"
+    },
+    {
+      "release": "23.05.5",
+      "makefile_url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.5/package/network/utils/iw/Makefile",
+      "makefile_sha256": "22ecbd2acb4253ef80516ded524924e4fe0c562164ccb8630aae6abf2574b465",
+      "iw_ref": "refs/tags/v5.19",
+      "url": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/jberg/iw/+/refs/tags/v5.19/interface.c?format=TEXT",
+      "sha256": "c7fea41fe05e20e5c51a641f2f9b41e332fdf2d5c0d33141f931a5dac4702965",
+      "conclusion": "interface add is registered for CIB_PHY; explicit phy selector supported"
+    },
+    {
+      "release": "24.10.0",
+      "makefile_url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.0/package/network/utils/iw/Makefile",
+      "makefile_sha256": "a7497f06eac10dbbdc3dc5a2e9f940decb0426ae7b8371f3abdd2728183abb46",
+      "iw_ref": "refs/tags/v6.9",
+      "url": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/jberg/iw/+/refs/tags/v6.9/interface.c?format=TEXT",
+      "sha256": "f412e2dc196bb6aded7165f1c5fff9c83d26da3494226e2f56bf11e514fe54a1",
+      "conclusion": "interface add is registered for CIB_PHY; explicit phy selector supported"
+    },
+    {
+      "release": "25.12.0",
+      "makefile_url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.0/package/network/utils/iw/Makefile",
+      "makefile_sha256": "c57f0c99a72ca9520ff1aabc87e65fc9ed10ea21e7f11c41618ea88da3a3b3b4",
+      "iw_ref": "refs/tags/v6.17",
+      "url": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/jberg/iw/+/refs/tags/v6.17/interface.c?format=TEXT",
+      "sha256": "044d75da7b14ff9dbbbc43cfe21d47db7f6134f0b9cbb84b03f16a80aec52565",
+      "conclusion": "interface add is registered for CIB_PHY; explicit phy selector supported"
+    }
+  ]
+}
