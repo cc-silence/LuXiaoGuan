@@ -1439,7 +1439,7 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         self.assertIn("需升级", page.version_warning_title.text())
         self.assertIn("一键升级", page.version_warning_detail.text())
 
-        # 2. OpenWrt 22.03 + 6.2.4 hcx (不支持升级新版，内核 < 5.15 且固件 < 23.05)
+        # 2. OpenWrt 22.03 + 6.2.4 hcx (不支持升级新版，运行于旧版 WEXT 兼容模式，无误报警告)
         dev_2203 = OpenWrtDeviceInfo(
             model="Redmi AX6S",
             version="22.03.5",
@@ -1455,22 +1455,16 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
             dependencies=(pmkid_dep,),
         )
         has_issue, issue_type, issue_detail = check_auto_capture_environment(dev_2203, snap_2203)
-        self.assertTrue(has_issue)
-        self.assertEqual(issue_type, "hcx_outdated_unsupported")
+        self.assertFalse(has_issue)
+        self.assertEqual(issue_type, "")
 
-        # 验证页面卡片渲染：不支持升级时隐藏升级按钮，且提示升级 OpenWrt 到 23 或更高版本
+        # 验证页面卡片渲染：不支持升级新版的旧固件正常运行旧版兼容模式，不弹警告横幅
         service.openwrt_snapshot = snap_2203
         service.current_device = dev_2203
         page._on_snapshot_changed(snap_2203)
-        self.assertFalse(page.version_warning_card.isHidden())
-        self.assertTrue(page.upgrade_hcx_btn.isHidden())
-        self.assertNotIn("需升级", page.version_warning_title.text())
-        self.assertIn("工具是旧版本，可能无法正常抓包", page.version_warning_detail.text())
-        self.assertIn("点击下方【手动启动】按钮看是否能稳定运行 2 分钟", page.version_warning_detail.text())
-        self.assertIn("直接切换到【前台抓包】执行看是否报错", page.version_warning_detail.text())
-        self.assertIn("若无法正常抓包，建议将 OpenWrt 升级到 23 或更高版本", page.version_warning_detail.text())
+        self.assertTrue(page.version_warning_card.isHidden())
 
-        # 3. 第三方定制固件 (如 Kiddin')，内核 5.4 低于 5.15 基线
+        # 3. 第三方定制固件 (如 Kiddin')，内核 5.4 低于 5.15 基线 (同样属于旧版兼容模式，不误报)
         dev_custom_low = OpenWrtDeviceInfo(
             model="Custom Router",
             version="R23.01.01",  # 日期/非标准主版本
@@ -1485,10 +1479,10 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
             dependencies=(pmkid_dep,),
         )
         has_issue, issue_type, issue_detail = check_auto_capture_environment(dev_custom_low, snap_custom_low)
-        self.assertEqual(issue_type, "hcx_outdated_unsupported")
+        self.assertFalse(has_issue)
+        self.assertEqual(issue_type, "")
         page._on_snapshot_changed(snap_custom_low)
-        self.assertTrue(page.upgrade_hcx_btn.isHidden())
-        self.assertIn("若无法正常抓包，建议将 OpenWrt 升级到 23 或更高版本", page.version_warning_detail.text())
+        self.assertTrue(page.version_warning_card.isHidden())
 
         # 4. 第三方定制固件，内核 6.1 >= 5.15 基线
         dev_custom_high = OpenWrtDeviceInfo(
@@ -1590,11 +1584,12 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         deps_legacy = mgr.check(enabled_features={"pmkid": True}, sftp_available=True, device=dev_legacy)
         pmkid_legacy = next(d for d in deps_legacy if d.key == "pmkid")
 
-        # 验证 PMKID 状态为 OUTDATED（旧版本），决不能是 MISSING（缺少依赖）！
-        self.assertEqual(pmkid_legacy.state, DependencyState.OUTDATED)
+        # 验证 PMKID 状态在不支持新版本的系统上为 READY（正常已安装），不用提示旧版本
+        self.assertEqual(pmkid_legacy.state, DependencyState.READY)
         self.assertIn("6.0.1", pmkid_legacy.detail)
-        self.assertIn("当前系统不支持新版本；常规抓包另需核实工具和网卡监听能力", pmkid_legacy.detail)
         self.assertNotIn("缺少命令", pmkid_legacy.detail)
+        self.assertNotIn("旧版本", pmkid_legacy.detail)
+        self.assertNotIn("当前系统不支持新版本", pmkid_legacy.detail)
 
         # 3. 验证登录页依赖组件状态文案与按钮文本联动
         self.assertEqual(DependencySection.STATE_TEXT.get("upgradable"), "可升级")
@@ -1603,14 +1598,14 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         # 4. 验证后台抓包页面卡片动态回显实际版本（显示 6.0.1，绝不硬编码 6.2.4）
         snap = OpenWrtSessionSnapshot(
             connection_state=OpenWrtConnectionState.CONNECTED,
-            device=dev_legacy,
-            dependencies=(pmkid_legacy,),
+            device=dev_modern,
+            dependencies=(pmkid_dep,),
         )
         service = MagicMock()
         service.openwrt_backend = MagicMock()
         service.settings = {}
         service.openwrt_snapshot = snap
-        service.current_device = dev_legacy
+        service.current_device = dev_modern
         service.auto_capture = self.ui_service(service)
 
         page = AutoCapturePage(service, {})
@@ -1621,14 +1616,14 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         page._on_snapshot_changed(snap)
 
         # 验证卡片标题和内容必须包含真实的 6.0.1，绝不能出现硬编码的 6.2.4
+        self.assertFalse(page.version_warning_card.isHidden())
         title_text = page.version_warning_title.text()
         detail_text = page.version_warning_detail.text()
         self.assertIn("6.0.1", title_text)
         self.assertIn("6.0.1", detail_text)
         self.assertNotIn("6.2.4", title_text)
         self.assertNotIn("6.2.4", detail_text)
-        self.assertIn("工具是旧版本，可能无法正常抓包", detail_text)
-        self.assertIn("若无法正常抓包，建议将 OpenWrt 升级到 23 或更高版本", detail_text)
+        self.assertIn("一键升级抓包工具 (6.3.4)", detail_text)
 
     def test_background_capture_console_display_and_hide_lifecycle(self):
         """测试后台抓包控制台的初始隐藏、手动启动成功后显示、停止后隐藏的生命周期。"""
@@ -1650,6 +1645,22 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         # 3. 模拟接收后台会话日志更新
         page._on_boot_log_updated("hcxmon0: capturing on channel 1, packet count: 42")
         self.assertIn("hcxmon0: capturing", page.bg_console.toPlainText())
+
+        # 3.0 测试终端接收 ANSI 仪表盘帧时对齐 SSH 的就地清屏刷新机制（不追加刷屏）
+        frame1 = "\x1b[H================================================================\n  [已抓包     2s] 1/1 路存活\n================================================================"
+        page._on_boot_log_updated(frame1)
+        self.assertIn("[已抓包     2s]", page.bg_console.toPlainText())
+
+        frame2 = "\x1b[H================================================================\n  [已抓包     4s] 1/1 路存活\n================================================================"
+        page._on_boot_log_updated(frame2)
+        self.assertIn("[已抓包     4s]", page.bg_console.toPlainText())
+        self.assertNotIn("[已抓包     2s]", page.bg_console.toPlainText())
+
+        # 3.1 测试收起按钮与切换终端按钮
+        page.bg_collapse_btn.click()
+        self.assertTrue(page.bg_console_card.isHidden())
+        page.bg_toggle_console_btn.click()
+        self.assertFalse(page.bg_console_card.isHidden())
 
         # 4. 模拟点击结束收尾：控制台隐藏
         with patch.object(auto_cap_service, "stop_and_cleanup_capture") as stop_capture:

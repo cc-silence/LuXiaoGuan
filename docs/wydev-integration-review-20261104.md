@@ -1,96 +1,76 @@
-# wydev 分支选择性整合说明（2026-11-04）
+# wydev 分支整合说明与复核方法（2026-11-04 更新）
 
-## 目的与固定版本
+## 当前决定：请先读这里
 
-用户确认：11 月 3 日修复后的前台自动抓包已经通过用户实测。本次以该行为为保护基线，接入可独立验证的改进，不把文件能自动合并等同于运行行为没有变化。
+本文件已根据负责人后续决定更新，不能再按 PR #34 刚合并时的“暂缓”清单判断当前代码。
 
-- 主线基线：`8d5406e0b6a042682035de535f52246e9bd8561f`。
-- 评审的 wydev 提交：`dab896cdc99c3c003060ae62c4edd22200120eff`。
-- 本次代码整合提交：`599a2061e73eb5240f85586cd8e0b52e3cb9c945`。
-- 合并申请：[PR #34](https://github.com/cc-silence/LuXiaoGuan/pull/34)。
+- 原始主线基线：`8d5406e0b6a042682035de535f52246e9bd8561f`。
+- 本轮评审与移植的 wydev 提交：`dab896cdc99c3c003060ae62c4edd22200120eff`。
+- 第一轮选择性整合：[PR #34](https://github.com/cc-silence/LuXiaoGuan/pull/34)，主线提交 `81f8b81f16c4a6df77c2e15181db6748edb4c8cd`。
+- 负责人后来明确要求接入三组内容：后台控制台、输出重定向和日志裁剪；整条 SSH 命令加锁；旧系统旧工具的兼容性提示策略。这三组现已接入本轮代码，同时补齐下面的收尾与验证。
 
-这是选择性移植，不代表整个 wydev 分支均被采纳。原分支不修改，未接入部分可以后续单独复核。结论仅针对上述提交；分支继续变化后应重新比较。
+这是选择性移植，未整体合并 wydev 的全部提交。原分支没有修改。
 
-## 为什么不直接整体合并
+## 当前已接入
 
-### 1. 双层重试：已复现执行次数变化，不等于已证明重复写入
+1. hcx 新旧方言探测、无版本帮助回退、空信道参数处理；现代抓包参数继续保持原主线策略。
+2. 后台创建监听接口时显式指定实际 PHY：`iw phy <实际 PHY> interface add ...`。
+3. 后台“监看终端”和收起按钮、启动日志返回、ANSI 仪表盘最新帧显示，以及可见时复用已有巡检读取日志。收起窗口不停止远端抓包。
+4. 手动启动采用 `VIEW=on`，输出写入 `/tmp/.hcx_autocap.stdout.log`，优先读取这个输出；没有输出时回退到持久会话日志。开机服务仍使用静默模式和原有启动方式。
+5. 日志定期裁剪、旧版 hcx 的 `--enable_status=1`。官方 6.2.4 帮助中，1 是 EAPOL 状态输出；这不是关闭抓包或减少原始数据保存。
+6. 同一个命令 runner 中，整条短命令及原有一次重试串行执行。负责人明确接受独立命令排队的影响。
+7. 旧系统已安装官方旧版工具时，依赖列表显示命令可用，不再仅凭旧版标成需要升级；页面只在公共规则判定支持现代工具且仍安装旧工具时提醒升级。这里的“可用”指依赖命令已安装，不是无线驱动或实际抓包已验收。
 
-主线的 `OpenWrtCommandRunner.run()` 已对 Channel closed 保留一次重试。wydev 又在 `OpenWrtSshClient.exec_command()` 的内部 `open_command()` 增加一次重试。两层嵌套后，同一次请求可能从最多两次变成最多四次。
+## 接入时完善的处理
 
-使用相同的本机真实 SSH 测试服务：
+### 整条命令锁保留，并补上排队边界
 
-- 主线观察到：`reject → reject → accept`。
-- wydev 观察到：`reject → reject → reject → reject → accept`。
+保留 wydev 的 RLock 设计；没有再次取消串行化。等待锁时可以取消，也会计入命令的超时预算。取消或排队超时的命令不会提交给路由器；执行结束或异常都会释放锁。
 
-测试：`tests.test_ssh_channel_isolation.ChannelIsolationTests.test_exec_rejection_keeps_login_and_next_independent_command_works`。
+原先测试让“另一条命令先完成，再取消长命令”，这个顺序在串行策略下不成立。现在验证的是：长命令运行时其他命令确实排队；取消长命令后排队命令继续成功，登录连接保留。另有排队取消、排队超时和异常释放测试。没有仅通过改掉失败断言掩盖取消问题。
 
-需要区分：测试明确证明次数变化；该测试模拟的是执行请求拒绝，没有证明路由器已经重复修改了配置。但在真实连接中，通道异常不自动等于命令从未执行，因此不能在未分析执行阶段、幂等性和总超时前，默认四次更安全。
+这把锁作用于同一个 runner，不代表跨多个 SSH 客户端、终端或其他管理工具的配置事务锁。也没有保证能消除所有 Channel closed。
 
-用户曾要求保留重试。本次保留主线原有重试，不额外叠加第二层。若后续决定接受四次，应明确调整合同并补上执行前失败、执行后丢回复、取消、资源释放和超时预算测试，而不是仅修改次数断言。
+### 后台启动和日志容量
 
-### 2. 整条命令加锁：已复现并发取消回归
+- 先检查脚本是否已运行，再清空新一轮的输出文件，避免重复点击启动丢掉现有日志。
+- 后台子进程的标准输入仍接到 /dev/null；输出使用追加模式。否则日志被原地截短后，旧文件偏移可能造成空洞或再次膨胀。
+- 以字节预算保留文件头尾，避免按固定行数裁剪时被超长行绕过。每路运行日志和会话日志默认 256 KiB，标准输出为 64 KiB。
+- 这是约 30 秒一次的检查和退出前收尾，不是拦截每一次写入的绝对硬上限。两次检查之间仍可能超出阈值；截短时也不能保证保留每一条并发写入的日志。
+- 单次读取同时限制字节数和行数；重复日志读取请求合并，旧登录连接的结果不向新连接发布，避免命令串行后无界堆积读取线程。
+- 脚本版本更新为 v26.11.4.1，便于已部署用户识别本次日志行为变化。
 
-wydev 在 `command_runner.py` 中新增 `_command_lock`，锁包住整个 `_run()` 和重试，不只是通道打开。等待长命令结果和输出期间，同一 runner 的其他短命令也会等待。获取该锁本身没有独立的超时或可取消等待。
+## 仍未接入的内容
 
-测试：`tests.test_ssh_channel_isolation.ChannelIsolationTests.test_cancelling_one_channel_does_not_close_other_channel_or_login`。
+- SSH 客户端内部新增的第二层重试：主线 runner 已有一次，继续保留；本轮没有叠加内部第二次重试。
+- 第二套占位网卡创建与按名字清理逻辑，以及仅凭接口名字将网卡认作本任务所有。
+- 无线配置接管事务的其他改动、空闲网卡判断变化。本轮没有修改这些配置写入或网卡归属规则；它们不是“兼容性提示”的同一项。
 
-该测试先发出等待中的命令，再执行另一条独立命令，随后取消前者。主线通过；wydev 的等待命令未得到预期取消结果，断言失败。不能据此宣称发生永久死锁或所有抓包都会失败，但原有并发和取消语义确实改变了。
+“暂缓”不等于判定全部错误；这些应分别评审，不与已批准的日志、锁和提示策略混为一谈。
 
-本次保留主线实现。若要串行化，应说明必须保护的共享资源，限定临界区，并验证等待时间、取消和连接变化，不能仅凭 Channel closed 的文字推断整条命令必须串行。
+## 原先为什么暂缓：保留可复核证据
 
-### 3. 两套占位网卡管理：代码风险已确认，昨天同一报错尚未真机复现
+原 wydev 快照的 7 个模块共 83 项测试中，SSH 模块有两项不符合原主线合同；同环境的原主线 SSH 8 项全过：
 
-主线 `capture_placeholders.py` 已统一处理占位网卡。删除前检查应用标记、实际 PHY，并结合当前连接和会话登记验证所有者。
+- `test_exec_rejection_keeps_login_and_next_independent_command_works`：主线观察到 reject → reject → accept；原 wydev 因双层重试变成四次 reject 后 accept。证明了尝试次数变化，没有证明已经发生重复配置写入。
+- 原 `test_cancelling_one_channel_does_not_close_other_channel_or_login`：整条命令锁改变独立命令完成与取消的顺序。负责人现已接受串行策略，本轮按新合同验证停止释放、排队取消和超时。
+- 占位网卡的两套管理属于静态调用链风险，没有在本轮真机复现昨天的同一故障；不应写成“已证明必然再报错”。
 
-wydev 在 `auto_capture_service.py` 新增：
+前一轮只避开这些变化，没有完善整条锁；本轮补齐该部分。请复核方按照当前代码和新测试判断，不能继续引用旧暂缓清单当作当前结论。
 
-- `_build_sweep_stale_script()`：按名字拼出 hcxstub，执行 down/delete，缺少上述标记和实际 PHY 核实。
-- `_build_ensure_phy_stubs_script()`：新增一条创建与登记路径。
+## 验证入口和范围
 
-新创建调用之后仍有主线的 `prepare_placeholders(self)`；新增调用也没有放进原公共创建锁。这里应检查双网卡争用、删除后的所有者记录，以及停止、重试和恢复的一致性。
-
-这是重复实现及保护边界差异，不是“已经证明会重现 failed to arm interface”。本次继续使用主线公共实现，不带入第二套管理。用户此前接受的 hcxmon 名称清理例外，也不应自动扩大为任何 hcxstub 的无条件所有权证明。
-
-## 本次实际接入
-
-1. 改进 hcx 旧版识别：识别工具名称后的版本及无版本帮助选项；不把任意驱动版本数字当成 hcx 版本。帮助为空时使用有界的版本查询。
-2. 旧版信道参数清洗为空时，不生成无效的空 -c；原来的默认信道策略保留。
-3. 后台脚本创建接口时显式使用 `iw phy <实际 PHY> interface add ...`，脚本版本为 v26.11.4。
-
-前台并非完全没有修改：`_probe_dialect()` 和 `_build_attempt_commands()` 两个方法发生变化。已比较现代命令分支的语法树，保持不变；其余会话方法与基线原文一致。
-
-逐字节核对保持不变的模块包括：SSH runner/client、占位管理、启动协调、接管与恢复、设备探测、业务占用、配置事务、后台启动管理器和自动抓包页面。
-
-后台新控制台、启动输出重定向、日志裁剪、仅按固件判断兼容性的文案及其他配置变化本次暂缓。暂缓不代表全部已证明错误，而是没有必要与本次小修正绑定；尤其不能从能安装工具推导为驱动一定支持抓包。
-
-## 验证与复核入口
-
-评审原 wydev 快照：7 个模块共 83 项测试；其中 SSH 模块 8 项有上述 2 项失败，其余所选模块通过。主线同一 SSH 模块 8 项全部通过。
-
-选择性整合后：10 个模块共 119 项定向测试通过，包含启动、重试状态隔离、旧 worker 退出、双网卡协调、占位清理、恢复、下载及 SSH 边界。新增 `tests/test_safe_hcx_integration.py` 覆盖版本识别、空信道、现代参数隔离和实际 shell 中的后台 phy 命令成功/失败。
-
-可在两个独立检出目录，用相同环境对两个固定提交分别运行：
+本轮针对命令排队、真实本机 SSH、后台日志裁剪、控制台、启动恢复、依赖提示、双网卡与下载失败执行定向回归。完整仓库检查以本轮合并申请的 GitHub 自动检查记录为准。
 
 ```text
-python -m unittest tests.test_ssh_channel_isolation -v
+python -m unittest tests.test_background_capture_integration tests.test_ssh_channel_isolation tests.test_auto_capture_feature tests.test_hcx_policy -v
+python scripts/run_compatibility_audit.py --output build/review --timeout 120 --workers 2 tests.test_background_capture_integration tests.test_safe_hcx_integration tests.test_capture_initialization_evidence tests.test_capture_start_preflight tests.test_capture_integration_safety tests.test_capture_takeover_lifecycle tests.test_ssh_channel_isolation tests.test_auto_capture_feature tests.test_radio_usage_feedback tests.test_auto_capture_cleanup tests.test_boot_script_identity tests.test_hcx_policy
 ```
 
-当前整合代码可运行：
+Windows shell 测试使用 Git Bash，不把 WSL 与 Windows 临时路径混用。新增日志测试实际执行截短函数，检查超长行、保留首尾、追加句柄继续写入无空洞，以及重复启动保留旧日志。
 
-```text
-python -m unittest tests.test_safe_hcx_integration tests.test_capture_initialization_evidence tests.test_capture_start_preflight tests.test_capture_integration_safety tests.test_capture_takeover_lifecycle tests.test_ssh_channel_isolation tests.test_auto_capture_feature tests.test_radio_usage_feedback tests.test_auto_capture_cleanup tests.test_boot_script_identity -v
-```
+资料核对覆盖官方 OpenWrt 19.07.10、21.02.7、22.03.7、23.05.5、24.10.0、25.12.0 对应 BusyBox 版本与 head/tail 字节选项默认配置。精确 URL 和校验值见 [本轮资料索引](wydev-background-sources-20261104.json)；前轮 hcx/iw 来源见 [原来源索引](wydev-safe-sources-20261104.json)。
 
-Windows 的 shell 测试应使用 Git Bash，避免将 WSL shell 与 Windows 临时路径混用。完整仓库检查仍以 PR 的 CI 为准，不用上述定向通过冒充全仓库通过。
+上述为组件源码核对、本机 SSH、真实 shell 和 Qt 离屏测试，不是路由器真机认证，也未在 Debian 12 图形会话实测。本轮未操作真实路由器。此前用户确认的现场通过结果继续作为需要保护的基线。
 
-## 官方资料与边界
-
-- [hcxdumptool 6.2.4 源码](https://raw.githubusercontent.com/ZerBea/hcxdumptool/6.2.4/hcxdumptool.c)：核对 -o 和版本查询。
-- [hcxdumptool 6.3.4 源码](https://raw.githubusercontent.com/ZerBea/hcxdumptool/6.3.4/hcxdumptool.c)：核对 -w 和版本查询。
-- iw：从官方 OpenWrt 19.07.10、21.02.7、22.03.7、23.05.5、24.10.0、25.12.0 的 Makefile 解析对应版本或固定提交，再读取官方 iw 的 interface.c，核对 CIB_PHY 的接口创建注册。精确来源和校验值见 [来源清单](wydev-safe-sources-20261104.json)。
-
-这些是组件源码核对和离线/本机 SSH 验证。没有在本轮操作真实路由器，没有重新进行用户现场验收，也没有证明所有小版本、型号及 Debian 图形环境都已实测。用户报告昨天已经通过的现场结果，作为应保护的事实保留。
-
-请复核方独立判断：若能证明某项风险有额外的身份、阶段或资源保证，请指出具体调用链，并在相同提交与环境复现；不要仅凭测试名称、注释或文件无冲突作结论。
-
-补充验证：`test_download_socket_failure_keeps_error_state_and_removes_partial_file` 模拟下载已写入部分数据后发生 Socket is closed，确认最终状态为 error、原始异常仍保留、本地半成品删除且不发送 success 提示。该测试不连接真实路由器。
+请协作者的 AI 独立复核：可指出具体调用链、重现条件和反例；不要仅凭文件无冲突、测试名称或本说明的判断作结论。

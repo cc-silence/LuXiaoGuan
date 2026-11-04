@@ -1,6 +1,7 @@
 """OpenWrt 远程短命令执行边界。"""
 
 from dataclasses import dataclass
+import threading
 import time
 import socket
 from uuid import uuid4
@@ -83,8 +84,11 @@ class OpenWrtCommandRunner:
         self.radio_diagnostics = RadioSelectionDiagnostics()
         from .operation_diagnostics import OperationDiagnostics
         self.operation_diagnostics = OperationDiagnostics(getattr(ssh_client, "login_diagnostics", None))
+        self._command_lock = threading.RLock()
 
     def run(self, command_name, command, timeout, cancel_event=None, *, output_limit=None):
+        if timeout <= 0:
+            raise ValueError("Remote command timeout must be positive")
         diagnostics = self.radio_diagnostics
         tracked = diagnostics.wants(command_name)
         started = time.monotonic()
@@ -94,27 +98,39 @@ class OpenWrtCommandRunner:
         operation_id = journal.record("command", operation=command_name, status="started",
             connected_before=connected_before, request_bytes=request_bytes,
             transport="stdin" if request_bytes > 8192 else "exec")
-        for attempt in range(2):
+        result = self._wait_command_slot(command_name, timeout, cancel_event)
+        if result is None:
             try:
-                result = self._run(command_name, command, timeout, cancel_event, output_limit=output_limit)
-                break
-            except Exception as exc:
-                is_chan_closed = "channel closed" in str(exc).lower()
-                can_retry = attempt == 0 and is_chan_closed and bool(self.ssh_client.connected)
-                if can_retry and (cancel_event is None or not cancel_event.is_set()):
-                    LOGGER.info("Transient channel closed in %s, retrying after 0.3s...", command_name)
-                    time.sleep(0.3)
-                    continue
-                reason = "channel_closed" if is_chan_closed else "exception"
-                journal.record("command", operation=command_name, operation_id=operation_id,
-                    status="failed", stage=getattr(exc, "ssh_stage", "unknown"),
-                    kind=getattr(exc, "ssh_kind", "command"), exception_type=type(exc).__name__,
-                    reason=reason, elapsed_seconds=time.monotonic() - started,
-                    connected_before=connected_before, connected_after=bool(self.ssh_client.connected),
-                    request_bytes=request_bytes, transport="stdin" if request_bytes > 8192 else "exec")
-                if tracked:
-                    diagnostics.query(command_name, command, error=exc, elapsed_seconds=time.monotonic() - started)
-                raise
+                for attempt in range(2):
+                    if cancel_event is not None and cancel_event.is_set():
+                        result = RemoteCommandResult(command_name, -1, "", "", cancelled=True)
+                        break
+                    try:
+                        remaining = timeout - (time.monotonic() - started)
+                        if remaining <= 0:
+                            result = RemoteCommandResult(command_name, -1, "", "", timed_out=True)
+                            break
+                        result = self._run(command_name, command, remaining, cancel_event, output_limit=output_limit)
+                        break
+                    except Exception as exc:
+                        is_chan_closed = "channel closed" in str(exc).lower()
+                        can_retry = attempt == 0 and is_chan_closed and bool(self.ssh_client.connected)
+                        if can_retry and (cancel_event is None or not cancel_event.is_set()):
+                            LOGGER.info("Transient channel closed in %s, retrying after 0.3s...", command_name)
+                            time.sleep(0.3)
+                            continue
+                        reason = "channel_closed" if is_chan_closed else "exception"
+                        journal.record("command", operation=command_name, operation_id=operation_id,
+                            status="failed", stage=getattr(exc, "ssh_stage", "unknown"),
+                            kind=getattr(exc, "ssh_kind", "command"), exception_type=type(exc).__name__,
+                            reason=reason, elapsed_seconds=time.monotonic() - started,
+                            connected_before=connected_before, connected_after=bool(self.ssh_client.connected),
+                            request_bytes=request_bytes, transport="stdin" if request_bytes > 8192 else "exec")
+                        if tracked:
+                            diagnostics.query(command_name, command, error=exc, elapsed_seconds=time.monotonic() - started)
+                        raise
+            finally:
+                self._command_lock.release()
         status = "cancelled" if result.cancelled else "timeout" if result.timed_out else (
             "completed" if result.exit_code == 0 else "failed")
         journal.record("command", operation=command_name, operation_id=operation_id, status=status,
@@ -127,6 +143,25 @@ class OpenWrtCommandRunner:
         if tracked:
             diagnostics.query(command_name, command, result=result, elapsed_seconds=time.monotonic() - started)
         return result
+
+    def _wait_command_slot(self, command_name, timeout, cancel_event):
+        """Serialize whole commands, with bounded and cancellable queue admission."""
+        started = time.monotonic()
+        while True:
+            cancelled = cancel_event is not None and cancel_event.is_set()
+            remaining = timeout - (time.monotonic() - started)
+            if cancelled or remaining <= 0:
+                return RemoteCommandResult(
+                    command_name, -1, "", "", cancelled=cancelled,
+                    timed_out=not cancelled, failure_stage="command_queue",
+                    failure_reason="cancelled" if cancelled else "queue_timeout",
+                    elapsed_seconds=time.monotonic() - started,
+                )
+            if self._command_lock.acquire(timeout=min(remaining, 0.05)):
+                if cancel_event is not None and cancel_event.is_set():
+                    self._command_lock.release()
+                    continue
+                return None
 
     def _run(self, command_name, command, timeout, cancel_event=None, *, output_limit=None):
         """执行短命令，按超时或取消关闭 channel 并返回结构化结果。
