@@ -11,36 +11,28 @@
 # 现代化升级说明 (2026-10 升级重构 v2611):
 #   1. 【拔除假信标污染，恢复主动 Deauth 握手捕获】:
 #      - 彻底清除 6.2.x 下的 `--active_beacon` 广播发射标志，绝不向空口发射虚假
-#        热点信标，杜绝空域热点拥堵与全楼手机假热点弹窗骚扰；
 #      - 移除 `--disable_deauthentication`，恢复标准主动去认证重连诱导，大幅提升
-#        四次握手（M1~M4）获取成功率，解决纯被动模式下长时间漏包/无握手问题。
 #   2. 【升级受控双轨主动加速收割】(hcxdumptool >= 6.3.x):
 #      - `--attemptapmax=3`: 对跳频发现的周围所有 AP 单播索取 PMKID (最多3轮)，
-#        无需现场有手机连网，半夜无人也能秒级收割 PMKID；
 #      - `--attemptclientmax=3`: 对空中侦测到的真实活跃手机轻敲触发重连 (抗空口丢包波动)，
-#        加速握手获取，若无响应第 3 次后立刻停手，绝不持续骚扰；
 #      - 适配频段约束信道表 (`CH_2G_NEW` / `CH_5G_NEW`)，杜绝单频 PHY 驱动报 EINVAL 闪退；
 #      - `--disable_beacon` / `--disable_proberequest`: 严禁广播假信标与探针骚扰。
 #   3. 【架构极致精简与清晰仪表盘】:
 #      - 零读日志仪表盘 (Zero-Log-Read): 彻底切断对 run_*.log 的高频读取，信道优先由
-#        内核接口读取，Monitor 模式无信道属性时智能回退显示当前频段跳频信道范围，告别盲目显示“跳频中”；
 #      - 内联内存守卫: 移除后台常驻 MemGuard 子 Shell，改为纯 Shell 内置 read 检查 (0 外部进程)；
 #      - 物理射频动态解析: 优先通过 uci wireless.<r>.phy 定位真实 phy，修复多网卡错配。
 #   4. 【完整继承硬件级防护铠甲】:
 #      - 擦除块空间守卫 (SpaceGuard): 自动检测 UBIFS/MTD 物理擦除块，剩余空间低
-#        于阈值时优雅收尾 (退出码 132)，防止撑爆小容量 Flash；
 #      - 内存守卫 (MemGuard): 监控 /proc/meminfo 可用内存，低于阈值优雅收尾 (退出码 131)；
 #      - 空闲射频智能接管: 自动识别并跳过已启用的业务 WiFi，只在空闲射频上抓包；
 #      - 多路并发与宽限轮询优雅收尾 (finish_with_grace): 保证 pcapng 结构完整。
 #   5. 【全量融合内核级 BPF 纯净白名单过滤】:
 #      - 借鉴 LuXiaoGuan hcx_filter.py，直接在网卡驱动收包最底层由内核丢弃所有大流量
-#        视频、下载等普通业务数据帧(Data)及控制帧，仅放行信标与 EAPOL-Key 握手帧；
 #      - 0 外部编译器依赖，微秒级落盘，彻底消除空口大流量打爆 Flash 与 Buffer Overrun 导致的握手丢包；
 #      - 自愈降参托底: 6.3.x 挂载 --bpf, 6.2.x 挂载 --bpfc; 降参极简档自动回退至无 BPF 模式。
 #   6. 【白名单放行与握手录制准则】:
 #      - 白名单放行信标(Beacon/ProbeResp)以维护热点发现能力，无握手时文件增量均源于周期信标；
 #      - 流式全量录入，主动收割单 AP 限 3 次，被动监听允许多次握手录入，为后续哈希提取提供抗丢包冗余。
-#        超限时就地截断保留首部启动环境与尾部最新排障记录，坚决杜绝长期脱机写爆 Flash。
 # ============================================================
 red='\e[91m'
 green='\e[92m'
@@ -81,7 +73,7 @@ PIDS=""                     # 本次启动的抓包进程PID
 GRACE_POLL_SECS=3           # TERM 后每多少秒轮询查活一次
 GRACE_MAX_POLLS=5           # 最多轮询查活几次 (3s x 5 = 15s 耐心); 全部退出即提前结束
 RUNLOGS=""                  # 本次启动的各路日志文件路径(run_<接口>_####.log)
-MAX_RUNLOG_KB="${MAX_RUNLOG_KB:-256}"  # 单个抓包日志容量上限(KB), 超限就地截断保护Flash (设为 off 关闭)
+MAX_RUNLOG_KB="${MAX_RUNLOG_KB:-256}"  # Per-file trim threshold in KiB; off disables trimming.
 
 # 5G DFS-free 信道列表(避免 radar detection 导致 driver error), 逗号分隔自动跳频
 # legacy 方言 (6.2.x, 纯数字信道号)
@@ -676,7 +668,7 @@ check_mem_guard() {
     return 0
 }
 
-# 日志容量守卫 (LogGuard): 单个抓包日志硬封顶 (默认 256KB), 就地截断保留首部启动环境与尾部最新排障记录
+# Periodically trim logs to a bounded snapshot; writers may grow between checks.
 cap_log_file() {
     _cap_file="$1"
     _cap_bytes="$2"
@@ -1393,7 +1385,7 @@ cleanup_capture() {
     # "删监听口/删锁" 那段逻辑统一集中在 cleanup_leftovers(幂等), 避免两处写法漂移
     _had_ifs="${CREATED_IFS}"
     cleanup_leftovers
-    cap_runlogs     # 收尾退出前对日志做终态封顶，确保成果日志干净紧凑
+    cap_runlogs     # Trim once more after stopping capture writers.
     if [ -n "${_had_ifs}" ]
     then
         echo ""
