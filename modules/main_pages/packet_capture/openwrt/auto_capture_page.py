@@ -851,7 +851,7 @@ class AutoCapturePage(QWidget):
         text_layout.setContentsMargins(0, 0, 0, 0)
         text_layout.setSpacing(4)
 
-        self.version_warning_title = QLabel("⚠️ 固件版本过低预警（建议升级固件至 OpenWrt 23.05+）", self.version_warning_card)
+        self.version_warning_title = QLabel("⚠️ 固件版本过低预警（需升级固件至 OpenWrt 23.05+）", self.version_warning_card)
         self.version_warning_title.setStyleSheet("font-size: 11pt; font-weight: bold; color: #f59e0b;")
         text_layout.addWidget(self.version_warning_title)
 
