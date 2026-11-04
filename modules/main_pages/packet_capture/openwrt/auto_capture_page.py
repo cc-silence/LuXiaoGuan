@@ -327,10 +327,7 @@ class AutoCapturePage(QWidget):
         self._bg_status_timer.setInterval(15000)  # 放宽至 15 秒巡检间隔，降低设备负荷并消除高频刷新打扰
         self._bg_status_timer.timeout.connect(self._poll_bg_boot_status)
 
-        # 终端实时日志监看定时器：严格对齐远端脚本的 2 秒循环刷新节奏
-        self._bg_log_timer = QTimer(self)
-        self._bg_log_timer.setInterval(2000)
-        self._bg_log_timer.timeout.connect(self._poll_bg_console_log)
+        # 终端实时日志监看采用原生 SSH tail -f 流式实时管道（事件驱动，零定时器）
 
         # 若服务层已有自启状态快照，立即回显展示
         if self.auto_capture_service.boot_status is not None:
@@ -348,8 +345,6 @@ class AutoCapturePage(QWidget):
         connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
         if connected and hasattr(self, "bg_console_card") and self.bg_console_card.isVisible():
             self.auto_capture_service.poll_boot_log()
-        else:
-            self._bg_log_timer.stop()
 
     def _poll_bg_boot_status(self):
         """周期性轮询刷新后台自启与脚本状态。"""
@@ -392,12 +387,12 @@ class AutoCapturePage(QWidget):
         """子标签页切换时响应：每当切换到前台抓包或后台抓包时，均刷新对应页面上的状态。"""
         if index == 0:
             self._bg_status_timer.stop()
-            self._bg_log_timer.stop()
+            self.auto_capture_service.stop_boot_log_stream()
             self.refresh_foreground_status()
         elif index == 1:
             self.refresh_background_status()
             if hasattr(self, "bg_console_card") and self.bg_console_card.isVisible():
-                self._bg_log_timer.start(2000)
+                self.auto_capture_service.start_boot_log_stream()
 
     def refresh_foreground_status(self):
         """刷新前台抓包页面上的所有状态（快照同步、射频卡片状态与回显、系统资源）。"""
@@ -438,6 +433,8 @@ class AutoCapturePage(QWidget):
             else:
                 self._update_loading_status("checking_env")
             self.auto_capture_service.refresh_boot_status()
+            if hasattr(self, "bg_console_card") and self.bg_console_card.isVisible():
+                self.auto_capture_service.start_boot_log_stream()
             if not self._bg_status_timer.isActive():
                 self._bg_status_timer.start()
         else:
@@ -1053,7 +1050,7 @@ class AutoCapturePage(QWidget):
         self.bg_collapse_btn = QPushButton("收起", self.bg_console_card)
         self.bg_collapse_btn.setStyleSheet(tool_btn_style)
         self.bg_collapse_btn.setToolTip("收起实时监看终端（不影响抓包脚本在路由器后台的持续运行）")
-        self.bg_collapse_btn.clicked.connect(lambda: (self.bg_console_card.setVisible(False), self._bg_log_timer.stop()))
+        self.bg_collapse_btn.clicked.connect(lambda: (self.bg_console_card.setVisible(False), self.auto_capture_service.stop_boot_log_stream()))
         console_bar.addWidget(self.bg_collapse_btn)
 
         bg_console_layout.addLayout(console_bar)
@@ -1122,16 +1119,15 @@ class AutoCapturePage(QWidget):
         self.bg_console.setFixedHeight(new_h)
 
     def _on_toggle_console_clicked(self):
-        """响应点击监看终端切换按钮。开启时以 2 秒高频刷新对齐脚本。"""
+        """响应监看终端切换按钮，开启或停止后台日志流式推送。"""
         if not hasattr(self, "bg_console_card"):
             return
         is_visible = not self.bg_console_card.isVisible()
         self.bg_console_card.setVisible(is_visible)
         if is_visible:
-            self.auto_capture_service.poll_boot_log()
-            self._bg_log_timer.start(2000)
+            self.auto_capture_service.start_boot_log_stream()
         else:
-            self._bg_log_timer.stop()
+            self.auto_capture_service.stop_boot_log_stream()
 
     def _update_boot_metrics_style(self):
         """同步后台指标看板的明暗主题样式。"""
@@ -1770,7 +1766,7 @@ class AutoCapturePage(QWidget):
                 self._manual_boot_started = True
                 if hasattr(self, "bg_console_card"):
                     self.bg_console_card.setVisible(True)
-                    self._bg_log_timer.start(2000)
+                    self.auto_capture_service.start_boot_log_stream()
                     from datetime import datetime
                     self.append_bg_console_text(
                         f"\n[{datetime.now().strftime('%H:%M:%S')}] ▶ 正在准备并启动后台抓包脚本...\n"
@@ -1795,6 +1791,7 @@ class AutoCapturePage(QWidget):
             self._manual_boot_started = True
             if hasattr(self, "bg_console_card"):
                 self.bg_console_card.setVisible(True)
+                self.auto_capture_service.start_boot_log_stream()
                 from datetime import datetime
                 self.append_bg_console_text(
                     f"\n[{datetime.now().strftime('%H:%M:%S')}] ▶ 正在手动启动后台抓包脚本...\n"
@@ -1810,7 +1807,7 @@ class AutoCapturePage(QWidget):
         self._manual_boot_started = False
         if hasattr(self, "bg_console_card"):
             self.bg_console_card.setVisible(False)
-        self._bg_log_timer.stop()
+        self.auto_capture_service.stop_boot_log_stream()
         self._last_rendered_boot_status = None
         self.stop_capture_btn.setEnabled(False)
         self.start_script_btn.setEnabled(False)
@@ -1878,6 +1875,7 @@ class AutoCapturePage(QWidget):
         """Show the console from verified state, independent of translated messages."""
         self._manual_boot_started = True
         self.bg_console_card.setVisible(True)
+        self.auto_capture_service.start_boot_log_stream()
         self.append_bg_console_text("\u540e\u53f0\u811a\u672c\u5df2\u8fd0\u884c\uff1b\u662f\u5426\u5df2\u5f00\u59cb\u6293\u5305\u5c1a\u672a\u786e\u8ba4\uff0c\u8bf7\u4ee5\u540e\u53f0\u4f1a\u8bdd\u65e5\u5fd7\u4e3a\u51c6\u3002\n")
 
     @active_service_slot(str, str)
@@ -1896,7 +1894,7 @@ class AutoCapturePage(QWidget):
                 self._manual_boot_started = True
                 if hasattr(self, "bg_console_card"):
                     self.bg_console_card.setVisible(True)
-                    self._bg_log_timer.start(2000)
+                    self.auto_capture_service.start_boot_log_stream()
                     from datetime import datetime
                     self.append_bg_console_text(
                         f"[{datetime.now().strftime('%H:%M:%S')}] ▶ 后台抓包脚本已启动成功！\n"
@@ -1922,6 +1920,10 @@ class AutoCapturePage(QWidget):
             self._upgrade_progress.dispose()
         try:
             self._bg_status_timer.stop()
+        except Exception:
+            pass
+        try:
+            self.auto_capture_service.stop_boot_log_stream()
         except Exception:
             pass
         connections, self._service_connections = self._service_connections, []

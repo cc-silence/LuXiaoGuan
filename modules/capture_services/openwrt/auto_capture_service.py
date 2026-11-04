@@ -1130,6 +1130,10 @@ class AutoCaptureService(QObject):
         self._recovery_diagnostics = deque(maxlen=32)
         backend.capture_diagnostic_callback = self.record_recovery_diagnostic
         self._disposed = False
+        self._boot_log_thread: Optional[threading.Thread] = None
+        self._boot_log_channel = None
+        self._boot_log_stop_event = threading.Event()
+        self._boot_log_lock = threading.Lock()
 
         owner.openwrtSnapshotChanged.connect(self._on_snapshot_changed)
         from modules.capture_services.local_capture_diagnostics import AutoCaptureDiagnostics
@@ -1221,6 +1225,7 @@ class AutoCaptureService(QObject):
             self._active_coordinator = None
         for session in list(self.sessions.values()):
             session.stop()
+        self.stop_boot_log_stream()
         self._resource_timer.stop()
 
     def poll_boot_log(self, max_lines: int = 35):
@@ -1252,6 +1257,83 @@ class AutoCaptureService(QObject):
                 self._is_polling_boot_log = False
             raise
         return True
+
+    def start_boot_log_stream(self):
+        """开启后台会话日志的 SSH tail -f 流式实时推送，无需定时器轮询。"""
+        with self._boot_log_lock:
+            if self._boot_log_thread is not None and self._boot_log_thread.is_alive():
+                return
+            self._boot_log_stop_event.clear()
+            self._boot_log_thread = threading.Thread(
+                target=self._run_boot_log_stream,
+                name="BootLogStreamWorker",
+                daemon=True,
+            )
+            self._boot_log_thread.start()
+
+    def stop_boot_log_stream(self):
+        """停止后台会话日志的流式推送，安全关闭 channel。"""
+        self._boot_log_stop_event.set()
+        chan = self._boot_log_channel
+        if chan is not None:
+            try:
+                chan.close()
+            except Exception:
+                pass
+            self._boot_log_channel = None
+
+    def _run_boot_log_stream(self):
+        """后台日志流式读取工作线程循环。"""
+        import socket
+        client = getattr(self.ssh, "_client", None)
+        if client is None or not getattr(self.ssh, "connected", False):
+            return
+
+        cmd = (
+            "if pidof hcxdumptool >/dev/null 2>&1 || [ -f /tmp/.hcx_autocap.lock ]; then "
+            "  touch /tmp/.hcx_autocap.stdout.log 2>/dev/null; "
+            "  exec tail -f -n 50 /tmp/.hcx_autocap.stdout.log 2>/dev/null; "
+            "else "
+            "  LATEST=$(ls -1t /root/cap/script_*.log 2>/dev/null | head -n 1); "
+            "  if [ -n \"$LATEST\" ] && [ -f \"$LATEST\" ]; then "
+            "    exec tail -f -n 50 \"$LATEST\" 2>/dev/null; "
+            "  else "
+            "    touch /tmp/.hcx_autocap.stdout.log 2>/dev/null; "
+            "    exec tail -f -n 50 /tmp/.hcx_autocap.stdout.log 2>/dev/null; "
+            "  fi; "
+            "fi"
+        )
+        try:
+            self._boot_log_channel = self.ssh.open_capture_stream(
+                client, cmd, self._boot_log_stop_event, timeout=10
+            )
+        except Exception:
+            return
+
+        try:
+            while not self._boot_log_stop_event.is_set():
+                if self._boot_log_channel is None:
+                    break
+                if self._boot_log_channel.exit_status_ready():
+                    break
+                try:
+                    data = self._boot_log_channel.recv(2048)
+                    if not data:
+                        break
+                    text = data.decode("utf-8", errors="replace")
+                    self.bootLogUpdated.emit(text)
+                except socket.timeout:
+                    continue
+                except Exception:
+                    break
+        finally:
+            chan = self._boot_log_channel
+            if chan is not None:
+                try:
+                    chan.close()
+                except Exception:
+                    pass
+                self._boot_log_channel = None
 
     def refresh_boot_status(self):
         """在后台异步刷新开机自启状态。"""
@@ -1432,6 +1514,7 @@ class AutoCaptureService(QObject):
         """异步结束并收尾后台抓包进程（安全封包、清理残留进程与监听接口）。"""
         def _task():
             try:
+                self.stop_boot_log_stream()
                 self.messageGenerated.emit("正在结束并收尾后台抓包操作...", "info")
                 self.boot_manager.stop_and_cleanup_capture()
                 import time

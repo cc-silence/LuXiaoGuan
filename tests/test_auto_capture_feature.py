@@ -1677,6 +1677,56 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         self.assertTrue(page.bg_console_card.isHidden())
         page.dispose()
 
+    def test_background_capture_tail_stream_lifecycle(self):
+        """测试后台监看终端的 tail -f 流式实时推送与生命周期。"""
+        service = MagicMock()
+        service.openwrt_backend = MagicMock()
+        service.settings = {}
+        auto_cap_service = self.ui_service(service)
+        service.auto_capture = auto_cap_service
+
+        page = AutoCapturePage(service, {})
+
+        # 1. 验证切换终端按钮与收起按钮联动触发 start_boot_log_stream 与 stop_boot_log_stream
+        with patch.object(auto_cap_service, "start_boot_log_stream") as mock_start_stream,              patch.object(auto_cap_service, "stop_boot_log_stream") as mock_stop_stream:
+            # 展开终端
+            page.bg_toggle_console_btn.click()
+            mock_start_stream.assert_called_once()
+
+            # 收起终端
+            page.bg_collapse_btn.click()
+            mock_stop_stream.assert_called_once()
+
+        # 2. 验证底层 AutoCaptureService 的流式线程工作循环
+        mock_channel = MagicMock()
+        mock_channel.exit_status_ready.side_effect = [False, False, True]
+        mock_channel.recv.side_effect = [
+            "\x1b[H================================================================\n  [已抓包     6s] 1/1 路存活\n================================================================".encode("utf-8"),
+            b"",
+        ]
+        auto_cap_service.ssh._client = MagicMock()
+        auto_cap_service.ssh.connected = True
+        auto_cap_service.ssh.open_capture_stream.return_value = mock_channel
+
+        received_logs = []
+        auto_cap_service.bootLogUpdated.connect(lambda text: received_logs.append(text))
+
+        auto_cap_service.start_boot_log_stream()
+        # 等待流式线程处理
+        if auto_cap_service._boot_log_thread:
+            auto_cap_service._boot_log_thread.join(timeout=2.0)
+        from PySide6.QtWidgets import QApplication
+        QApplication.processEvents()
+
+        self.assertTrue(len(received_logs) > 0)
+        self.assertIn("已抓包     6s", received_logs[0])
+
+        # 3. 验证 stop_boot_log_stream 安全清理 channel
+        auto_cap_service.stop_boot_log_stream()
+        self.assertTrue(auto_cap_service._boot_log_stop_event.is_set())
+
+        page.dispose()
+
     def test_foreground_capture_pipeline_emits_full_lifecycle_logs(self):
         """测试前台抓包流水线在整个生命周期均有清晰的控制台日志输出。"""
         service = MagicMock()
