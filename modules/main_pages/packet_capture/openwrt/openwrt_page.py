@@ -413,7 +413,8 @@ class OpenWrtPage(QWidget):
                 self.service.openwrtSnapshotChanged.disconnect(page._apply_snapshot)
             else:
                 page.dispose()
-        self.login_page.dependency_prompt.dispose()
+        if getattr(self.login_page, "dependency_prompt", None) is not None:
+            self.login_page.dependency_prompt.dispose()
         self.login_page.common_tools.dispose()
         self.login_page.dependencies.dispose()
         self.service.openwrtSnapshotChanged.disconnect(self.login_page._apply_snapshot)
