@@ -67,7 +67,7 @@ wydev 在 `auto_capture_service.py` 新增：
 
 评审原 wydev 快照：7 个模块共 83 项测试；其中 SSH 模块 8 项有上述 2 项失败，其余所选模块通过。主线同一 SSH 模块 8 项全部通过。
 
-选择性整合后：10 个模块共 118 项定向测试通过，包含启动、重试状态隔离、旧 worker 退出、双网卡协调、占位清理、恢复、下载及 SSH 边界。新增 `tests/test_safe_hcx_integration.py` 覆盖版本识别、空信道、现代参数隔离和实际 shell 中的后台 phy 命令成功/失败。
+选择性整合后：10 个模块共 119 项定向测试通过，包含启动、重试状态隔离、旧 worker 退出、双网卡协调、占位清理、恢复、下载及 SSH 边界。新增 `tests/test_safe_hcx_integration.py` 覆盖版本识别、空信道、现代参数隔离和实际 shell 中的后台 phy 命令成功/失败。
 
 可在两个独立检出目录，用相同环境对两个固定提交分别运行：
 
@@ -92,3 +92,5 @@ Windows 的 shell 测试应使用 Git Bash，避免将 WSL shell 与 Windows 临
 这些是组件源码核对和离线/本机 SSH 验证。没有在本轮操作真实路由器，没有重新进行用户现场验收，也没有证明所有小版本、型号及 Debian 图形环境都已实测。用户报告昨天已经通过的现场结果，作为应保护的事实保留。
 
 请复核方独立判断：若能证明某项风险有额外的身份、阶段或资源保证，请指出具体调用链，并在相同提交与环境复现；不要仅凭测试名称、注释或文件无冲突作结论。
+
+补充验证：`test_download_socket_failure_keeps_error_state_and_removes_partial_file` 模拟下载已写入部分数据后发生 Socket is closed，确认最终状态为 error、原始异常仍保留、本地半成品删除且不发送 success 提示。该测试不连接真实路由器。

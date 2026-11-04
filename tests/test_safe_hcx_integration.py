@@ -83,3 +83,24 @@ class SafeHcxIntegrationTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(trace.read_text().strip(), "phy phy2 interface add hcxmon7 type monitor addr 02:00:00:00:00:01")
                 self.assertEqual(result.stdout.strip(), "hcxmon7" if fail == 0 else "")
+
+    def test_download_socket_failure_keeps_error_state_and_removes_partial_file(self):
+        from contextlib import nullcontext
+        from types import SimpleNamespace
+        session, _ = self.session("hcxdumptool 6.3.4")
+        session.ssh_client.transfer.return_value = nullcontext()
+        sftp = session.ssh_client.open_sftp.return_value
+        sftp.stat.return_value = SimpleNamespace(st_size=4, st_mtime=1)
+        def failed_get(remote, local):
+            Path(local).write_bytes(b"part")
+            raise OSError("Socket is closed")
+        sftp.get.side_effect = failed_get
+        with tempfile.TemporaryDirectory() as directory:
+            session.output_dir = Path(directory)
+            session._cleanup_session(Mock())
+            self.assertEqual(session.stats.state, "error")
+            self.assertIn("Socket is closed", session.stats.error_message)
+            self.assertEqual(list(Path(directory).iterdir()), [])
+        sftp.close.assert_called_once()
+        session.service.radioStateChanged.emit.assert_called_with("radio7", "error")
+        self.assertFalse(any(call.args[1] == "success" for call in session.service.messageGenerated.emit.call_args_list))
