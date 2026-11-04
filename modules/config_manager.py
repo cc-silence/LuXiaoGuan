@@ -237,6 +237,7 @@ class ConfigManager:
             "info_font_delta": "0",
             # 主机模式关闭联网下载能力；主窗口会据此跳过下载页和下载后台服务创建。
             "host_mode": "false",
+            "sidebar_expanded": "true",
         },
         "launcher": {
             "hotkey": "Alt+Shift+F",

@@ -5,6 +5,97 @@ from modules.ui_scale_manager import UiScaleManager
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout
 
 
+from PySide6.QtWidgets import QPushButton
+
+
+class VerticalResizeHandle(QFrame):
+    """可垂直拖拽调整目标组件高度的手柄条。"""
+
+    def __init__(self, target_widget, min_height=80, max_height=800, parent=None):
+        super().__init__(parent)
+        self.target_widget = target_widget
+        self.min_height = min_height
+        self.max_height = max_height
+        self.setCursor(Qt.SizeVerCursor)
+        self.setFixedHeight(12)
+        self._drag_start_y = None
+        self._start_height = None
+        self.setToolTip("按住上下拖拽调整终端高度")
+        self.setObjectName("verticalResizeHandle")
+        self.setStyleSheet(
+            "QFrame#verticalResizeHandle { background: transparent; } "
+            "QFrame#verticalResizeHandle:hover { background: rgba(56, 189, 248, 0.12); border-radius: 4px; }"
+        )
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._drag_start_y = event.globalPosition().toPoint().y()
+            self._start_height = self.target_widget.height()
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if self._drag_start_y is not None:
+            delta = event.globalPosition().toPoint().y() - self._drag_start_y
+            new_h = max(self.min_height, min(self.max_height, self._start_height + delta))
+            self.target_widget.setFixedHeight(new_h)
+            event.accept()
+
+    def mouseReleaseEvent(self, event):
+        self._drag_start_y = None
+        event.accept()
+
+    def paintEvent(self, event):
+        from PySide6.QtGui import QPainter, QColor
+        super().paintEvent(event)
+        painter = QPainter(self)
+        w = self.width()
+        h = self.height()
+        bar_w = min(44, max(24, w // 4))
+        x = (w - bar_w) // 2
+        painter.setPen(QColor(148, 163, 184, 150))
+        painter.drawLine(x, h // 2 - 1, x + bar_w, h // 2 - 1)
+        painter.drawLine(x, h // 2 + 2, x + bar_w, h // 2 + 2)
+
+
+def create_step_card(parent, title, tooltip=""):
+    """创建后台步骤卡片：大号加粗标题，标题后带 (?) 悬浮提示小按钮，无多余副标题文本。"""
+    card = QFrame(parent)
+    card.setObjectName("captureCard")
+    card.setAttribute(Qt.WA_StyledBackground, True)
+    layout = QVBoxLayout(card)
+    layout.setContentsMargins(14, 12, 14, 12)
+    layout.setSpacing(8)
+
+    title_bar = QHBoxLayout()
+    title_bar.setContentsMargins(0, 0, 0, 0)
+    title_bar.setSpacing(6)
+
+    title_label = QLabel(title, card)
+    title_label.setObjectName("captureGroupTitle")
+    title_label.setStyleSheet("font-size: 12pt; font-weight: bold;")
+    title_bar.addWidget(title_label)
+
+    if tooltip:
+        help_btn = QPushButton("?", card)
+        help_btn.setFixedSize(18, 18)
+        help_btn.setToolTip(tooltip)
+        help_btn.setCursor(Qt.PointingHandCursor)
+        help_btn.setStyleSheet(
+            "QPushButton { border-radius: 9px; border: 1px solid #64748b; color: #94a3b8; font-size: 11px; font-weight: bold; background: transparent; padding: 0px; } "
+            "QPushButton:hover { border-color: #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.12); }"
+        )
+        title_bar.addWidget(help_btn)
+
+    title_bar.addStretch(1)
+    layout.addLayout(title_bar)
+    card.title_bar = title_bar
+
+    content_layout = QVBoxLayout()
+    content_layout.setContentsMargins(0, 4, 0, 0)
+    content_layout.setSpacing(8)
+    layout.addLayout(content_layout)
+    return card, content_layout
+
 def create_capture_card(parent, title, description="", *, collapsible=False, expanded=True, icon_path=None, actions_at_bottom=False):
     """创建抓包页面专用分组卡片。
 

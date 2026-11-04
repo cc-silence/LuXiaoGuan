@@ -19,6 +19,12 @@
 	font: 12pt "Microsoft YaHei", "Segoe UI Semibold";
 }
 
+#labelVersion {
+	background-color: transparent;
+	border: none;
+	color: #718096;
+}
+
 #settingsTitleButtons {
 	background-color: transparent;
 	border: none;

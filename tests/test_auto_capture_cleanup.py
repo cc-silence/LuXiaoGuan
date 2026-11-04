@@ -94,3 +94,27 @@ class CleanupTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             remove_monitor(runner, 'wlan0', 'phy7')
         runner.run.assert_not_called()
+    def test_sweep_stale_cleans_matching_stub_interface(self):
+        session, service, runner = self.session()
+        self.assertEqual(session.phy, 'phy7')
+        script = session._build_sweep_stale_script()
+        self.assertIn('hcxstub7', script)
+        self.assertIn('iw dev hcxstub7 del', script)
+
+    def test_ensure_phy_stubs_excludes_self_phy_and_probes_others(self):
+        session, service, runner = self.session()
+        self.assertEqual(session.phy, 'phy7')
+        script = session._build_ensure_phy_stubs_script()
+        self.assertIn('$_phy" != "phy7"', script)
+        self.assertIn('hcxstub', script)
+
+    def test_cleanup_session_handles_stub_interfaces(self):
+        session, service, runner = self.session()
+        session._monitor_creation_attempted = True
+        session._created_stubs = ['hcxstub0']
+        session._cleanup_session(None)
+        self.assertEqual(runner.run.call_count, 2)
+        stub_cmd = runner.run.call_args_list[1].args[1]
+        self.assertIn('hcxstub0', stub_cmd)
+        self.assertIn('iw dev hcxstub0 del', stub_cmd)
+

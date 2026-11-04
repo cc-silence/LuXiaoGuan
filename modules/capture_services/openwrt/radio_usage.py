@@ -121,10 +121,11 @@ def parse_radio_usage(snapshot, runtime, owned_interface=""):
     interfaces = {p: tuple(r[1] for r in rows if r[0] == p) for p in phys}
     mapping = snapshot_radio_mapping(snapshot, interfaces)
     idle = configured_radios_idle(snapshot)
+    owned_set = {owned_interface} if isinstance(owned_interface, str) else set(owned_interface or ())
     result = {}
     for radio in uci_radio_bands(snapshot):
         phy = mapping.get(radio, "")
-        current = [r for r in rows if r[0] == phy and r[1] != owned_interface]
+        current = [r for r in rows if r[0] == phy and r[1] not in owned_set]
         state, reason = "unknown", "\u65e0\u6cd5\u786e\u8ba4\u5c04\u9891\u5f52\u5c5e\uff0c\u8bf7\u5237\u65b0\u65e0\u7ebf\u72b6\u6001\u3002"
         if phy in phys:
             if any(r[2] == "monitor" or re.fullmatch(r"(?:hcxmon[0-9]+|wbmon[A-Za-z0-9]{1,8})", r[1]) for r in current):

@@ -1,34 +1,34 @@
-"""OpenWrt 路由器登录页：SSH 连接、设备信息、依赖状态与信息窗口。"""
+"""OpenWrt 路由器登录页：SSH 连接、设备信息与信息窗口。"""
 
 from PySide6.QtCore import Qt, QTimer, Signal, QSignalBlocker
-from PySide6.QtWidgets import QHBoxLayout, QLayout, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
 
 from modules.main_pages.packet_capture.ui_helpers import create_capture_card
-from modules.common_widgets.natural_height_layout import NaturalHeightVBoxLayout
 from .connection_section import ConnectionSection
-from .dependency_section import DependencySection
 from .device_status_panel import DeviceStatusPanel
 from .resource_picker import OpenWrtResourcePicker
 
 
 class RouterLoginPage(QWidget):
-    """路由器登录页，只管连接与设备，不保存抓包策略。
+    """路由器登录页，只管连接与设备基本信息，不保存抓包策略。
 
     参数：service 是业务服务；settings 是标准化 OpenWrt 配置；
-    info_panel 是右侧信息窗口。SSH 密码只在内存和 Windows 凭据之间流转。
+    info_panel 是下半部分信息窗口。SSH 密码只在内存和 Windows 凭据之间流转。
     """
 
     settingsChanged = Signal()
     actionRequested = Signal(str)
 
-    def __init__(self, service, settings, info_panel=None, parent=None):
+    def __init__(self, service, settings, info_panel=None, parent=None, dependency_page=None):
         super().__init__(parent)
         self.service = service
+        self.settings = settings
+        self._dependency_page = dependency_page
         self.resource_picker = OpenWrtResourcePicker(self)
         self.setObjectName("openwrtRouterLoginPage")
-        outer = QHBoxLayout(self)
+        outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(8)
+        outer.setSpacing(0)
         from modules.common_widgets.bounce_scroll_area import BounceScrollArea
         self.scroll_area = BounceScrollArea(self)
         self.scroll_area.setObjectName("captureScrollArea")
@@ -36,21 +36,13 @@ class RouterLoginPage(QWidget):
         self.scroll_area.setFrameShape(BounceScrollArea.NoFrame)
         content = QWidget(self.scroll_area)
         content.setObjectName("openwrtLoginContent")
-        # 内容高度不参与压缩，避免折叠动画期间先挤压上方卡片再回位。
         content.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
-        root = NaturalHeightVBoxLayout(content)
-        # 内容最小尺寸随布局同步更新，防止滚动区在展开帧中临时压缩上方卡片。
-        root.setSizeConstraint(QLayout.SetMinimumSize)
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(8)
+
+        # 左右并排：左侧参数，右侧基本信息，各占一半
+        content_layout = QHBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 4, 0)
+        content_layout.setSpacing(8)
         self.scroll_area.setWidget(content)
-        self.info_panel = info_panel
-        if info_panel is not None:
-            from modules.common_widgets.info_panel_dock import InfoPanelDock
-            self.info_dock = InfoPanelDock(self.scroll_area, info_panel, Qt.Horizontal, self)
-            outer.addWidget(self.info_dock, 1)
-        else:
-            outer.addWidget(self.scroll_area, 1)
 
         self.connection = ConnectionSection(
             content,
@@ -60,8 +52,6 @@ class RouterLoginPage(QWidget):
             remember_callback=self._sync_saved_password,
             identity_callback=self._reload_saved_password_for_identity,
         )
-        # 页面可能在托盘待机释放后重建；仅从常驻服务内存恢复本次进程的密码，
-        # 不读取配置文件。登出、失败或拒绝指纹后快照会触发清空。
         self._remember_password_preference = self.connection.remember_password.isChecked()
         self._password_identity = self._credential_identity()
         self._last_connection_state = None
@@ -77,27 +67,54 @@ class RouterLoginPage(QWidget):
         self.connection.auth_method.currentIndexChanged.connect(
             lambda _index: self.settingsChanged.emit()
         )
-        root.addWidget(self.connection.card)
-        device_card, device_layout = create_capture_card(content, "")
+        self.connection.card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        content_layout.addWidget(self.connection.card, 1)
+
+        device_card, device_layout = create_capture_card(
+            content,
+            "基本信息",
+            "显示路由器系统版本、硬件标识、无线网卡及存储等硬件状态。",
+        )
+        self.device_card = device_card
         self.device_status = DeviceStatusPanel(device_card)
         device_layout.addWidget(self.device_status)
-        root.addWidget(device_card)
-        self.dependencies = DependencySection(content, settings, self._request,service.dependency_service, owner=service)
-        root.addWidget(self.dependencies.card)
-        from .common_tool_section import CommonToolSection
-        self.common_tools=CommonToolSection(content,service)
-        root.addWidget(self.common_tools.card)
-        # 顶层卡片保持自身内容高度；展开增加滚动范围，不向其他卡片借高度。
-        for index in range(root.count()):
-            card = root.itemAt(index).widget()
-            if card is not None:
-                card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
-        root.addStretch(1)
+        device_layout.addStretch(1)
+        device_card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        content_layout.addWidget(device_card, 1)
 
-        from .login_dependency_prompt import LoginDependencyPrompt
-        self.dependency_prompt = LoginDependencyPrompt(self)
+        self.info_panel = info_panel
+        if info_panel is not None:
+            from modules.common_widgets.info_panel_dock import InfoPanelDock
+            # 垂直分栏：上面是参数与基本信息各占一半，下面是日志全宽
+            self.info_dock = InfoPanelDock(self.scroll_area, info_panel, Qt.Vertical, self, sizes=(360, 200))
+            outer.addWidget(self.info_dock, 1)
+        else:
+            outer.addWidget(self.scroll_area, 1)
+
+        self.dependency_prompt = None
         service.openwrtSnapshotChanged.connect(self._apply_snapshot)
         self._apply_snapshot(service.openwrt_snapshot)
+
+    @property
+    def dependencies(self):
+        if self._dependency_page is not None:
+            return self._dependency_page.dependencies
+        if not hasattr(self, "_fallback_dependency_page"):
+            from .router_dependency_page import RouterDependencyPage
+            self._fallback_dependency_page = RouterDependencyPage(self.service, self.settings)
+        return self._fallback_dependency_page.dependencies
+
+    @property
+    def common_tools(self):
+        if self._dependency_page is not None:
+            return self._dependency_page.common_tools
+        if not hasattr(self, "_fallback_dependency_page"):
+            from .router_dependency_page import RouterDependencyPage
+            self._fallback_dependency_page = RouterDependencyPage(self.service, self.settings)
+        return self._fallback_dependency_page.common_tools
+
+    def set_dependency_page(self, dependency_page):
+        self._dependency_page = dependency_page
 
     def _request(self, action):
         """把登录分组动作转发给页面主线程协调器。"""
@@ -108,7 +125,8 @@ class RouterLoginPage(QWidget):
         """返回 SSH 连接字段与功能开关，明确不包含密码。"""
 
         result = self.connection.collect()
-        result["enabled_features"] = self.dependencies.enabled_features()
+        if self.dependencies is not None:
+            result["enabled_features"] = self.dependencies.enabled_features()
         return result
 
     def _credential_settings(self):
@@ -187,14 +205,13 @@ class RouterLoginPage(QWidget):
         self.settingsChanged.emit()
 
     def apply_snapshot(self, snapshot):
-        """刷新连接、设备和依赖显示。"""
+        """刷新连接与设备显示。"""
 
         scroll_bar = self.scroll_area.verticalScrollBar()
         self._snapshot_scroll_position = scroll_bar.value()
         state = snapshot.connection_state.value
         previous = self._last_connection_state
         self._last_connection_state = state
-        connected = state == "connected"
         self.connection.set_connection_state(state)
         if (
             state in {"disconnected", "failed"} and previous is not None and state != previous
@@ -203,10 +220,7 @@ class RouterLoginPage(QWidget):
                 self._load_saved_password()
             else:
                 self.connection.password.clear()
-        self.dependencies.set_connected(connected)
-        self.dependencies.set_busy(snapshot.task_state not in {"idle", "failed"})
         self.device_status.apply_snapshot(snapshot)
-        self.dependencies.apply_snapshot(snapshot)
         # 控件启用状态和设备信息会触发布局重算；下一轮事件循环恢复用户原滚动位置。
         QTimer.singleShot(0, self._restore_snapshot_scroll)
 

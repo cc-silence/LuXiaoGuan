@@ -69,7 +69,7 @@ class CaptureSettingsDialogTests(unittest.TestCase):
             button.click()
             APP.processEvents()
             self.assertIs(host.settings_page, settings)
-            self.assertEqual(host.tabs.count(), 7)
+            self.assertEqual(host.tabs.count(), 2)
             dialog.close()
         finally:
             if host._settings_dialog is not None:
@@ -79,14 +79,14 @@ class CaptureSettingsDialogTests(unittest.TestCase):
     def test_real_disabled_dependency_button_routes_to_login_scroll(self):
         from tests.test_wheel_routing import wheel
         host = self.window.packet_capture_page.openwrt_tab
-        host.tabs.setCurrentIndex(0)
-        login = host.login_page
-        login.dependencies.card.set_expanded(True, animate=False)
+        host.tabs.setCurrentIndex(1)
+        dep_page = host.dependency_page
+        dep_page.dependencies.card.set_expanded(True, animate=False)
         self.window.resize(1000, 600)
         APP.processEvents()
-        bar = login.scroll_area.verticalScrollBar()
+        bar = dep_page.scroll_area.verticalScrollBar()
         self.assertGreater(bar.maximum(), 0)
-        button = login.dependencies.install_button
+        button = dep_page.dependencies.install_button
         self.assertFalse(button.isEnabled())
         bar.setValue(0)
         wheel(button)

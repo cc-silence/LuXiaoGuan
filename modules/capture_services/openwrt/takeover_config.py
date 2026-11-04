@@ -58,7 +58,12 @@ local function takeover_config()
     local original_cursor = uci.cursor(dir, dir .. "/delta")
     if not original_cursor or not original_cursor:load("wireless") then fail("backup") end
     local original = all(original_cursor)
-    local expected = all(original_cursor)
+    local expected = {}
+    for name, s in pairs(original) do
+        local copy = {}
+        for k, v in pairs(s) do copy[k] = v end
+        expected[name] = copy
+    end
     local targets = {}
     for name, s in pairs(original) do
         if s[".type"] == "wifi-iface" and s.device == request.radio and disabled(s.disabled) == false then
@@ -68,6 +73,15 @@ local function takeover_config()
         end
     end
     if #targets == 0 then fail("backup") end
+    local function radio_sections(sections)
+        local subset = {}
+        for name, s in pairs(sections) do
+            if name == request.radio or (s[".type"] == "wifi-iface" and s.device == request.radio) then
+                subset[name] = s
+            end
+        end
+        return subset
+    end
     local restoring = request.action == "takeover_restore"
     if not restoring and request.action ~= "takeover_disable" then fail("unsupported") end
     local current_radio = radio_sections(current, request.radio)
@@ -79,9 +93,9 @@ local function takeover_config()
     if not same(current_radio, desired_radio) then
         local revision = hash()
         local isolated = cursor(dir .. "/delta")
-        if not same(all(isolated), current) then fail("changed") end
+        if not same(radio_sections(all(isolated)), current_radio) then fail("changed") end
         for _, name in ipairs(targets) do
-            local value = desired[name].disabled
+            local value = desired_radio[name].disabled
             local ok
             if value == nil then ok = isolated:delete("wireless", name, "disabled")
             else ok = isolated:set("wireless", name, "disabled", value) end

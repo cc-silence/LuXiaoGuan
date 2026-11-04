@@ -374,6 +374,7 @@ class WindowFeedbackTests(unittest.TestCase):
 
     def test_install_rejection_is_shown_in_common_dependency_section(self):
         page=self.window.packet_capture_page
+        page.openwrt_tab.tabs.setCurrentIndex(1)
         section=page.openwrt_tab.login_page.common_tools
         section.card.set_expanded(True,animate=False);APP.processEvents()
         with patch("modules.main_pages.packet_capture.openwrt.common_tool_section.MessageDialog") as message:

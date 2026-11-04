@@ -69,13 +69,14 @@ start() {
         fi
     fi
 
-    # 以后台静默方式启动，脱离控制终端防止 SIGHUP 导致进程随启动脚本退出
-    # VIEW=off 避免输出 ANSI 帧灌满重定向或会话文件；重定向 </dev/null 彻底脱离 SSH 会话输入
-    rm -f /tmp/.hcx_autocap.stdout.log >/dev/null 2>&1
+    # 以后台守护方式启动，脱离控制终端防止 SIGHUP 导致进程随启动脚本退出
+    # VIEW=on 输出实时跳频仪表盘至内存文件系统 /tmp/.hcx_autocap.stdout.log (hcx_autocap.sh 内置 64KB 滚动保护)
+    OUT_LOG="/tmp/.hcx_autocap.stdout.log"
+    : > "$OUT_LOG" 2>/dev/null
     if [ -x /usr/bin/nohup ]; then
-        VIEW=off nohup /bin/sh "$SCRIPT" </dev/null >/dev/null 2>&1 &
+        VIEW=on nohup /bin/sh "$SCRIPT" </dev/null >"$OUT_LOG" 2>&1 &
     else
-        ( trap '' HUP; VIEW=off /bin/sh "$SCRIPT" </dev/null >/dev/null 2>&1 ) &
+        ( trap '' HUP; VIEW=on /bin/sh "$SCRIPT" </dev/null >"$OUT_LOG" 2>&1 ) &
     fi
     logger -t luxiaoguan-autocap "Started $SCRIPT in background"
 }
@@ -308,9 +309,13 @@ class AutoCaptureBootManager:
             "if [ -f \"$LOCK\" ]; then "
             "  PID=$(cat \"$LOCK\" 2>/dev/null); "
             "  if [ -n \"$PID\" ] && kill -0 \"$PID\" 2>/dev/null; then "
-            "    echo \"抓包脚本已在运行中 (PID=$PID)\"; "
-            "    if [ -f \"$OUT_LOG\" ] && [ -s \"$OUT_LOG\" ]; then tail -c 65536 \"$OUT_LOG\" 2>/dev/null; fi; "
-            "    exit 0; "
+            "    if [ -f \"$OUT_LOG\" ] && [ -s \"$OUT_LOG\" ]; then "
+            "      echo \"抓包脚本已在运行中 (PID=$PID)\"; "
+            "      tail -c 65536 \"$OUT_LOG\" 2>/dev/null; "
+            "      exit 0; "
+            "    fi; "
+            "    kill -TERM \"$PID\" 2>/dev/null; "
+            "    sleep 1; "
             "  fi; "
             "fi; "
             ": > \"$OUT_LOG\" || exit 1; "
@@ -448,6 +453,24 @@ class AutoCaptureBootManager:
                 sftp.close()
         return pulled_files
 
+
+    def clear_remote_capture_artifacts(self, cancel_event=None) -> tuple[bool, str]:
+        """安全清空路由器 /root/cap/ 目录下的所有抓包与日志文件。"""
+        status = self.probe_boot_status(cancel_event=cancel_event)
+        if status.is_running:
+            return False, "检测到后台抓包任务正在运行，已终止清理操作以防数据丢失。"
+
+        cmd = (
+            "mkdir -p /root/cap && "
+            "rm -f /root/cap/*.pcapng /root/cap/*.cap /root/cap/*.log /root/cap/*.txt 2>/dev/null; "
+            "echo CLEAR_OK"
+        )
+        res = self.runner.run("clear_cap_dir", cmd, timeout=15, cancel_event=cancel_event)
+        if res.cancelled:
+            return False, "清理操作已取消。"
+        if res.exit_code != 0 or "CLEAR_OK" not in (res.stdout or ""):
+            return False, f"清空抓包目录失败: {res.stderr or res.stdout}"
+        return True, "已成功清空路由器抓包目录 (/root/cap/)。"
 
     def read_recent_session_log(self, max_lines: int = 35, cancel_event=None) -> str:
         """读取远端最新的抓包会话日志末尾文本。"""

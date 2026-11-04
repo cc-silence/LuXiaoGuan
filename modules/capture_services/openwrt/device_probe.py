@@ -30,12 +30,14 @@ def _parse_iwdev(text):
     """解析 `iw dev` 输出，返回 (phy -> 接口元组, phy -> 信道)。
 
     只在驱动输出标准段时填充；无法解析时返回空字典，调用方据此保守判断。
+    仅记录承载无线业务（如 AP/STA/Mesh）的非监听接口，过滤残留或临时的抓包监听口。
     """
 
     phy_interfaces = {}
     phy_channels = {}
     current_phy = ""
     current_interface = ""
+    current_is_monitor = False
     for line in text.splitlines():
         match = re.match(r"\s*phy#(\d+)", line)
         if match:
@@ -43,15 +45,27 @@ def _parse_iwdev(text):
             if current_phy not in phy_interfaces:
                 phy_interfaces[current_phy] = []
             current_interface = ""
+            current_is_monitor = False
             continue
         match = re.match(r"\s*Interface\s+(\S+)", line)
         if match and current_phy:
             current_interface = match.group(1)
-            if current_interface and current_interface not in phy_interfaces[current_phy]:
-                phy_interfaces[current_phy].append(current_interface)
+            if re.fullmatch(r"(?:hcxmon[0-9]+|wbmon[A-Za-z0-9]{1,8})", current_interface):
+                current_is_monitor = True
+            else:
+                current_is_monitor = False
+                if current_interface not in phy_interfaces[current_phy]:
+                    phy_interfaces[current_phy].append(current_interface)
+            continue
+        match = re.match(r"\s*type\s+(\S+)", line)
+        if match and current_phy and current_interface:
+            if match.group(1).lower() == "monitor":
+                current_is_monitor = True
+                if current_interface in phy_interfaces[current_phy]:
+                    phy_interfaces[current_phy].remove(current_interface)
             continue
         match = re.match(r"\s*channel\s+(\d+)\s*\(", line)
-        if match and current_phy and current_interface:
+        if match and current_phy and current_interface and not current_is_monitor:
             phy_channels[current_phy] = int(match.group(1))
     return {key: tuple(value) for key, value in phy_interfaces.items()}, phy_channels
 
@@ -439,7 +453,8 @@ class OpenWrtDeviceProbe:
             from .radio_usage import read_radio_usage
             from .radio_usage_state import radio_usage_fields
             try:
-                usages = read_radio_usage(self.command_runner, cancel_event, snapshot=wireless_text)
+                owned = {f"hcxmon{m.group(0)}" for r in device.radios if (m := re.search(r"\d+", r.name))}
+                usages = read_radio_usage(self.command_runner, cancel_event, snapshot=wireless_text, owned_interface=owned)
                 device = replace(device, radios=tuple(replace(r, **radio_usage_fields(usages[r.name]))
                                  if r.name in usages else replace(r, **radio_usage_fields(None)) for r in device.radios))
             except InterruptedError:
