@@ -73,13 +73,22 @@ class ChannelIsolationTests(unittest.TestCase):
         failure=self.runner.operation_diagnostics.snapshot()['command_failures'][-1]
         self.assertEqual((failure['request_bytes'],failure['transport']),(6,'exec'))
 
-    def test_cancelling_one_channel_does_not_close_other_channel_or_login(self):
+    def test_cancelling_running_command_releases_queued_command_without_closing_login(self):
         cancel=threading.Event()
         with ThreadPoolExecutor(max_workers=2) as pool:
             held=pool.submit(self.runner.run,'hold','hold',3,cancel)
+            import time
+            deadline=time.monotonic()+2
+            while 'hold' not in self.server.commands and time.monotonic()<deadline:
+                self.server.stopped.wait(.01)
+            self.assertIn('hold',self.server.commands)
             other=pool.submit(self.runner.run,'accept','accept',3)
-            self.assertEqual(other.result(timeout=5).exit_code,0)
-            cancel.set();self.assertTrue(held.result(timeout=5).cancelled)
+            self.server.stopped.wait(.1)
+            self.assertFalse(other.done())
+            self.assertEqual(self.server.commands,['hold'])
+            cancel.set()
+            self.assertTrue(held.result(timeout=3).cancelled)
+            self.assertEqual(other.result(timeout=3).exit_code,0)
         self.assertTrue(self.client.connected)
         self.assertEqual(self.runner.run('fixture','accept',timeout=3).exit_code,0)
 

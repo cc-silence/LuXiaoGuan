@@ -147,8 +147,8 @@ class OpenWrtDependencyManager:
                     missing_commands.append(f"{command}（存在但不可执行）")
                     missing_names.append(command)
                 elif command == "hcxdumptool" and version and is_hcx_outdated(version):
-                    # 旧版 hcxdumptool 命令实际已安装，绝不归为缺少命令；在后续独立按系统兼容性判定可升级或旧版本
-                    versions.append(f"{command} {version} (旧版)")
+                    # hcxdumptool 命令实际已安装，绝不归为缺少命令；后续按系统兼容性判定是否可升级
+                    versions.append(f"{command} {version}")
                 elif state != "ready":
                     unknown_commands.append(command)
                 elif version:
@@ -187,8 +187,8 @@ class OpenWrtDependencyManager:
                             if "hcxdumptool" not in packages:
                                 packages.append("hcxdumptool")
                         else:
-                            feature_state = DependencyState.OUTDATED
-                            detail = f"已安装旧版 hcxdumptool {hcx_ver or ''}，当前系统不支持新版本；常规抓包另需核实工具和网卡监听能力"
+                            feature_state = DependencyState.READY
+                            detail = f"命令可用：hcxdumptool {hcx_ver}"
                             packages = [p for p in packages if p != "hcxdumptool"]
                     else:
                         feature_state = DependencyState.READY
@@ -320,32 +320,34 @@ class OpenWrtDependencyManager:
 
         # 抓包工具兼容性与版本深度诊断报告
         pmkid_item = next((item for item in result if item.key == "pmkid"), None)
-        if pmkid_item and pmkid_item.state == DependencyState.OUTDATED:
+        if pmkid_item and pmkid_item.state == DependencyState.UPGRADABLE:
             tell(pmkid_item.detail, "warning")
         if pmkid_item and pmkid_item.state == DependencyState.READY:
             try:
-                hcx_cap = read_hcx_capabilities(self.command_runner, cancel_event)
-                hcx_ver = hcx_cap.version
+                vm = re.search(r"(\d+\.\d+(?:\.\d+)?)", pmkid_item.detail or "")
+                if vm:
+                    hcx_ver = vm.group(1)
+                else:
+                    hcx_cap = read_hcx_capabilities(self.command_runner, cancel_event)
+                    hcx_ver = hcx_cap.version
                 dev_ver = getattr(device, "version", "") or ""
                 dev_kern = getattr(device, "kernel_version", "") or ""
 
-                vm = re.match(r"^(\d+)\.(\d+)", str(dev_ver))
-                km = re.match(r"^(\d+)\.(\d+)", str(dev_kern))
-                is_old_firmware = (vm and (int(vm.group(1)), int(vm.group(2))) < (23, 5)) or (km and (int(km.group(1)), int(km.group(2))) < (5, 15))
+                from .hcx_policy import supports_modern_hcx
+                supports_modern = supports_modern_hcx(device)
 
                 if "6.2." in hcx_ver or "6.0." in hcx_ver:
-                    if is_old_firmware:
+                    if supports_modern:
                         tell(
-                            f"【抓包工具兼容性诊断】当前固件版本 (OpenWrt {dev_ver or '旧版'} / 内核 {dev_kern or '旧版'}) 低于 23.05，"
-                            f"源内安装的为旧版 hcxdumptool {hcx_ver}。该版本因依赖已淘汰的 WEXT ioctl，"
-                            f"在自动抓包创建的虚拟监听口上运行会报错 Not a tty 导致秒退。"
-                            f"建议升级路由器固件至 OpenWrt 23.05+；在当前固件下请使用【常规抓包】模式（基于 airodump-ng）。",
+                            f"【抓包工具升级建议】当前路由器系统 (OpenWrt {dev_ver or '现代版'} / 内核 {dev_kern or '现代版'}) 具备现代 Netlink 运行环境，"
+                            f"但当前安装的为旧版 hcxdumptool {hcx_ver}。新内核已废弃传统 WEXT ioctl，旧版工具易因缺少接口导致秒退；"
+                            f"建议在【PMKID 工具】或【后台抓包】中一键升级为 6.3.4+ 现代版本。",
                             "warning"
                         )
                     else:
                         tell(
-                            f"【版本提示】检测到系统安装了旧版 hcxdumptool {hcx_ver}。"
-                            f"若自动抓包报错，请到【自动抓包】使用“一键升级抓包工具 (6.3.4)”。",
+                            f"【运行模式提示】当前路由器系统 (OpenWrt {dev_ver or '旧版'} / 内核 {dev_kern or '旧版'}) 运行在旧版兼容模式，"
+                            f"使用官方适配的 hcxdumptool {hcx_ver}（基于传统 WEXT 接口抓包）。若网卡驱动兼容可正常抓包，无需升级工具。",
                             "info"
                         )
                 elif "6.3." in hcx_ver or "7." in hcx_ver:

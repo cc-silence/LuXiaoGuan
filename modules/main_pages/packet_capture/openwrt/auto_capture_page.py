@@ -491,13 +491,15 @@ def is_modern_hcx_supported_on_device(device) -> bool:
 
 def check_auto_capture_environment(device, snapshot=None) -> tuple[bool, str, str]:
     """判定自动抓包运行环境与工具版本兼容性。
+    只有系统真正支持现代版 6.3.4+，却依然使用旧版 6.2.x/6.0.x 时，才给出升级警告。
+    当系统不支持 6.3.4 时，使用官方适配的旧版工具（WEXT 兼容模式）属于正常兼容状态，不误报警告。
     返回 (has_issue, issue_type, issue_detail)。
-    issue_type: 'hcx_outdated_upgradeable' | 'hcx_outdated_unsupported' | 'firmware_old' | ''
+    issue_type: 'hcx_outdated_upgradeable' | ''
     """
     if not device:
         return False, "", ""
 
-    # 1. 优先检查实机上的 hcxdumptool 版本（动态提取实际版本，不硬编码 6.2.4）
+    # 优先检查实机上的 hcxdumptool 版本（动态提取实际版本，不硬编码 6.2.4）
     if snapshot is not None and hasattr(snapshot, "dependencies"):
         pmkid_dep = next((d for d in snapshot.dependencies if getattr(d, "key", "") == "pmkid"), None)
         if pmkid_dep:
@@ -514,30 +516,10 @@ def check_auto_capture_environment(device, snapshot=None) -> tuple[bool, str, st
                                or any(k in detail for k in ("旧版", "需升级", "不支持自动抓包")))
 
             if is_outdated:
-                ver_label = f"hcxdumptool {detected_ver}" if detected_ver else "旧版 hcxdumptool"
+                # 只有系统真正支持 6.3.4，却使用的旧版本，才给出升级警告
                 if is_modern_hcx_supported_on_device(device):
-                    return True, "hcx_outdated_upgradeable", f"检测到旧版抓包工具 ({ver_label}，支持升级)"
-                else:
-                    return True, "hcx_outdated_unsupported", f"检测到旧版抓包工具 ({ver_label}，不支持升级)"
-
-    version_str = str(getattr(device, "version", "") or "").strip()
-    kernel_str = str(getattr(device, "kernel_version", "") or "").strip()
-
-    # 2. 检查固件主发行版号是否低于 23.05
-    vm = re.match(r"^(\d+)\.(\d+)", version_str)
-    if vm:
-        major, minor = int(vm.group(1)), int(vm.group(2))
-        if (major, minor) < (23, 5):
-            return True, "firmware_old", f"固件版本 OpenWrt {major:02d}.{minor:02d} 低于 23.05"
-        elif (major, minor) >= (23, 5):
-            return False, "", ""
-
-    # 3. 对第三方固件(如 Kiddin'、自编译或日期命名)，按 Linux 内核版本检验
-    km = re.match(r"^(\d+)\.(\d+)", kernel_str)
-    if km:
-        k_major, k_minor = int(km.group(1)), int(km.group(2))
-        if (k_major, k_minor) < (5, 15):
-            return True, "firmware_old", f"Linux 内核 {kernel_str} 低于 5.15 基线 (对应 OpenWrt < 23.05)"
+                    ver_label = f"hcxdumptool {detected_ver}" if detected_ver else "旧版 hcxdumptool"
+                    return True, "hcx_outdated_upgradeable", f"检测到旧版抓包工具 ({ver_label}，需升级)"
 
     return False, "", ""
 
@@ -684,6 +666,8 @@ class AutoCapturePage(QWidget):
         connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
         if connected and self.sub_tabs.currentIndex() == 1:
             self.auto_capture_service.refresh_boot_status()
+            if hasattr(self, "bg_console_card") and self.bg_console_card.isVisible():
+                self.auto_capture_service.poll_boot_log()
 
     @active_service_slot(object)
     def _on_signals_snapshot_changed(self, snapshot):
@@ -905,10 +889,10 @@ class AutoCapturePage(QWidget):
             )
 
     def _clear_bg_console(self):
-        """清空后台抓包控制台。"""
+        """清空后台抓包控制台内容。"""
+        self._bg_startup_log = ""
         if hasattr(self, "bg_console") and self.bg_console:
             self.bg_console.clear()
-
     def append_bg_console_text(self, text: str):
         """向后台抓包控制台追加日志。"""
         if not hasattr(self, "bg_console") or not self.bg_console or not text:
@@ -924,12 +908,58 @@ class AutoCapturePage(QWidget):
 
     @active_service_slot(str)
     def _on_boot_log_updated(self, log_text: str):
-        """接收后台抓包日志流更新。"""
+        """接收后台抓包日志流更新。对齐 SSH 终端的清屏刷新原生体验。"""
         if not hasattr(self, "bg_console_card") or self.bg_console_card.isHidden():
             return
+        if not log_text or not log_text.strip():
+            return
+
+        import re
+
+        # 检测是否包含 ANSI 终端清屏/光标复位帧 (\x1b[H 或 \x1b[2J 或仪表盘边框)
+        if "\x1b[H" in log_text or "\x1b[2J" in log_text or "================================================================" in log_text:
+            normalized = log_text.replace("\x1b[2J", "")
+            # 按 \x1b[H 或边框切分，提取最新一帧完整仪表盘数据
+            raw_chunks = [c for c in normalized.split("\x1b[H") if c.strip()]
+            if not raw_chunks:
+                return
+            latest_chunk = raw_chunks[-1]
+            clean_frame = re.sub(r"\x1b\[[0-9;?]*[a-zA-Z]", "", latest_chunk).replace("\r", "").strip()
+
+            # 首次接收到帧时，若此前存在启动环境信息且尚未归档，则归档头部启动环境
+            if len(raw_chunks) > 1 and not getattr(self, "_bg_startup_log", ""):
+                clean_startup = re.sub(r"\x1b\[[0-9;?]*[a-zA-Z]", "", raw_chunks[0]).replace("\r", "").strip()
+                if "正在并行抓包" in clean_startup or "hcx_autocap.sh" in clean_startup:
+                    self._bg_startup_log = clean_startup
+            elif not getattr(self, "_bg_startup_log", ""):
+                cur = self.bg_console.toPlainText().strip()
+                if cur and "================================================================" not in cur:
+                    self._bg_startup_log = cur
+
+            # 就地清屏刷新最新状态帧，对齐 SSH 终端交互刷新体验
+            startup_header = getattr(self, "_bg_startup_log", "")
+            if startup_header:
+                self.bg_console.setPlainText(f"{startup_header}\n\n{clean_frame}\n")
+            else:
+                self.bg_console.setPlainText(f"{clean_frame}\n")
+
+            if hasattr(self, "bg_autoscroll_check") and self.bg_autoscroll_check.isChecked():
+                self.bg_console.moveCursor(QTextCursor.End)
+            return
+
+        # 普通增量行日志追加
+        clean_text = re.sub(r"\x1b\[[0-9;?]*[a-zA-Z]", "", log_text).replace("\r", "")
         cur_text = self.bg_console.toPlainText()
-        if log_text not in cur_text:
-            self.append_bg_console_text(f"{log_text}\n")
+        if not cur_text.strip():
+            self.append_bg_console_text(f"{clean_text.strip()}\n")
+            return
+        new_lines_to_add = []
+        for line_item in clean_text.splitlines():
+            s = line_item.strip()
+            if s and s not in cur_text:
+                new_lines_to_add.append(line_item)
+        if new_lines_to_add:
+            self.append_bg_console_text("\n".join(new_lines_to_add) + "\n")
 
     def _update_status_banner_style(self):
         """同步状态横幅明暗主题样式。"""
@@ -1270,6 +1300,12 @@ class AutoCapturePage(QWidget):
         self.bg_open_output_dir_btn.clicked.connect(self._on_open_output_dir_clicked)
         exec_row.addWidget(self.bg_open_output_dir_btn)
 
+        self.bg_toggle_console_btn = QPushButton("🖥 监看终端", card)
+        self.bg_toggle_console_btn.setObjectName("captureSecondaryButton")
+        self.bg_toggle_console_btn.setToolTip("展开或收起后台抓包控制台与实时监看窗口")
+        self.bg_toggle_console_btn.clicked.connect(self._on_toggle_console_clicked)
+        exec_row.addWidget(self.bg_toggle_console_btn)
+
         exec_row.addStretch(1)
         layout.addLayout(exec_row)
 
@@ -1305,6 +1341,12 @@ class AutoCapturePage(QWidget):
         self.bg_clear_btn.clicked.connect(self._clear_bg_console)
         console_bar.addWidget(self.bg_clear_btn)
 
+        self.bg_collapse_btn = QPushButton("收起", self.bg_console_card)
+        self.bg_collapse_btn.setObjectName("captureSecondaryButton")
+        self.bg_collapse_btn.setToolTip("收起实时监看终端（不影响抓包脚本在路由器后台的持续运行）")
+        self.bg_collapse_btn.clicked.connect(lambda: self.bg_console_card.setVisible(False))
+        console_bar.addWidget(self.bg_collapse_btn)
+
         bg_console_layout.addLayout(console_bar)
 
         self.bg_console = QPlainTextEdit(self.bg_console_card)
@@ -1319,6 +1361,15 @@ class AutoCapturePage(QWidget):
 
         self.bg_console_card.setVisible(False)
         self.bg_layout.addWidget(self.bg_console_card)
+
+    def _on_toggle_console_clicked(self):
+        """响应点击监看终端切换按钮。"""
+        if not hasattr(self, "bg_console_card"):
+            return
+        is_visible = not self.bg_console_card.isVisible()
+        self.bg_console_card.setVisible(is_visible)
+        if is_visible:
+            self.auto_capture_service.poll_boot_log()
 
     def _update_boot_metrics_style(self):
         """同步后台指标看板的明暗主题样式。"""
@@ -1550,39 +1601,19 @@ class AutoCapturePage(QWidget):
                 vm = re.search(r"hcxdumptool\s+v?(\d+\.\d+(?:\.\d+)?)", pmkid_dep.detail) or re.search(r"v?(\d+\.\d+(?:\.\d+)?)", pmkid_dep.detail)
                 detected_hcx_ver = vm.group(1) if vm else ""
 
-            if connected and has_issue:
+            if connected and has_issue and issue_type == "hcx_outdated_upgradeable":
                 dev_ver = getattr(device, "version", "") or "未知版本"
                 dev_kern = getattr(device, "kernel_version", "") or "未知"
                 ver_display = f"hcxdumptool {detected_hcx_ver}" if detected_hcx_ver else "旧版 hcxdumptool"
 
-                if (issue_type in ("hcx_outdated_upgradeable", "hcx_outdated") and is_modern_hcx_supported_on_device(device)):
-                    self.version_warning_title.setText(f"⚠️ 检测到旧版抓包工具 ({ver_display}，需升级)")
-                    self.version_warning_detail.setText(
-                        f"当前路由器上安装的抓包工具为 {ver_display}（旧版方言）。\n"
-                        f"该版本底层依赖已废弃的 Linux Wireless Extensions (WEXT) ioctl，无法在自动抓包创建的虚拟监听口上运行（会报错 Not a tty 导致秒退退出）。\n"
-                        f"【解决办法】当前路由器支持升级，请点击右侧【一键升级抓包工具 (6.3.4)】或在【路由器登录】页面更新依赖；当前旧版下可使用【常规抓包】模式（基于 airodump-ng）。"
-                    )
-                    if hasattr(self, "upgrade_hcx_btn"):
-                        self.upgrade_hcx_btn.setVisible(True)
-                elif issue_type == "hcx_outdated_unsupported" or (issue_type == "hcx_outdated" and not is_modern_hcx_supported_on_device(device)):
-                    self.version_warning_title.setText(f"⚠️ 检测到旧版抓包工具 ({ver_display})")
-                    self.version_warning_detail.setText(
-                        f"当前路由器上安装的抓包工具为 {ver_display}。\n"
-                        f"工具是旧版本，可能无法正常抓包。当前路由器系统为 OpenWrt {dev_ver}（Linux 内核 {dev_kern}），底层不支持升级新版抓包工具。\n"
-                        f"【建议操作】当前可先尝试抓包（操作方法：点击下方【手动启动】按钮看是否能稳定运行 2 分钟，或直接切换到【前台抓包】执行看是否报错）。若无法正常抓包，建议将 OpenWrt 升级到 23 或更高版本以获得更好的抓包体验，或在当前固件下使用【常规抓包】模式（基于 airodump-ng）。"
-                    )
-                    if hasattr(self, "upgrade_hcx_btn"):
-                        self.upgrade_hcx_btn.setVisible(False)
-                else:
-                    self.version_warning_title.setText("⚠️ 固件版本过低预警（建议升级固件至 OpenWrt 23.05+）")
-                    self.version_warning_detail.setText(
-                        f"检测到当前路由器系统为 OpenWrt {dev_ver}（Linux 内核 {dev_kern}，{issue_detail}）。\n"
-                        f"自动抓包核心依赖现代 Netlink / nl80211 原生监听架构（需要 Linux 内核 ≥ 5.15 与 hcxdumptool 6.3.4+）。"
-                        f"旧版系统官方源提供的 hcxdumptool 底层依赖已废弃的 WEXT ioctl，在自动抓包创建的虚拟监听口上运行会报错 Not a tty 导致秒退。\n"
-                        f"【建议操作】强烈建议将路由器升级至 OpenWrt 23.05 或 24.10 以上固件以获得完整的自动抓包能力；在当前固件下请使用【常规抓包】模式（基于 airodump-ng）。"
-                    )
-                    if hasattr(self, "upgrade_hcx_btn"):
-                        self.upgrade_hcx_btn.setVisible(False)
+                self.version_warning_title.setText(f"⚠️ 检测到旧版抓包工具 ({ver_display}，需升级)")
+                self.version_warning_detail.setText(
+                    f"当前路由器系统具备现代 Netlink 运行环境（支持 6.3.4+），但当前使用的抓包工具为 {ver_display}（旧版方言）。\n"
+                    f"现代 Linux 内核已废弃传统 Wireless Extensions (WEXT) ioctl，旧版工具易因缺少接口导致秒退报错。\n"
+                    f"【解决办法】建议点击右侧【一键升级抓包工具 (6.3.4)】升级至现代版本，以获得基于虚拟监听口的无损并发抓包体验。"
+                )
+                if hasattr(self, "upgrade_hcx_btn"):
+                    self.upgrade_hcx_btn.setVisible(True)
                 self.version_warning_card.setVisible(True)
             else:
                 self.version_warning_card.setVisible(False)

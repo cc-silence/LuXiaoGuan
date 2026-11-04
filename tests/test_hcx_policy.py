@@ -38,8 +38,8 @@ class HcxPolicyTests(unittest.TestCase):
     def test_unsupported_missing_hcx_installs_official_package_and_retains_limited_state(self):
         manager = OpenWrtDependencyManager(Mock())
         before = DependencyInfo("pmkid", "PMKID", DependencyState.MISSING, ("hcxdumptool",))
-        after = DependencyInfo("pmkid", "PMKID", DependencyState.OUTDATED,
-                               detail="Official 6.2.4 installed; automatic capture unavailable")
+        after = DependencyInfo("pmkid", "PMKID", DependencyState.READY,
+                               detail="命令可用：hcxdumptool 6.2.4")
         manager.check = Mock(side_effect=[(before,), (after,)])
         tell = Mock()
         device = NS(version="22.03.7", kernel_version="5.10.221",
@@ -50,16 +50,15 @@ class HcxPolicyTests(unittest.TestCase):
                                          Event(), tell, include_sftp=False)
         official.assert_called_once()
         self.assertEqual(official.call_args.args[1], ("hcxdumptool",))
-        self.assertEqual(result[0].state, DependencyState.OUTDATED)
+        self.assertEqual(result[0].state, DependencyState.READY)
         self.assertTrue(installation_satisfied(result[0]))
-        self.assertIn(unittest.mock.call(after.detail, "warning"), tell.call_args_list)
 
     def test_reported_r6220_snapshot_does_not_request_openssl3_or_upload_634(self):
         runner = Mock()
         manager = OpenWrtDependencyManager(runner)
         before = DependencyInfo("pmkid", "PMKID", DependencyState.MISSING, ("hcxdumptool",))
-        after = DependencyInfo("pmkid", "PMKID", DependencyState.OUTDATED,
-                               detail="Official 6.0.1 installed; automatic capture unavailable")
+        after = DependencyInfo("pmkid", "PMKID", DependencyState.READY,
+                               detail="命令可用：hcxdumptool 6.0.1")
         manager.check = Mock(side_effect=[(before,), (after,)])
         manager._install_online = Mock()
         manager._install_offline = Mock()
@@ -76,7 +75,7 @@ class HcxPolicyTests(unittest.TestCase):
         runner.run.assert_not_called()
         manager._install_online.assert_not_called()
         manager._install_offline.assert_not_called()
-        self.assertEqual(result[0].state, DependencyState.OUTDATED)
+        self.assertEqual(result[0].state, DependencyState.READY)
         self.assertTrue(installation_satisfied(result[0]))
 
     def test_install_success_does_not_mark_old_tool_ready_for_automatic_capture(self):

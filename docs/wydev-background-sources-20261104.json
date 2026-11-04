@@ -1,0 +1,97 @@
+{
+  "checked_on": "2026-11-04",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/mirror/busybox/1_30_1/coreutils/head.c",
+      "sha256": "d0afaeaad70354397882af5d85822b8a9524c7c33c5d58be3c50686ae97d0ec3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mirror/busybox/1_30_1/coreutils/tail.c",
+      "sha256": "789c9351d8c6eef27264d18cc8d68885a7e96d94b8632bdc892832cfe28169c9"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mirror/busybox/1_33_2/coreutils/head.c",
+      "sha256": "d0afaeaad70354397882af5d85822b8a9524c7c33c5d58be3c50686ae97d0ec3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mirror/busybox/1_33_2/coreutils/tail.c",
+      "sha256": "bf8aa289727731849a25a5fef1f0937ff6d0d062e587a6cc1de07b7ce47eec81"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mirror/busybox/1_35_0/coreutils/head.c",
+      "sha256": "830287e30142bb7065eaf9f6be44206397ca11bb28baacb655151329e69d3053"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mirror/busybox/1_35_0/coreutils/tail.c",
+      "sha256": "7d4db3df4b7a5417710ed96fa1a06f1cff1bfd22a77761ae21ba6a9f06cc846c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mirror/busybox/1_36_1/coreutils/head.c",
+      "sha256": "7e53cca8399d8b657f3e053a3410ddbc46a86f3448b3ddb8bcfcbb51991a41ff"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mirror/busybox/1_36_1/coreutils/tail.c",
+      "sha256": "7d4db3df4b7a5417710ed96fa1a06f1cff1bfd22a77761ae21ba6a9f06cc846c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.10/package/utils/busybox/Makefile",
+      "sha256": "e9174acd761b1d75de0d6c695d28984c5c623e7eccf8939d0f2d75b8647d01c4"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.10/package/utils/busybox/Config-defaults.in",
+      "sha256": "d8b1884fcb2e833c032d75420a7f8c745c998d4c3e127706192a66a8b8ef18ba"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.7/package/utils/busybox/Makefile",
+      "sha256": "cc972bd20069b3969306cddd87cff54e241b211d9024e06ba3dc873b4433a66c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.7/package/utils/busybox/Config-defaults.in",
+      "sha256": "bc0a6caab55670fa8a0ccbd349cbbb6875d39afd2333b62619897579bcbd7d15"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.7/package/utils/busybox/Makefile",
+      "sha256": "195fa8852dc7123d700613a10ec562873414e8c3709a0054d719474604322d92"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.7/package/utils/busybox/Config-defaults.in",
+      "sha256": "5c1a129b080d24e32731580632b3b37ab311fe586226ab26252c1af77b0ea955"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.5/package/utils/busybox/Makefile",
+      "sha256": "77043bf2153ddbfc8fe37aadc959a5761503d668b224b2e7016592048aa2a346"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.5/package/utils/busybox/Config-defaults.in",
+      "sha256": "df755a729de86dcfc3ca3208208c7b4e6cb5323809123f125d7811c80bfece86"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.0/package/utils/busybox/Makefile",
+      "sha256": "2c744936ec22ddf107e7259bc52057f1ed925c6c736599c4242da146fd0db262"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.0/package/utils/busybox/Config-defaults.in",
+      "sha256": "3bd753413579a52d0314952bd703cc86f72009d88f48a12eaaa15ea1a6a6d510"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.0/package/utils/busybox/Makefile",
+      "sha256": "c87dd6bf767e0b2d50485215d01468eff1e55e2f27735a62ef6017b0e1bad1d3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.0/package/utils/busybox/Config-defaults.in",
+      "sha256": "24cce9902ffc37f7e0284bf15f462902c03c889ac82e1045333e1ce8d0e2f222"
+    },
+    {
+      "url": "https://busybox.net/downloads/busybox-1.37.0.tar.bz2",
+      "archive_sha256": "3311dff32e746499f4df0d5df04d7eb396382d7e108bb9250e7b519b837043a4",
+      "member": "coreutils/head.c",
+      "sha256": "e8e13cb78ce3fa2d5367b6168fab06c146da26d881f38d8c813ff82ab1923ea1"
+    },
+    {
+      "url": "https://busybox.net/downloads/busybox-1.37.0.tar.bz2",
+      "archive_sha256": "3311dff32e746499f4df0d5df04d7eb396382d7e108bb9250e7b519b837043a4",
+      "member": "coreutils/tail.c",
+      "sha256": "3f9f98ecbd3b1ecd9b40f993c774b8c672c20ba9089c827f85c23ccbaa5764fd"
+    }
+  ]
+}

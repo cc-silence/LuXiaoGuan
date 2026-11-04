@@ -40,6 +40,7 @@
 #   6. 【白名单放行与握手录制准则】:
 #      - 白名单放行信标(Beacon/ProbeResp)以维护热点发现能力，无握手时文件增量均源于周期信标；
 #      - 流式全量录入，主动收割单 AP 限 3 次，被动监听允许多次握手录入，为后续哈希提取提供抗丢包冗余。
+#        超限时就地截断保留首部启动环境与尾部最新排障记录，坚决杜绝长期脱机写爆 Flash。
 # ============================================================
 red='\e[91m'
 green='\e[92m'
@@ -55,7 +56,7 @@ SCRIPT_FILE=$(basename "$0" 2>/dev/null)
 SCRIPT_BASE="${SCRIPT_FILE%.*}"
 [ -z "${SCRIPT_BASE}" ] && SCRIPT_BASE="hcx_autocap"
 SCRIPT_NAME="${SCRIPT_FILE}"
-SCRIPT_VER="v26.11.4"
+SCRIPT_VER="v26.11.4.1"
 
 case "$1" in
     -v|--version)
@@ -80,6 +81,7 @@ PIDS=""                     # 本次启动的抓包进程PID
 GRACE_POLL_SECS=3           # TERM 后每多少秒轮询查活一次
 GRACE_MAX_POLLS=5           # 最多轮询查活几次 (3s x 5 = 15s 耐心); 全部退出即提前结束
 RUNLOGS=""                  # 本次启动的各路日志文件路径(run_<接口>_####.log)
+MAX_RUNLOG_KB="${MAX_RUNLOG_KB:-256}"  # 单个抓包日志容量上限(KB), 超限就地截断保护Flash (设为 off 关闭)
 
 # 5G DFS-free 信道列表(避免 radar detection 导致 driver error), 逗号分隔自动跳频
 # legacy 方言 (6.2.x, 纯数字信道号)
@@ -317,7 +319,7 @@ detect_hcx_dialect() {
     then
         log "  抓包命令(双轨主动加速+去认证): ${HCX_BIN} -i <接口> -w <pcapng> -c <频段信道表> --attemptapmax=${ATTEMPT_AP_MAX} --attemptclientmax=${ATTEMPT_CLIENT_MAX} --disable_beacon --disable_proberequest"
     else
-        log "  抓包命令(单播PMKID): ${HCX_BIN} -i <接口> -c <信道表> -o <pcapng> --enable_status=15"
+        log "  抓包命令(单播PMKID): ${HCX_BIN} -i <接口> -c <信道表> -o <pcapng> --enable_status=1"
     fi
 }
 
@@ -672,6 +674,42 @@ check_mem_guard() {
         return 1
     fi
     return 0
+}
+
+# 日志容量守卫 (LogGuard): 单个抓包日志硬封顶 (默认 256KB), 就地截断保留首部启动环境与尾部最新排障记录
+cap_log_file() {
+    _cap_file="$1"
+    _cap_bytes="$2"
+    [ -f "${_cap_file}" ] || return 0
+    _cap_size=$(wc -c < "${_cap_file}" 2>/dev/null)
+    case "${_cap_size}" in ''|*[!0-9]*) return 0 ;; esac
+    [ "${_cap_size}" -gt "${_cap_bytes}" ] || return 0
+    _cap_head=$((_cap_bytes / 4))
+    _cap_tail=$((_cap_bytes - _cap_head - 32))
+    _cap_tmp="${_cap_file}.tmp"
+    # Keep the inode: every active writer must use append mode.
+    if {
+        head -c "${_cap_head}" "${_cap_file}" &&
+        printf '\n[log trimmed]\n' &&
+        tail -c "${_cap_tail}" "${_cap_file}"
+    } > "${_cap_tmp}" 2>/dev/null
+    then
+        cat "${_cap_tmp}" > "${_cap_file}" 2>/dev/null
+    fi
+    rm -f "${_cap_tmp}" 2>/dev/null
+}
+
+cap_runlogs() {
+    case "${MAX_RUNLOG_KB}" in
+        off|OFF|none|NONE|0) return 0 ;;
+        ''|*[!0-9]*) return 0 ;;
+    esac
+    _max_bytes=$((MAX_RUNLOG_KB * 1024))
+    for _rl in ${RUNLOGS} ${SESSION_LOG}
+    do
+        cap_log_file "${_rl}" "${_max_bytes}"
+    done
+    cap_log_file "/tmp/.hcx_autocap.stdout.log" 65536
 }
 
 # 确保抓包输出目录存在(不同设备可能未预建)
@@ -1156,7 +1194,7 @@ hcx_launch() {
                 *)       _chs=""         ; _btag="未知频段" ; _ch_range="跳频中 (全信道)" ;;
             esac
             # 彻底拔除 --active_beacon 假信标广播，消除空域污染；保留 Deauth 促发握手
-            _flags="--enable_status=15"
+            _flags="--enable_status=1"
             if [ "${HCX_VARIANT}" = "reduced" ]
             then
                 if [ -n "${_chs}" ]
@@ -1355,6 +1393,7 @@ cleanup_capture() {
     # "删监听口/删锁" 那段逻辑统一集中在 cleanup_leftovers(幂等), 避免两处写法漂移
     _had_ifs="${CREATED_IFS}"
     cleanup_leftovers
+    cap_runlogs     # 收尾退出前对日志做终态封顶，确保成果日志干净紧凑
     if [ -n "${_had_ifs}" ]
     then
         echo ""
@@ -1647,6 +1686,12 @@ do
                    fi ;;
             esac
         fi
+    fi
+
+    # 日志容量守卫 (LogGuard): 每 15 帧(约 30 秒)采样检查一次, 超限就地截断保护 Flash
+    if [ $((FRAMES % 15)) -eq 0 ]
+    then
+        cap_runlogs
     fi
 
     # 统计各路存活状态与存活总数 (0 外部子进程)

@@ -71,6 +71,7 @@ start() {
 
     # 以后台静默方式启动，脱离控制终端防止 SIGHUP 导致进程随启动脚本退出
     # VIEW=off 避免输出 ANSI 帧灌满重定向或会话文件；重定向 </dev/null 彻底脱离 SSH 会话输入
+    rm -f /tmp/.hcx_autocap.stdout.log >/dev/null 2>&1
     if [ -x /usr/bin/nohup ]; then
         VIEW=off nohup /bin/sh "$SCRIPT" </dev/null >/dev/null 2>&1 &
     else
@@ -291,38 +292,55 @@ class AutoCaptureBootManager:
         if res.timed_out or res.exit_code != 0:
             raise RuntimeError(f"卸载失败: {res.stderr or res.stdout}")
 
-    def start_script(self, cancel_event=None) -> None:
-        """手动启动后台抓包脚本。优先使用系统服务启动；若服务尚未注册但脚本存在，直接脱离控制终端拉起。"""
+    def start_script(self, cancel_event=None) -> str:
+        """手动启动后台抓包脚本，启用 VIEW=on 捕获启动与实时运行输出。"""
         cmd = (
-            f"chmod +x /etc/init.d/{SERVICE_NAME} 2>/dev/null; "
-            f"if [ -x /etc/init.d/{SERVICE_NAME} ]; then "
-            f"  /etc/init.d/{SERVICE_NAME} start; "
-            "else "
-            "  SCRIPT=\"\"; "
-            "  if [ -f /root/hcx_autocap.sh ]; then SCRIPT=\"/root/hcx_autocap.sh\"; "
-            "  elif [ -f /root/autocap.sh ]; then SCRIPT=\"/root/autocap.sh\"; fi; "
-            "  if [ -z \"$SCRIPT\" ]; then "
-            "    echo 'Error: 抓包脚本不存在' >&2; exit 1; "
+            "SCRIPT=\"\"; "
+            "if [ -f /root/hcx_autocap.sh ]; then SCRIPT=\"/root/hcx_autocap.sh\"; "
+            "elif [ -f /root/autocap.sh ]; then SCRIPT=\"/root/autocap.sh\"; fi; "
+            "if [ -z \"$SCRIPT\" ]; then "
+            "  echo 'Error: 抓包脚本不存在' >&2; exit 1; "
+            "fi; "
+            "chmod +x \"$SCRIPT\"; "
+            "export PATH=\"/root/.winbox-tools/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH\"; "
+            "LOCK='/tmp/.hcx_autocap.lock'; "
+            "OUT_LOG='/tmp/.hcx_autocap.stdout.log'; "
+            "if [ -f \"$LOCK\" ]; then "
+            "  PID=$(cat \"$LOCK\" 2>/dev/null); "
+            "  if [ -n \"$PID\" ] && kill -0 \"$PID\" 2>/dev/null; then "
+            "    echo \"抓包脚本已在运行中 (PID=$PID)\"; "
+            "    if [ -f \"$OUT_LOG\" ] && [ -s \"$OUT_LOG\" ]; then tail -c 65536 \"$OUT_LOG\" 2>/dev/null; fi; "
+            "    exit 0; "
             "  fi; "
-            "  chmod +x \"$SCRIPT\"; "
-            "  export PATH=\"/root/.winbox-tools/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH\"; "
-            "  LOCK='/tmp/.hcx_autocap.lock'; "
+            "fi; "
+            ": > \"$OUT_LOG\" || exit 1; "
+            "if [ -x /usr/bin/nohup ]; then "
+            "  VIEW=on nohup /bin/sh \"$SCRIPT\" </dev/null >> \"$OUT_LOG\" 2>&1 & "
+            "else "
+            "  ( trap '' HUP; VIEW=on /bin/sh \"$SCRIPT\" </dev/null >> \"$OUT_LOG\" 2>&1 ) & "
+            "fi; "
+            "LOCK='/tmp/.hcx_autocap.lock'; "
+            "OUT_LOG='/tmp/.hcx_autocap.stdout.log'; "
+            "i=0; "
+            "while [ $i -lt 8 ]; do "
+            "  sleep 0.5; "
+            "  i=$((i + 1)); "
             "  if [ -f \"$LOCK\" ]; then "
             "    PID=$(cat \"$LOCK\" 2>/dev/null); "
-            "    if [ -n \"$PID\" ] && kill -0 \"$PID\" 2>/dev/null; then exit 0; fi; "
+            "    if [ -n \"$PID\" ] && ! kill -0 \"$PID\" 2>/dev/null; then break; fi; "
             "  fi; "
-            "  if [ -x /usr/bin/nohup ]; then "
-            "    VIEW=off nohup /bin/sh \"$SCRIPT\" </dev/null >/dev/null 2>&1 & "
-            "  else "
-            "    ( trap '' HUP; VIEW=off /bin/sh \"$SCRIPT\" </dev/null >/dev/null 2>&1 ) & "
+            "  if grep -q '正在并行抓包\\|没有检测到空闲射频\\|全部抓包进程未能运行\\|退出码:' \"$OUT_LOG\" 2>/dev/null; then "
+            "    break; "
             "  fi; "
-            "fi"
+            "done; "
+            "if [ -f \"$OUT_LOG\" ]; then tail -c 65536 \"$OUT_LOG\" 2>/dev/null; fi"
         )
-        res = self.runner.run("start_autocap_script", cmd, timeout=15, cancel_event=cancel_event)
+        res = self.runner.run("start_autocap_script", cmd, timeout=20, cancel_event=cancel_event)
         if res.cancelled:
             raise InterruptedError("启动抓包脚本已取消。")
         if res.timed_out or res.exit_code != 0:
             raise RuntimeError(f"启动抓包脚本失败: {res.stderr or res.stdout}")
+        return (res.stdout or "").strip()
 
     def start_service(self, cancel_event=None) -> None:
         """手动启动后台自启抓包服务。"""
@@ -433,9 +451,14 @@ class AutoCaptureBootManager:
 
     def read_recent_session_log(self, max_lines: int = 35, cancel_event=None) -> str:
         """读取远端最新的抓包会话日志末尾文本。"""
+        max_lines = max(1, min(int(max_lines), 200))
         cmd = (
-            "LATEST=$(ls -1t /root/cap/script_*.log 2>/dev/null | head -n 1); "
-            f"if [ -n \"$LATEST\" ] && [ -f \"$LATEST\" ]; then tail -n {max_lines} \"$LATEST\" 2>/dev/null; fi"
+            "if [ -f /tmp/.hcx_autocap.stdout.log ] && [ -s /tmp/.hcx_autocap.stdout.log ]; then "
+            f"  tail -c 65536 /tmp/.hcx_autocap.stdout.log | tail -n {max_lines} 2>/dev/null; "
+            "else "
+            "  LATEST=$(ls -1t /root/cap/script_*.log 2>/dev/null | head -n 1); "
+            f"  if [ -n \"$LATEST\" ] && [ -f \"$LATEST\" ]; then tail -c 65536 \"$LATEST\" | tail -n {max_lines} 2>/dev/null; fi; "
+            "fi"
         )
         res = self.runner.run("read_autocap_log", cmd, timeout=6, cancel_event=cancel_event)
         return (res.stdout or "").strip()

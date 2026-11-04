@@ -1068,6 +1068,7 @@ class AutoCaptureService(QObject):
         self._boot_status: Optional[AutoCaptureBootStatus] = None
         self._is_probing_boot = False
         self._boot_probe_lock = threading.Lock()
+        self._is_polling_boot_log = False
         self._boot_connection = None
         self._diagnostic_lock = threading.Lock()
         self._recovery_diagnostics = deque(maxlen=32)
@@ -1167,16 +1168,34 @@ class AutoCaptureService(QObject):
         self._resource_timer.stop()
 
     def poll_boot_log(self, max_lines: int = 35):
-        """异步读取远端后台抓包会话日志最新末尾并发布。"""
+        """Read one bounded background log snapshot; coalesce concurrent requests."""
+        connection = getattr(self.ssh, "_client", None)
+        if self._disposed or connection is None or not self.ssh.connected:
+            return False
+        with self._boot_probe_lock:
+            if self._is_polling_boot_log:
+                return False
+            self._is_polling_boot_log = True
+
         def _task():
             try:
                 log_text = self.boot_manager.read_recent_session_log(max_lines=max_lines)
-                if log_text:
+                if (log_text and not self._disposed and self.ssh.connected
+                        and getattr(self.ssh, "_client", None) is connection):
                     self.bootLogUpdated.emit(log_text)
-            except Exception:
-                pass
+            except Exception as exc:
+                LOGGER.debug("Read background log failed: %s", type(exc).__name__)
+            finally:
+                with self._boot_probe_lock:
+                    self._is_polling_boot_log = False
 
-        threading.Thread(target=_task, name="PollBootLog", daemon=True).start()
+        try:
+            threading.Thread(target=_task, name="PollBootLog", daemon=True).start()
+        except Exception:
+            with self._boot_probe_lock:
+                self._is_polling_boot_log = False
+            raise
+        return True
 
     def refresh_boot_status(self):
         """在后台异步刷新开机自启状态。"""
@@ -1261,7 +1280,9 @@ class AutoCaptureService(QObject):
         def _task():
             try:
                 self.messageGenerated.emit("正在启动后台抓包脚本（仅启用空闲射频）...", "info")
-                self.boot_manager.start_script()
+                startup_log = self.boot_manager.start_script()
+                if startup_log:
+                    self.bootLogUpdated.emit(startup_log)
                 if self._verify_boot_script_started():
                     self.bootScriptStarted.emit()
                     self.messageGenerated.emit("后台脚本已运行；是否已开始抓包尚未确认，请查看后台会话日志。", "info")
@@ -1283,7 +1304,9 @@ class AutoCaptureService(QObject):
                 self.messageGenerated.emit("正在部署自启脚本与系统服务...", "info")
                 self.boot_manager.install_or_update()
                 self.messageGenerated.emit("脚本部署完成，正在启动后台抓包脚本（仅启用空闲射频）...", "info")
-                self.boot_manager.start_script()
+                startup_log = self.boot_manager.start_script()
+                if startup_log:
+                    self.bootLogUpdated.emit(startup_log)
                 if self._verify_boot_script_started():
                     self.bootScriptStarted.emit()
                     self.messageGenerated.emit("后台脚本已运行；是否已开始抓包尚未确认，请查看后台会话日志。", "info")
