@@ -58,7 +58,7 @@ def _target(root, relative):
         if parent == root: break
         if linked(parent) or (parent.exists() and not parent.is_dir()):
             raise ValueError("Linked or non-directory runtime parent")
-    if not path.resolve().is_relative_to(root):
+    if not path.resolve().is_relative_to(root.resolve()):
         raise ValueError("Runtime path escapes its snapshot")
     return path
 

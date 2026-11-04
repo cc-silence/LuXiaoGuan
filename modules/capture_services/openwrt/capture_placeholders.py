@@ -66,8 +66,8 @@ def build_placeholder_script(exclude_phy=""):
     return stub_script
 
 
-def prepare_placeholders(self):
-    stub_script = build_placeholder_script(self.phy)
+def prepare_placeholders(self, *, exclude_phy=""):
+    stub_script = build_placeholder_script(exclude_phy)
     stub_res = self.runner.run("ensure_phy_stubs", stub_script, timeout=8, cancel_event=self._stop_event)
     if stub_res.stdout:
         for line in stub_res.stdout.splitlines():

@@ -373,7 +373,7 @@ class AutoCaptureRadioSession:
                 # 注意：排除正在本次任务中进行抓包的 PHY，避免给即将创建监听网卡的 PHY 造成双监听口冲突。
             from .capture_placeholders import prepare_placeholders
             with takeover_transaction(cancel_event=self._stop_event):
-                prepare_placeholders(self)
+                prepare_placeholders(self, exclude_phy=self.phy)
             from .capture_initialization_evidence import collect_scene
             collect_scene(self, "prepared")
 

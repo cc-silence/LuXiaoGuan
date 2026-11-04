@@ -120,3 +120,32 @@ class RuntimeSnapshotTests(unittest.TestCase):
                 snapshot.prepare_runtime_snapshot(self.root, self.stage, self.catalog)
         self.assertEqual(list(self.stage.iterdir()), [])
         self.assertEqual((self.root / "resources/runtime.dat").read_bytes(), b"old private runtime")
+
+
+class SnapshotCanonicalBoundaryTests(unittest.TestCase):
+    def check_alias(self, escape):
+        with tempfile.TemporaryDirectory() as directory:
+            parent=Path(directory).resolve()
+            canonical=parent/'canonical'
+            canonical.mkdir()
+            alias=parent/'short-alias'
+            original=type(alias).resolve
+            def resolve(path,*args,**kwargs):
+                if path.is_relative_to(alias):
+                    relative=path.relative_to(alias)
+                    if escape and relative==Path('resources/runtime.dat'):
+                        return parent/'outside.dat'
+                    return canonical/relative
+                return original(path,*args,**kwargs)
+            with patch.object(type(alias),'resolve',autospec=True,side_effect=resolve):
+                if escape:
+                    with self.assertRaisesRegex(ValueError,'escapes'):
+                        snapshot._target(alias,'resources/runtime.dat')
+                else:
+                    self.assertEqual(snapshot._target(alias,'resources/runtime.dat'),alias/'resources/runtime.dat')
+
+    def test_canonical_root_alias_is_accepted(self):
+        self.check_alias(False)
+
+    def test_canonical_target_outside_root_is_rejected(self):
+        self.check_alias(True)
