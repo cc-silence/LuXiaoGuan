@@ -55,7 +55,7 @@ SCRIPT_FILE=$(basename "$0" 2>/dev/null)
 SCRIPT_BASE="${SCRIPT_FILE%.*}"
 [ -z "${SCRIPT_BASE}" ] && SCRIPT_BASE="hcx_autocap"
 SCRIPT_NAME="${SCRIPT_FILE}"
-SCRIPT_VER="v26.10.1"
+SCRIPT_VER="v26.11.4"
 
 case "$1" in
     -v|--version)
@@ -1025,7 +1025,7 @@ create_raw_monitor() {
         esac
     done
     # [日志加固] 捕获真实报错打进会话日志
-    _err=$( { iw ${_use_phy} interface add ${name} type monitor addr ${wlan_mac} \
+    _err=$( { iw phy "${_use_phy}" interface add "${name}" type monitor addr "${wlan_mac}" \
         && ip link set ${name} up; } 2>&1 )
     if [ "$?" = "0" ]
     then

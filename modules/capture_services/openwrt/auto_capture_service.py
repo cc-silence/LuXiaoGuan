@@ -506,15 +506,41 @@ class AutoCaptureRadioSession:
                     coordinator.cleanup_finished(self.radio_name, cleanup_confirmed)
 
     def _probe_dialect(self) -> str:
-        """探测远端 hcxdumptool 方言版本：'modern' (>= 6.3.x) 或 'legacy' (6.2.x)。"""
+        """探测远端 hcxdumptool 方言版本：'modern' (>= 6.3.x) 或 'legacy' (6.2.x/6.0.x)。"""
         hcx_bin = getattr(self, "_hcx_bin", "hcxdumptool")
         try:
-            res = self.runner.run("probe_hcx_dialect", f"{hcx_bin} -h 2>&1 | head -n 40", timeout=8)
+            # 1. 优先探测帮助文本与版本行 (读取前 300 行对齐 hcx_autocap.sh，杜绝长帮助项被截断)
+            res = self.runner.run("probe_hcx_dialect", f"{hcx_bin} -h 2>&1 | head -n 300", timeout=8)
             out = res.stdout or ""
-            if "-w <file>" in out or "--attemptapmax" in out:
+            if not out:
+                v_res = self.runner.run("probe_hcx_ver_fallback", f"{hcx_bin} -v 2>&1 || {hcx_bin} --version 2>&1", timeout=5)
+                out = v_res.stdout or ""
+
+            # 2. 精准匹配版本号（如 hcxdumptool 6.2.4、hcxdumptool 6.0.1、hcxdumptool 6.3.4 等）
+            m_ver = re.search(r"hcxdumptool\s+v?(\d+)\.(\d+)(?:\.(\d+))?", out, re.IGNORECASE)
+            if m_ver:
+                major = int(m_ver.group(1))
+                minor = int(m_ver.group(2))
+                if (major, minor) < (6, 3):
+                    return "legacy"
                 return "modern"
-            if "-o <file>" in out or "--enable_status" in out:
+
+            # 3. 若版本号未暴露，基于选项特征严格判定 (-w 与 -o 互斥)
+            has_w = bool(
+                re.search(r"^\s*-w[\s=:]", out, re.MULTILINE)
+                or "-w <" in out
+                or "--attemptapmax" in out
+            )
+            has_o = bool(
+                re.search(r"^\s*-o[\s=:]", out, re.MULTILINE)
+                or "-o <" in out
+                or "--enable_status" in out
+            )
+
+            if has_o and not has_w:
                 return "legacy"
+            if has_w and not has_o:
+                return "modern"
         except Exception:
             pass
         return "modern"
@@ -607,21 +633,27 @@ class AutoCaptureRadioSession:
                     norm_items.append(item)
             channels = ",".join(norm_items)
 
+        pure_ch = re.sub(r"[a-zA-Z]", "", channels).strip(",")
+        clean_ch = ",".join(ch for ch in pure_ch.split(",") if ch.strip())
+
+        legacy_cmds = []
+        if clean_ch:
+            legacy_cmds.append((
+                "legacy-chan (旧版方言指定信道)",
+                f"{hcx_bin} -i {self.mon_iface} -o {self.remote_cap_file} -c {clean_ch} --enable_status=15",
+            ))
+        legacy_cmds.append((
+            "legacy-nochan (旧版方言自适应全频)",
+            f"{hcx_bin} -i {self.mon_iface} -o {self.remote_cap_file} --enable_status=15",
+        ))
+        legacy_cmds.append((
+            "legacy-min (旧版极简模式)",
+            f"{hcx_bin} -i {self.mon_iface} -o {self.remote_cap_file}",
+        ))
+
         cmd_list = []
         if dialect == "legacy":
-            pure_ch = re.sub(r"[a-zA-Z]", "", channels)
-            cmd_list.append((
-                "legacy-chan (旧版方言指定信道)",
-                f"{hcx_bin} -i {self.mon_iface} -o {self.remote_cap_file} -c {pure_ch} --enable_status=15",
-            ))
-            cmd_list.append((
-                "legacy-nochan (旧版方言自适应全频)",
-                f"{hcx_bin} -i {self.mon_iface} -o {self.remote_cap_file} --enable_status=15",
-            ))
-            cmd_list.append((
-                "legacy-min (旧版极简模式)",
-                f"{hcx_bin} -i {self.mon_iface} -o {self.remote_cap_file}",
-            ))
+            cmd_list = list(legacy_cmds)
         else:
             # modern 方言 (>= 6.3.x，严禁混入旧版 -o 参数；全程开启受控 Deauth 踢线，坚决禁用假信标)
             if not is_5g and not is_6g:
