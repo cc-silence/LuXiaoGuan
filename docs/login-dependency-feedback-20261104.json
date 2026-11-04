@@ -1,0 +1,332 @@
+{
+  "date": "2026-11-04",
+  "status": "source_changed_not_packaged",
+  "changes": [
+    {
+      "issue": "Downloaded older common bundle blocks all later sources",
+      "root_cause": "Catalog root coverage mismatch raised the same generic ValueError as integrity failures, so the local installer raised environment failure before the built-in and online routes.",
+      "fix": "A dedicated BundleCoverageUnavailable is handled as source non-match only. The downloaded full bundle remains first; the built-in archive is consulted only for libuci-lua/wpa-cli; non-match or unavailable dependency closure continues to router-online then computer-download routes. Signature, object checksum, cancellation and unsafe/unconfirmed transaction failures still stop. Empty final-route diagnostics no longer display a blank route."
+    },
+    {
+      "issue": "Connection timeout cannot distinguish TCP, SSH banner and authentication stages",
+      "fix": "Use the documented Paramiko transport_factory on the existing connection to record tcp_connected and ssh_banner_received; preserve host-key and authentication stages; distinguish connection refusal, TCP timeout, no SSH banner, handshake failure, incompatible SSH version, incompatible algorithms and authentication timeout. No extra connection, port scan, firewall change or security-policy relaxation.",
+      "privacy": "Only bounded allowlisted flags/stages/reasons are exported; no passwords, addresses, raw banners or key paths retained."
+    }
+  ],
+  "validation": {
+    "windows": {
+      "runtime": "Project .venv / PySide6 6.3.2 / Paramiko 5.0.0",
+      "related_tests": 151,
+      "result": "PASS",
+      "log": "build/login-dependency-feedback-20261104/regression.log",
+      "real_loopback_cases": [
+        "refused TCP port",
+        "connected silent port",
+        "HTTP service instead of SSH",
+        "SSH 1.5 unsupported version",
+        "no acceptable host-key algorithm",
+        "normal password authentication",
+        "host-key confirmation",
+        "empty password and public-key routes"
+      ]
+    },
+    "debian12": {
+      "source_files_compiled": 6,
+      "runtime_verification": "Blocked: environment has neither PySide6 nor Paramiko; ordinary module import stops at missing PySide6. No claim of Linux runtime or GUI acceptance."
+    },
+    "syntax_utf8_files": 9
+  },
+  "references": [
+    "https://docs.paramiko.org/en/stable/api/client.html",
+    "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/client.py",
+    "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/transport.py"
+  ],
+  "limits": [
+    "No live user router operation performed.",
+    "Current 1.0.39_alpha ZIP predates these fixes; no new build or online publication performed.",
+    "A timed-out port alone cannot prove SSH is disabled or identify a firewall/network cause."
+  ],
+  "followup_review": {
+    "date": "2026-11-04",
+    "request": "Recheck the latest two changes once more.",
+    "confirmed_issue": "CommonBundleRepository._load assigned self.catalog before schema and object-layout validation. A failed load could leave an unvalidated catalog visible to a later profile() call on the same repository instance.",
+    "reproduction": "A real signed local catalog with old root coverage, and another with a malformed profile, both retained rejected catalog state before the fix.",
+    "fix": "Keep candidate content path, catalog, object map and layout local; publish all repository fields only after validation succeeds, with catalog assigned last.",
+    "validation": {
+      "related_tests": 46,
+      "result": "PASS",
+      "includes": "Repeated profile() calls on the same rejected repository must reject on both attempts and leave catalog unset; legacy/current resource loading and login stage diagnostics also pass.",
+      "syntax_utf8": "Changed Python files compiled and scanned; original CRLF preserved.",
+      "previous_suite": "The preceding 151-test suite passed before this additional cache-publication repair."
+    },
+    "limits": [
+      "No live router operations or package build performed.",
+      "Debian runtime remains unverified because PySide6 and Paramiko are absent."
+    ]
+  },
+  "official_reference_review": {
+    "date": "2026-11-04",
+    "references": [
+      {
+        "url": "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/client.py",
+        "finding": "SSHClient.connect completes socket.connect before calling transport_factory; current tcp_connected observation is placed correctly and creates no second connection."
+      },
+      {
+        "url": "https://docs.paramiko.org/en/stable/api/ssh_exception.html",
+        "finding": "NoValidConnectionsError wraps possibly different underlying address-family errors. Only all-refused failures may be labeled connection_refused. Existing implementation passes the newly added mixed-error regression."
+      },
+      {
+        "url": "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/transport.py",
+        "finding": "Transport supports automatic and explicit rekey after the initial key exchange. A negotiation exception alone cannot establish that authentication was never entered."
+      },
+      {
+        "url": "https://cryptography.io/en/latest/hazmat/primitives/asymmetric/ed25519/",
+        "finding": "Ed25519 verification raises InvalidSignature on failure. Existing manifest verification and checksum boundaries remain mandatory; stale root coverage is a separate non-match, not a blanket exception fallback."
+      }
+    ],
+    "change": "Preserve already observed host-key/authentication stage when recording negotiation failure; replace unconditional never-entered-password text with login-incomplete/password-undetermined wording. Added stage-preservation and mixed-address-family tests.",
+    "validation": {
+      "related_tests": 159,
+      "result": "PASS",
+      "log": "build/login-dependency-feedback-20261104/reference-audit-regression.log",
+      "runtime": "Project .venv / PySide6 6.3.2 / Paramiko 5.0.0",
+      "includes": "Previous 151 tests, signed-catalog cache repeat rejection, bundle storage audit and new SSH exception boundary tests."
+    },
+    "limits": [
+      "The rekey boundary is an upstream-contract and controlled-evidence regression, not a diagnosed event in the user timeout archive.",
+      "No live router operations or package build performed.",
+      "Debian runtime remains unverified; only source compilation is checked."
+    ]
+  },
+  "second_official_reference_review": {
+    "date": "2026-11-04",
+    "references": [
+      {
+        "url": "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/auth_handler.py",
+        "finding": "AuthHandler.wait_for_response raises the transport saved exception directly when inactive; EOF/no saved exception becomes AuthenticationException. ConnectionResetError and plain SSHException may therefore surface after authentication has begun."
+      },
+      {
+        "url": "https://docs.python.org/3.10/library/exceptions.html",
+        "finding": "ConnectionResetError and related socket disconnect exceptions inherit ConnectionError/OSError; they must be interpreted together with the observed login phase, not treated as proof that TCP was never connected."
+      },
+      {
+        "url": "https://docs.paramiko.org/en/stable/api/ssh_exception.html",
+        "finding": "Authentication rejection, authentication method restriction, encrypted private key requirements and incompatible peer algorithms are separate exception contracts and retain their dedicated handlers."
+      }
+    ],
+    "confirmed_issue": "Raw connection reset during authentication was labeled connection_error, and plain SSHException during authentication was labeled handshake_error.",
+    "proof": "Executed actual installed Paramiko AuthHandler.wait_for_response with inactive transport and controlled saved ConnectionResetError, SSHException and EOFError; first two classifications failed before the repair and all pass afterward.",
+    "repair": "Use observed authentication stage for transport-interruption reasons and plain-language messages. Preserve explicit timeout, rejection, method restriction, private-key passphrase and algorithm mismatch handlers. Preserve original exceptions as causes; retain only allowlisted evidence.",
+    "dependency_review": "Downloaded full bundle -> eligible built-in roots -> router online -> computer download ordering and signed-catalog publication boundaries remain intact; no new dependency-source change in this review.",
+    "validation": {
+      "related_tests": 160,
+      "result": "PASS",
+      "log": "build/login-dependency-feedback-20261104/second-reference-audit-regression.log",
+      "debian": "Two changed shared modules compiled; runtime acceptance remains unavailable because required libraries are absent."
+    },
+    "limits": [
+      "No live router operation or new package build performed.",
+      "The added authentication-disconnect contract is not asserted as the cause of the user original TCP timeout."
+    ]
+  },
+  "third_official_reference_review": {
+    "date": "2026-11-04",
+    "references": [
+      {
+        "url": "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/client.py",
+        "finding": "SSHClient legacy authentication loads key_filename inside the same flow as auth_publickey; a key parsing SSHException can be re-raised before any server authentication request."
+      },
+      {
+        "url": "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/pkey.py",
+        "finding": "Public PKey.from_path auto-detects RSA/EC/Ed25519 keys and retains native matching -cert.pub handling."
+      },
+      {
+        "url": "https://docs.paramiko.org/en/stable/api/keys.html#paramiko.pkey.PKey.from_path",
+        "finding": "Use the public path loader rather than matching raw private-key parser error strings."
+      }
+    ],
+    "real_reproduction": "Against a real local SSH key-auth server, malformed selected key text produced authentication_interrupted while transport_active remained true and server authentication request count was zero.",
+    "repair": "Parse selected private key with PKey.from_path before client.connect; pass resulting pkey through original authentication path; preserve original selected path in authenticated_settings. Separate structured configuration reasons for missing/unreadable, invalid/unsupported and encrypted keys. Check selected key and associated certificate sizes before loading; reject over 1 MiB. No key contents or paths enter structured export. Password authentication is unchanged.",
+    "verification": {
+      "related_tests": 161,
+      "result": "PASS",
+      "log": "build/login-dependency-feedback-20261104/third-reference-audit-regression.log",
+      "specific_cases": [
+        "malformed private key",
+        "public key selected as private key",
+        "encrypted private key",
+        "oversized key file",
+        "missing key file",
+        "real valid private-key login",
+        "empty/nonempty password",
+        "host-key confirmation",
+        "dependency source fallback and integrity checks"
+      ],
+      "privacy": "Bad local key cases start no network connection, close the unused SSH client and export no key path, material or passphrase.",
+      "debian": "Three changed shared modules compiled; runtime import/GUI remains unavailable without PySide6 and Paramiko."
+    },
+    "limits": [
+      "No user router operation performed.",
+      "No new package build or online publication performed.",
+      "Associated-certificate behavior is checked against the upstream implementation; no live certificate-authentication device test claimed."
+    ]
+  },
+  "three_round_followup_review": {
+    "date": "2026-11-04",
+    "references": [
+      "https://docs.paramiko.org/en/stable/api/client.html",
+      "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/pkey.py",
+      "https://cryptography.io/en/latest/hazmat/primitives/asymmetric/serialization/",
+      "https://raw.githubusercontent.com/openwrt/opkg-lede/master/libopkg/opkg_install.c"
+    ],
+    "rounds": [
+      {
+        "round": 1,
+        "focus": "Native private-key parsing and exception boundaries",
+        "tests": 37,
+        "result": "PASS",
+        "log": "build/login-dependency-feedback-20261104/three-round-1.log",
+        "repair": "Classify cryptography UnsupportedAlgorithm as a local invalid/unsupported key rather than an unexplained failure."
+      },
+      {
+        "round": 2,
+        "focus": "Downloaded full bundle, eligible built-in roots, router online and computer-download routes; integrity and cancellation boundaries",
+        "tests": 90,
+        "result": "PASS",
+        "log": "build/login-dependency-feedback-20261104/three-round-2.log",
+        "repair": "No additional dependency defect confirmed in this round."
+      },
+      {
+        "round": 3,
+        "focus": "Connection ownership, retries, connection reuse and diagnostic export",
+        "tests": 64,
+        "result": "PASS",
+        "log": "build/login-dependency-feedback-20261104/three-round-3.log",
+        "repair": "Reject an empty private-key selection before allocating and registering SSHClient; preserve active-connection reuse before validation."
+      }
+    ],
+    "combined_regression": {
+      "tests": 166,
+      "result": "PASS",
+      "failures": 0,
+      "errors": 0,
+      "log": "build/login-dependency-feedback-20261104/three-round-combined.log"
+    },
+    "syntax": "Windows py_compile and Debian 12 Python 3.11 py_compile passed for shared login modules.",
+    "limits": [
+      "No user router operation or new package build performed.",
+      "Debian runtime/GUI acceptance not claimed: required PySide6 and Paramiko are absent.",
+      "Associated -cert.pub path and public-blob loading tested, not signed-certificate authentication.",
+      "Native OpenSSH and traditional EC PEM fixtures tested; no new PKCS8 support added."
+    ]
+  },
+  "recheck_b_three_rounds": {
+    "date": "2026-11-04",
+    "scope": "SSH login diagnostics and existing dependency-source fallback; no wireless or package-manager policy changes.",
+    "references": [
+      {
+        "url": "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/auth_handler.py",
+        "version": "5.0.0",
+        "date": "2026-11-04",
+        "sha256": "fe5f3d574a6a07d3caf80d97ca29492cc89a1fc2606819afef9c605f94c8934b",
+        "file": "auth_handler.py"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/client.py",
+        "version": "5.0.0",
+        "date": "2026-11-04",
+        "sha256": "d2ec094ad635ad2c8d0274afa02c3e913ef199d60fef3dab1eb2187b3c034cc7",
+        "file": "client.py"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/pkey.py",
+        "version": "5.0.0",
+        "date": "2026-11-04",
+        "sha256": "e4fab624de858065ce25a8f85337c44cd84a8af3c2149775b11159eda7736df7",
+        "file": "pkey.py"
+      }
+    ],
+    "additional_references": [
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/master/libopkg/opkg_install.c",
+        "use": "Dependency and conflict checks; contextual review only, no new remote commands."
+      },
+      {
+        "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/v3.0.4/doc/apk-add.8.scd",
+        "use": "apk add may change existing packages to meet constraints, so keep existing simulation and protected-package checks."
+      }
+    ],
+    "confirmed_issue": "Native Paramiko AuthHandler._finalize_pubkey_algorithm raises AuthenticationException on incompatible RSA signing algorithms; it was misclassified as authentication_interrupted.",
+    "reproduction": "Executed the installed native AuthHandler with disjoint preferred RSA signing algorithms and advertised server-sig-algs. Regression failed before repair and passed after repair.",
+    "repair": "Recognize only exact native Paramiko RSA signing-mismatch messages in the shared negotiation classifier; preserve authentication stage; export public_key_algorithm_mismatch and show a compatibility message. Do not alter algorithm preferences or security policy.",
+    "rounds": [
+      {
+        "round": 1,
+        "tests": 44,
+        "focus": "Authentication, native signing mismatch and false-positive boundaries",
+        "log": "build/login-dependency-feedback-20261104/recheck-b-round-1.log",
+        "result": "PASS"
+      },
+      {
+        "round": 2,
+        "tests": 90,
+        "focus": "Dependency fallback plus real signed old-catalog hash failure before coverage classification",
+        "log": "build/login-dependency-feedback-20261104/recheck-b-round-2.log",
+        "result": "PASS"
+      },
+      {
+        "round": 3,
+        "tests": 66,
+        "focus": "Connection cleanup, channel isolation, bounded history and privacy export",
+        "log": "build/login-dependency-feedback-20261104/recheck-b-round-3.log",
+        "result": "PASS"
+      }
+    ],
+    "syntax": "Windows py_compile and UTF-8 scan passed; changed shared modules also passed Debian 12 Python syntax checks.",
+    "limits": [
+      "Source only; no package built or router contacted.",
+      "No claim that signing mismatch caused the user original TCP timeout.",
+      "Native signing selection used controlled transport evidence, not a user router.",
+      "Debian runtime and GUI not tested; required libraries are absent."
+    ]
+  },
+  "recheck_c_three_rounds": {
+    "date": "2026-11-04",
+    "rounds": [
+      {
+        "round": 1,
+        "tests": 45,
+        "result": "PASS",
+        "focus": "Native exception classification including real loopback RSA-signature mismatch",
+        "log": "build\\login-dependency-feedback-20261104\\recheck-c-round-1.log"
+      },
+      {
+        "round": 2,
+        "tests": 90,
+        "result": "PASS",
+        "focus": "Offline source priority, signed catalog rejection, cancellation and protected package plans",
+        "log": "build\\login-dependency-feedback-20261104\\recheck-c-round-2.log"
+      },
+      {
+        "round": 3,
+        "tests": 22,
+        "result": "PASS",
+        "focus": "Connection/channel cleanup, bounded diagnostics and export privacy",
+        "log": "build\\login-dependency-feedback-20261104\\recheck-c-round-3.log"
+      }
+    ],
+    "confirmed_new_product_defects": [],
+    "new_evidence": "Real loopback SSH client/server with disjoint RSA signing capabilities reports the exact compatibility reason, verifies host identity before authentication, and clears failed connection ownership. Server receives no public-key authentication request.",
+    "references": [
+      "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/auth_handler.py",
+      "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/transport.py",
+      "https://docs.python.org/3.10/library/exceptions.html",
+      "https://raw.githubusercontent.com/alpinelinux/apk-tools/v3.0.4/doc/apk.8.scd",
+      "https://raw.githubusercontent.com/openwrt/opkg-lede/master/libopkg/opkg_install.c"
+    ],
+    "limits": [
+      "Local loopback verification is not user-router acceptance.",
+      "Windows package only; no Debian application build or GUI acceptance claimed."
+    ]
+  }
+}

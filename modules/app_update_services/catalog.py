@@ -31,6 +31,9 @@ def digest(value):
 
 def parse_catalog(data, release):
     """\u5148\u6821\u9a8c\u7b7e\u540d\u5f15\u7528\u7684\u5185\u5bb9\u6307\u7eb9\uff0c\u518d\u6821\u9a8c\u8def\u5f84\u4e0e\u5386\u53f2\u3002"""
+    if getattr(release, "platform", "win-x64") == "linux-x64":
+        from .linux_catalog import parse_linux_catalog
+        return parse_linux_catalog(data, release)
     if len(data) > MAX_CATALOG_BYTES or len(data) != release.catalog_size or hashlib.sha256(data).hexdigest() != release.catalog_sha256:
         raise ValueError("Catalog fingerprint mismatch")
     catalog = json.loads(data)
@@ -53,6 +56,13 @@ def parse_catalog(data, release):
     if not isinstance(retired,list) or len(retired)>12000: raise ValueError("Invalid removed inventory")
     for path in retired:
         if managed_path(path).casefold() in seen: raise ValueError("Active file is marked removed")
+    validate_history(catalog, release)
+    validate_migrations(catalog.get("migrations",[]))
+    if any(version_key(m["version"])>version_key(release.version) for m in catalog.get("migrations",[])):
+        raise ValueError("Migration exceeds target version")
+    return catalog
+
+def validate_history(catalog, release):
     history=catalog.get("history")
     if not isinstance(history,list) or not 1<=len(history)<=512: raise ValueError("Invalid history")
     versions=set(); previous=None
@@ -65,10 +75,6 @@ def parse_catalog(data, release):
         if not isinstance(item.get("published_at"),str) or len(item["published_at"])>40: raise ValueError("Invalid date")
         versions.add(key); previous=key
     if history[-1]["version"] != release.version or history[-1].get("resource_revision",0)!=release.resource_revision: raise ValueError("History target mismatch")
-    validate_migrations(catalog.get("migrations",[]))
-    if any(version_key(m["version"])>version_key(release.version) for m in catalog.get("migrations",[])):
-        raise ValueError("Migration exceeds target version")
-    return catalog
 
 def validate_migrations(migrations):
     """\u914d\u7f6e\u8fc1\u79fb\u53ea\u652f\u6301\u58f0\u660e\u5f0f\u8865\u7f3a\u7701\u503c\uff0c\u4e0d\u6267\u884c\u8fdc\u7aef\u4ee3\u7801\u3002"""

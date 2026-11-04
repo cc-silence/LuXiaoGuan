@@ -1,4 +1,5 @@
 """Delayed DHCP readiness and private diagnostic export; no real adapters."""
+from tests.platform_fixtures import mock_windows_elevation
 import errno
 import json
 from types import SimpleNamespace as NS
@@ -85,7 +86,9 @@ class TargetedInspectionTests(unittest.TestCase):
         with patch.object(linux,'command',side_effect=command),patch.object(linux.shutil,'which',return_value='/usr/bin/nmcli'):
             rows=linux.inspect(timeout=5,adapter_id='200')
         self.assertEqual([r['id'] for r in rows],['200'])
-        self.assertEqual(len(calls),5)
+        self.assertEqual(len(calls),6)
+        self.assertEqual([args for args in calls if "DHCP4.OPTION" in args],
+                         [["nmcli","-g","DHCP4.OPTION","device","show","nic200"]])
         self.assertTrue(all(args[-1]=='nic200' for args in calls[1:] if 'device' in args))
 
 class AdversarialReadinessTests(unittest.TestCase):
@@ -145,7 +148,7 @@ class NetworkEvidenceTests(unittest.TestCase):
     def test_elevated_error_retains_native_release_code_and_is_not_waitable(self):
         records=[]
         with patch.object(windows.subprocess,'run',return_value=NS(returncode=1091)), \
-             patch('modules.platform_services.update_elevation.run_elevated_update',return_value=(True,1064)), observing(records.append):
+             mock_windows_elevation(return_value=(True,1064)), observing(records.append):
             with self.assertRaises(RuntimeError) as raised:windows.renew(adapter(),20,lambda:True)
         self.assertFalse(raised.exception.network_retryable)
         self.assertTrue(any(r.get('native_error')==64 and r.get('elevated') for r in records))
@@ -160,7 +163,7 @@ class DiagnosticBoundaryTests(unittest.TestCase):
     def test_authorization_cancel_keeps_its_own_reason_and_return_code(self):
         records=[]
         with patch.object(windows.subprocess,'run',return_value=NS(returncode=5)), \
-             patch('modules.platform_services.update_elevation.run_elevated_update',return_value=(False,1223)), observing(records.append):
+             mock_windows_elevation(return_value=(False,1223)), observing(records.append):
             with self.assertRaises(RuntimeError) as raised:windows.renew(adapter(),20,lambda:True)
         self.assertEqual(raised.exception.network_reason,'authorization_failed')
         self.assertFalse(raised.exception.network_retryable)

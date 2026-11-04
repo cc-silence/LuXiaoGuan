@@ -1,7 +1,9 @@
 """本机回收站操作；后台调用，拒绝不明确的目标，不回退为永久删除。"""
 import stat
-from pathlib import Path, PureWindowsPath
-from .windows_recycle_bin import move_to_recycle_bin
+from pathlib import Path
+from .recycle_bin import move_to_recycle_bin
+from .local_names import valid_local_name
+from .runtime import is_windows
 from .file_metadata import same_local_path
 
 
@@ -13,7 +15,7 @@ def recycle_local_entry(path, parent, expected, cancel):
         raise ValueError('删除目标必须是目录内的绝对路径，不能删除磁盘根目录。')
     if not same_local_path(target.parent,folder):
         raise ValueError('删除目标不在已确认目录内，请刷新后重试。')
-    if any(part in {'.','..'} or part.endswith((' ','.')) for part in target.parts[1:]):
+    if any(part in {'.','..'} or (is_windows() and part.endswith((' ','.'))) for part in target.parts[1:]):
         raise ValueError('删除路径不明确，请刷新后重试。')
     # 不跟随链接或重解析点，避免所见目录与实际操作对象不同。
     for current in (target,*target.parents):
@@ -39,9 +41,7 @@ def create_local_directory(parent, name, cancel):
     folder=Path(parent)
     if not folder.is_absolute():
         raise ValueError('父目录必须是绝对路径，请刷新后重试。')
-    if (not isinstance(name,str) or not name or name in {'.','..'}
-            or any(ord(c)<32 or c in '<>:"/\\|?*' for c in name)
-            or name.endswith((' ','.')) or PureWindowsPath(name).is_reserved()):
+    if not valid_local_name(name):
         raise ValueError('文件夹名称无效，请勿使用路径、系统保留名称或特殊字符。')
     for current in (folder,*folder.parents):
         info=current.lstat()

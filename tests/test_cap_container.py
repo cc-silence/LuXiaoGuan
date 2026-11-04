@@ -209,7 +209,7 @@ class CaptureDownloadTests(unittest.TestCase):
             with self.subTest(unstable=unstable), tempfile.TemporaryDirectory(dir=self.root) as folder:
                 ssh,sftp = self.fake_ssh(unstable)
                 owner = SimpleNamespace(remote_cap_file="/root/cap/test.pcapng", output_dir=Path(folder), ssh_client=ssh,
-                    stats=SimpleNamespace(file_size_bytes=0), service=SimpleNamespace(radioStreamOutput=Mock(),messageGenerated=Mock()),radio_name="radio1")
+                    stats=SimpleNamespace(file_size_bytes=0), service=SimpleNamespace(radioStreamOutput=Mock(),messageGenerated=Mock(),should_generate_cap=lambda: True),radio_name="radio1")
                 AutoCaptureRadioSession._pull_capture_result(owner)
                 self.assertEqual(len(list(Path(folder).glob("*.pcapng"))),1)
                 self.assertEqual(len(list(Path(folder).glob("*.cap"))), 0 if unstable else 1)
@@ -226,7 +226,7 @@ class CaptureDownloadTests(unittest.TestCase):
                 runner = Mock(); runner.run.return_value = SimpleNamespace(cancelled=False,exit_code=0,stdout="test.pcapng")
                 boot = SimpleNamespace(ssh=ssh, runner=runner)
                 boot.pull_offline_artifacts = MethodType(AutoCaptureBootManager.pull_offline_artifacts,boot)
-                service = SimpleNamespace(boot_manager=boot, messageGenerated=Mock())
+                service = SimpleNamespace(boot_manager=boot, messageGenerated=Mock(), should_generate_cap=lambda: True)
                 result = AutoCaptureService.pull_offline_artifacts(service,folder)
                 self.assertEqual(len(result),1 if unstable else 2)
                 self.assertEqual(len(list(Path(folder).glob("*.cap"))),0 if unstable else 1)

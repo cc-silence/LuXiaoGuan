@@ -11,6 +11,7 @@ class PasswordVerificationReporter:
         self.message_callback = message_callback
         self.progress_callback = progress_callback
         self.active = None
+        self.started = set()
         self.submitted = 0
         self.last_reported = 0
         self.counts = dict(found=0, not_found=0, skipped=0, cancelled=0, error=0)
@@ -28,8 +29,13 @@ class PasswordVerificationReporter:
         """entry 为空表示实际开始，否则按原返回结果播报一次结局。"""
         if entry is None:
             self.active = index
+            self.started.add(index)
             self.submitted = self.last_reported = 0
             self.emit(f"{self.prefix(index)}，开始处理。")
+            return
+        if not getattr(entry, "final", True):
+            self.emit(f"{self.prefix(index)}：本轮已完成，后续字典继续尝试；累计已试 {entry.tried} 个，历史跳过 {entry.skipped} 个。")
+            self.active = None
             return
         if entry.found:
             status, level = "found", "success"
@@ -43,6 +49,9 @@ class PasswordVerificationReporter:
         self.counts[status] += 1
         self.active = None
         self.emit(f"{self.prefix(index)}：{detail}", level)
+
+    def dictionary_round(self, number, total, name):
+        self.emit(f"字典第 {number}/{total} 轮：{name}，本轮先尝试所有尚未成功的选中信号。")
 
     def progress(self, update):
         """沿用逐候选事件；每目标最多约十二条计数，不把提交当成完成。"""
@@ -71,7 +80,7 @@ class PasswordVerificationReporter:
                 "未完成部分不能判定为未找到。", level,
             )
             self.active = None
-        remaining = len(self.targets) - sum(self.counts.values())
+        remaining = len(self.targets) - len(self.started)
         self.emit(
             f"在线密码验证中断汇总：找到 {self.counts['found']} 个，"
             f"未找到 {self.counts['not_found']} 个，跳过 {self.counts['skipped']} 个，"

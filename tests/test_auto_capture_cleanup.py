@@ -94,12 +94,15 @@ class CleanupTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             remove_monitor(runner, 'wlan0', 'phy7')
         runner.run.assert_not_called()
-    def test_sweep_stale_cleans_matching_stub_interface(self):
+    def test_sweep_stale_only_removes_registered_matching_stub(self):
         session, service, runner = self.session()
         self.assertEqual(session.phy, 'phy7')
+        self.assertNotIn('iw dev hcxstub7 del', session._build_sweep_stale_script())
+        session._created_stubs.append('hcxstub7')
         script = session._build_sweep_stale_script()
-        self.assertIn('hcxstub7', script)
         self.assertIn('iw dev hcxstub7 del', script)
+        self.assertIn('routermanager:autocapture-stub', script)
+        self.assertIn('*/phy7', script)
 
     def test_ensure_phy_stubs_excludes_self_phy_and_probes_others(self):
         session, service, runner = self.session()

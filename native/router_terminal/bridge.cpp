@@ -23,7 +23,7 @@ public:
 };
 bool PtyProcess::start(const QString& program,const QStringList& arguments,const QSize& size){setProgram(program);setArguments(arguments);return start(size);}
 PtyProcess* PtyProcess::create(QObject* parent){return new ExternalTransport(parent);}
-#define EXPORT extern "C" __declspec(dllexport)
+#define EXPORT extern "C" Q_DECL_EXPORT
 EXPORT QWidget* wb_create(QWidget* parent,WriteCallback write,ResizeCallback resize){
     auto* view=new KodoTerm(parent);
     view->setProperty("wb_write",QVariant::fromValue(reinterpret_cast<quintptr>(write)));

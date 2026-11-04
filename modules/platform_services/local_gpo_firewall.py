@@ -25,15 +25,13 @@ import winreg
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from modules.release_identity import PRODUCT_NAME
-from .firewall_identity import TEMPORARY_RULE_GROUP, LEGACY_TEMPORARY_RULE_GROUP
+from .firewall_identity import (STARTUP_OWNER, TEMPORARY_RULE_GROUP, LEGACY_TEMPORARY_RULE_GROUP,
+                                OWNER_DESCRIPTION_PREFIX, LEGACY_OWNER_DESCRIPTION_PREFIX)
 
 
 
 LOCAL_GPO_FIREWALL_ARG = "--local-gpo-firewall"
 FIREWALL_SUBKEY = r"Software\Policies\Microsoft\WindowsFirewall\FirewallRules"
-STARTUP_OWNER = "routermanager-startup"
-OWNER_DESCRIPTION_PREFIX = f"Managed by {PRODUCT_NAME}; owner="
-LEGACY_OWNER_DESCRIPTION_PREFIX = "Managed by RouterManager; owner="
 _GPO_OPEN_LOAD_REGISTRY = 1
 _GPO_SECTION_MACHINE = 2
 _CLSCTX_INPROC_SERVER = 1

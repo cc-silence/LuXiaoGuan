@@ -19,6 +19,25 @@ def command(args,timeout=5):
     return value.stdout.decode('utf-8').strip()
 
 
+def dhcp_server_identifier(options):
+    """Parse nmcli DHCP4.OPTION values; missing/ambiguous evidence stays unknown."""
+    if len(options) > 65536:
+        return ''
+    found = set()
+    for line in options.splitlines():
+        key, separator, value = line.partition('=')
+        if not separator or key.strip() != 'dhcp_server_identifier':
+            continue
+        try:
+            address = ipaddress.IPv4Address(value.strip())
+        except ValueError:
+            return ''
+        if address.is_unspecified or address.is_multicast or address.is_loopback:
+            return ''
+        found.add(str(address))
+    return next(iter(found)) if len(found) == 1 else ''
+
+
 def inspect(peer=None,timeout=10,*,adapter_id=None):
     deadline=time.monotonic()+timeout
     def query(args):
@@ -40,7 +59,7 @@ def inspect(peer=None,timeout=10,*,adapter_id=None):
     for row in inventory[:128]:
         if row.get('ifname')=='lo':continue
         if adapter_id is not None and str(row.get('ifindex'))!=str(adapter_id):continue
-        name=row['ifname'];connection='';dhcp=None;gateways=[];dns=[]
+        name=row['ifname'];connection='';dhcp=None;gateways=[];dns=[];dhcp_server=''
         if shutil.which('nmcli'):
             try:
                 connection=query(['nmcli','-g','GENERAL.CON-UUID','device','show',name])
@@ -48,11 +67,14 @@ def inspect(peer=None,timeout=10,*,adapter_id=None):
                     dhcp=query(['nmcli','-g','ipv4.method','connection','show','uuid',connection])=='auto'
                     gateways=query(['nmcli','-g','IP4.GATEWAY','device','show',name]).splitlines()
                     dns=query(['nmcli','-g','IP4.DNS','device','show',name]).splitlines()
+                    if dhcp:
+                        try:dhcp_server=dhcp_server_identifier(query(['nmcli','-g','DHCP4.OPTION','device','show',name]))
+                        except RuntimeError:pass  # Optional lease metadata must not discard adapter identity.
             except RuntimeError:connection=''
         kind=QNetworkInterface.interfaceFromIndex(row['ifindex']).type()
         rows.append(dict(**context,wireless=True if kind==QNetworkInterface.Wifi else False if kind==QNetworkInterface.Ethernet else None,id=str(row['ifindex']),index=row['ifindex'],name=name,mac=row.get('address',''),
             addresses=[str(ipaddress.IPv4Interface(str(a['local'])+'/'+str(a['prefixlen']))) for a in row.get('addr_info',[]) if a.get('family')=='inet'],
-            gateways=gateways,dns=dns,dhcp=dhcp,connected='UP' in row.get('flags',[]),manager='networkmanager' if connection else 'unmanaged',
+            gateways=gateways,dns=dns,dhcp=dhcp,dhcp_server=dhcp_server,connected='UP' in row.get('flags',[]),manager='networkmanager' if connection else 'unmanaged',
             connection=connection,renewable=bool(connection and dhcp is True),route=name==route))
     return rows
 

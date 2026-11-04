@@ -19,6 +19,12 @@ def must_stop(error, runner, cancel, connection):
     return any(marker in text for marker in markers)
 
 def install_packages(manager, checked, device, cache_dir, sftp_available, cancel, tell, uploader=None):
+    from .signal_package_feed import download_session
+    with download_session(tell):
+        return _install_packages(manager, checked, device, cache_dir, sftp_available, cancel, tell, uploader)
+
+
+def _install_packages(manager, checked, device, cache_dir, sftp_available, cancel, tell, uploader=None):
     from .common_bundle_installer import install_from_local
     from .installation_sources import install_with_sources, report_verified
     runner = manager.command_runner

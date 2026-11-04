@@ -32,6 +32,14 @@ class ShortcutSettingsTests(unittest.TestCase):
             settings.reject()
             self.assertIsNone(self.window.settings_window)
 
+    def test_startup_signal_is_queued_before_shortcut_prompt(self):
+        presenter = self.runtime.desktop_shortcuts
+        with patch.object(presenter, "start_first_launch") as start:
+            self.runtime._startup_firewall_controller.finished.emit(True, "")
+            start.assert_not_called()
+            APP.processEvents()
+            start.assert_called_once()
+
     def test_startup_waits_for_firewall_and_shortcut_completion(self):
         presenter=self.runtime.desktop_shortcuts
         with patch.object(presenter,"start_first_launch") as start,patch.object(self.runtime.app_updates,"window_ready") as update:

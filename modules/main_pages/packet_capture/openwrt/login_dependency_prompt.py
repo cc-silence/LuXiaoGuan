@@ -13,6 +13,8 @@ class LoginDependencyPrompt(QObject):
         self.page = page
         self.owner = page.service
         self.service = self.owner.dependency_service
+        from .dependency_candidate_prompt import ensure_candidate_prompt
+        ensure_candidate_prompt(page,self.service)
         self._queued = False
         self._disposed = False
         self._showing = False

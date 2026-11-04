@@ -17,10 +17,6 @@ from .window import RouterWindow
 def run(version):
     """\u542f\u52a8\u72ec\u7acb\u5e94\u7528\uff1b\u70df\u6d4b\u4e0d\u8fde\u8bbe\u5907\u3001\u4e0d\u4fee\u6539\u9632\u706b\u5899\u3002"""
     smoke = "--smoke-test" in sys.argv
-    if getattr(sys, "frozen", False) and not smoke:
-        from modules.platform_services.app_update_install import recover_interrupted_update
-        if recover_interrupted_update(BASE_DIR):
-            return 0
     if not smoke:
         from modules.error_log_hooks import install_error_logging
         hooks = install_error_logging(version)
@@ -69,8 +65,8 @@ def run(version):
         runtime.exit_application()
         return app.exec() if not runtime._ready_to_close else 0
     app.aboutToQuit.connect(instance.close)
-    from modules.platform_services.firewall_session import close_firewall_session
-    app.aboutToQuit.connect(close_firewall_session)
+    from modules.platform_services.desktop_startup import close_startup_sessions
+    app.aboutToQuit.connect(close_startup_sessions)
     from modules.desktop_shell.startup_firewall_presenter import StartupFirewallPresenter
     firewall = StartupFirewallPresenter(runtime._startup_firewall_controller, runtime)
     window.show()

@@ -311,6 +311,10 @@ class PacketCapturePage(QFrame):
         self.settings["openwrt"].update(settings)
         if not self._save_settings_with_feedback():
             return
+        credential_ui = self.openwrt_tab.login_page._credential_ui
+        if credential_ui.enabled:
+            credential_ui.before_login(settings, lambda: self._connect_with_saved_credentials(settings))
+            return
         try:
             self.capture_service.save_openwrt_password_preference(settings)
         except OSError as exc:
@@ -321,7 +325,10 @@ class PacketCapturePage(QFrame):
                 self,
             ).exec()
             return
-        fingerprint_key = self._fingerprint_key(normalized["host"], normalized["port"])
+        self._connect_with_saved_credentials(settings)
+
+    def _connect_with_saved_credentials(self, settings):
+        fingerprint_key = self._fingerprint_key(settings["host"], settings["port"])
         # 未勾选时只进行本次人工核对，绝不读取历史指纹；勾选时才启用长期自动校验。
         expected = ""
         if bool(settings.get("remember_host_fingerprint", False)):

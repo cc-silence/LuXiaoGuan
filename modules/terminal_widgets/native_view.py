@@ -26,7 +26,8 @@ class NativeTerminalView(QWidget):
     def __init__(self, bridge, parent=None, library_path=None):
         if library_path is None:
             from modules.config_manager import BASE_DIR
-            library_path = BASE_DIR / 'bin/router_terminal/winbox_terminal.dll'
+            from modules.platform_services.terminal_library import terminal_library_path
+            library_path = terminal_library_path(BASE_DIR)
         # Validate before creating a parent-owned widget so failed retries leave no hidden children.
         library = self._load_library(Path(library_path))
         super().__init__(parent)
@@ -63,6 +64,10 @@ class NativeTerminalView(QWidget):
         """\u4f7f\u7528\u56fa\u5b9a\u8def\u5f84\u548c\u663e\u5f0f ABI\uff0c\u7981\u6b62\u52a0\u8f7d\u4e0d\u5339\u914d\u7684 Qt \u5e93\u3002"""
         if not path.is_file():
             raise FileNotFoundError(str(path))
+        from modules.platform_services.runtime import is_linux
+        if is_linux():
+            from modules.platform_services.terminal_library import validate_linux_library
+            validate_linux_library(path)
         dll = ctypes.CDLL(str(path.resolve()))
         specs = {
             'wb_qt_version': ([], ctypes.c_char_p),

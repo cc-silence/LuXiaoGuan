@@ -10,7 +10,8 @@ from modules.capture_services.openwrt.command_runner import RemoteCommandResult
 from modules.capture_services.openwrt.auto_capture_service import AutoCaptureRadioSession
 from modules.capture_services.openwrt.models import OpenWrtRadioInfo
 
-BASH=shutil.which('bash') or ('C:/Program Files/Git/bin/bash.exe' if Path('C:/Program Files/Git/bin/bash.exe').is_file() else None)
+from tests.posix_shell import local_shell
+BASH=local_shell(bash=True)
 
 class MonitorPreflightTests(unittest.TestCase):
     @unittest.skipUnless(BASH,'POSIX test shell unavailable')

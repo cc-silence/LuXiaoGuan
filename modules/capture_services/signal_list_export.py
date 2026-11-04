@@ -10,6 +10,8 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 from zipfile import ZipFile, ZIP_DEFLATED
 
+from .openwrt.wps_scan import wps_status_text
+
 HEADERS = ("序号", "Wi-Fi 名称", "路由器 MAC", "信号强度 (dBm)",
            "客户端数", "WPS", "信道", "加密", "频段")
 _NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -25,7 +27,7 @@ def signal_rows(points):
     """从冻结的全部信号生成排序行，未知强度放最后；不修改原数据。"""
     ordered = sorted(points, key=lambda p: (_power(p) is None, -(_power(p) or 0)))
     for number, point in enumerate(ordered, 1):
-        wps = "不支持" if not point.wps_supported else ("已锁定" if point.wps_locked else "支持")
+        wps = wps_status_text(point)
         yield (number, point.ssid or "<隐藏网络>", point.bssid,
                _power(point), len(point.clients), wps,
                point.channel if point.channel > 0 else None, point.encryption, point.band)

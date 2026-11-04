@@ -190,16 +190,11 @@ class AutoCaptureRadioSession:
             self._coordinator.cancel()
 
     def _build_sweep_stale_script(self) -> str:
-        phy_num = self.phy[3:] if self.phy.startswith("phy") and self.phy[3:].isdigit() else ""
+        from .capture_placeholders import placeholder_removal_command
+        stub_name = "hcxstub" + self.phy[3:] if re.fullmatch(r"phy[0-9]+", self.phy) else ""
         stub_cleanup = ""
-        if phy_num:
-            stub_name = f"hcxstub{phy_num}"
-            stub_cleanup = (
-                f"if [ -e /sys/class/net/{stub_name} ]; then "
-                f"  ip link set {stub_name} down 2>/dev/null || true; "
-                f"  iw dev {stub_name} del 2>/dev/null || true; "
-                f"fi; "
-            )
+        if stub_name and stub_name in self._created_stubs:
+            stub_cleanup = placeholder_removal_command(stub_name, self.phy) + "; "
         cleanup_script = (
             f"stale_pids=$(ps w 2>/dev/null | grep 'hcxdumptool' | grep -w '{self.mon_iface}' | grep -v grep | awk '{{print $1}}'); "
             f"if [ -n \"$stale_pids\" ]; then "
@@ -214,26 +209,8 @@ class AutoCaptureRadioSession:
         return cleanup_script
 
     def _build_ensure_phy_stubs_script(self) -> str:
-        exclude_phy = self.phy or ""
-        stub_script = (
-            "for _p in /sys/class/ieee80211/*; do "
-            "  [ -d \"$_p\" ] || continue; "
-            "  _phy=$(basename \"$_p\"); "
-            f"  [ \"$_phy\" != \"{exclude_phy}\" ] || continue; "
-            "  _num=\"${_phy#phy}\"; "
-            "  if ! iw dev 2>/dev/null | grep -q \"phy#${_num}\"; then "
-            "    _sname=\"hcxstub${_num}\"; "
-            "    _rand_mac=\"02:$(hexdump -n 5 -e '/1 \":%02x\"' /dev/urandom 2>/dev/null | cut -c 2-)\"; "
-            "    [ -z \"$_rand_mac\" ] && _rand_mac=\"02:77:88:99:aa:bb\"; "
-            "    if iw phy \"$_phy\" interface add \"$_sname\" type monitor addr \"$_rand_mac\" 2>/dev/null; then "
-            "      echo \"STUB_CREATED:$_sname\"; "
-            "      if ! { printf %s routermanager:autocapture-stub > /sys/class/net/\"$_sname\"/ifalias && "
-            "             ip link set \"$_sname\" up 2>/dev/null; }; then echo STUB_FAILED; fi; "
-            "    fi; "
-            "  fi; "
-            "done"
-        )
-        return stub_script
+        from .capture_placeholders import build_placeholder_script
+        return build_placeholder_script(self.phy)
 
     def _run_capture_pipeline(self, channels: str, allow_takeover: bool):
         """抓包完整流程：接管 -> 建口 -> 起 hcxdumptool -> 读流 -> 收尾回滚 -> 拉成果。"""
@@ -394,19 +371,6 @@ class AutoCaptureRadioSession:
                 # 误判首个 PHY index 为 0 并直接报 failed to get interface list 崩溃退出。
                 # 为零接口物理卡挂载极轻量占位 stub 接口，保证工具正确枚举系统无线卡列表。
                 # 注意：排除正在本次任务中进行抓包的 PHY，避免给即将创建监听网卡的 PHY 造成双监听口冲突。
-                stub_script = self._build_ensure_phy_stubs_script()
-                stub_res = self.runner.run("ensure_phy_stubs", stub_script, timeout=8, cancel_event=self._stop_event)
-                if stub_res.stdout:
-                    for line in stub_res.stdout.splitlines():
-                        if line.startswith("STUB_CREATED:"):
-                            stub_name = line.split(":", 1)[1].strip()
-                            if stub_name and stub_name not in self._created_stubs:
-                                self._created_stubs.append(stub_name)
-                                self.service.radioStreamOutput.emit(
-                                    self.radio_name,
-                                    f"🛡️ [兼容防护] 路由器存在空闲无接口物理卡，已为其挂载轻量兼容占位口 {stub_name}\n",
-                                )
-
             from .capture_placeholders import prepare_placeholders
             with takeover_transaction(cancel_event=self._stop_event):
                 prepare_placeholders(self)
@@ -571,8 +535,6 @@ class AutoCaptureRadioSession:
 
             # 2. 精准匹配版本号（如 hcxdumptool 6.2.4、hcxdumptool 6.0.1、hcxdumptool 6.3.4 等）
             m_ver = re.search(r"hcxdumptool\s+v?(\d+)\.(\d+)(?:\.(\d+))?", out, re.IGNORECASE)
-            if not m_ver:
-                m_ver = re.search(r"\b(\d+)\.(\d+)(?:\.(\d+))?\b", out[:200])
             if m_ver:
                 major = int(m_ver.group(1))
                 minor = int(m_ver.group(2))
@@ -1228,8 +1190,10 @@ class AutoCaptureService(QObject):
             out = Path(custom)
         else:
             repo_root = Path(__file__).resolve().parents[3]
-            out = repo_root / "dist" / "captures"
-        out.mkdir(parents=True, exist_ok=True)
+            from modules.platform_services.application_paths import automatic_capture_directory
+            out = automatic_capture_directory(repo_root)
+        from modules.platform_services.application_paths import ensure_directory
+        ensure_directory(out)
         return out
 
     def get_or_create_session(self, radio_info: OpenWrtRadioInfo) -> AutoCaptureRadioSession:
@@ -1326,34 +1290,31 @@ class AutoCaptureService(QObject):
             )
 
     def start_boot_log_stream(self, restart: bool = False):
-        """开启后台会话日志的 SSH tail -f 流式实时推送，无需定时器轮询。"""
-        old_thread = None
+        """Start an isolated log stream without waiting on the UI thread."""
+        client = getattr(self.ssh, "_client", None)
+        if self._disposed or client is None or not self.ssh.connected:
+            return False
         with self._boot_log_lock:
-            if self._boot_log_thread is not None and self._boot_log_thread.is_alive():
-                if not restart:
-                    return
-                # 需要重启时，先通知终止旧线程与通道
-                self._boot_log_stop_event.set()
-                chan = self._boot_log_channel
-                self._boot_log_channel = None
-                if chan is not None:
-                    try:
-                        chan.close()
-                    except Exception:
-                        pass
-                old_thread = self._boot_log_thread
-
-        if old_thread is not None and old_thread.is_alive():
-            old_thread.join(timeout=1.0)
-
-        with self._boot_log_lock:
-            self._boot_log_stop_event.clear()
+            running = self._boot_log_thread is not None and self._boot_log_thread.is_alive()
+            if running and not self._boot_log_stop_event.is_set() and not restart:
+                return False
+            self._boot_log_stop_event.set()
+            channel = self._boot_log_channel
+            self._boot_log_channel = None
+            if channel is not None:
+                channel.close()
+            cancel = threading.Event()
+            self._boot_log_stop_event = cancel
             self._boot_log_thread = threading.Thread(
-                target=self._run_boot_log_stream,
-                name="BootLogStreamWorker",
-                daemon=True,
+                target=self._run_boot_log_stream, args=(cancel, client),
+                name="BootLogStreamWorker", daemon=True,
             )
-            self._boot_log_thread.start()
+            try:
+                self._boot_log_thread.start()
+            except Exception:
+                cancel.set()
+                raise
+        return True
 
     def stop_boot_log_stream(self):
         """停止后台会话日志的流式推送，安全关闭 channel。"""
@@ -1367,13 +1328,15 @@ class AutoCaptureService(QObject):
             except Exception:
                 pass
 
-    def _run_boot_log_stream(self):
+    def _run_boot_log_stream(self, cancel=None, client=None):
         """后台日志流式读取工作线程循环。"""
         import socket
-        client = getattr(self.ssh, "_client", None)
+        import codecs
+        cancel = cancel if cancel is not None else self._boot_log_stop_event
+        client = client if client is not None else getattr(self.ssh, "_client", None)
         if client is None or not getattr(self.ssh, "connected", False):
             return
-        if self._boot_log_stop_event.is_set():
+        if cancel.is_set():
             return
 
         cmd = (
@@ -1392,13 +1355,14 @@ class AutoCaptureService(QObject):
         )
         try:
             chan = self.ssh.open_capture_stream(
-                client, cmd, self._boot_log_stop_event, timeout=10
+                client, cmd, cancel, timeout=10
             )
         except Exception:
             return
 
         with self._boot_log_lock:
-            if self._boot_log_stop_event.is_set():
+            if (cancel.is_set() or self._disposed
+                    or getattr(self.ssh, "_client", None) is not client):
                 try:
                     chan.close()
                 except Exception:
@@ -1406,16 +1370,19 @@ class AutoCaptureService(QObject):
                 return
             self._boot_log_channel = chan
 
+        decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         try:
-            while not self._boot_log_stop_event.is_set():
+            while (not cancel.is_set() and not self._disposed
+                   and getattr(self.ssh, "_client", None) is client):
                 if chan.exit_status_ready():
                     break
                 try:
                     data = chan.recv(2048)
                     if not data:
                         break
-                    text = data.decode("utf-8", errors="replace")
-                    self.bootLogUpdated.emit(text)
+                    text = decoder.decode(data)
+                    if not cancel.is_set() and getattr(self.ssh, "_client", None) is client:
+                        self.bootLogUpdated.emit(text)
                 except socket.timeout:
                     continue
                 except Exception:

@@ -245,3 +245,87 @@ def main():
 
 
 if __name__=='__main__':main()
+
+
+LINUX_CANDIDATE = re.compile(r'[0-9]+(?:\.[0-9]+)*(?:_[a-z0-9]+)?_[0-9]{8}_[0-9]{6}_[a-f0-9]{8}')
+LINUX_COMPLETE = 'candidate-built-desktop-acceptance-pending'
+
+
+def _linux_stage(root, stage):
+    root = Path(root).resolve(strict=True); stage = Path(stage).absolute()
+    base = root / 'build/debian12/releases'
+    if stage.parent != base or not LINUX_CANDIDATE.fullmatch(stage.name) or stage.resolve() != stage:
+        raise ValueError('Unexpected Linux candidate cleanup target')
+    for path in (stage, *stage.parents):
+        if path == root: break
+        info = path.lstat()
+        if stat.S_ISLNK(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
+            raise ValueError('Linked Linux candidate ancestor')
+    # PyInstaller Linux output contains internal relative library links. They may
+    # be unlinked during cleanup, but never traversed, and cannot escape stage.
+    for current, dirs, files in os.walk(stage, followlinks=False):
+        for name in dirs + files:
+            path = Path(current) / name; info = path.lstat()
+            if stat.S_ISLNK(info.st_mode):
+                if not path.resolve().is_relative_to(stage):
+                    raise ValueError('External Linux candidate link')
+            elif getattr(info, 'st_file_attributes', 0) & 0x400:
+                raise ValueError('Linux candidate reparse point')
+    return stage
+
+
+def cleanup_linux_candidates(root, keep_stage=None, *, keep_failed=None, apply=True):
+    """Keep one verified Linux candidate, independently of Windows releases."""
+    root = Path(root).resolve(); base = root / 'build/debian12/releases'
+    if not base.is_dir(): return dict(retained=None, paths=[])
+    rows = []
+    for stage in base.iterdir():
+        if not LINUX_CANDIDATE.fullmatch(stage.name): continue
+        _linux_stage(root, stage)
+        record = stage / 'report.json'
+        if not record.is_file() or record.is_symlink() or record.stat().st_size > 1024 * 1024: continue
+        data = json.loads(record.read_text(encoding='utf-8'))
+        if data.get('platform') == 'linux-x64': rows.append((stage, data))
+    complete = [(p,d) for p,d in rows if d.get('status') == LINUX_COMPLETE and d.get('zip_crc_verified') is True]
+    if keep_stage is None:
+        kept = max(complete, key=lambda row:row[0].name[-24:]) if complete else None
+    else:
+        kept = next((row for row in complete if row[0] == Path(keep_stage).absolute()), None)
+        if kept is None: raise ValueError('Retained Linux candidate is not verified')
+    if kept:
+        stage, data = kept
+        archive = Path(data['archive']).absolute()
+        if archive.parent != stage or archive.is_symlink(): raise ValueError('Candidate archive escaped its stage')
+        verified_zip(archive, data['sha256'])
+    failed = [p for p,d in rows if d.get('status') == 'failed']
+    last_failed = Path(keep_failed).absolute() if keep_failed is not None else (max(failed, key=lambda path:path.name[-24:]) if failed else None)
+    if keep_failed is not None and last_failed not in failed: raise ValueError('Retained Linux failure is missing')
+    obsolete = [p for p,d in rows if p != (kept[0] if kept else None) and p != last_failed
+                and d.get('status') in {LINUX_COMPLETE, 'failed'}]
+    # Revalidate the complete target set before the first deletion.
+    for path in obsolete: _linux_stage(root, path)
+    if apply:
+        for path in obsolete: shutil.rmtree(_linux_stage(root, path))
+    return dict(retained=str(kept[0]) if kept else None, paths=[str(p) for p in obsolete])
+
+
+def cleanup_failed_linux_candidate(root, stage):
+    """Drop only this failed candidate's reproducible directories, keeping logs."""
+    stage = _linux_stage(root, stage)
+    record_path = stage / 'report.json'
+    if record_path.is_symlink(): raise ValueError('Linked candidate report')
+    with record_path.open('rb') as source: raw = source.read(1024 * 1024 + 1)
+    if len(raw) > 1024 * 1024: raise ValueError('Candidate report exceeds its limit')
+    record = json.loads(raw)
+    if record.get('platform') != 'linux-x64' or record.get('status') != 'failed':
+        raise ValueError('Only a recorded failed Linux candidate may be pruned')
+    paths = [stage / name for name in ('dist', 'pyinstaller') if (stage / name).exists()]
+    for path in paths:
+        if path.is_symlink() or not path.is_dir(): raise ValueError('Unexpected failed build directory')
+    version, date, clock, run = stage.name.rsplit('_', 3)
+    archive = stage / ('LuXiaoGuan_v' + version + '_linux-x64_' + date + '_' + clock + '.zip')
+    if archive.exists() and (archive.is_symlink() or not archive.is_file()):
+        raise ValueError('Unexpected failed candidate archive')
+    for path in paths: shutil.rmtree(path)
+    archive.unlink(missing_ok=True)
+    return cleanup_linux_candidates(root, keep_failed=stage)

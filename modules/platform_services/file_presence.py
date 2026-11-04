@@ -1,9 +1,10 @@
-"""Windows 本地文件元数据核验；外部进程隔离可能阻塞的文件系统调用。"""
+"""Local metadata verification through bounded platform-specific helpers."""
 
 import base64
 import json
 import os
 import time
+import sys
 from dataclasses import dataclass
 
 from .process_capture import capture_process
@@ -75,7 +76,7 @@ def check_local_files(paths, cancel_event, timeout=10):
     """后台一次核验明确路径；总期限、取消和异常均保守返回，所属进程由公共入口回收。"""
     paths = tuple(dict.fromkeys(paths))
     result = {path: FilePresence("unknown", "not_checked") for path in paths}
-    if not paths or os.name != "nt":
+    if not paths or (os.name != "nt" and not sys.platform.startswith("linux")):
         return result
     deadline = time.monotonic() + timeout
     index = 0
@@ -83,20 +84,23 @@ def check_local_files(paths, cancel_event, timeout=10):
         if cancel_event.is_set() or time.monotonic() >= deadline:
             break
         batch, length = [], 0
-        while index < len(paths) and length < 3500:
+        while index < len(paths) and length < 3500 and (not sys.platform.startswith("linux") or len(batch) < 64):
             path = paths[index]
             batch.append(path)
             length += len(json.dumps(path))
             index += 1
-        payload = base64.b64encode(json.dumps(batch).encode("utf-8")).decode("ascii")
-        script = base64.b64encode(_SCRIPT.replace("__PATHS__", payload).encode("utf-16-le")).decode("ascii")
+        if sys.platform.startswith("linux"):
+            from .linux_file_presence import worker_command
+            command = worker_command(batch)
+        else:
+            payload = base64.b64encode(json.dumps(batch).encode("utf-8")).decode("ascii")
+            script = base64.b64encode(_SCRIPT.replace("__PATHS__", payload).encode("utf-16-le")).decode("ascii")
+            command = [os.path.join(os.environ.get("SystemRoot", r"C:\Windows"),
+                                   r"System32\WindowsPowerShell\v1.0\powershell.exe"),
+                       "-NoProfile", "-NonInteractive", "-EncodedCommand", script]
         try:
-            completed = capture_process(
-                [os.path.join(os.environ.get("SystemRoot", r"C:\Windows"),
-                              r"System32\WindowsPowerShell\v1.0\powershell.exe"),
-                 "-NoProfile", "-NonInteractive", "-EncodedCommand", script],
-                cancel_event, timeout=max(0.01, deadline - time.monotonic()), output_limit=65536,
-            )
+            completed = capture_process(command, cancel_event,
+                timeout=max(0.01, deadline - time.monotonic()), output_limit=65536)
             states = json.loads(completed.stdout.decode("utf-8-sig"))
             if (completed.returncode or not isinstance(states, list) or len(states) != len(batch)
                     or any(state not in {"present", "missing", "unknown"} for state in states)):

@@ -1,6 +1,7 @@
 """公共错误日志：只记错误、即时落盘、有界保留。"""
 import logging
 from modules.release_identity import PACKAGE_DIRECTORY
+from modules.platform_services import application_paths
 import os
 from pathlib import Path
 import re
@@ -26,9 +27,9 @@ _URL_AUTH = re.compile(r"([a-z][a-z0-9+.-]*://)[^\s/]+:[^\s/]+@", re.I)
 
 
 def default_error_log_dir():
-    """返回软件旁的错误日志目录，不依赖 Qt 或配置加载。"""
+    """返回当前平台的错误日志目录，不依赖 Qt 或配置加载。"""
     base = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
-    return base / "RouterManagerData" / "error-logs"
+    return application_paths.error_log_dir(base)
 
 
 def redact_error(text):
@@ -67,7 +68,7 @@ class ErrorLogStore:
 
     def validate_directory(self):
         """拒绝链接和重解析点，防止写入或清理到目录外。"""
-        self.directory.mkdir(parents=True, exist_ok=True)
+        application_paths.ensure_directory(self.directory)
         for component in (self.directory, *self.directory.parents):
             info = component.lstat()
             if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:

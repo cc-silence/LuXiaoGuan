@@ -14,7 +14,7 @@ class TaskProgressDialog(FramelessDialog):
     cancelRequested=Signal()
 
     def __init__(self,title,detail='',parent=None,*,show_immediately=True,
-                 cancel_text='取消任务',progress_formatter=None):
+                 cancel_text='取消任务',progress_formatter=None,theme_name=None):
         """调用方连接 cancelRequested，调用 update_progress 与 finish；本类不运行任务。"""
         super().__init__(title,parent,inherit_parent_stylesheet=False,window_controls=False)
         self.started=time.monotonic()
@@ -37,7 +37,7 @@ class TaskProgressDialog(FramelessDialog):
         self.cancel_button=_create_dialog_button(cancel_text,self,'settingsSecondaryButton')
         self.cancel_button.clicked.connect(self.request_cancel)
         self.button_layout.addWidget(self.cancel_button)
-        apply_common_dialog_theme(self,parent)
+        apply_common_dialog_theme(self,parent,theme_name=theme_name)
         scale = UiScaleManager.for_widget(self)
         self.bar.setStyleSheet(task_progress_stylesheet(detect_light_theme(self), scale))
         self.set_scaled_size((450, 0))

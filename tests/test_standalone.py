@@ -14,7 +14,7 @@ from modules.config_manager import ConfigManager, BASE_DIR
 from modules.config_services.config_store import user_config_dir
 from modules.config_services.capture_settings_manager import CaptureSettingsManager
 from modules.desktop_shell.single_instance import SingleInstanceController
-from modules.platform_services import local_gpo_firewall
+from modules.platform_services import firewall_identity
 from router_app.runtime import RouterRuntime
 from router_app.window import RouterWindow
 from router_app.settings import RouterSettings
@@ -53,8 +53,8 @@ class StandaloneTests(unittest.TestCase):
     def test_01_identity_and_config_isolation(self):
         self.assertEqual(BASE_DIR, Path(__file__).resolve().parents[1])
         self.assertTrue(SingleInstanceController._build_server_name().startswith('RouterManager.'))
-        self.assertEqual(local_gpo_firewall.STARTUP_OWNER,'routermanager-startup')
-        self.assertIn('LuXiaoGuan',local_gpo_firewall.OWNER_DESCRIPTION_PREFIX)
+        self.assertEqual(firewall_identity.STARTUP_OWNER,'routermanager-startup')
+        self.assertIn('LuXiaoGuan',firewall_identity.OWNER_DESCRIPTION_PREFIX)
         self.assertEqual(user_config_dir(),Path(self.temp.name)/'user')
         self.assertTrue(self.runtime.capture_service._openwrt_credential_target({'host':'router','port':22,'username':'root'}).startswith('RouterManager:'))
 

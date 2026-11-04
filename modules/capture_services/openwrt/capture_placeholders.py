@@ -39,14 +39,16 @@ def release_owned_placeholder(session):
     owners[0]._created_stubs.remove(name)
 
 
-def prepare_placeholders(self):
+def build_placeholder_script(exclude_phy=""):
     # Called only after all requested real monitor interfaces are ready.
     prefix = "02:" + ":".join(f"{value:02x}" for value in secrets.token_bytes(3))
+    exclusion = f'  [ "$_phy" != "{exclude_phy}" ] || continue; ' if re.fullmatch(r"phy[0-9]+", exclude_phy) else ""
     stub_script = (
         "_inventory=$(iw dev 2>/dev/null) || exit 76; "
         "for _p in /sys/class/ieee80211/*; do "
         "  [ -d \"$_p\" ] || continue; "
         "  _phy=$(basename \"$_p\"); "
+        + exclusion +
         "  _num=\"${_phy#phy}\"; "
         "  if ! printf \"%s\\n\" \"$_inventory\" | grep -q \"^phy#${_num}$\"; then "
         "    _sname=\"hcxstub${_num}\"; "
@@ -61,6 +63,11 @@ def prepare_placeholders(self):
         "  fi; "
         "done"
     )
+    return stub_script
+
+
+def prepare_placeholders(self):
+    stub_script = build_placeholder_script(self.phy)
     stub_res = self.runner.run("ensure_phy_stubs", stub_script, timeout=8, cancel_event=self._stop_event)
     if stub_res.stdout:
         for line in stub_res.stdout.splitlines():

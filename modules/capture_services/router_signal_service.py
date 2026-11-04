@@ -73,6 +73,8 @@ class RouterSignalService(QObject):
         self.signalRefreshed.connect(self._apply_external_inventory)
         from .wireless_setup_service import WirelessSetupService
         self.setup = WirelessSetupService(self)
+        from .management_readiness import ManagementReadiness
+        self.management_readiness=ManagementReadiness(self)
 
     def _sync_transient(self):
         """按 live 互斥与核实位推导 busy/stale；返回是否变化。
@@ -285,6 +287,10 @@ class RouterSignalService(QObject):
 
     def cancel(self):
         """仅取消本模块任务；返回是否发出请求，不阻塞或强制杀线程。"""
+        readiness=getattr(self,'management_readiness',None)
+        session=getattr(readiness,'install_session',None)
+        if session is not None:
+            return self.owner.dependency_service.cancel(session)
         if not self._active:
             return self.setup.cancel()
         pending = self._pending_foreground
@@ -346,7 +352,10 @@ class RouterSignalService(QObject):
 
     def install_dependencies(self):
         """主线程确认后安装信号依赖；装完自动重读，按钮只由快照回放变化。"""
-        return self._start(("__install__",))
+        deferred=self.defer_foreground(self.install_dependencies)
+        if deferred is not None:return deferred
+        dependencies=getattr(self.owner,'dependency_service',None)
+        return bool(dependencies is not None and dependencies.install_async({},scope='signal'))
 
     def _start(self, request):
         """借用现有 worker 生命周期；页面销毁后仍由常驻服务持有任务。
@@ -451,7 +460,7 @@ class RouterSignalService(QObject):
             installing=(request == ("__install__",)), detail=detail, detail_level="info",
         )
         self.snapshotChanged.emit(self.snapshot)
-        if self._mutation_in_flight or coordinate_read:
+        if self._mutation_in_flight or coordinate_read or request == ("__install__",):
             publish = success_slot
             identity = self._current_status_connection()
             def publish_mutation(result):
@@ -571,6 +580,7 @@ class RouterSignalService(QObject):
             self._finish_failed(result.code, result.message)
             return
         self.dependencies_missing = False
+        self.management_readiness.accept(result)
         detail = "信号依赖已安装并通过核验，正在重新读取无线配置。"
         self._verified = False
         self.snapshot = replace(self.snapshot, detail=detail, detail_level="info")

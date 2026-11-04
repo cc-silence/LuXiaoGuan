@@ -1050,6 +1050,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 bool(settings.get("active_deauth", False)),
                 "",
                 lambda: self.radio_session.heal_link(cancel_event),
+                deauth_batches=settings.get("deauth_batches", 5),
             )
             if result.verdict in ("none", "partial"):
                 # 包里没有 EAPOL，或有 EAPOL 但凑不出可跑包组合，密码学上无价值，
@@ -1125,18 +1126,21 @@ class OpenWrtCaptureBackend(CaptureBackend):
         try:
             self.workspace_manager.create(workspace, cancel_event)
             try:
-                candidates, skipped = OpenWrtPasswordVerifier.load_candidates(dictionary, cancel_event)
+                from modules.capture_services.openwrt.password_rounds import load_rounds,verify_with_history
+                rounds, skipped = load_rounds(dictionary, cancel_event)
+                candidates = tuple(candidate for group in rounds for candidate in group.candidates)
             except InterruptedError as exc:
                 raise PasswordVerifyCancelled("在线密码验证已取消。") from exc
             if not candidates:
-                raise RuntimeError("字典中没有可用候选（只要 8-64 字符的非空行）。")
+                raise RuntimeError("字典中没有可用候选（需要 8-63 字节口令或 64 位十六进制密钥）。")
             if message_callback is not None:
                 skip_note = f"，跳过 {skipped} 行" if skipped else ""
                 message_callback(
                     f"字典载入 {len(candidates)} 个候选{skip_note}，开始逐个试连。",
                     "info",
                 )
-            results = self.password_verifier.verify_targets(
+            results = verify_with_history(
+                self.password_verifier,
                 targets,
                 candidates,
                 session_id,
@@ -1145,6 +1149,9 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 reporter.progress,
                 reporter.target_event,
                 pause_control=pause_control,
+                rounds=rounds,
+                dictionary_first=bool(settings.get("password_dictionary_rounds", False)),
+                round_callback=reporter.dictionary_round,
             )
             restore_errors = self.password_verifier.last_restore_errors
             if cancel_event is not None and cancel_event.is_set():
@@ -1623,6 +1630,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 bool(settings.get("active_deauth", False)),
                 f"r{round_no}t{index}",
                 lambda: self.radio_session.heal_link(cancel_event),
+                deauth_batches=settings.get("deauth_batches", 5),
                 **({"group_targets": group} if group_targets else {}),
                 defer_analysis=True,
             )

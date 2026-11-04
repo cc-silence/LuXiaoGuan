@@ -84,10 +84,10 @@ class LoginDiagnosticTests(unittest.TestCase):
 
     def test_timeout_transport_and_key_file_errors_keep_original_exception(self):
         cases = ((paramiko.AuthenticationException('Authentication timeout.'), 'authentication_timeout', 'authentication'),
-                 (ConnectionRefusedError(10061, 'secret endpoint'), 'connection_refused', 'connect_or_handshake'),
-                 (TimeoutError('secret endpoint'), 'connection_timeout', 'connect_or_handshake'),
-                 (paramiko.ssh_exception.NoValidConnectionsError({('private-host',22): ConnectionRefusedError(10061,'secret')}), 'connection_refused', 'connect_or_handshake'),
-                 (paramiko.SSHException('secret banner'), 'handshake_error', 'connect_or_handshake'))
+                 (ConnectionRefusedError(10061, 'secret endpoint'), 'connection_refused', 'tcp_connect'),
+                 (TimeoutError('secret endpoint'), 'connection_timeout', 'tcp_connect'),
+                 (paramiko.ssh_exception.NoValidConnectionsError({('private-host',22): ConnectionRefusedError(10061,'secret')}), 'connection_refused', 'tcp_connect'),
+                 (paramiko.SSHException('secret banner'), 'handshake_error', 'tcp_connect'))
         for error, reason, stage in cases:
             with self.subTest(reason=reason):
                 client=OpenWrtSshClient(); client.configure('private-host.example', 2222, 'private-user')
@@ -109,8 +109,10 @@ class LoginDiagnosticTests(unittest.TestCase):
         fake=Mock();fake.get_transport.return_value=None
         fake.connect.side_effect=FileNotFoundError(2,'private file missing','C:/private-user/private-key.pem')
         with patch('paramiko.SSHClient',return_value=fake):
-            with self.assertRaises(FileNotFoundError):
+            with self.assertRaises(RuntimeError) as caught:
                 self.connect(client,'ignored-passphrase',auth_method='private_key',private_key_path='C:/private-user/private-key.pem')
+        self.assertIsInstance(caught.exception.__cause__, FileNotFoundError)
+        fake.connect.assert_not_called()
         info=client.login_diagnostics.snapshot()[-1]
         self.assertEqual(info['stage'],'configuration')
         self.assertEqual(info['reason'],'key_file_unavailable')

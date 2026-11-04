@@ -173,7 +173,7 @@ class OpenWrtWpsCapture:
         if not bool(getattr(target, "wps_supported", False)):
             return WpsTargetResult(
                 bssid=bssid, ssid=ssid, mode=mode,
-                note="目标不支持 WPS，跳过。",
+                note="未检测到目标的 WPS 广播信息，请重新扫描后再试。",
             )
         if bool(getattr(target, "wps_locked", False)):
             return WpsTargetResult(

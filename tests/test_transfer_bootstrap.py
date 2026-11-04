@@ -13,7 +13,8 @@ from modules.capture_services.openwrt.signal_manager import SignalError
 
 class TransferBootstrapTests(unittest.TestCase):
     def test_binary_upload_with_and_without_external_base64(self):
-        shell = shutil.which("bash") or "C:/Program Files/Git/bin/bash.exe"
+        from tests.posix_shell import local_shell
+        shell = local_shell(bash=True)
         self.assertTrue(Path(shell).is_file(), "real POSIX shell required")
         for codec in ("base64", "printf"):
             for payload in (bytes(range(256))*39+b"\x00\xff", b""):

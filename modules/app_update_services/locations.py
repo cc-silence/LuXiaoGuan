@@ -37,11 +37,24 @@ def cache_lock(cache):
     lock_path = cache / "install.lock"
     if cache.name not in CACHE_DIRECTORIES or linked(cache.parent) or linked(cache) or linked(lock_path):
         raise ValueError("Invalid update cache lease")
-    # The lease owns its container, including first download after cache removal.
+    # The stable lease owns its container on the first download as well.
     cache.mkdir(exist_ok=True)
     if linked(cache) or linked(lock_path):
         raise ValueError("Invalid update cache lease")
-    handle = lock_path.open("a+b")
+    directory = None
+    if os.name=='nt':handle=lock_path.open('a+b')
+    else:
+        import stat
+        from modules.platform_services.linux_update_files import RootedFiles
+        directory=RootedFiles(cache)
+        try:
+            fd=os.open('install.lock',os.O_RDWR|os.O_CREAT|os.O_NOFOLLOW|os.O_CLOEXEC|os.O_NONBLOCK,0o600,dir_fd=directory.fd)
+            info=os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_uid!=os.geteuid() or info.st_mode&0o022:
+                os.close(fd);raise ValueError('Unsafe Linux update lease')
+            handle=os.fdopen(fd,'r+b')
+        except BaseException:
+            directory.__exit__();raise
     acquired = False
     try:
         handle.seek(0,os.SEEK_END)
@@ -60,12 +73,15 @@ def cache_lock(cache):
             pass
         yield acquired
     finally:
-        if acquired:
-            handle.seek(0)
-            if os.name == "nt":
-                import msvcrt
-                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
-            else:
-                import fcntl
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-        handle.close()
+        try:
+            if acquired:
+                handle.seek(0)
+                if os.name == "nt":
+                    import msvcrt
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        finally:
+            handle.close()
+            if directory is not None:directory.__exit__()

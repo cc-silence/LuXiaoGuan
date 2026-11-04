@@ -4,7 +4,10 @@ from modules.platform_services import owned_cache
 
 
 def prepare_cache_directory(path):
-    path = Path(path).absolute()
+    path = Path(path)
+    if ".." in path.parts:
+        raise ValueError("Unsafe cache path")
+    path = path.absolute()
     for existing in (path, *path.parents):
         if existing.exists() or existing.is_symlink():
             break
@@ -17,7 +20,10 @@ def prepare_cache_directory(path):
 
 
 def checked_cache_target(root, target):
-    root, target = Path(root).absolute(), Path(target).absolute()
+    root, target = Path(root), Path(target)
+    if ".." in root.parts or ".." in target.parts:
+        raise ValueError("Unsafe cache path")
+    root, target = root.absolute(), target.absolute()
     target.relative_to(root)
     prepare_cache_directory(target.parent)
     owned_cache.checked_path(root, target.parent)

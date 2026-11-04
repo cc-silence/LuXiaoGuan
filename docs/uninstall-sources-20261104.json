@@ -1,0 +1,123 @@
+{
+  "baseline": "package-mirror-sources-20261103.json",
+  "release_count": 50,
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/v3.0.0/src/app_del.c",
+      "sha256": "dd0b5f19834c97ff3f76322b98a4c7ecff4b4e7625f204784f3da5856e7915ff",
+      "component": "apk",
+      "commit": "v3.0.0"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/1bf042dd06751b693a8544d2317e5b969d666b69/libopkg/opkg_remove.c",
+      "sha256": "a3a2bdbcb4d565c97a8537c715091b56df52097f266fdd220ceba3e70a65775a",
+      "component": "opkg",
+      "commit": "1bf042dd06751b693a8544d2317e5b969d666b69"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/38eccbb1fd694d4798ac1baf88f9ba83d1eac616/libopkg/opkg_remove.c",
+      "sha256": "c97427bd306f1cf512cba5f788ebc716befa885b5866cf3d6ed165516f4e7845",
+      "component": "opkg",
+      "commit": "38eccbb1fd694d4798ac1baf88f9ba83d1eac616"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/c09fe2098718807ddbca13ee36e3e38801822946/libopkg/opkg_remove.c",
+      "sha256": "a3a2bdbcb4d565c97a8537c715091b56df52097f266fdd220ceba3e70a65775a",
+      "component": "opkg",
+      "commit": "c09fe2098718807ddbca13ee36e3e38801822946"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/c5dccea956b8be14eabf6ff69b331a3e9ac36749/libopkg/opkg_remove.c",
+      "sha256": "a3a2bdbcb4d565c97a8537c715091b56df52097f266fdd220ceba3e70a65775a",
+      "component": "opkg",
+      "commit": "c5dccea956b8be14eabf6ff69b331a3e9ac36749"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/d038e5b6d155784575f62a66a8bb7e874173e92e/libopkg/opkg_remove.c",
+      "sha256": "c97427bd306f1cf512cba5f788ebc716befa885b5866cf3d6ed165516f4e7845",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/dcbc142e51f5f5f2fb9e4e44657e013d3c36a52b/libopkg/opkg_remove.c",
+      "sha256": "a3a2bdbcb4d565c97a8537c715091b56df52097f266fdd220ceba3e70a65775a",
+      "component": "opkg",
+      "commit": "dcbc142e51f5f5f2fb9e4e44657e013d3c36a52b"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/f2166a89b7e96e2c60002959731eebc5f45fa318/libopkg/opkg_remove.c",
+      "sha256": "a3a2bdbcb4d565c97a8537c715091b56df52097f266fdd220ceba3e70a65775a",
+      "component": "opkg",
+      "commit": "f2166a89b7e96e2c60002959731eebc5f45fa318"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/app_del.c",
+      "sha256": "dd0b5f19834c97ff3f76322b98a4c7ecff4b4e7625f204784f3da5856e7915ff",
+      "component": "apk",
+      "commit": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/d093f7c198a64bff0cd58afeaf638909fda24ca8/src/app_del.c",
+      "sha256": "dd0b5f19834c97ff3f76322b98a4c7ecff4b4e7625f204784f3da5856e7915ff",
+      "component": "apk",
+      "commit": "d093f7c198a64bff0cd58afeaf638909fda24ca8"
+    }
+  ],
+  "execution_sources": [
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/commit.c",
+      "sha256": "5f5b158da4145f089212a17a7c8ede8487edb516cb2c6ef06f56f6099360a743",
+      "component": "apk",
+      "commit": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/d093f7c198a64bff0cd58afeaf638909fda24ca8/src/commit.c",
+      "sha256": "5f5b158da4145f089212a17a7c8ede8487edb516cb2c6ef06f56f6099360a743",
+      "component": "apk",
+      "commit": "d093f7c198a64bff0cd58afeaf638909fda24ca8"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/1bf042dd06751b693a8544d2317e5b969d666b69/libopkg/opkg_cmd.c",
+      "sha256": "f0ca344442c1d608b837bd3201f1750744ac1f14b778a2668cfe1849991364de",
+      "component": "opkg",
+      "commit": "1bf042dd06751b693a8544d2317e5b969d666b69"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/38eccbb1fd694d4798ac1baf88f9ba83d1eac616/libopkg/opkg_cmd.c",
+      "sha256": "54edbf36b3d3813f29c67d3de459fc9854d6cfc178501eb3278e201b721322ec",
+      "component": "opkg",
+      "commit": "38eccbb1fd694d4798ac1baf88f9ba83d1eac616"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/c09fe2098718807ddbca13ee36e3e38801822946/libopkg/opkg_cmd.c",
+      "sha256": "bc2e82557f5c9d615f77bd04ada211c06ad10cad1e4f282002649e51de999c92",
+      "component": "opkg",
+      "commit": "c09fe2098718807ddbca13ee36e3e38801822946"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/c5dccea956b8be14eabf6ff69b331a3e9ac36749/libopkg/opkg_cmd.c",
+      "sha256": "1e9b3fb6f600ab36def2bf513cbc7804f46f46f934900de34559a3874b7cd324",
+      "component": "opkg",
+      "commit": "c5dccea956b8be14eabf6ff69b331a3e9ac36749"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/d038e5b6d155784575f62a66a8bb7e874173e92e/libopkg/opkg_cmd.c",
+      "sha256": "54edbf36b3d3813f29c67d3de459fc9854d6cfc178501eb3278e201b721322ec",
+      "component": "opkg",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/dcbc142e51f5f5f2fb9e4e44657e013d3c36a52b/libopkg/opkg_cmd.c",
+      "sha256": "bc2e82557f5c9d615f77bd04ada211c06ad10cad1e4f282002649e51de999c92",
+      "component": "opkg",
+      "commit": "dcbc142e51f5f5f2fb9e4e44657e013d3c36a52b"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/f2166a89b7e96e2c60002959731eebc5f45fa318/libopkg/opkg_cmd.c",
+      "sha256": "1e9b3fb6f600ab36def2bf513cbc7804f46f46f934900de34559a3874b7cd324",
+      "component": "opkg",
+      "commit": "f2166a89b7e96e2c60002959731eebc5f45fa318"
+    }
+  ],
+  "review": "Exact 50-release mapping and cached hashes rechecked; native exit propagation and APK simulation inspected."
+}

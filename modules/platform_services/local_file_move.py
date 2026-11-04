@@ -1,5 +1,5 @@
 """本地栏内移动；Windows rename 拒绝覆盖。"""
-import os
+from modules.platform_services.local_rename import rename_without_replace
 import stat
 from pathlib import Path
 from .file_metadata import same_local_path
@@ -29,7 +29,7 @@ def move_local(path, parent, folder, expected, folder_expected, cancel):
         raise FileExistsError('目标已有同名项目，未覆盖：'+str(destination))
     if cancel.is_set():raise InterruptedError('操作已取消。')
     # Windows rename 不覆盖已有项目；不回退为复制后删除。
-    os.rename(source,destination)
+    rename_without_replace(source,destination)
     return str(destination)
 
 

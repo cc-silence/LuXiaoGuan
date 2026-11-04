@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import unittest
+from tests.platform_fixtures import mock_windows_elevation
 from unittest.mock import patch
 from types import SimpleNamespace as NS
 from pathlib import Path
@@ -138,7 +139,7 @@ class FailureSnapshotTests(unittest.TestCase):
                              b'LEASE:{"stage":"lease_renew","native_error":0}\n')
             return True,0
         with patch.object(windows.subprocess,'run',return_value=NS(returncode=5)), \
-             patch('modules.platform_services.update_elevation.run_elevated_update',side_effect=elevate),observing(rows.append):
+             mock_windows_elevation(side_effect=elevate),observing(rows.append):
             windows.renew(adapter(),20,lambda:True)
         self.assertTrue(any(row['stage']=='lease_release' and row.get('native_error')==83 for row in rows))
         self.assertTrue(any(row['stage']=='lease_renew' and row.get('native_error')==0 for row in rows))

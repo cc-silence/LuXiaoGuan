@@ -11,7 +11,7 @@ from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import QCheckBox, QLabel, QPushButton, QTextEdit
 
 from modules.config_manager import ConfigManager
-from modules.dialog_theme import build_current_base_stylesheet
+from modules.dialog_theme import build_current_base_stylesheet, build_base_stylesheet
 from .frameless_dialog import FramelessDialog
 from modules.ui_scale_manager import UiScaleManager
 
@@ -56,7 +56,7 @@ def _add_message_content(dialog, message):
     dialog.content_layout.addWidget(message_label, 1)
 
 
-def apply_common_dialog_theme(dialog, parent):
+def apply_common_dialog_theme(dialog, parent, *, theme_name=None):
     """为公共消息和确认弹窗加载完整的统一主题。
 
     参数：dialog 是已创建的公共无边框弹窗；parent 只用于读取可选的缩放管理器。
@@ -67,12 +67,11 @@ def apply_common_dialog_theme(dialog, parent):
     """
     config_manager = ConfigManager()
     scale_manager = UiScaleManager.for_widget(parent)
-    dialog.setStyleSheet(
-        build_current_base_stylesheet(
-            config_manager,
-            scale_manager=scale_manager,
-        )
-    )
+    if theme_name is None:
+        stylesheet = build_current_base_stylesheet(config_manager, scale_manager=scale_manager)
+    else:
+        stylesheet = build_base_stylesheet(config_manager, theme_name=theme_name, scale_manager=scale_manager)
+    dialog.setStyleSheet(stylesheet)
 
 
 class ConfirmDialog(FramelessDialog):

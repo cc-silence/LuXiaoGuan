@@ -13,12 +13,12 @@ AUTH_METHODS = frozenset({'none', 'password', 'publickey', 'keyboard-interactive
                           'gssapi-with-mic', 'gssapi-keyex', 'hostbased'})
 ENUMS = {
     'status': {'started', 'completed', 'failed', 'timeout', 'confirmation_required', 'blocked'},
-    'stage': {'connect_or_handshake', 'host_key', 'authentication', 'configuration', 'complete'},
+    'stage': {'connect_or_handshake', 'tcp_connect', 'ssh_banner', 'ssh_handshake', 'host_key', 'authentication', 'configuration', 'complete'},
     'reason': {'pending', 'authenticated', 'existing_connection', 'authentication_rejected',
-               'authentication_timeout', 'authentication_interrupted', 'auth_method_not_allowed',
+               'authentication_timeout', 'authentication_interrupted', 'public_key_algorithm_mismatch', 'auth_method_not_allowed',
                'host_key_confirmation_required', 'host_key_changed', 'connection_timeout',
                'connection_refused', 'connection_error', 'windows_access_denied', 'name_resolution_failed',
-               'key_passphrase_required', 'key_file_unavailable', 'configuration_error', 'dependency_unavailable', 'handshake_error', 'unexpected_error'},
+               'key_passphrase_required', 'key_file_unavailable', 'key_file_invalid', 'configuration_error', 'dependency_unavailable', 'handshake_error', 'ssh_banner_unavailable', 'handshake_timeout', 'algorithm_negotiation_failed', 'protocol_version_mismatch', 'unexpected_error'},
     'auth_method': {'password', 'private_key'},
     'username_kind': {'root', 'other', 'empty'},
     'server_family': {'dropbear', 'openssh', 'paramiko', 'other', 'unknown'},
@@ -26,7 +26,7 @@ ENUMS = {
                       'ecdsa-sha2-nistp384', 'ecdsa-sha2-nistp521', 'unknown'},
 }
 BOOLS = {'password_present', 'password_boundary_whitespace', 'private_key_selected',
-         'host_key_verified', 'transport_active', 'server_identified', 'allowed_auth_known'}
+         'tcp_connected', 'ssh_banner_received', 'host_key_verified', 'transport_active', 'server_identified', 'allowed_auth_known'}
 NUMBERS = {'id', 'port', 'timeout_seconds', 'elapsed_seconds', 'errno', 'winerror'}
 EXCEPTIONS = {'AuthenticationException', 'BadAuthenticationType', 'PasswordRequiredException',
               'HostKeyConfirmationRequired', 'HostKeyChangedError', 'TimeoutError', 'OSError',
@@ -100,6 +100,10 @@ class LoginDiagnostics:
             if row is not None:
                 row.update(safe_row(fields))
 
+    def current(self):
+        with self._lock:
+            return safe_row(getattr(self._local, 'row', {}))
+
     def host_key(self, name, verified=False):
         self.update(stage='host_key', host_key_type=name if name in ENUMS['host_key_type'] else 'unknown',
                     host_key_verified=verified)
@@ -112,6 +116,10 @@ class LoginDiagnostics:
         banner = getattr(transport, 'remote_version', '')
         if not isinstance(banner, str):
             banner = ''
+        received = bool(re.match(r'^SSH-[0-9.]+-', banner[:256]))
+        self.update(ssh_banner_received=received)
+        if received and self.current().get('stage') == 'ssh_banner':
+            self.update(stage='ssh_handshake')
         match = re.match(r'^SSH-[0-9.]+-(dropbear|OpenSSH|paramiko)[_-]([0-9]+(?:\.[0-9]+){0,3})(?:[^0-9.]|$)', banner[:256], re.I)
         self.update(server_identified=bool(banner), server_family=match[1].lower() if match else 'other' if banner else 'unknown')
         if match:
@@ -136,7 +144,10 @@ class LoginDiagnostics:
             name = type(exc).__name__
             fields['stage'] = getattr(self._local, 'row', {}).get('stage', 'connect_or_handshake')
             fields.update(status='failed', exception_type=name if name in EXCEPTIONS else 'Exception', reason='unexpected_error')
-            if isinstance(exc, HostKeyConfirmationRequired):
+            from .ssh_login_probe import PrivateKeyLoadError
+            if isinstance(error, PrivateKeyLoadError):
+                fields.update(stage='configuration', reason=error.reason)
+            elif isinstance(exc, HostKeyConfirmationRequired):
                 fields.update(status='confirmation_required', stage='host_key', reason='host_key_confirmation_required')
             elif isinstance(exc, HostKeyChangedError):
                 fields.update(status='blocked', stage='host_key', reason='host_key_changed')
@@ -146,26 +157,45 @@ class LoginDiagnostics:
             elif isinstance(exc, paramiko.PasswordRequiredException):
                 fields.update(stage='configuration', reason='key_passphrase_required')
             elif isinstance(exc, paramiko.AuthenticationException):
-                reason = 'authentication_timeout' if str(exc) == 'Authentication timeout.' else (
-                    'authentication_rejected' if str(exc) == 'Authentication failed.' else 'authentication_interrupted')
+                from .ssh_login_probe import negotiation_reason
+                reason = negotiation_reason(exc) or ('authentication_timeout' if str(exc) == 'Authentication timeout.' else (
+                    'authentication_rejected' if str(exc) == 'Authentication failed.' else 'authentication_interrupted'))
                 fields.update(stage='authentication', reason=reason, status='timeout' if reason == 'authentication_timeout' else 'failed')
             elif isinstance(exc, socket.gaierror):
                 fields.update(stage='connect_or_handshake', reason='name_resolution_failed')
             elif isinstance(exc, TimeoutError):
-                fields.update(status='timeout', reason='connection_timeout')
+                connected = self.current().get('tcp_connected') is True
+                reason = ('handshake_timeout' if self.current().get('ssh_banner_received') else
+                          'ssh_banner_unavailable') if connected else 'connection_timeout'
+                if fields['stage'] == 'authentication':
+                    reason = 'authentication_timeout'
+                fields.update(status='timeout', reason=reason)
             elif isinstance(exc, FileNotFoundError) and getattr(self._local, 'row', {}).get('auth_method') == 'private_key':
                 fields.update(stage='configuration', reason='key_file_unavailable')
             elif isinstance(exc, paramiko.ssh_exception.NoValidConnectionsError):
                 errors = list(exc.errors.values())
-                fields.update(stage='connect_or_handshake', reason='connection_refused'
+                fields.update(reason='connection_refused'
                               if errors and all(isinstance(e, ConnectionRefusedError) for e in errors) else 'connection_error')
             elif isinstance(exc, OSError):
-                fields.update(reason='windows_access_denied' if getattr(exc, 'winerror', None) == 10013 else
-                              'connection_refused' if isinstance(exc, ConnectionRefusedError) else 'connection_error')
+                reason = ('authentication_interrupted' if fields['stage'] == 'authentication'
+                          and isinstance(exc, ConnectionError) else
+                          'windows_access_denied' if getattr(exc, 'winerror', None) == 10013 else
+                          'connection_refused' if isinstance(exc, ConnectionRefusedError) else 'connection_error')
+                fields.update(reason=reason)
             elif isinstance(exc, ValueError):
                 fields.update(stage='configuration', reason='configuration_error')
-            elif isinstance(exc, paramiko.SSHException):
-                fields.update(reason='handshake_error')
+            elif isinstance(exc, (paramiko.SSHException, EOFError)):
+                from .ssh_login_probe import negotiation_reason
+                reason = negotiation_reason(exc)
+                if reason:
+                    stage = fields['stage'] if fields['stage'] in {'host_key', 'authentication'} else 'ssh_handshake'
+                    fields.update(stage=stage, reason=reason)
+                elif fields['stage'] == 'authentication':
+                    fields.update(reason='authentication_interrupted')
+                elif self.current().get('tcp_connected') is True and not self.current().get('ssh_banner_received'):
+                    fields.update(stage='ssh_banner', reason='ssh_banner_unavailable')
+                else:
+                    fields.update(reason='handshake_error')
             for key in ('errno', 'winerror'):
                 value = getattr(exc, key, None)
                 if type(value) is int:

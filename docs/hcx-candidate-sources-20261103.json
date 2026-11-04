@@ -1,0 +1,88 @@
+{
+  "checked_at": "2026-11-03T14:39:05.853180+00:00",
+  "baseline_50_releases": "package-mirror-sources-20261103.json",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/1bf042dd06751b693a8544d2317e5b969d666b69/libopkg/pkg_parse.c",
+      "commit": "1bf042dd06751b693a8544d2317e5b969d666b69",
+      "sha256": "bc00833f44ea71f15d35c84d9170784e232cbe49bfb4bd90e6a46e3f557018bc",
+      "fields_checked": [
+        "Architecture",
+        "SHA256sum",
+        "Size",
+        "Version"
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/38eccbb1fd694d4798ac1baf88f9ba83d1eac616/libopkg/pkg_parse.c",
+      "commit": "38eccbb1fd694d4798ac1baf88f9ba83d1eac616",
+      "sha256": "bc00833f44ea71f15d35c84d9170784e232cbe49bfb4bd90e6a46e3f557018bc",
+      "fields_checked": [
+        "Architecture",
+        "SHA256sum",
+        "Size",
+        "Version"
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/c09fe2098718807ddbca13ee36e3e38801822946/libopkg/pkg_parse.c",
+      "commit": "c09fe2098718807ddbca13ee36e3e38801822946",
+      "sha256": "75aef56e6bab7d6237d025ef2b8f6978365817242080bae4f136216e4aee3ed3",
+      "fields_checked": [
+        "Architecture",
+        "SHA256sum",
+        "Size",
+        "Version"
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/c5dccea956b8be14eabf6ff69b331a3e9ac36749/libopkg/pkg_parse.c",
+      "commit": "c5dccea956b8be14eabf6ff69b331a3e9ac36749",
+      "sha256": "75aef56e6bab7d6237d025ef2b8f6978365817242080bae4f136216e4aee3ed3",
+      "fields_checked": [
+        "Architecture",
+        "SHA256sum",
+        "Size",
+        "Version"
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/d038e5b6d155784575f62a66a8bb7e874173e92e/libopkg/pkg_parse.c",
+      "commit": "d038e5b6d155784575f62a66a8bb7e874173e92e",
+      "sha256": "bc00833f44ea71f15d35c84d9170784e232cbe49bfb4bd90e6a46e3f557018bc",
+      "fields_checked": [
+        "Architecture",
+        "SHA256sum",
+        "Size",
+        "Version"
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/dcbc142e51f5f5f2fb9e4e44657e013d3c36a52b/libopkg/pkg_parse.c",
+      "commit": "dcbc142e51f5f5f2fb9e4e44657e013d3c36a52b",
+      "sha256": "75aef56e6bab7d6237d025ef2b8f6978365817242080bae4f136216e4aee3ed3",
+      "fields_checked": [
+        "Architecture",
+        "SHA256sum",
+        "Size",
+        "Version"
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/f2166a89b7e96e2c60002959731eebc5f45fa318/libopkg/pkg_parse.c",
+      "commit": "f2166a89b7e96e2c60002959731eebc5f45fa318",
+      "sha256": "75aef56e6bab7d6237d025ef2b8f6978365817242080bae4f136216e4aee3ed3",
+      "fields_checked": [
+        "Architecture",
+        "SHA256sum",
+        "Size",
+        "Version"
+      ]
+    }
+  ],
+  "conclusions": [
+    "All seven exact opkg parser revisions recognize package version, architecture, size and SHA256 fields.",
+    "Candidate flow reuses existing official IPK/APK metadata parsing. No native installation command or supported hardware branch changed.",
+    "Source-index integrity is mandatory; per-file confirmation permits a different build from the preset project pin, not a source-index mismatch."
+  ]
+}

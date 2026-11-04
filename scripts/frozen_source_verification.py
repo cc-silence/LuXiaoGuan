@@ -26,3 +26,17 @@ def verify_frozen_sources(executable, root):
     if changed: raise ValueError("Frozen project code differs from source: " + ", ".join(changed[:12]))
     if not verified: raise ValueError("No project modules were verified in the executable")
     return {"frozen_source_modules": len(verified), "frozen_source_sha256": verified}
+
+
+def verify_frozen_entrypoint(executable, source):
+    """Compare the compiled launch script too; it is stored outside the PYZ."""
+    import marshal
+    from types import CodeType
+    source = Path(source)
+    archive = CArchiveReader(str(executable))
+    actual = marshal.loads(archive.extract(source.stem))
+    if not isinstance(actual, CodeType): raise ValueError('Invalid frozen launch script')
+    raw = source.read_bytes()
+    expected = compile(raw, actual.co_filename, 'exec', dont_inherit=True, optimize=0)
+    if actual != expected: raise ValueError('Frozen entrypoint differs from source: ' + source.name)
+    return {'frozen_entrypoint_sha256': sha256(raw).hexdigest()}

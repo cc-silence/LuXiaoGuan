@@ -36,12 +36,13 @@ class RouterRuntime(QObject):
         self.capture_service.router_signals.snapshotChanged.connect(self._update_log_privacy)
         self._startup_firewall_controller = StartupFirewallController(self)
         self.capture_service.network_ready = self._startup_firewall_controller.wait_ready
+        self.capture_service.network_prepare = self._startup_firewall_controller.prepare_connection
         self.app_updates = AppUpdatePresenter(version, self)
         QApplication.instance().routermanager_app_updates = self.app_updates
         self.capture_service.activityChanged.connect(self._maybe_finish_exit)
         self.app_updates.activityChanged.connect(self._maybe_finish_exit)
         self._startup_firewall_controller.activity_changed.connect(self._maybe_finish_exit)
-        self._startup_firewall_controller.finished.connect(self._firewall_finished)
+        self._startup_firewall_controller.finished.connect(self._firewall_finished, Qt.QueuedConnection)
 
     def _history_close_finished(self):
         self._history_closed = True

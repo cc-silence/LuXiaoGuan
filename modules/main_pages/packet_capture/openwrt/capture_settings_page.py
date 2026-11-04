@@ -140,11 +140,22 @@ class CaptureSettingsPage(QWidget):
         self._rounds_number_row = create_form_row(card, "定向抓包轮数", self.handshake_rounds, self.handshake_rounds.toolTip())
         layout.addLayout(self._rounds_number_row)
         layout.addWidget(self.active_deauth)
+        self.deauth_batches = QSpinBox(card)
+        self.deauth_batches.setObjectName("captureSpinBox")
+        self.deauth_batches.setRange(1, 20)
+        self.deauth_batches.setValue(int(settings.get("deauth_batches", 5)))
+        self.deauth_batches.setSuffix(" 批")
+        self.deauth_batches.setToolTip("范围 1-20，默认 5。每批会发送一组断连帧，不是单帧；数值越大对目标连接的干扰越多，不代表更快。轮间隔保持 20 秒。")
+        layout.addLayout(create_form_row(card, "单次主动断连批次", self.deauth_batches, self.deauth_batches.toolTip()))
+        self.deauth_batches.setEnabled(self.active_deauth.isChecked())
+        self.active_deauth.toggled.connect(self.deauth_batches.setEnabled)
+        self.deauth_batches.lineEdit().editingFinished.connect(self.settingsChanged)
         root.addWidget(card)
         self.handshake_rounds.setValue(int(settings.get("handshake_rounds", 3)))
         self.handshake_rounds_mode.setCurrentIndex(1 if bool(settings.get("handshake_rounds_infinite", False)) else 0)
         self._apply_rounds_mode_visible()
         self.active_deauth.setChecked(bool(settings.get("active_deauth", True)))
+        self.deauth_batches.setEnabled(self.active_deauth.isChecked())
         self.handshake_rounds.lineEdit().editingFinished.connect(self.settingsChanged)
         self.handshake_rounds_mode.currentIndexChanged.connect(self._sync_rounds_mode)
         self.active_deauth.toggled.connect(lambda _checked: self.settingsChanged.emit())
@@ -272,6 +283,7 @@ class CaptureSettingsPage(QWidget):
             "generate_cap": True,
             "auto_open_dir": self.auto_open.isChecked(),
             "active_deauth": self.active_deauth.isChecked(),
+            "deauth_batches": self.deauth_batches.value(),
             "password_dictionaries": list(self._dictionary_paths()),
             "password_dictionary": next(iter(self._dictionary_paths()), ""),
         }

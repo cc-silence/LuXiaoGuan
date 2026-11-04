@@ -60,8 +60,9 @@ class FactoryDefaultsTests(unittest.TestCase):
         self.assertEqual(read_factory_defaults(maintenance,threading.Event())['address'],'192.168.1.1')
 
     def test_real_shell_probe_emits_state_only_without_hash_or_writes(self):
-        bash=Path('C:/Program Files/Git/bin/bash.exe')
-        self.assertTrue(bash.is_file(),'POSIX shell required for production probe verification')
+        from tests.posix_shell import local_shell
+        bash=local_shell(bash=True)
+        self.assertIsNotNone(bash,'POSIX shell required for production probe verification')
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);(root/'rom/etc/config').mkdir(parents=True)
             (root/'rom/etc/config/network').write_bytes(b'config interface lan\n')

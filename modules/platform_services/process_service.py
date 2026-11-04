@@ -261,7 +261,7 @@ _STILL_ACTIVE = 259
 # 保证模块在非 Windows 平台仍可正常 import）
 _kernel32 = None
 _user32 = None
-_WND_ENUM_PROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+_WND_ENUM_PROC = None
 
 
 def _configured_kernel32():
@@ -293,8 +293,9 @@ def _configured_kernel32():
 
 def _configured_user32():
     """返回已配置好原型的 user32 句柄（懒加载，进程内缓存）。"""
-    global _user32
+    global _user32, _WND_ENUM_PROC
     if _user32 is None:
+        _WND_ENUM_PROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
         u32 = ctypes.WinDLL("user32", use_last_error=True)
         u32.EnumWindows.restype = wintypes.BOOL
         u32.EnumWindows.argtypes = [_WND_ENUM_PROC, wintypes.LPARAM]

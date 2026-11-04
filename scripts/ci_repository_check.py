@@ -9,8 +9,17 @@ import sys
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-# Both native screen hit-testing cases require a real Windows display backend.
 ALLOWED_SKIPS = {"tests.test_native_window_visibility": 2}
+# The renameat2 integration case requires an actual Linux kernel.
+if sys.platform == "win32":
+    ALLOWED_SKIPS["tests.test_linux_full_package"] = 1
+    ALLOWED_SKIPS["tests.test_linux_local_files"] = 1
+    ALLOWED_SKIPS["tests.test_linux_result_presence"] = 1
+    ALLOWED_SKIPS["tests.test_linux_update_files"] = 10
+    ALLOWED_SKIPS["tests.test_linux_update_process"] = 3
+    ALLOWED_SKIPS["tests.test_linux_release_layout"] = 1
+    ALLOWED_SKIPS["tests.test_linux_user_install"] = 5
+    ALLOWED_SKIPS["tests.test_linux_update_handoff"] = 3
 
 
 def tracked_paths():

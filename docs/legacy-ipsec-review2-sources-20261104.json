@@ -1,0 +1,101 @@
+{
+  "checked_utc": "2026-11-04T13:47:58.025378+00:00",
+  "scope": "Three implementation rounds plus three added official-document cross-check rounds; no router-side change",
+  "sources": [
+    {
+      "name": "registry-types",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry-value-types",
+      "source_url": "https://raw.githubusercontent.com/MicrosoftDocs/win32/docs/desktop-src/SysInfo/registry-value-types.md",
+      "read_method": "web tool official source read",
+      "path": "build/ipsec-review2-20261104/sources/registry-types.md",
+      "bytes": 5177,
+      "sha256": "afbdeb112d6d7b453decee2fbcc58b14e8688b84b010fccbfce1975a88b91fd2"
+    },
+    {
+      "name": "registry-structure",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/sysinfo/structure-of-the-registry",
+      "source_url": "https://raw.githubusercontent.com/MicrosoftDocs/win32/docs/desktop-src/SysInfo/structure-of-the-registry.md",
+      "read_method": "web tool official source read",
+      "path": "build/ipsec-review2-20261104/sources/registry-structure.md",
+      "bytes": 2452,
+      "sha256": "9a2ee75a93d7ac35479e047e7192b6c5a27ce5e6bbecf08f213b8dfb1a5ec939"
+    },
+    {
+      "name": "guid-format",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/guiddef/ns-guiddef-guid",
+      "source_url": "https://raw.githubusercontent.com/MicrosoftDocs/sdk-api/docs/sdk-api-src/content/guiddef/ns-guiddef-guid.md",
+      "read_method": "web tool official source read",
+      "path": "build/ipsec-review2-20261104/sources/guid-format.md",
+      "bytes": 2291,
+      "sha256": "f28d2c3db408dc11f83457ce687b388604e7bc73c20d74fdb53ed38f1ce8160f"
+    },
+    {
+      "name": "per-user-windows-directory",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getwindowsdirectoryw",
+      "source_url": "https://raw.githubusercontent.com/MicrosoftDocs/sdk-api/docs/sdk-api-src/content/sysinfoapi/nf-sysinfoapi-getwindowsdirectoryw.md",
+      "read_method": "web tool official source read",
+      "path": "build/ipsec-review2-20261104/sources/per-user-windows-directory.md",
+      "bytes": 6442,
+      "sha256": "ee8789c4b4369ef40aa3d09229cc304133befda37f6a069084a9f3a2d6272631"
+    },
+    {
+      "name": "system-windows-directory",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getsystemwindowsdirectoryw",
+      "source_url": "https://raw.githubusercontent.com/MicrosoftDocs/sdk-api/docs/sdk-api-src/content/sysinfoapi/nf-sysinfoapi-getsystemwindowsdirectoryw.md",
+      "read_method": "web tool official source read",
+      "path": "build/ipsec-review2-20261104/sources/system-windows-directory.md",
+      "bytes": 5292,
+      "sha256": "ca4adbac207c73a9a50199f2ed9dd5055ddf6f985311376b41609da7417feefd"
+    },
+    {
+      "name": "filter-arbitration",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/fwp/filter-arbitration",
+      "source_url": "https://raw.githubusercontent.com/MicrosoftDocs/win32/docs/desktop-src/FWP/filter-arbitration.md",
+      "read_method": "web tool official source read",
+      "path": "build/ipsec-review2-20261104/sources/filter-arbitration.md",
+      "bytes": 9117,
+      "sha256": "6ae7191b58531a6d4e1615913258c15e28a56894cbf52434ad2f76a0fca55abe"
+    },
+    {
+      "name": "shell-execution",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shellexecuteexw",
+      "source_url": "https://raw.githubusercontent.com/MicrosoftDocs/sdk-api/docs/sdk-api-src/content/shellapi/nf-shellapi-shellexecuteexw.md",
+      "read_method": "web tool official source read",
+      "path": "build/ipsec-review2-20261104/sources/shell-execution.md",
+      "bytes": 7721,
+      "sha256": "e7744fafd2b8c2842ef97dab32a01af5d05c0190a68cec1efcfc784148c68d54"
+    },
+    {
+      "name": "python310-io",
+      "url": "https://docs.python.org/3.10/library/io.html",
+      "source_url": "https://docs.python.org/3.10/library/io.html",
+      "read_method": "web tool official source read",
+      "path": "build/ipsec-review2-20261104/sources/python310-io.html",
+      "bytes": 150087,
+      "sha256": "52ace14d2e74b22ca6efd8c693c597f31b7bcdfc887544bef4b6420c91770b4e"
+    },
+    {
+      "name": "python310-logging",
+      "url": "https://docs.python.org/3.10/library/logging.html",
+      "source_url": "https://docs.python.org/3.10/library/logging.html",
+      "read_method": "web tool official source read",
+      "path": "build/ipsec-review2-20261104/sources/python310-logging.html",
+      "bytes": 165590,
+      "sha256": "a7ec5a96a6ab26e8d63542ea75c31424400edd25cbfde1129a6cd78e588907fd"
+    },
+    {
+      "name": "python310-os",
+      "url": "https://docs.python.org/3.10/library/os.html",
+      "source_url": "https://docs.python.org/3.10/library/os.html",
+      "read_method": "web tool official source read",
+      "path": "build/ipsec-review2-20261104/sources/python310-os.html",
+      "bytes": 564069,
+      "sha256": "ee0cc58a9dadb846f0563e8d22a23e9246cb3e31bc54d62da9986cf19145383c"
+    }
+  ],
+  "additional_read_only_references": [
+    "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/netsh-ipsec",
+    "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-gpipsec/d806a66a-5b78-41ba-a25e-95c2420a8d58",
+    "https://learn.microsoft.com/fr-fr/security-updates/security/20141607"
+  ]
+}

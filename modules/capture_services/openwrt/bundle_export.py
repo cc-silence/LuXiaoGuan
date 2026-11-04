@@ -8,6 +8,7 @@ import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
+from modules.platform_services.local_rename import rename_without_replace
 from .bundle_storage_lock import locked_bundle
 from .bundle_dependencies import closure
 from .bundle_specs import bundle_spec
@@ -143,7 +144,7 @@ def export_packages(kind,selection,wanted,destination,cancel,progress=None,*,roo
         guard.check()
         if target.exists():
             raise FileExistsError("导出目录已存在，请重试选择一个新目录。")
-        temporary.rename(target)
+        rename_without_replace(temporary,target)
         return dict(path=str(target),count=len(rows),size=total,firmware_required=firmware)
     finally:
         # Only remove this invocation's absolute staging path; retain both causes.

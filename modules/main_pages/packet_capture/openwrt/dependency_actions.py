@@ -39,6 +39,8 @@ def install_capture(page, key=None):
     if context is None:
         return
     service, features, keys, snapshot = context
+    from .dependency_candidate_prompt import ensure_candidate_prompt
+    ensure_candidate_prompt(page,service)
     if not keys:
         page.settings_info_panel.append_info("请先勾选需要的抓包功能。", "info")
         return

@@ -55,6 +55,8 @@ class RouterLoginPage(QWidget):
         self._remember_password_preference = self.connection.remember_password.isChecked()
         self._password_identity = self._credential_identity()
         self._last_connection_state = None
+        from .login_credentials import LoginCredentials
+        self._credential_ui = LoginCredentials(self)
         current_password = self.service.openwrt_password()
         if current_password:
             self.connection.password.setText(current_password)
@@ -146,6 +148,8 @@ class RouterLoginPage(QWidget):
     def _load_saved_password(self):
         """按当前地址加载 Windows 凭据；失败时保留空密码并显示原因。"""
 
+        if self._credential_ui.enabled:
+            return self._credential_ui.load()
         try:
             password = self.service.load_saved_openwrt_password(
                 self._credential_settings()
@@ -164,6 +168,8 @@ class RouterLoginPage(QWidget):
     def _sync_saved_password(self):
         """记住密码开关或设备身份变化后更新 Windows 凭据。"""
 
+        if self._credential_ui.enabled:
+            return self._credential_ui.sync()
         settings = self._credential_settings()
         try:
             if settings["remember_password"]:

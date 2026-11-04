@@ -1,0 +1,342 @@
+{
+  "date": "2026-11-04",
+  "change": "Collect passive WPS evidence during regular Wi-Fi scan; missing evidence is not unsupported.",
+  "files": [
+    "modules/capture_services/openwrt/wps_scan.py",
+    "modules/capture_services/openwrt/wifi_scanner.py",
+    "modules/capture_services/openwrt/models.py",
+    "modules/capture_services/openwrt/wps_capture.py",
+    "modules/capture_services/signal_list_export.py",
+    "modules/main_pages/packet_capture/openwrt/access_point_table.py",
+    "tests/test_wps_scan.py",
+    "tests/test_wps_paramiko_contract.py"
+  ],
+  "sources": [
+    "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/master/src/airodump-ng/dump_write.c",
+    "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/master/src/airodump-ng/airodump-ng.c",
+    "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/1.6/src/airodump-ng/airodump-ng.c",
+    "https://www.w1.fi/wpa_supplicant/devel/wps__defs_8h.html",
+    "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/master/test/wps2.0.pcap"
+  ],
+  "fixture": {
+    "url": "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/master/test/wps2.0.pcap",
+    "sha256": "54e312b9745e5d36614f0abd87015ff5b535abb26a75b8530c5e971e6ff38633",
+    "bytes": 332
+  },
+  "checks": {
+    "windows_related_tests": 113,
+    "debian_backend_tests": 28,
+    "wps_tests": 32,
+    "py_compile": true,
+    "encoding_scan": true,
+    "rendered_themes": [
+      "dark",
+      "light"
+    ],
+    "rendered_scales": [
+      100,
+      150
+    ]
+  },
+  "resources": {
+    "new_router_dependency": false,
+    "active_probe_added": false,
+    "new_deauth_added": false,
+    "incremental_read": true,
+    "read_chunk_bytes": 65536,
+    "periodic_read_budget_bytes": 4194304,
+    "max_wps_metadata_entries": 4096,
+    "remote_workspace_limit_mib": 32,
+    "resource_guard": "Existing remote resource watchdog and bounded scan duration; not a kernel-enforced file quota.",
+    "owned_process_stop_and_workspace_cleanup": "Preserved existing task lifecycle",
+    "all_beacons_recorded_for_state_updates": true
+  },
+  "diagnostics": "Only byte/count/error-type summaries; no SSID, BSSID, raw packets or credentials in added logs.",
+  "limits": [
+    "No live router or RF verification in this change.",
+    "Debian backend tests used unchanged backend modules while bypassing the Qt-dependent desktop package initializer. Debian GUI was not verified.",
+    "Passive detection requires receiving a valid WPS IE; missing or malformed evidence remains undetected.",
+    "Existing scan temporarily retains PCAP on router until owned workspace cleanup; no persistent local packet copy added."
+  ],
+  "package_built": false,
+  "resource_stress": {
+    "stream_bytes": 33608682,
+    "metadata_entries": 4096,
+    "traced_peak_bytes": 557024,
+    "elapsed_seconds": 21.235,
+    "pending_bytes": 0
+  },
+  "three_pass_review": [
+    {
+      "pass": 1,
+      "scope": "Protocol parsing",
+      "findings_fixed": [
+        "Truncated packet records could be treated as complete evidence.",
+        "SnapLen was not enforced.",
+        "Explicit classic-PCAP FCS metadata was not interpreted."
+      ],
+      "evidence": "Two failing regression tests first reproduced parser boundaries; all 15 WPS tests then passed.",
+      "sources": [
+        "https://www.ietf.org/archive/id/draft-ietf-opsawg-pcap-03.html",
+        "https://radiotap.org/fields/Flags.html"
+      ]
+    },
+    {
+      "pass": 2,
+      "scope": "Acquisition and transfer lifecycle",
+      "findings_fixed": [
+        "Default airodump output saved only the first beacon per AP; --beacons now preserves state updates.",
+        "SFTP servers may omit st_size, previously causing TypeError.",
+        "Metadata transfer used the 120-second default shared-lock budget.",
+        "Broken SFTP channels were retained after timeout."
+      ],
+      "evidence": "Three failing tests first reproduced transfer issues; all 18 WPS tests then passed.",
+      "sources": [
+        "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/master/src/airodump-ng/airodump-ng.c",
+        "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/1.6/src/airodump-ng/airodump-ng.c",
+        "https://docs.paramiko.org/en/stable/api/sftp.html"
+      ]
+    },
+    {
+      "pass": 3,
+      "scope": "Integration, remaining I/O budgets, error families, compatibility and resources",
+      "findings_fixed": [
+        "Post-connect stat/open requests could exceed the remaining metadata budget.",
+        "Paramiko SFTPError is separate from SSHException and needed explicit metadata fallback and channel disposal."
+      ],
+      "verified": [
+        "Metadata merge preserves selection and capture fields.",
+        "Unknown and locked targets do not launch a WPS process.",
+        "Table and export use the same status labels.",
+        "No new operating-system branches or router dependencies.",
+        "Metadata cache remains at 4096 entries after 4097 distinct APs and over 32 MiB streamed input."
+      ],
+      "evidence": "A failing remaining-budget test reproduced the additional delay; actual installed Paramiko exception hierarchy was checked; final Windows 103 tests and Debian 21 backend tests passed.",
+      "sources": [
+        "https://docs.python.org/3.10/library/dataclasses.html#dataclasses.replace",
+        "https://doc.qt.io/qt-6/qtablewidget.html#setItem",
+        "https://docs.paramiko.org/en/stable/api/sftp.html"
+      ]
+    }
+  ],
+  "second_three_pass_review": {
+    "pass_1": {
+      "scope": "Independent cross-check of lock transitions against official hostap releases.",
+      "fixed": "A complete WPS IE that omits AP Setup Locked must clear the previous lock, matching hostap 2.9/2.10/2.11. Missing WPS or incomplete mandatory fields do not clear a known lock.",
+      "evidence": "Failing regression reproduced stale locked state before the fix. Previous conservative test expectation was corrected after checking the actual producer."
+    },
+    "pass_2": {
+      "scope": "Cancellation races and actual Paramiko buffered-file semantics.",
+      "fixed": "Cancellation raised during stat returning zero size or FileNotFoundError was lost through early-return branches.",
+      "evidence": "A failing race test reproduced the lost cancellation. A real SFTPFile with an in-memory protocol peer verified partial-buffer timeout, exact committed-offset resume and file-handle close.",
+      "sources": [
+        "https://raw.githubusercontent.com/paramiko/paramiko/main/paramiko/file.py",
+        "https://raw.githubusercontent.com/paramiko/paramiko/main/paramiko/sftp_file.py",
+        "https://docs.paramiko.org/en/stable/api/sftp.html"
+      ]
+    },
+    "pass_3": {
+      "scope": "Producer/parser format match, all fixture split positions, malformed input, live Qt row updates and cross-platform regression.",
+      "new_confirmed_defects": 0,
+      "evidence": [
+        "Aircrack Linux input normalizes frames and strips FCS before writing classic PCAP.",
+        "All 333 split positions of the official fixture reproduced the same WPS result.",
+        "12000 deterministic malformed/mutated inputs caused no parser crash or pending-buffer/metadata-entry limit violation.",
+        "Unlock updates the existing table item, matches export and retains selection.",
+        "Windows 107 related tests passed; Debian 23 backend tests passed."
+      ],
+      "sources": [
+        "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/master/lib/osdep/linux.c",
+        "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/master/src/airodump-ng/airodump-ng.c",
+        "https://radiotap.org/fields/Flags.html",
+        "https://www.ietf.org/archive/id/draft-ietf-opsawg-pcap-03.html"
+      ]
+    },
+    "corpus_and_official_source_evidence": {
+      "seed": 20261104,
+      "official_fixture_all_split_positions": 333,
+      "deterministic_mutation_cases": 12000,
+      "crashes": 0,
+      "elapsed_seconds": 1.64,
+      "limits": "Finite deterministic corpus, not a general proof of correctness.",
+      "official_hostap_sources": [
+        {
+          "version": "2.9",
+          "source_sha256": "cd7b00a24960257c4829749e91fb60550bfcc23d1371fb692a5af8cfb6daf0b1",
+          "unlock_omits_lock_attribute": true,
+          "url": "https://w1.fi/releases/wpa_supplicant-2.9.tar.gz"
+        },
+        {
+          "version": "2.10",
+          "source_sha256": "49cc262438f14dbe93eb2ac8b4aa39b568cdc46a9fac3429b218cec0247fd95b",
+          "unlock_omits_lock_attribute": true,
+          "url": "https://w1.fi/releases/wpa_supplicant-2.10.tar.gz"
+        },
+        {
+          "version": "2.11",
+          "source_sha256": "2d83cd9b6379b230659e3f6177e5526ea519646c8978c0e81b199e1cee6b133f",
+          "unlock_omits_lock_attribute": true,
+          "url": "https://w1.fi/releases/wpa_supplicant-2.11.tar.gz"
+        }
+      ]
+    },
+    "limits": [
+      "No live radio, router or network SFTP server was exercised.",
+      "Real Paramiko file contract used the installed Windows Paramiko implementation with an in-memory peer.",
+      "Debian GUI and full app startup are not established by backend-only tests.",
+      "Finite deterministic input corpus is not exhaustive correctness proof."
+    ],
+    "package_built": false
+  },
+  "third_three_pass_review": {
+    "pass_1": {
+      "scope": "Mandatory protocol fields and lock-transition evidence.",
+      "confirmed_defects_fixed": 1,
+      "finding": "A WPS IE with only one mandatory field plus an explicit unlocked flag could clear a known lock and claim support.",
+      "fix": "The common parser now requires both Version and WPS State before accepting the IE. Incomplete evidence cannot add support or change lock state.",
+      "evidence": "Regression failed before the change; the official wps_validate_beacon and wps_validate_beacon_probe_resp both mark these two fields mandatory.",
+      "official_source": {
+        "url": "https://w1.fi/releases/wpa_supplicant-2.11.tar.gz",
+        "file": "src/wps/wps_validate.c",
+        "source_sha256": "e78da3692d714c3a5f6c0f6b4f09b27b5149906a5499ff91261ccd843953b28c"
+      }
+    },
+    "pass_2": {
+      "scope": "Actual Paramiko cancellation during read combined with file-close protocol failure and repeated close.",
+      "new_confirmed_defects": 0,
+      "evidence": "Both successful close and failing-close cases preserve InterruptedError, close the file only once and leave the shared SSH session intact. Broken SFTP disposal remains under the transfer lock.",
+      "source": "https://raw.githubusercontent.com/paramiko/paramiko/main/paramiko/sftp_file.py"
+    },
+    "pass_3": {
+      "scope": "Multi-AP transition ordering, randomized stream segmentation, producer format, integration and platform regression.",
+      "new_confirmed_defects": 0,
+      "evidence": {
+        "access_points": 12,
+        "interleaved_transitions": 600,
+        "random_segment_bytes": [
+          1,
+          96
+        ],
+        "seed": 2026110403,
+        "pending_tail_bytes": 0,
+        "windows_related_tests_passed": 110,
+        "debian_backend_tests_passed": 25
+      },
+      "sources": [
+        "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/master/lib/osdep/linux.c",
+        "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/master/src/airodump-ng/airodump-ng.c",
+        "https://radiotap.org/fields/Flags.html"
+      ]
+    },
+    "limits": [
+      "This was an independent targeted review, not a proof of absence of all bugs.",
+      "No router/RF or real network SFTP-server verification.",
+      "Debian headless backend tests bypass the Qt desktop initializer; no Debian GUI validation.",
+      "No application package created."
+    ]
+  },
+  "fourth_three_pass_review": {
+    "pass_1": {
+      "scope": "Protocol attribute value domains and WPS 2.x compatibility.",
+      "confirmed_defects_fixed": 1,
+      "finding": "Legacy Version attribute values were not validated; every byte value was accepted even though only 0x10 is valid in this attribute.",
+      "fix": "Use one shared allowed-value table for Version, WPS State and AP Setup Locked.",
+      "evidence": "Exhaustive 768-value test initially reproduced 255 invalid Version acceptances. After the fix all domains and the official WPS 2.0 fixture passed. Official hostap 2.9/2.10/2.11 builders explicitly emit 0x10 even in WPS 2.x.",
+      "official_source_evidence": [
+        {
+          "version": "2.9",
+          "url": "https://w1.fi/releases/wpa_supplicant-2.9.tar.gz",
+          "builder_sha256": "4618bbdbdc972103014532d68a4452f998dbd34864a7f9a5c2718ed17945019b",
+          "validator_sha256": "e78da3692d714c3a5f6c0f6b4f09b27b5149906a5499ff91261ccd843953b28c"
+        },
+        {
+          "version": "2.10",
+          "url": "https://w1.fi/releases/wpa_supplicant-2.10.tar.gz",
+          "builder_sha256": "6a57c10310d044d2dbf93eb7e39990663613661e0a100f963f0703347f752354",
+          "validator_sha256": "e78da3692d714c3a5f6c0f6b4f09b27b5149906a5499ff91261ccd843953b28c"
+        },
+        {
+          "version": "2.11",
+          "url": "https://w1.fi/releases/wpa_supplicant-2.11.tar.gz",
+          "builder_sha256": "6a57c10310d044d2dbf93eb7e39990663613661e0a100f963f0703347f752354",
+          "validator_sha256": "e78da3692d714c3a5f6c0f6b4f09b27b5149906a5499ff91261ccd843953b28c"
+        }
+      ]
+    },
+    "pass_2": {
+      "scope": "Cancellation/resource abort during metadata read plus owned-process stop failure.",
+      "new_confirmed_defects": 0,
+      "evidence": "Four combinations verify one owned PID stop, preservation of primary and stop error messages, no final CSV transfer or completion callback. Real Paramiko partial-read and close-failure tests also pass.",
+      "sources": [
+        "https://docs.python.org/3.10/reference/compound_stmts.html#the-try-statement",
+        "https://raw.githubusercontent.com/paramiko/paramiko/main/paramiko/sftp_file.py"
+      ]
+    },
+    "pass_3": {
+      "scope": "Classic-PCAP representation and incremental parsing across platforms.",
+      "new_confirmed_defects": 0,
+      "format_combinations": 16,
+      "evidence": "Big/little endian and micro/nanosecond magic values combined with raw 802.11, explicit FCS, radiotap and radiotap-with-FCS all preserve identical WPS evidence under 13-byte incremental feeds.",
+      "sources": [
+        "https://www.ietf.org/archive/id/draft-ietf-opsawg-pcap-03.html",
+        "https://radiotap.org/fields/Flags.html"
+      ]
+    },
+    "final_checks": {
+      "windows_related_tests_passed": 113,
+      "debian_backend_tests_passed": 28,
+      "wps_related_tests_passed": 32,
+      "syntax": true,
+      "encoding": true,
+      "git_diff_check": true
+    },
+    "limits": [
+      "No actual router, RF or network SFTP-server validation.",
+      "Debian backend tests bypass the Qt-dependent package initializer and exclude the two Qt table tests; actual Paramiko-file tests ran on Windows.",
+      "No application package created."
+    ]
+  },
+  "fifth_three_pass_review": {
+    "pass_1": {
+      "scope": "Independent upstream C validator execution versus production passive WPS parsing",
+      "new_confirmed_defects": 0,
+      "byte_comparisons_passed": 2304,
+      "null_contract_checks_passed": 18,
+      "evidence": "build/wps-scan-audit/hostap-oracle-result.json",
+      "method": "Extracted unchanged Version, WPS State and AP Setup Locked function bodies from official hostap 2.9/2.10/2.11 releases; compiled using gcc with logging, typedef and enum stubs only; compared every byte value against actual Python parse_wps_frame.",
+      "sources": [
+        "https://w1.fi/releases/wpa_supplicant-2.9.tar.gz",
+        "https://w1.fi/releases/wpa_supplicant-2.10.tar.gz",
+        "https://w1.fi/releases/wpa_supplicant-2.11.tar.gz"
+      ]
+    },
+    "pass_2": {
+      "scope": "Owned scan-process cleanup, shared transfer-lock boundary, timeout/cancel propagation and actual Paramiko buffered-file closure",
+      "new_confirmed_defects": 0,
+      "evidence": "Read scanner finally/transfer/drop_sftp paths and reran cancellation/resource plus stop-failure matrix and native Paramiko partial-read/close-failure tests.",
+      "sources": [
+        "https://docs.paramiko.org/en/stable/api/sftp.html"
+      ]
+    },
+    "pass_3": {
+      "scope": "Related dictionary scheduling/history/control regressions, WPS UI/export integration, Debian backend, syntax and encoding checks",
+      "new_confirmed_defects": 0,
+      "windows_related_tests_passed": 113,
+      "debian_backend_tests_passed": 28,
+      "syntax_files_checked": 21,
+      "encoding_replacement_character_scan": true,
+      "git_diff_check": true,
+      "sources": [
+        "https://radiotap.org/fields/Flags.html"
+      ]
+    },
+    "production_changes_this_review": false,
+    "application_package_created": false,
+    "limits": [
+      "Offline tests only; no real router, RF or network SFTP-server validation.",
+      "Debian tests bypass Qt-dependent package initialization and exclude two Qt tests; actual Paramiko-file tests run on Windows.",
+      "C oracle checks only three WPS attributes; it does not execute a wireless service or validate a full WPS handshake.",
+      "No new confirmed defect in reviewed scope is not proof that the application is free of bugs."
+    ]
+  }
+}

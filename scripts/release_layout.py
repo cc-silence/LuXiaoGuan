@@ -33,7 +33,6 @@ def seed_assets(target):
 
 def verify_files(package,version):
     from modules.app_update_services.channel import GATEWAY
-    import pefile
     package=Path(package)
     required=[APPLICATION_EXECUTABLE,"resources/RouterManagerUpdater.exe","resources/RouterManagerUpdateWorker.exe",
         f"resources/python3{sys.version_info.minor}.dll","resources/base_library.zip","resources/app-update-baseline.json",
@@ -54,6 +53,7 @@ def verify_files(package,version):
     terminal=verify_native_terminal(package, ROOT, require_qt_runtime()['qt'])
     cfg=json.loads((package/"config/app_update.json").read_text(encoding="utf-8"))
     if cfg.get("enabled") is not True or cfg["manifest_url"]!=GATEWAY+"/manifest":raise ValueError("Wrong online update service")
+    import pefile
     for name in [APPLICATION_EXECUTABLE,"resources/RouterManagerUpdater.exe","resources/RouterManagerUpdateWorker.exe"]:
         with pefile.PE(str(package/name)) as pe:
             versions=[row.entries.get(b"ProductVersion",b"").decode() for group in pe.FileInfo for item in group if hasattr(item,"StringTable") for row in item.StringTable]

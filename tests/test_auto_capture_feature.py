@@ -1781,7 +1781,7 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
 
             # restart=True 时终止旧线程并启动新线程
             auto_cap_service.start_boot_log_stream(restart=True)
-            mock_old_thread.join.assert_called_once()
+            mock_old_thread.join.assert_not_called()
             mock_chan.close.assert_called_once()
             mock_new_thread.start.assert_called_once()
 

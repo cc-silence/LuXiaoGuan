@@ -83,7 +83,11 @@ class OpenWrtCapturePage(QWidget):
 
     def _handle_tool_action(self, action):
         """本机导出由独立控制器处理，其他动作仍走原业务入口。"""
-        if action == "export_signals":
+        if action == "clear_password_attempts":
+            if self.service.task_controller.busy:return
+            if ConfirmDialog("清理已尝试记录", "将清空所有信号的已尝试记录，下次可重新尝试。\n不删除字典和已保存的结果文件。", self).exec() == ConfirmDialog.Accepted:
+                self.service.password_history.clear_async()
+        elif action == "export_signals":
             self.signal_export.export()
         else:
             self.actionRequested.emit(action)

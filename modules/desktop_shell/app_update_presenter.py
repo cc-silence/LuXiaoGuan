@@ -4,6 +4,7 @@ from PySide6.QtCore import QDateTime, QEvent, QObject, Qt, QUrl, Signal, Slot
 from PySide6.QtWidgets import QApplication
 from modules.app_update_services.checker import UpdateChecker
 from modules.config_manager import BASE_DIR
+from modules.platform_services.app_update_support import update_unavailable_reason, require_native_updater
 
 
 class AppUpdatePresenter(QObject):
@@ -16,10 +17,14 @@ class AppUpdatePresenter(QObject):
         self.runtime = runtime
         from .app_update_log_export import UpdateLogExport
         self.log_exporter = UpdateLogExport(self)
-        self.checker = UpdateChecker(current_version, BASE_DIR / "config" / "app_update.json", self)
+        from modules.platform_services.update_dispatch import channel_config
+        self.checker = UpdateChecker(current_version, channel_config(BASE_DIR), self)
         self.checker.completed.connect(self._completed)
         self.checker.failed.connect(self._failed)
         self.checker.activityChanged.connect(self._activity_changed)
+        from .app_update_access import UpdateAccess
+        self._access=UpdateAccess(self)
+        self._access.activityChanged.connect(self.activityChanged)
         self._pending_test_code = None
         self._automatic_started = False
         self._release = None
@@ -34,13 +39,14 @@ class AppUpdatePresenter(QObject):
         self._download_requested = False
         self._worker = None
         self._maintenance = None
+        self._handoff = None
         self._cancelled = False
         self.progress_text = ""
         self.download_completed = 0
         self.download_total = 0
         QApplication.instance().installEventFilter(self)
         import sys
-        if getattr(sys,"frozen",False):
+        if getattr(sys,"frozen",False) and not update_unavailable_reason():
             self._start_cache_maintenance()
 
     def _start_cache_maintenance(self):
@@ -70,11 +76,14 @@ class AppUpdatePresenter(QObject):
 
     @property
     def active(self):
-        return self.checker.active or self._worker is not None or self._maintenance is not None
+        return self.checker.active or self._worker is not None or self._maintenance is not None or self._access.active or (self._handoff is not None and self._handoff.active)
 
     def window_ready(self):
         """\u9632\u706b\u5899\u5c31\u7eea\u540e\u68c0\u67e5\uff0c\u4e0d\u4f7f\u7528\u5ef6\u65f6\u8865\u4e01\u6216\u91cd\u590d\u8f6e\u8be2\u3002"""
         if self.runtime._exiting:
+            return
+        if not self._access.loaded and not update_unavailable_reason():
+            if not self._access.active:self._load_access()
             return
         if not self._automatic_started:
             import sys
@@ -85,6 +94,16 @@ class AppUpdatePresenter(QObject):
             self._automatic_started = True
             self.checker.check()
         self._present_if_visible()
+
+    def _load_access(self,callback=None):
+        def loaded(error):
+            if self.runtime._exiting:return
+            if error is not None:
+                self.error=str(error);self.state='error';self.stateChanged.emit();return
+            self.checker.test_code=self._access.code
+            (callback or self.window_ready)()
+        try:self._access.load(loaded)
+        except (OSError,ValueError) as exc:loaded(exc)
 
     def check_manually(self, owner=None, inline=False):
         """\u624b\u52a8\u68c0\u67e5\u4f7f\u7528\u540c\u4e00\u670d\u52a1\uff0c\u5e76\u660e\u786e\u53cd\u9988\u65e0\u65b0\u7248\u6216\u7f51\u7edc\u5931\u8d25\u3002"""
@@ -97,6 +116,9 @@ class AppUpdatePresenter(QObject):
         if not FeaturePolicy.from_config(self.runtime.config).allows(CAPABILITY_NETWORK_DOWNLOAD):
             record("check_policy_failed", error="network_download_disabled")
             self._failed("\u4e3b\u673a\u6a21\u5f0f\u5df2\u5173\u95ed\u8054\u7f51\u4e0b\u8f7d\uff0c\u8bf7\u5148\u5728\u8bbe\u7f6e\u4e2d\u5207\u6362\u6a21\u5f0f\u3002", True)
+            return
+        if not self._access.loaded and not update_unavailable_reason():
+            if not self._access.active:self._load_access(lambda:self.checker.check(manual=True))
             return
         self.checker.check(manual=True)
 
@@ -125,18 +147,38 @@ class AppUpdatePresenter(QObject):
         if self.active:return
         from modules.platform_services.app_update_access import normalize_code,save_code
         try:
+            require_native_updater()
             value=normalize_code(value)
-            if not value:save_code("")
+            if not value and self._access.controller is None:save_code('')
         except (OSError,ValueError) as exc:
             from modules.app_update_services.diagnostics import record,exception_chain
             record("testing_code_validation_failed", error_type=type(exc).__name__, chain=exception_chain(exc))
             self.error=str(exc);self.stateChanged.emit();return
+        if not value and self._access.controller is not None:
+            def cleared(error):
+                if error is not None:self.error=str(error);self.stateChanged.emit();return
+                self._reset_test_code('',owner)
+            try:self._access.save('',cleared)
+            except (OSError,ValueError) as exc:cleared(exc)
+            return
+        self._reset_test_code(value,owner)
+
+    def _reset_test_code(self,value,owner):
         self._release=None;self.plan=None;self.checker.latest=None;self.checker.manifest_data=b""
         self._notified="";self.checker.test_code=value
         self._pending_test_code=value if value else None
         self.check_manually(owner,inline=True)
 
     def _completed(self, release, manual):
+        if self._pending_test_code is not None and self._access.controller is not None:
+            value=self._pending_test_code
+            def saved(error):
+                if self.runtime._exiting:return
+                if error is not None:self._failed(str(error),manual);return
+                self._pending_test_code=None;self._completed(release,manual)
+            try:self._access.save(value,saved)
+            except (OSError,ValueError) as exc:saved(exc)
+            return
         if self._pending_test_code is not None:
             from modules.platform_services.app_update_access import save_code
             try:save_code(self._pending_test_code)
@@ -236,20 +278,37 @@ class AppUpdatePresenter(QObject):
             dialog = ConfirmDialog("\u91cd\u542f\u5e76\u5b89\u88c5\u66f4\u65b0", f"\u5c06\u9000\u51fa {DISPLAY_NAME}\uff0c\u66ff\u6362\u5df2\u6838\u5bf9\u7684\u6587\u4ef6\u540e\u81ea\u52a8\u91cd\u65b0\u6253\u5f00\u3002\n\u5df2\u4fdd\u5b58\u7684\u7528\u6237\u914d\u7f6e\u548c\u6570\u636e\u4f1a\u4fdd\u7559\uff1b\u8bf7\u5148\u4fdd\u5b58\u5c1a\u672a\u786e\u8ba4\u7684\u8bbe\u7f6e\u3002", owner)
             if not dialog.exec():
                 return
+        blockers=self.runtime.idle_blockers()
+        if blockers or self.active or self.runtime._exiting:
+            self.error='Finish active tasks before installing the update';self.stateChanged.emit();return
         from modules.app_update_services.diagnostics import record, exception_chain
         record("install_launch_started")
         try:
-            from modules.platform_services.app_update_install import launch_helper
+            from modules.platform_services.update_dispatch import begin_install
             from modules.ui_scale_manager import UiScaleManager
             appearance={"theme":self.runtime.config.get("ui","theme",fallback="dark.qss"),
                         "scale":UiScaleManager.for_widget(owner).global_scale}
-            launch_helper(BASE_DIR, self.plan["stage"], appearance=appearance)
+            self._handoff=begin_install(BASE_DIR,self.plan['stage'],appearance=appearance,parent=self,
+                                        ready=self._install_ready,failed=self._install_failed)
+            if self._handoff is not None:self._handoff.activityChanged.connect(self.activityChanged)
         except Exception as exc:
             record("install_launch_failed", error_type=type(exc).__name__, chain=exception_chain(exc))
             self.error = str(exc)
             self.stateChanged.emit()
             return
         record("install_launch_completed")
+        self.stateChanged.emit();self.activityChanged.emit()
+
+    def _install_failed(self,message):
+        self.error=message;self.stateChanged.emit();self.activityChanged.emit()
+
+    def _install_ready(self):
+        if self.runtime._exiting:return
+        if self.runtime.idle_blockers():
+            if self._handoff is not None:
+                self._handoff.abort_ready('Finish active tasks before installing the update')
+            else:self._install_failed('Finish active tasks before installing the update')
+            return
         self.runtime.exit_application()
 
     def _open_center(self, dialog):
@@ -261,7 +320,7 @@ class AppUpdatePresenter(QObject):
     def _failed(self, message, manual):
         if self._pending_test_code is not None:
             from modules.platform_services.app_update_access import read_code
-            self.checker.test_code=read_code();self._pending_test_code=None
+            self.checker.test_code=self._access.code if self._access.controller is not None else read_code();self._pending_test_code=None
         self.state = "error"
         self.error = message
         self.stateChanged.emit()
@@ -346,6 +405,8 @@ class AppUpdatePresenter(QObject):
     def stop(self):
         """\u9000\u51fa\u65f6\u4e2d\u6b62\u68c0\u67e5\u5e76\u5173\u95ed\u63d0\u793a\uff0c\u4e0d\u4fdd\u7559\u9875\u9762\u5f15\u7528\u3002"""
         self.checker.cancel()
+        self._access.stop()
+        if self._handoff is not None:self._handoff.stop()
         if self._maintenance is not None:self._maintenance.requestInterruption()
         self.cancel_transfer()
         self._manual_owner = None

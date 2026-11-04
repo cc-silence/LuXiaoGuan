@@ -5,6 +5,7 @@ from PySide6.QtCore import Qt, Signal
 from modules.ui_scale_manager import UiScaleManager
 from PySide6.QtWidgets import (
     QGridLayout,
+    QCheckBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -92,9 +93,16 @@ class CaptureToolPanel(QWidget):
         self.password_pause_button = self._button(other_group, "暂停猜密码", "pause_password")
         self.password_pause_button.hide()
         other_layout.addWidget(self.password_pause_button)
+        self.dictionary_rounds_check = QCheckBox("按字典逐轮尝试", other_group)
+        self.dictionary_rounds_check.setObjectName("captureCheckBox")
+        self.dictionary_rounds_check.setToolTip("勾选后，所有选中信号先试完字典一，再试字典二；已找到密码的信号会跳过。")
+        other_layout.addWidget(self.dictionary_rounds_check)
         self.password_button = self._button(other_group, "开始猜密码", "password")
         self.password_button.setProperty("riskAction", True)
         other_layout.addWidget(self.password_button)
+        self.clear_attempts_button = self._button(other_group, "清理已尝试记录", "clear_password_attempts")
+        self.clear_attempts_button.setToolTip("清空所有信号的已尝试记录；不删除字典和结果文件。")
+        other_layout.addWidget(self.clear_attempts_button)
         root.addWidget(other_group)
         # “打开包存储目录”独立放在其他方式组下方：它是取结果入口，不属于抓包手段；
         # 跑出可用包时用户第一时间来这里取结果。
@@ -108,6 +116,7 @@ class CaptureToolPanel(QWidget):
         root.addStretch(1)
 
         self.load_settings(settings)
+        self.dictionary_rounds_check.toggled.connect(lambda _checked: self.settingsChanged.emit())
         self.band_combo.currentTextChanged.connect(lambda _text: self.settingsChanged.emit())
         self.scan_seconds.lineEdit().editingFinished.connect(self.settingsChanged)
         self.capture_seconds.lineEdit().editingFinished.connect(self.settingsChanged)
@@ -165,6 +174,7 @@ class CaptureToolPanel(QWidget):
     def load_settings(self, settings):
         """从 OpenWrt 配置回显工具栏公共参数。"""
 
+        self.dictionary_rounds_check.setChecked(bool(settings.get("password_dictionary_rounds", False)))
         self.band_combo.setCurrentText(str(settings.get("band", "2.4G")))
         self.scan_seconds.setValue(int(settings.get("scan_seconds", 24)))
         self.capture_seconds.setValue(int(settings.get("idle_timeout_seconds", 180)))
@@ -173,6 +183,7 @@ class CaptureToolPanel(QWidget):
         """返回工具栏控制的配置字段。"""
 
         return {
+            "password_dictionary_rounds": self.dictionary_rounds_check.isChecked(),
             "band": self.band_combo.currentText(),
             "scan_seconds": self.scan_seconds.value(),
             "idle_timeout_seconds": self.capture_seconds.value(),
@@ -183,6 +194,8 @@ class CaptureToolPanel(QWidget):
         """按连接、任务和功能开关统一控制动作，不自行判断依赖细节。"""
 
         enabled = bool(connected and not busy)
+        self.clear_attempts_button.setEnabled(not busy)
+        self.dictionary_rounds_check.setEnabled(not busy)
         mapping = {
             self.scan_button: "scan",
             self.handshake_button: "handshake",

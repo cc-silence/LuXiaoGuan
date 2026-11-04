@@ -8,6 +8,14 @@ from .local_gpo_firewall import STARTUP_OWNER
 
 def validate_request(request):
     """请求在客户端和管理员端均验证；仅接受防火墙或结构化更新请求。"""
+    if isinstance(request, dict) and request.get('operation') == 'ipsec_ssh_ensure':
+        from .legacy_ipsec_plan import target_values
+        if set(request) != {'operation', 'address', 'port'}:
+            raise ValueError('Unsupported IPsec request fields')
+        address, port = target_values(request['address'], request['port'])
+        if (address, port) != (request['address'], request['port']):
+            raise ValueError('Noncanonical IPsec target')
+        return request
     if isinstance(request, dict) and request.get('operation') == 'execute':
         from .update_elevation import validate_command_request
         return validate_command_request(request)
@@ -57,6 +65,9 @@ def serve_connection(connection, apply=None, self_test_only=False, parent_pid=0)
                     result={"success":True,"self_test":True,"backend":"python-localgpo-session"}
                 elif self_test_only:
                     raise PermissionError("自检宿主不能执行更新或修改防火墙。")
+                elif request.get('operation') == 'ipsec_ssh_ensure':
+                    from .legacy_ipsec import apply_request as apply_ipsec
+                    result = apply_ipsec(request)
                 elif request.get('operation') == 'execute':
                     if jobs is None:
                         from .admin_command_worker import AdminCommandJobs

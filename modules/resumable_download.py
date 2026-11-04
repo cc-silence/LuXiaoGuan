@@ -7,8 +7,8 @@ import requests
 
 
 class PartialDownload:
-    def __init__(self, path, size, sha256, cancel=lambda: False):
-        self.path, self.size, self.sha256 = Path(path), size, sha256
+    def __init__(self, path, size, sha256, cancel=lambda: False, *, storage=None):
+        self.path, self.size, self.sha256 = Path(path) if storage is None else storage, size, sha256
         self.cancel, self.offset = cancel, 0
 
     def _check_cancel(self):

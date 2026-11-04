@@ -24,15 +24,16 @@ import time
 from pathlib import Path
 from modules.release_identity import PRODUCT_NAME, DISPLAY_NAME
 
-from modules.platform_services.local_gpo_firewall import (
-    STARTUP_OWNER,
-    check_rules,
-    run_elevated_request,
-    startup_rule_name,
-    verified_rules_unchanged,
-)
-
 from modules.platform_services.runtime import is_windows as runtime_is_windows
+from modules.platform_services.firewall_identity import STARTUP_OWNER
+
+if runtime_is_windows():
+    from modules.platform_services.local_gpo_firewall import (
+        check_rules,
+        run_elevated_request,
+        startup_rule_name,
+        verified_rules_unchanged,
+    )
 
 from .firewall_identity import TEMPORARY_RULE_GROUP as RULE_GROUP, LEGACY_TEMPORARY_RULE_GROUP as LEGACY_RULE_GROUP
 

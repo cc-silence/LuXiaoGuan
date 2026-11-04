@@ -11,6 +11,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
+from modules.platform_services.runtime import is_linux
 
 
 class SingleInstanceController(QObject):
@@ -27,6 +28,7 @@ class SingleInstanceController(QObject):
         self._activate_callback = activate_callback
         self._server_name = self._build_server_name()
         self._server = None
+        self._linux = None
 
     @staticmethod
     def _build_server_name() -> str:
@@ -40,6 +42,11 @@ class SingleInstanceController(QObject):
         返回值：True 表示当前进程已开始监听；False 表示已有实例已收到激活请求。
         副作用：可能创建 QLocalServer，或向已有 QLocalServer 发送激活字节。
         """
+        if is_linux():
+            if self._linux is None:
+                from modules.platform_services.linux_single_instance import LinuxSingleInstance
+                self._linux = LinuxSingleInstance(self._activate_callback, self)
+            return self._linux.acquire()
         if self._notify_existing_instance():
             return False
 
@@ -83,6 +90,9 @@ class SingleInstanceController(QObject):
 
     def close(self) -> None:
         """关闭本地服务并释放实例名称，供真正退出 RouterManager 时调用。"""
+        if self._linux is not None:
+            self._linux.close()
+            return
         if self._server is not None:
             self._server.close()
             self._server.deleteLater()

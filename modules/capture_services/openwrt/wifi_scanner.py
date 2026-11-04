@@ -15,6 +15,7 @@ from modules.capture_services.openwrt.device_probe import (
     read_monitor_status,
 )
 from modules.capture_services.openwrt.models import AccessPointInfo, ClientInfo, CaptureCleanupError
+from .wps_scan import WpsScanReader
 
 
 @dataclass(frozen=True)
@@ -70,9 +71,11 @@ class OpenWrtWifiScanner:
         prefix = PurePosixPath(workspace.remote_dir) / "scan"
         remote_csv = f"{prefix}-01.csv"
         local_csv = workspace.local_dir / "scan.csv"
+        wps = WpsScanReader()
+        remote_cap = f"{prefix}-01.cap"
         command = (
-            "airodump-ng --background 1 "
-            f"--band {band_argument} --write-interval 1 --output-format csv "
+            "airodump-ng --background 1 --beacons "
+            f"--band {band_argument} --write-interval 1 --output-format csv,pcap "
             f"--write {quote_argument(str(prefix))} {quote_argument(monitor_interface)}"
         )
         status = read_monitor_status(
@@ -118,6 +121,8 @@ class OpenWrtWifiScanner:
                         workspace_manager,
                         cancel_event,
                     )
+                    wps.sync(workspace_manager.ssh_client, remote_cap, cancel_event)
+                    points_for_update = wps.apply(points_for_update)
                     next_refresh = now + refresh_interval
                 if progress_callback is not None and (
                     elapsed != last_reported_second or points_for_update
@@ -147,7 +152,9 @@ class OpenWrtWifiScanner:
         if exists.exit_code != 0:
             raise RuntimeError("扫描没有生成有效 CSV 结果，请确认无线网卡支持 monitor 模式并重试。")
         workspace_manager.download_atomic(remote_csv, local_csv, cancel_event)
-        final_points = tuple(self.parse_csv(local_csv, band))
+        wps.sync(workspace_manager.ssh_client, remote_cap, cancel_event, final=True)
+        final_points = wps.apply(self.parse_csv(local_csv, band))
+        wps.log_summary()
         if progress_callback is not None:
             progress_callback(WifiScanUpdate(duration, duration, final_points))
         return WifiScanResult(final_points, str(local_csv))
@@ -182,7 +189,8 @@ class OpenWrtWifiScanner:
     def parse_csv(path, band):
         """解析 airodump-ng CSV 中的 AP 与客户端区域，坏行会被忽略。"""
 
-        text = open(path, "r", encoding="utf-8", errors="replace", newline="").read()
+        with open(path, "r", encoding="utf-8", errors="replace", newline="") as stream:
+            text = stream.read()
         rows = list(csv.reader(io.StringIO(text)))
         points = {}
         station_rows = False

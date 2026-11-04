@@ -3,7 +3,7 @@ import json
 import logging
 from uuid import uuid4
 from PySide6.QtCore import QObject, QProcess, QTimer, Signal
-from modules.platform_services.desktop_shortcut import shortcut_spec, shell_arguments, shortcut_state
+from modules.platform_services.desktop_shortcut import shortcut_spec, shell_arguments, shortcut_state, shortcut_program
 
 
 class DesktopShortcutController(QObject):
@@ -51,7 +51,7 @@ class DesktopShortcutController(QObject):
             return False
 
     def _start(self, operation, observed=None, replace_foreign=False):
-        temporary = self.spec.path.with_name(".luxiaoguan-shortcut-" + uuid4().hex + ".lnk")
+        temporary = self.spec.path.with_name(".luxiaoguan-shortcut-" + uuid4().hex + self.spec.path.suffix)
         arguments = shell_arguments(self.spec, operation, observed, replace_foreign, temporary)
         self._temporary = temporary if operation == "create" else None
         self._operation, self._error, self._cancelled = operation, "", False
@@ -62,7 +62,7 @@ class DesktopShortcutController(QObject):
         process.readyReadStandardError.connect(self._read_stderr)
         process.errorOccurred.connect(self._process_error)
         process.finished.connect(self._finished)
-        process.setProgram("powershell.exe")
+        process.setProgram(shortcut_program(self.spec))
         process.setArguments(arguments)
         self.activityChanged.emit()
         self.deadline.start()

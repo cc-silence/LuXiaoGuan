@@ -1,13 +1,12 @@
 import io
 import json
-import os
 import sys
-import tempfile
 from configparser import ConfigParser
 from pathlib import Path
 
 from modules.config_services.config_store import ConfigPair, user_config_dir
 from modules.release_identity import DISPLAY_NAME
+from modules.platform_services import application_paths
 
 
 # 项目根目录固定为 RouterManager_python；后续配置、主题、下载模块都从这里推导路径。
@@ -18,7 +17,7 @@ else:
     BASE_DIR = Path(__file__).resolve().parent.parent
 
 # config 目录专门存放用户运行过程中会变化的配置文件。
-CONFIG_DIR = BASE_DIR / "config"
+CONFIG_DIR = application_paths.configuration_dir(BASE_DIR)
 SETTINGS_FILE = CONFIG_DIR / "settings.ini"
 DOWNLOAD_FILE = CONFIG_DIR / "download.ini"
 SOFTWARE_ITEMS_FILE = CONFIG_DIR / "software_items.json"
@@ -27,7 +26,7 @@ ARIA2_SESSION_FILE = CONFIG_DIR / "aria2.session"
 
 # 用户级运行偏好不随软件配置或分享包迁移。用于保存“本软件不再询问”这类只属于
 # 当前 Windows 用户的决定；换用户或导入软件配置后会重新提示。
-USER_RUNTIME_DIR = Path(os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()) / "RouterManager"
+USER_RUNTIME_DIR = application_paths.user_state_dir()
 DOWNLOAD_MODE_PROMPT_DECISIONS_FILE = USER_RUNTIME_DIR / "download_mode_prompt_decisions.json"
 
 # aria2 随软件打包，后续下载模块统一从这里寻找 aria2c.exe。
@@ -51,19 +50,18 @@ USER_BAT_SCRIPT_DIR = USER_SCRIPTS_DIR / "bat"
 # themes 目录只放 QSS 主题文件；设置窗口会自动扫描这里的 .qss 文件。
 THEMES_DIR = BASE_DIR / "themes"
 
-# 抓包跑包的可恢复工作数据统一放在软件根目录，避免 C 盘冻结导致丢失。
-# 打包后为 EXE 同级 RouterManager数据，源码运行时为 RouterManager_python/RouterManager数据。
-WORK_DATA_DIR = BASE_DIR / "RouterManagerData"
+# Windows 保留软件旁工作数据；Linux 使用当前用户的持久数据目录。
+WORK_DATA_DIR = application_paths.work_data_dir(BASE_DIR)
 CAPTURE_WORK_DIR = WORK_DATA_DIR / "capture-work"
 
 
 def ensure_work_data_dirs():
-    """创建软件根工作目录；不可写时抛出带路径和原因的错误。"""
+    """创建当前平台的工作目录；不可写时抛出带路径和原因的错误。"""
     for path in (WORK_DATA_DIR, CAPTURE_WORK_DIR):
         try:
-            path.mkdir(parents=True, exist_ok=True)
+            application_paths.ensure_directory(path)
         except OSError as exc:
-            raise OSError(f"无法创建工作目录：{path}；原因：{exc}。请确认软件目录可写、磁盘空间充足。") from exc
+            raise OSError(f"无法创建工作目录：{path}；原因：{exc}。请确认上述目录可写、磁盘空间充足。") from exc
     return WORK_DATA_DIR, CAPTURE_WORK_DIR
 
 APP_DIR_TOKEN = "{APP_DIR}"
@@ -105,9 +103,11 @@ def resolve_portable_path(value):
     text = str(value or '').strip()
     if not text:
         return Path()
-    text = text.replace(APP_DIR_TOKEN, str(BASE_DIR))
-    text = text.replace(USER_DOWNLOADS_TOKEN, str(user_downloads_dir()))
-    text = text.replace(USER_HOME_TOKEN, str(Path.home()))
+    text = application_paths.expand_portable_tokens(text, (
+        (APP_DIR_TOKEN, BASE_DIR),
+        (USER_DOWNLOADS_TOKEN, user_downloads_dir()),
+        (USER_HOME_TOKEN, Path.home()),
+    ))
     path = Path(text).expanduser()
     if path.exists():
         return path
@@ -217,9 +217,7 @@ def _relative_to(path, base):
 
 
 def _join_token(token, relative_path):
-    if str(relative_path) == ".":
-        return token
-    return token + "\\" + str(relative_path)
+    return application_paths.join_portable_token(token, relative_path)
 
 
 class ConfigManager:
