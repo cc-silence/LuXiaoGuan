@@ -1724,8 +1724,6 @@ class AutoCapturePage(QWidget):
                 self.bg_console_card.setVisible(True)
         else:
             self.running_alert_widget.setVisible(False)
-            if hasattr(self, "bg_console_card"):
-                self.bg_console_card.setVisible(False)
             self._manual_boot_started = False
 
         # 2. 指标看板各指标清晰排布
@@ -2010,6 +2008,14 @@ class AutoCapturePage(QWidget):
             dialog = ConfirmDialog("安装并启动后台抓包", msg, self)
             if dialog.exec() == ConfirmDialog.Accepted:
                 self._last_rendered_boot_status = None
+                self._manual_boot_started = True
+                if hasattr(self, "bg_console_card"):
+                    self.bg_console_card.setVisible(True)
+                    from datetime import datetime
+                    self.append_bg_console_text(
+                        f"\n[{datetime.now().strftime('%H:%M:%S')}] ▶ 正在准备并启动后台抓包脚本...\n"
+                        "⏳ 正在准备抓包环境与探测空闲射频，请稍候...\n"
+                    )
                 self.start_script_btn.setEnabled(False)
                 self.boot_status_badge.setText("【正在准备并启动...】")
                 self.boot_status_badge.setStyleSheet("color: #38bdf8; font-weight: bold;")
@@ -2026,6 +2032,14 @@ class AutoCapturePage(QWidget):
         dialog = ConfirmDialog("启动后台抓包", msg, self)
         if dialog.exec() == ConfirmDialog.Accepted:
             self._last_rendered_boot_status = None
+            self._manual_boot_started = True
+            if hasattr(self, "bg_console_card"):
+                self.bg_console_card.setVisible(True)
+                from datetime import datetime
+                self.append_bg_console_text(
+                    f"\n[{datetime.now().strftime('%H:%M:%S')}] ▶ 正在手动启动后台抓包脚本...\n"
+                    "⏳ 正在探测无线环境与空闲射频，请稍候...\n"
+                )
             self.start_script_btn.setEnabled(False)
             self.boot_status_badge.setText("【正在启动脚本...】")
             self.boot_status_badge.setStyleSheet("color: #38bdf8; font-weight: bold;")
@@ -2108,9 +2122,32 @@ class AutoCapturePage(QWidget):
     def _on_message_generated(self, message: str, level: str):
         """统一捕获后台服务生成的消息，出现错误时在主线程弹出醒目提示。"""
         if level == "error":
+            if hasattr(self, "bg_console_card") and self.bg_console_card.isVisible():
+                from datetime import datetime
+                self.append_bg_console_text(
+                    f"[{datetime.now().strftime('%H:%M:%S')}] ❌ {message}\n"
+                )
             MessageDialog("操作失败", message, self).exec()
         elif level == "success":
             # 关键操作反馈（如部署或恢复）
+            if "后台抓包脚本已成功启动" in message:
+                self._manual_boot_started = True
+                if hasattr(self, "bg_console_card"):
+                    self.bg_console_card.setVisible(True)
+                    from datetime import datetime
+                    self.append_bg_console_text(
+                        f"[{datetime.now().strftime('%H:%M:%S')}] ▶ 后台抓包脚本已启动成功！\n"
+                        f"⚡ 抓包进程正在后台自主运行，仅启用空闲无线频段，不影响正常业务 Wi-Fi\n"
+                        f"📁 抓包产物实时保存在路由器 /root/cap/ 目录，随时可点击【一键拉取离线包】拉回本地\n"
+                        f"----------------------------------------------------------------------\n"
+                    )
+                    self.auto_capture_service.poll_boot_log()
+            if "后台抓包已安全停止" in message:
+                if hasattr(self, "bg_console_card") and self.bg_console_card.isVisible():
+                    from datetime import datetime
+                    self.append_bg_console_text(
+                        f"[{datetime.now().strftime('%H:%M:%S')}] ✔ {message}\n"
+                    )
             if any(k in message for k in ("部署完成", "成功恢复", "已完全卸载")):
                 MessageDialog("操作成功", message, self).exec()
 

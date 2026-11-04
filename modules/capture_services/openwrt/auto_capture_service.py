@@ -189,6 +189,52 @@ class AutoCaptureRadioSession:
         if self._coordinator is not None:
             self._coordinator.cancel()
 
+    def _build_sweep_stale_script(self) -> str:
+        phy_num = self.phy[3:] if self.phy.startswith("phy") and self.phy[3:].isdigit() else ""
+        stub_cleanup = ""
+        if phy_num:
+            stub_name = f"hcxstub{phy_num}"
+            stub_cleanup = (
+                f"if [ -e /sys/class/net/{stub_name} ]; then "
+                f"  ip link set {stub_name} down 2>/dev/null || true; "
+                f"  iw dev {stub_name} del 2>/dev/null || true; "
+                f"fi; "
+            )
+        cleanup_script = (
+            f"stale_pids=$(ps w 2>/dev/null | grep 'hcxdumptool' | grep -w '{self.mon_iface}' | grep -v grep | awk '{{print $1}}'); "
+            f"if [ -n \"$stale_pids\" ]; then "
+            f"  for p in $stale_pids; do kill -TERM \"$p\" 2>/dev/null; done; "
+            f"  sleep 1; "
+            f"  for p in $stale_pids; do kill -KILL \"$p\" 2>/dev/null; done; "
+            f"fi; "
+            f"{stub_cleanup}"
+        )
+        from .auto_capture_cleanup import monitor_removal_command
+        cleanup_script += monitor_removal_command(self.mon_iface, self.phy)
+        return cleanup_script
+
+    def _build_ensure_phy_stubs_script(self) -> str:
+        exclude_phy = self.phy or ""
+        stub_script = (
+            "for _p in /sys/class/ieee80211/*; do "
+            "  [ -d \"$_p\" ] || continue; "
+            "  _phy=$(basename \"$_p\"); "
+            f"  [ \"$_phy\" != \"{exclude_phy}\" ] || continue; "
+            "  _num=\"${_phy#phy}\"; "
+            "  if ! iw dev 2>/dev/null | grep -q \"phy#${_num}\"; then "
+            "    _sname=\"hcxstub${_num}\"; "
+            "    _rand_mac=\"02:$(hexdump -n 5 -e '/1 \":%02x\"' /dev/urandom 2>/dev/null | cut -c 2-)\"; "
+            "    [ -z \"$_rand_mac\" ] && _rand_mac=\"02:77:88:99:aa:bb\"; "
+            "    if iw phy \"$_phy\" interface add \"$_sname\" type monitor addr \"$_rand_mac\" 2>/dev/null; then "
+            "      echo \"STUB_CREATED:$_sname\"; "
+            "      if ! { printf %s routermanager:autocapture-stub > /sys/class/net/\"$_sname\"/ifalias && "
+            "             ip link set \"$_sname\" up 2>/dev/null; }; then echo STUB_FAILED; fi; "
+            "    fi; "
+            "  fi; "
+            "done"
+        )
+        return stub_script
+
     def _run_capture_pipeline(self, channels: str, allow_takeover: bool):
         """抓包完整流程：接管 -> 建口 -> 起 hcxdumptool -> 读流 -> 收尾回滚 -> 拉成果。"""
         coordinator = self._coordinator
@@ -265,17 +311,9 @@ class AutoCaptureRadioSession:
                     f"🧹 [环境净化] 扫描并清理残留旧监听接口与冲突进程...\n",
                 )
                 # 2. 清理旧残留监听口与残留外部抓包进程 (严格对齐 hcx_autocap.sh，绝不误伤或关闭同 PHY 其他接口，不误杀其它路抓包)
-                cleanup_script = (
-                    f"stale_pids=$(ps w 2>/dev/null | grep 'hcxdumptool' | grep -w '{self.mon_iface}' | grep -v grep | awk '{{print $1}}'); "
-                    f"if [ -n \"$stale_pids\" ]; then "
-                    f"  for p in $stale_pids; do kill -TERM \"$p\" 2>/dev/null; done; "
-                    f"  sleep 1; "
-                    f"  for p in $stale_pids; do kill -KILL \"$p\" 2>/dev/null; done; "
-                    f"fi; "
-                )
-                from .auto_capture_cleanup import monitor_removal_command, verified_monitor_result
-                cleanup_script += monitor_removal_command(self.mon_iface, self.phy)
-                sweep_result = self.runner.run("sweep_stale", cleanup_script, timeout=8, cancel_event=self._stop_event)
+                cleanup_script = self._build_sweep_stale_script()
+                from .auto_capture_cleanup import verified_monitor_result
+                sweep_result = self.runner.run("sweep_stale",cleanup_script,timeout=8,cancel_event=self._stop_event)
                 try:
                     monitor_state = verified_monitor_result(sweep_result)
                 except Exception as exc:
@@ -351,8 +389,23 @@ class AutoCaptureRadioSession:
                 if not coordinator.wait_ready(self.radio_name, timeout=30.0, cancel_event=self._stop_event):
                     raise RuntimeError("Capture startup coordination was cancelled or timed out.")
 
-            if self._stop_event.is_set():
-                return
+                # 防御 hcxdumptool 6.3.x 内部 Multi-PHY 枚举 Bug：
+                # 若系统中其他空闲物理卡处于零接口状态，hcxdumptool 会在 get_interfacelist 时
+                # 误判首个 PHY index 为 0 并直接报 failed to get interface list 崩溃退出。
+                # 为零接口物理卡挂载极轻量占位 stub 接口，保证工具正确枚举系统无线卡列表。
+                # 注意：排除正在本次任务中进行抓包的 PHY，避免给即将创建监听网卡的 PHY 造成双监听口冲突。
+                stub_script = self._build_ensure_phy_stubs_script()
+                stub_res = self.runner.run("ensure_phy_stubs", stub_script, timeout=8, cancel_event=self._stop_event)
+                if stub_res.stdout:
+                    for line in stub_res.stdout.splitlines():
+                        if line.startswith("STUB_CREATED:"):
+                            stub_name = line.split(":", 1)[1].strip()
+                            if stub_name and stub_name not in self._created_stubs:
+                                self._created_stubs.append(stub_name)
+                                self.service.radioStreamOutput.emit(
+                                    self.radio_name,
+                                    f"🛡️ [兼容防护] 路由器存在空闲无接口物理卡，已为其挂载轻量兼容占位口 {stub_name}\n",
+                                )
 
             from .capture_placeholders import prepare_placeholders
             with takeover_transaction(cancel_event=self._stop_event):

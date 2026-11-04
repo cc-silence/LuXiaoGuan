@@ -958,7 +958,20 @@ detect_idle_radios() {
             for d in $(ls /sys/class/net 2>/dev/null)
             do
                 case "${d}" in
-                    ${_real_phy}-*)       busy=1; break ;;
+                    ${_real_phy}-*)
+                        # 仅当接口实际处于 UP 状态且承载业务时才判定忙碌
+                        if [ -e "/sys/class/net/${d}/flags" ]; then
+                            _f=$(cat "/sys/class/net/${d}/flags" 2>/dev/null)
+                            case "${_f}" in
+                                0x*) _f_num=$((_f)) ;;
+                                *) _f_num=0 ;;
+                            esac
+                            if [ "$((_f_num & 1))" -ne 0 ]; then
+                                busy=1
+                                break
+                            fi
+                        fi
+                        ;;
                     hcxmon${idx}|hcxmon${idx}-*)     busy=1; break ;;
                 esac
             done

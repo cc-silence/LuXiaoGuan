@@ -947,13 +947,19 @@ __WINBOX_KERNEL__=5.15.137
                 page._on_start_script_clicked()
                 mock_install_start.assert_called_once()
 
-        # 7. 验证 AutoCaptureBootManager.start_script 的远程命令执行
+        # 7. 验证 AutoCaptureBootManager.start_script 的远程命令执行与启动输出捕获
         runner = MagicMock()
-        runner.run.return_value = MagicMock(exit_code=0, cancelled=False, timed_out=False, stdout="", stderr="")
+        runner.run.return_value = MagicMock(
+            exit_code=0, cancelled=False, timed_out=False,
+            stdout="===== hcx_autocap.sh (v26.11.2) =====\n检测到空闲射频: phy0 phy1\n正在并行抓包",
+            stderr="",
+        )
         bm = AutoCaptureBootManager(runner, MagicMock())
-        bm.start_script()
+        startup_out = bm.start_script()
+        self.assertIn("正在并行抓包", startup_out)
         start_call = next(c for c in runner.run.call_args_list if c.args[0] == "start_autocap_script")
         start_cmd = start_call.args[1]
+        self.assertIn("/tmp/.hcx_autocap.stdout.log", start_cmd)
         # 8. 验证点击“智能分析日志”按钮时直接拉起报告弹窗，杜绝非Qt事件循环静默失效
         with patch("modules.main_pages.packet_capture.openwrt.auto_capture_page.AutoCaptureReportDialog") as mock_report_dialog:
             mock_dlg_instance = MagicMock()
@@ -1850,11 +1856,15 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         )
         from modules.capture_services.openwrt.auto_capture_log_analyzer import AutoCaptureLogAnalyzer
 
-        # 1. 验证脚本版本已递增至 v26.11.1
+        # 1. 验证脚本版本已递增至 v26.11.2
         ver = read_local_script_version()
         self.assertTrue(ver.startswith("v26.11"))
 
         content = read_local_script_content()
+
+        # 4. 验证 iw 命令包含正确的 phy 参数且空闲射频探测结合链路 flags
+        self.assertIn('iw phy "${_use_phy}" interface add', content)
+        self.assertIn('flags" 2>/dev/null', content)
 
         # 2. 验证 6.2.x legacy 状态已由 15 优化为 1 (仅 EAPOL，剔除 Beacon 刷屏)
         self.assertIn('_flags="--enable_status=1"', content)
