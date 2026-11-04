@@ -45,6 +45,7 @@ from PySide6.QtWidgets import (
 from modules.capture_services.openwrt.auto_capture_boot_manager import AutoCaptureBootStatus
 from modules.capture_services.openwrt.dependency_manager import is_hcx_outdated
 from modules.capture_services.openwrt.auto_capture_log_analyzer import AutoCaptureDiagnosticReport
+from modules.capture_services.capture_logging import LOGGER
 from modules.capture_services.openwrt.models import OpenWrtRadioInfo
 from modules.common_widgets.bounce_scroll_area import BounceScrollArea
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog, _create_dialog_button
@@ -53,6 +54,7 @@ from modules.config_manager import ConfigManager
 from modules.dialog_theme import build_base_stylesheet, detect_light_theme
 from modules.main_pages.packet_capture.ui_helpers import create_capture_card, create_step_card, VerticalResizeHandle
 from modules.main_pages.page_action_buttons import create_page_text_button
+from .auto_capture_button_styles import apply_stop_button_style
 from modules.ui_scale_manager import UiScaleManager
 from .auto_capture_radio_card import AutoCaptureRadioCard
 
@@ -252,11 +254,11 @@ class AutoCapturePage(QWidget):
         self.content_widget = self.fg_content
         self.main_layout = self.fg_layout
 
-        # 1. 全局总控与系统资源守卫紧凑控制栏 (整合操作按钮、资源指标与视图切换，免除大文本占用)
-        self._build_guard_section()
-
-        # 2. 射频卡片容器区
+        # 1. 射频卡片容器区 (置于前台视图上方主要区域)
         self._build_cards_container()
+
+        # 2. 全局总控与系统资源守卫控制栏 (置于前台视图最下方)
+        self._build_guard_section()
 
         # ----------------- 子标签页 2：后台抓包 -----------------
         self.background_tab = QWidget(self.sub_tabs)
@@ -311,6 +313,13 @@ class AutoCapturePage(QWidget):
         self._connect_service_signal(self.auto_capture_service.offlinePullFailed, self._on_pull_offline_error)
         self._connect_service_signal(self.auto_capture_service.radioIdleStatusUpdated, self._on_radio_idle_status_updated)
         self._connect_service_signal(self.auto_capture_service.bootLogUpdated, self._on_boot_log_updated)
+        self._connect_service_signal(self.auto_capture_service.remoteCapDirCleared, self._on_remote_cap_cleared)
+        self._connect_service_signal(self.auto_capture_service.foregroundCapturePulled, self._on_foreground_capture_pulled)
+        self._cleanup_prompt_showing = False
+        self._pending_foreground_cleanup = False
+        self._is_pulling_offline = False
+        self._is_starting_foreground = False
+        self._bg_console_manually_hidden = False
 
         signals_service = getattr(self.service, "router_signals", None)
         if signals_service is not None and hasattr(signals_service, "snapshotChanged"):
@@ -384,6 +393,167 @@ class AutoCapturePage(QWidget):
                 if not card._capturing:
                     from .radio_usage_view import apply_usage_status
                     apply_usage_status(card)
+
+    def _on_output_cap_toggled(self, checked: bool):
+        """同步前后台的「同时输出cap格式」勾选状态并保存至配置。"""
+        if hasattr(self, "output_cap_check"):
+            self.output_cap_check.blockSignals(True)
+            self.output_cap_check.setChecked(checked)
+            self.output_cap_check.blockSignals(False)
+        if hasattr(self, "bg_output_cap_check"):
+            self.bg_output_cap_check.blockSignals(True)
+            self.bg_output_cap_check.setChecked(checked)
+            self.bg_output_cap_check.blockSignals(False)
+        self.settings["auto_capture_generate_cap"] = checked
+        if hasattr(self.service, "settings") and isinstance(self.service.settings, dict):
+            self.service.settings["auto_capture_generate_cap"] = checked
+        try:
+            from modules.config_services.capture_settings_manager import CaptureSettingsManager
+            mgr = CaptureSettingsManager()
+            all_cfg = mgr.load()
+            all_cfg.setdefault("openwrt", {})["auto_capture_generate_cap"] = checked
+            mgr.save(all_cfg)
+        except Exception as exc:
+            LOGGER.warning("Save auto_capture_generate_cap setting failed: %s", exc)
+
+    def _update_pull_buttons_state(self, snapshot=None):
+        """统一管理前后台一键拉取按钮的可用性与 ToolTip（第一道防线：运行中禁用拉取）。"""
+        if snapshot is None:
+            if hasattr(self, "_last_snapshot"):
+                snapshot = self._last_snapshot
+            else:
+                snapshot = getattr(self.service, "openwrt_snapshot", None)
+        conn_state = getattr(snapshot, "connection_state", None)
+        connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
+        running = getattr(self.auto_capture_service, "is_any_capture_running", lambda: False)()
+        is_pulling = getattr(self, "_is_pulling_offline", False)
+        can_pull = connected and not running and not is_pulling
+
+        btn = getattr(self, "pull_offline_btn", None)
+        if btn is not None:
+            btn.setEnabled(can_pull)
+            if running:
+                btn.setToolTip("当前有抓包任务正在运行中，为避免影响抓包或误删数据已禁用拉取。\n请先停止抓包后再执行拉取。")
+            elif not connected:
+                btn.setToolTip("请先连接路由器")
+            elif is_pulling:
+                btn.setToolTip("正在拉取抓包成果中，请稍候...")
+            else:
+                out_dir = self.auto_capture_service.get_output_dir()
+                btn.setToolTip(f"从路由器 /root/cap/ 下载全部抓包文件与日志到本地电脑：\n【本地保存位置】：{out_dir}")
+
+    def _update_toggle_all_btn_state(self, snapshot=None):
+        """统一管理前台『全部开始 / 全部停止』单按钮切换状态。"""
+        if not hasattr(self, "toggle_all_btn"):
+            return
+        if snapshot is None:
+            if hasattr(self, "_last_snapshot"):
+                snapshot = self._last_snapshot
+            else:
+                snapshot = getattr(self.service, "openwrt_snapshot", None)
+        conn_state = getattr(snapshot, "connection_state", None)
+        connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
+        device = getattr(snapshot, "device", None)
+        radios = list(device.radios) if (connected and device and hasattr(device, "radios")) else []
+
+        bg_status = getattr(self.auto_capture_service, "boot_status", None)
+        bg_running = bool(bg_status and bg_status.is_running) or getattr(self, "_manual_boot_started", False)
+
+        is_busy = getattr(self.auto_capture_service, "is_busy", False)
+        if is_busy:
+            self.toggle_all_btn.setText("⏹ 全部停止")
+            self.toggle_all_btn.setToolTip("正在抓包中\n停止全部正在进行的抓包并恢复 Wi-Fi 正常状态。")
+            self.toggle_all_btn.setEnabled(connected)
+            apply_stop_button_style(self.toggle_all_btn, True, self._light_theme)
+        elif bg_running:
+            self.toggle_all_btn.setText("▶ 全部开始抓包")
+            self.toggle_all_btn.setToolTip("后台抓包运行中，前台已禁用（前后台互斥）")
+            self.toggle_all_btn.setEnabled(False)
+            apply_stop_button_style(self.toggle_all_btn, False, self._light_theme)
+        else:
+            self.toggle_all_btn.setText("▶ 全部开始抓包")
+            self.toggle_all_btn.setToolTip("启动所有可用射频并发抓包")
+            self.toggle_all_btn.setEnabled(connected and bool(radios))
+            apply_stop_button_style(self.toggle_all_btn, False, self._light_theme)
+
+    def _update_start_script_btn_state(self, snapshot=None, status=None):
+        """统一管理后台抓包手动启动/收尾按钮文本、使能与警示红前景样式。"""
+        if not hasattr(self, "start_script_btn"):
+            return
+        if snapshot is None:
+            if hasattr(self, "_last_snapshot"):
+                snapshot = self._last_snapshot
+            else:
+                snapshot = getattr(self.service, "openwrt_snapshot", None)
+        conn_state = getattr(snapshot, "connection_state", None)
+        connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
+
+        if status is None:
+            status = getattr(self.auto_capture_service, "boot_status", None)
+
+        fg_running = getattr(self.auto_capture_service, "is_busy", False) or getattr(self, "_is_starting_foreground", False)
+        boot_running = bool(status and status.is_running)
+
+        if not connected:
+            self.start_script_btn.setText("▶ 手动启动脚本")
+            self.start_script_btn.setEnabled(False)
+            self.start_script_btn.setToolTip("请先连接路由器")
+            apply_stop_button_style(self.start_script_btn, False, self._light_theme)
+        elif fg_running:
+            self.start_script_btn.setText("▶ 手动启动脚本")
+            self.start_script_btn.setEnabled(False)
+            self.start_script_btn.setToolTip("前台抓包运行中，后台已禁用（前后台互斥）")
+            apply_stop_button_style(self.start_script_btn, False, self._light_theme)
+        elif boot_running or getattr(self, "_manual_boot_started", False):
+            self.start_script_btn.setText("⏹ 结束并收尾抓包")
+            self.start_script_btn.setEnabled(True)
+            self.start_script_btn.setToolTip("后台脚本正在运行\n停止后台抓包并安全保存数据，自动恢复无线网络正常状态。")
+            apply_stop_button_style(self.start_script_btn, True, self._light_theme)
+        else:
+            self.start_script_btn.setText("▶ 手动启动脚本")
+            self.start_script_btn.setEnabled(True)
+            self.start_script_btn.setToolTip("立即在后台启动抓包\n【说明】：只会使用未开启 Wi-Fi 的空闲无线频段，正在正常上网的 Wi-Fi 不受任何影响；抓包数据实时保存，断电不丢失")
+            apply_stop_button_style(self.start_script_btn, False, self._light_theme)
+
+    def _update_mutual_exclusion_state(self, snapshot=None):
+        """前后台抓包互斥管理：同一时刻只允许启动其中一种，启动时将另一方整页禁用。"""
+        if not hasattr(self, "foreground_tab") or not hasattr(self, "background_tab"):
+            return
+
+        fg_running = getattr(self.auto_capture_service, "is_busy", False) or getattr(self, "_is_starting_foreground", False)
+        bg_status = getattr(self.auto_capture_service, "boot_status", None)
+        bg_running = bool(bg_status and bg_status.is_running) or getattr(self, "_manual_boot_started", False)
+
+        if fg_running:
+            self.foreground_tab.setEnabled(True)
+            self.background_tab.setEnabled(False)
+            self.sub_tabs.setTabToolTip(0, "正在进行前台并发抓包")
+            self.sub_tabs.setTabToolTip(1, "当前前台抓包正在运行中，后台抓包已禁用（前后台互斥）")
+        elif bg_running:
+            self.foreground_tab.setEnabled(False)
+            self.background_tab.setEnabled(True)
+            self.sub_tabs.setTabToolTip(0, "当前后台抓包正在运行中，前台抓包已禁用（前后台互斥）")
+            self.sub_tabs.setTabToolTip(1, "正在进行后台自主抓包")
+        else:
+            self.foreground_tab.setEnabled(True)
+            self.background_tab.setEnabled(True)
+            self.sub_tabs.setTabToolTip(0, "")
+            self.sub_tabs.setTabToolTip(1, "")
+
+    def _on_toggle_all_clicked(self):
+        """响应前台全部启停单按钮点击：繁忙时停止，空闲时开始。"""
+        if getattr(self.auto_capture_service, "is_busy", False):
+            self.toggle_all_btn.setText("⏳ 正在停止抓包...")
+            self.toggle_all_btn.setEnabled(False)
+            apply_stop_button_style(self.toggle_all_btn, True, self._light_theme)
+            self._on_stop_all_clicked()
+        else:
+            self.toggle_all_btn.setText("⏳ 正在启动抓包...")
+            self.toggle_all_btn.setEnabled(False)
+            apply_stop_button_style(self.toggle_all_btn, False, self._light_theme)
+            self._is_starting_foreground = True
+            self._update_mutual_exclusion_state()
+            self._on_start_all_clicked()
 
     def _on_sub_tab_changed(self, index: int):
         """子标签页切换时响应：每当切换到前台抓包或后台抓包时，均刷新对应页面上的状态。"""
@@ -953,9 +1123,12 @@ class AutoCapturePage(QWidget):
         self.metric_running_label = self.running_alert_label
 
         if hasattr(self.step2_card, "title_bar"):
-            self.step2_card.title_bar.addWidget(self.metric_autostart_widget)
-            self.step2_card.title_bar.addSpacing(24)
-            self.step2_card.title_bar.addWidget(self.running_alert_widget)
+            # 将原来位于右上角的两个状态移到左侧标题后紧跟显示（左对齐，加大与标题的间距）
+            scale = UiScaleManager.for_widget(self.step2_card)
+            self.step2_card.title_bar.insertSpacing(2, scale.px(36))
+            self.step2_card.title_bar.insertWidget(3, self.metric_autostart_widget)
+            self.step2_card.title_bar.insertSpacing(4, scale.px(20))
+            self.step2_card.title_bar.insertWidget(5, self.running_alert_widget)
 
         # 启动与收尾操作行
         exec_row = QHBoxLayout()
@@ -1052,7 +1225,7 @@ class AutoCapturePage(QWidget):
         self.bg_collapse_btn = QPushButton("收起", self.bg_console_card)
         self.bg_collapse_btn.setStyleSheet(tool_btn_style)
         self.bg_collapse_btn.setToolTip("收起实时监看终端（不影响抓包脚本在路由器后台的持续运行）")
-        self.bg_collapse_btn.clicked.connect(lambda: (self.bg_console_card.setVisible(False), self.auto_capture_service.stop_boot_log_stream()))
+        self.bg_collapse_btn.clicked.connect(self._collapse_bg_console)
         console_bar.addWidget(self.bg_collapse_btn)
 
         bg_console_layout.addLayout(console_bar)
@@ -1108,6 +1281,13 @@ class AutoCapturePage(QWidget):
         self.bg_open_output_dir_btn.clicked.connect(self._on_open_output_dir_clicked)
         result_row.addWidget(self.bg_open_output_dir_btn)
 
+        self.bg_output_cap_check = QCheckBox("同时输出cap格式", self.step3_card)
+        self.bg_output_cap_check.setObjectName("captureCheckBox")
+        self.bg_output_cap_check.setToolTip("抓包成功后除原始包外，额外生成经典标准 .cap 格式文件。\n默认关闭，仅保留原始抓包；开启后将同时输出转换后的 CAP 包。")
+        self.bg_output_cap_check.setChecked(bool(self.settings.get("auto_capture_generate_cap", False)))
+        self.bg_output_cap_check.toggled.connect(self._on_output_cap_toggled)
+        result_row.addWidget(self.bg_output_cap_check)
+
         result_row.addStretch(1)
         step3_layout.addLayout(result_row)
         self.bg_layout.addWidget(self.step3_card)
@@ -1120,12 +1300,20 @@ class AutoCapturePage(QWidget):
         new_h = max(100, min(700, self.bg_console.height() + delta))
         self.bg_console.setFixedHeight(new_h)
 
+    def _collapse_bg_console(self):
+        """响应收起后台终端按钮：记录手动隐藏状态，停止流式输出。"""
+        self._bg_console_manually_hidden = True
+        if hasattr(self, "bg_console_card"):
+            self.bg_console_card.setVisible(False)
+        self.auto_capture_service.stop_boot_log_stream()
+
     def _on_toggle_console_clicked(self):
-        """响应监看终端切换按钮，开启或停止后台日志流式推送。"""
+        """响应监看终端切换按钮：开启或停止后台日志流式推送。手动隐藏时保持隐藏，手动展开时恢复。"""
         if not hasattr(self, "bg_console_card"):
             return
         is_visible = not self.bg_console_card.isVisible()
         self.bg_console_card.setVisible(is_visible)
+        self._bg_console_manually_hidden = not is_visible
         if is_visible:
             self.auto_capture_service.start_boot_log_stream()
         else:
@@ -1163,14 +1351,15 @@ class AutoCapturePage(QWidget):
         guard_layout.setContentsMargins(12, 6, 12, 6)
         guard_layout.setSpacing(10)
 
-        # 1. 全局启停与本地成果按钮
-        self.start_all_btn = create_page_text_button(self.guard_card, "▶ 全部开始抓包", "启动所有可用射频并发抓包")
-        self.start_all_btn.clicked.connect(self._on_start_all_clicked)
-        guard_layout.addWidget(self.start_all_btn)
+        # 1. 全局启停单按钮（全部开始与全部停止合并为一个按钮）
+        self.toggle_all_btn = create_page_text_button(self.guard_card, "▶ 全部开始抓包", "启动所有可用射频并发抓包")
+        self.toggle_all_btn.clicked.connect(self._on_toggle_all_clicked)
+        guard_layout.addWidget(self.toggle_all_btn)
 
-        self.stop_all_btn = create_page_text_button(self.guard_card, "⏹ 全部停止", "停止全部抓包并恢复 Wi-Fi")
-        self.stop_all_btn.clicked.connect(self._on_stop_all_clicked)
-        guard_layout.addWidget(self.stop_all_btn)
+        # 兼容性引用别名
+        self.start_all_btn = self.toggle_all_btn
+        self.stop_all_btn = self.toggle_all_btn
+        self.fg_pull_btn = None
 
         self.open_output_dir_btn = QPushButton("📂 打开输出目录", self.guard_card)
         self.open_output_dir_btn.setObjectName("captureSecondaryButton")
@@ -1183,6 +1372,13 @@ class AutoCapturePage(QWidget):
         guard_layout.addWidget(self.export_logs_btn)
         from .auto_capture_log_export import AutoCaptureLogExport
         self._log_export = AutoCaptureLogExport(self, self.export_logs_btn)
+
+        self.output_cap_check = QCheckBox("同时输出cap格式", self.guard_card)
+        self.output_cap_check.setObjectName("captureCheckBox")
+        self.output_cap_check.setToolTip("抓包成功后除原始包外，额外生成经典标准 .cap 格式文件。\n默认关闭，仅保留原始抓包；开启后将同时输出转换后的 CAP 包。")
+        self.output_cap_check.setChecked(bool(self.settings.get("auto_capture_generate_cap", False)))
+        self.output_cap_check.toggled.connect(self._on_output_cap_toggled)
+        guard_layout.addWidget(self.output_cap_check)
 
         guard_layout.addSpacing(12)
 
@@ -1251,10 +1447,14 @@ class AutoCapturePage(QWidget):
             self.tab_bar.set_light_theme(self._light_theme)
         self.install_boot_btn.set_light_theme(self._light_theme)
         self.pull_offline_btn.set_light_theme(self._light_theme)
+        if getattr(self, "fg_pull_btn", None) is not None:
+            self.fg_pull_btn.set_light_theme(self._light_theme)
         self.analyze_offline_btn.set_light_theme(self._light_theme)
         self.start_script_btn.set_light_theme(self._light_theme)
-        self.start_all_btn.set_light_theme(self._light_theme)
-        self.stop_all_btn.set_light_theme(self._light_theme)
+        if hasattr(self, "toggle_all_btn") and hasattr(self.toggle_all_btn, "set_light_theme"):
+            self.toggle_all_btn.set_light_theme(self._light_theme)
+        self._update_toggle_all_btn_state()
+        self._update_start_script_btn_state()
         for card in self.radio_cards.values():
             card.set_light_theme(self._light_theme)
         self._update_boot_metrics_style()
@@ -1272,10 +1472,11 @@ class AutoCapturePage(QWidget):
             self.split_container.setVisible(False)
             self.tabbed_container.setVisible(False)
             self.running_alert_widget.setVisible(False)
-            self.start_all_btn.setEnabled(False)
-            self.start_script_btn.setEnabled(False)
+            self._update_toggle_all_btn_state(None)
+            self._update_start_script_btn_state(None)
+            self._update_mutual_exclusion_state(None)
             self.install_boot_btn.setEnabled(False)
-            self.pull_offline_btn.setEnabled(False)
+            self._update_pull_buttons_state()
             self.boot_enable_check.setEnabled(False)
             self.boot_enable_check.setChecked(False)
             self.boot_enable_check.setToolTip("请先连接路由器")
@@ -1287,18 +1488,11 @@ class AutoCapturePage(QWidget):
         device = getattr(snapshot, "device", None)
         radios = list(device.radios) if (connected and device and hasattr(device, "radios")) else []
 
-        self.start_all_btn.setEnabled(connected and bool(radios))
-        boot_running = bool(self.auto_capture_service.boot_status and self.auto_capture_service.boot_status.is_running)
-        if boot_running:
-            self.start_script_btn.setText("⏹ 结束并收尾抓包")
-            self.start_script_btn.setToolTip("后台脚本正在运行\n停止后台抓包并安全保存数据，自动恢复无线网络正常状态。")
-            self.start_script_btn.setEnabled(connected)
-        else:
-            self.start_script_btn.setText("▶ 手动启动脚本")
-            self.start_script_btn.setToolTip("立即在后台启动抓包\n【说明】：只会使用未开启 Wi-Fi 的空闲无线频段，正在正常上网的 Wi-Fi 不受任何影响；抓包数据实时保存，断电不丢失")
-            self.start_script_btn.setEnabled(connected)
+        self._update_toggle_all_btn_state(snapshot)
+        self._update_start_script_btn_state(snapshot)
+        self._update_mutual_exclusion_state(snapshot)
         self.install_boot_btn.setEnabled(connected)
-        self.pull_offline_btn.setEnabled(connected)
+        self._update_pull_buttons_state()
         self.boot_enable_check.setEnabled(connected)
 
         if not connected:
@@ -1441,6 +1635,7 @@ class AutoCapturePage(QWidget):
         if not force and not is_transitioning and getattr(self, "_last_rendered_boot_status", None) == status:
             return
         self._last_rendered_boot_status = status
+        self._update_pull_buttons_state()
         # 1. 步骤 1 自启服务状态徽章（独立展示服务就绪与部署状态，不被脚本运行状态覆盖）
         if status.installed:
             self.boot_status_badge.setText("【自启服务已就绪】")
@@ -1465,7 +1660,8 @@ class AutoCapturePage(QWidget):
                 self.running_alert_label.setStyleSheet("color: #10b981; font-weight: bold; font-size: 13px; border: none; background: transparent;")
                 self.stop_capture_btn.setEnabled(True)
                 if getattr(self, "_manual_boot_started", False) and hasattr(self, "bg_console_card"):
-                    self.bg_console_card.setVisible(True)
+                    if not getattr(self, "_bg_console_manually_hidden", False):
+                        self.bg_console_card.setVisible(True)
             else:
                 self.running_alert_label.setText("⚡ 运行状态: 空闲待机")
                 self.running_alert_label.setStyleSheet("color: #94a3b8; font-weight: bold; font-size: 13px; border: none; background: transparent;")
@@ -1548,19 +1744,10 @@ class AutoCapturePage(QWidget):
         else:
             self.version_diff_widget.setVisible(False)
 
-        # 5. 手动启动/收尾脚本切换按钮状态同步
-        if not connected:
-            self.start_script_btn.setText("▶ 手动启动脚本")
-            self.start_script_btn.setEnabled(False)
-            self.start_script_btn.setToolTip("请先连接路由器")
-        elif status.is_running:
-            self.start_script_btn.setText("⏹ 结束并收尾抓包")
-            self.start_script_btn.setEnabled(True)
-            self.start_script_btn.setToolTip("后台脚本正在运行\n停止后台抓包并安全保存数据，自动恢复无线网络正常状态。")
-        else:
-            self.start_script_btn.setText("▶ 手动启动脚本")
-            self.start_script_btn.setEnabled(True)
-            self.start_script_btn.setToolTip("立即在后台启动抓包\n【说明】：只会使用未开启 Wi-Fi 的空闲无线频段，正在正常上网的 Wi-Fi 不受任何影响；抓包数据实时保存，断电不丢失")
+        # 5. 手动启动/收尾脚本切换按钮状态与互斥同步
+        self._update_start_script_btn_state(snapshot, status)
+        self._update_mutual_exclusion_state(snapshot)
+        self._update_toggle_all_btn_state(snapshot)
 
         if connected:
             self._update_loading_status("ready")
@@ -1600,8 +1787,21 @@ class AutoCapturePage(QWidget):
             session = self.auto_capture_service.sessions.get(radio_name)
             err_msg = session.stats.error_message if session else ""
             self.radio_cards[radio_name].apply_state(state, err_msg)
+        self._update_pull_buttons_state()
+        self._update_toggle_all_btn_state()
+        self._update_start_script_btn_state()
+        self._update_mutual_exclusion_state()
+        if not getattr(self.auto_capture_service, "is_any_capture_running", lambda: False)():
+            if getattr(self, "_pending_foreground_cleanup", False):
+                self._prompt_cleanup_if_safe()
 
     def _on_card_start_requested(self, radio_info: OpenWrtRadioInfo, channels: str, allow_takeover: bool):
+        bg_status = getattr(self.auto_capture_service, "boot_status", None)
+        if bool(bg_status and bg_status.is_running) or getattr(self, "_manual_boot_started", False):
+            MessageDialog("操作受限", "当前后台抓包正在运行中。\n前后台抓包为互斥功能，无法同时启动；请先停止后台抓包后再启动前台抓包。", self).exec()
+            return
+        self._is_starting_foreground = True
+        self._update_mutual_exclusion_state()
         self._start_preflight.request([dict(radio_info=radio_info, channels=channels,
                                            allow_takeover=allow_takeover)])
 
@@ -1614,7 +1814,15 @@ class AutoCapturePage(QWidget):
         self.auto_capture_service.stop_all()
 
     def _on_start_all_clicked(self):
-        """全部开始抓包，带前置非空闲射频接管引导。"""
+        """全部开始抓包，带前置非空闲射频接管引导与前后台互斥校验。"""
+        bg_status = getattr(self.auto_capture_service, "boot_status", None)
+        if bool(bg_status and bg_status.is_running) or getattr(self, "_manual_boot_started", False):
+            self._is_starting_foreground = False
+            self._update_toggle_all_btn_state()
+            self._update_mutual_exclusion_state()
+            MessageDialog("操作受限", "当前后台抓包正在运行中。\n前后台抓包为互斥功能，无法同时启动；请先停止后台抓包后再启动前台抓包。", self).exec()
+            return
+
         if not self.radio_cards:
             MessageDialog("无法开始抓包", "当前未检测到任何可用的无线射频，请确认路由器已连接成功。", self).exec()
             return
@@ -1630,9 +1838,14 @@ class AutoCapturePage(QWidget):
 
     @active_service_slot(object)
     def _on_start_inspected(self, result):
+        self._is_starting_foreground = False
         if not self._start_preflight.is_current(result):
+            self._update_toggle_all_btn_state()
+            self._update_mutual_exclusion_state()
             return
         if result.error:
+            self._update_toggle_all_btn_state()
+            self._update_mutual_exclusion_state()
             MessageDialog("无法开始抓包", "无法核实路由器当前无线状态：" + result.error, self).exec()
             return
         self.service.update_openwrt_radio_idle_status(result.usages)
@@ -1646,6 +1859,8 @@ class AutoCapturePage(QWidget):
                                    "当前仍有启用的无线业务：" + names +
                                    "\n\n是否允许临时接管并开始抓包？停止后将恢复原有无线配置。", self)
             if dialog.exec() != ConfirmDialog.Accepted:
+                self._update_toggle_all_btn_state()
+                self._update_mutual_exclusion_state()
                 return
             for item in busy_unauthorized:
                 item["allow_takeover"] = True
@@ -1660,9 +1875,17 @@ class AutoCapturePage(QWidget):
             self.auto_capture_service.start_radio_capture(item["radio_info"], item["channels"], item["allow_takeover"])
         else:
             self.auto_capture_service.start_all(configs)
+        self._update_toggle_all_btn_state()
+        self._update_mutual_exclusion_state()
 
     def _on_boot_check_clicked(self, checked: bool):
         """响应用户点击开机自启开关。支持未部署时引导一键部署并开启。"""
+        if getattr(self.auto_capture_service, "is_busy", False) or getattr(self, "_is_starting_foreground", False):
+            self.boot_enable_check.blockSignals(True)
+            self.boot_enable_check.setChecked(not checked)
+            self.boot_enable_check.blockSignals(False)
+            MessageDialog("操作受限", "当前前台抓包正在运行中，无法修改开机自启或启动后台抓包。\n请先停止前台抓包。", self).exec()
+            return
         snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
         conn_state = getattr(snapshot, "connection_state", None)
         connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
@@ -1728,6 +1951,10 @@ class AutoCapturePage(QWidget):
             MessageDialog("提示", "路由器尚未连接，请先连接路由器后再启动抓包脚本。", self).exec()
             return
 
+        if getattr(self.auto_capture_service, "is_busy", False) or getattr(self, "_is_starting_foreground", False):
+            MessageDialog("操作受限", "当前前台抓包正在运行中。\n前后台抓包为互斥功能，无法同时启动；请先停止前台抓包后再启动后台抓包。", self).exec()
+            return
+
         status = self.auto_capture_service.boot_status
         if status is None:
             MessageDialog("提示", "正在检测路由器状态，请稍后重试。", self).exec()
@@ -1775,6 +2002,8 @@ class AutoCapturePage(QWidget):
                         "⏳ 正在准备抓包环境与探测空闲射频，请稍候...\n"
                     )
                 self.start_script_btn.setEnabled(False)
+                apply_stop_button_style(self.start_script_btn, True, self._light_theme)
+                self._update_mutual_exclusion_state()
                 self.running_alert_label.setText("⏳ 正在准备抓包环境并启动...")
                 self.running_alert_label.setStyleSheet("color: #f59e0b; font-weight: bold; font-size: 13px;")
                 self.auto_capture_service.install_and_start_boot_script()
@@ -1800,6 +2029,8 @@ class AutoCapturePage(QWidget):
                     "⏳ 正在探测无线环境与空闲射频，请稍候...\n"
                 )
             self.start_script_btn.setEnabled(False)
+            apply_stop_button_style(self.start_script_btn, True, self._light_theme)
+            self._update_mutual_exclusion_state()
             self.running_alert_label.setText("⏳ 正在启动抓包脚本...")
             self.running_alert_label.setStyleSheet("color: #f59e0b; font-weight: bold; font-size: 13px;")
             self.auto_capture_service.start_boot_script()
@@ -1807,15 +2038,49 @@ class AutoCapturePage(QWidget):
     def _on_stop_and_cleanup_clicked(self):
         """响应结束并收尾抓包操作（安全封包、清理网卡与临时文件）。"""
         self._manual_boot_started = False
+        self._bg_console_manually_hidden = False
         if hasattr(self, "bg_console_card"):
             self.bg_console_card.setVisible(False)
         self.auto_capture_service.stop_boot_log_stream()
         self._last_rendered_boot_status = None
         self.stop_capture_btn.setEnabled(False)
         self.start_script_btn.setEnabled(False)
+        self.start_script_btn.setText("⏳ 正在收尾抓包...")
+        apply_stop_button_style(self.start_script_btn, True, self._light_theme)
         self.running_alert_label.setText("⏳ 正在收尾抓包...")
         self.running_alert_label.setStyleSheet("color: #f97316; font-weight: bold; font-size: 13px;")
         self.auto_capture_service.stop_and_cleanup_capture()
+
+    @active_service_slot(str)
+    def _on_foreground_capture_pulled(self, file_path: str):
+        """前台单路抓包停止并拉取到本地后，触发统一清理询问。"""
+        self._pending_foreground_cleanup = True
+        self._update_toggle_all_btn_state()
+        self._prompt_cleanup_if_safe()
+
+    def _prompt_cleanup_if_safe(self):
+        """前后台统一清理询问：确认所有抓包已停止后，询问用户是否清空路由器上的文件。"""
+        # 第二道防线：当前仍有任何抓包正在运行，绝不执行清理，跳过询问
+        if getattr(self.auto_capture_service, "is_any_capture_running", lambda: False)():
+            LOGGER.info("Capture task still active, skipping remote cleanup prompt.")
+            return
+
+        if getattr(self, "_cleanup_prompt_showing", False):
+            return
+        self._cleanup_prompt_showing = True
+        self._pending_foreground_cleanup = False
+        try:
+            confirm = ConfirmDialog(
+                "清理路由器抓包",
+                "握手包已经拉取到本地，是否清空路由器上的文件？",
+                self,
+            )
+            if confirm.exec() == ConfirmDialog.Accepted:
+                self.auto_capture_service.clear_remote_cap_artifacts_async()
+            else:
+                self.auto_capture_service.messageGenerated.emit("已保留路由器上的抓包文件。", "info")
+        finally:
+            self._cleanup_prompt_showing = False
 
     def _on_uninstall_clicked(self):
         if ConfirmDialog("卸载自启服务", "确定完全卸载 /etc/init.d/luxiaoguan-autocap 与 /root/hcx_autocap.sh 吗？\n(/root/cap/ 产物将被保留)", self).exec() == ConfirmDialog.Accepted:
@@ -1823,7 +2088,7 @@ class AutoCapturePage(QWidget):
             self.auto_capture_service.uninstall_boot_service()
 
     def _on_pull_offline_clicked(self):
-        """异步拉取远端 /root/cap/ 的离线抓包成果与日志到本地电脑。"""
+        """异步拉取远端 /root/cap/ 的抓包成果与日志到本地电脑。"""
         snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
         conn_state = getattr(snapshot, "connection_state", None)
         connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
@@ -1831,27 +2096,55 @@ class AutoCapturePage(QWidget):
             MessageDialog("提示", "路由器尚未连接，请先连接路由器后再拉取握手包。", self).exec()
             return
 
-        self.pull_offline_btn.setEnabled(False)
+        # 第一道防线：检查是否运行中
+        if getattr(self.auto_capture_service, "is_any_capture_running", lambda: False)():
+            MessageDialog("提示", "当前有抓包任务正在运行中，已禁用拉取，避免影响当前抓包或误清空数据。\n请先停止抓包后再执行拉取。", self).exec()
+            return
+
+        self._is_pulling_offline = True
+        self._update_pull_buttons_state()
         out_dir = self.auto_capture_service.get_output_dir()
         self.auto_capture_service.pull_offline_artifacts_async(str(out_dir))
 
     @active_service_slot(list, str)
     def _on_pull_offline_success(self, pulled_files: list, local_dir: str):
-        self.pull_offline_btn.setEnabled(True)
-        if pulled_files:
+        self._is_pulling_offline = False
+        self._update_pull_buttons_state()
+        if not pulled_files:
+            MessageDialog("提示", "路由器 /root/cap/ 目录下暂无抓包成果文件 (.pcapng / .log)。", self).exec()
+            return
+
+        # 确认拉取的文件没问题（本地存在且大小正常）
+        valid_files = [f for f in pulled_files if Path(f).is_file() and Path(f).stat().st_size > 0]
+        if len(valid_files) != len(pulled_files):
+            MessageDialog("提示", "已成功拉取文件，但部分文件校验异常，已保留路由器原文件以防数据丢失。", self).exec()
+            return
+
+        # 第二道防线：检查当前是否有抓包任务正在运行
+        if getattr(self.auto_capture_service, "is_any_capture_running", lambda: False)():
             msg = (
-                f"已成功拉取 {len(pulled_files)} 个抓包成果与日志文件！\n\n"
+                f"已成功拉取 {len(valid_files)} 个抓包成果与日志文件！\n\n"
                 f"【保存在本地目录】：\n{local_dir}\n\n"
-                "提示：您可以随时点击“📊 智能分析日志”查看详细诊断分析，也可点击“📂 打开输出目录”直接查看原始文件。"
+                "⚠️ 【注意】：检测到当前有抓包任务正在运行，已自动跳过清理路由器抓包目录，避免影响正在抓取的包。"
             )
             MessageDialog("拉取成功", msg, self).exec()
-        else:
-            MessageDialog("提示", "路由器 /root/cap/ 目录下暂无抓包成果文件 (.pcapng / .log)。", self).exec()
+            return
+
+        # 统一询问用户是否清空路由器上的文件
+        self._prompt_cleanup_if_safe()
 
     @active_service_slot(str)
     def _on_pull_offline_error(self, err_msg: str):
-        self.pull_offline_btn.setEnabled(True)
+        self._is_pulling_offline = False
+        self._update_pull_buttons_state()
         MessageDialog("拉取成果失败", f"从路由器拉取离线成果时出现异常:\n{err_msg}", self).exec()
+
+    @active_service_slot(bool, str)
+    def _on_remote_cap_cleared(self, success: bool, message: str):
+        if success:
+            MessageDialog("清空成功", "路由器抓包目录 (/root/cap/) 已成功清空，Flash 存储空间已释放。", self).exec()
+        else:
+            MessageDialog("清空失败", f"清空路由器抓包目录失败:\n{message}", self).exec()
 
     def _on_analyze_offline_clicked(self):
         """对本地输出目录中的离线抓包与日志进行智能健康诊断并弹出报告。"""
@@ -1876,7 +2169,7 @@ class AutoCapturePage(QWidget):
     def _on_boot_script_started(self):
         """Show the console from verified state, independent of translated messages."""
         self._manual_boot_started = True
-        if hasattr(self, "bg_console_card"):
+        if hasattr(self, "bg_console_card") and not getattr(self, "_bg_console_manually_hidden", False):
             self.bg_console_card.setVisible(True)
             self.auto_capture_service.start_boot_log_stream(restart=True)
         self.append_bg_console_text("\u540e\u53f0\u811a\u672c\u5df2\u8fd0\u884c\uff1b\u662f\u5426\u5df2\u5f00\u59cb\u6293\u5305\u5c1a\u672a\u786e\u8ba4\uff0c\u8bf7\u4ee5\u540e\u53f0\u4f1a\u8bdd\u65e5\u5fd7\u4e3a\u51c6\u3002\n")
@@ -1895,7 +2188,7 @@ class AutoCapturePage(QWidget):
             # 关键操作反馈（如部署或恢复）
             if "后台抓包脚本已成功启动" in message:
                 self._manual_boot_started = True
-                if hasattr(self, "bg_console_card"):
+                if hasattr(self, "bg_console_card") and not getattr(self, "_bg_console_manually_hidden", False):
                     self.bg_console_card.setVisible(True)
                     self.auto_capture_service.start_boot_log_stream(restart=True)
                     from datetime import datetime

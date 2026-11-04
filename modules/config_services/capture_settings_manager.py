@@ -69,6 +69,7 @@ class CaptureSettingsManager:
             "auto_open_dir": True,
             "keep_raw_capture": True,
             "generate_cap": True,
+            "auto_capture_generate_cap": False,
             "pmkid_active_beacon": False,
             "active_deauth": True,
             "online_dependency_install": True,
@@ -383,6 +384,7 @@ class CaptureSettingsManager:
         openwrt["keep_raw_capture"] = True
         openwrt.pop("generate_22000", None)
         openwrt["generate_cap"] = True
+        openwrt["auto_capture_generate_cap"] = self._bool(openwrt.get("auto_capture_generate_cap"), False)
         openwrt["pmkid_active_beacon"] = self._bool(openwrt.get("pmkid_active_beacon"), False)
         openwrt.pop("auto_parallel_radios", None)
         # 模拟热点辅助已整体移除；旧配置里的开关不再有执行路径，直接丢弃。

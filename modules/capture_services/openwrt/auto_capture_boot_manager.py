@@ -454,6 +454,24 @@ class AutoCaptureBootManager:
         return pulled_files
 
 
+    def clear_remote_capture_artifacts(self, cancel_event=None) -> tuple[bool, str]:
+        """安全清空路由器 /root/cap/ 目录下的所有抓包与日志文件。"""
+        status = self.probe_boot_status(cancel_event=cancel_event)
+        if status.is_running:
+            return False, "检测到后台抓包任务正在运行，已终止清理操作以防数据丢失。"
+
+        cmd = (
+            "mkdir -p /root/cap && "
+            "rm -f /root/cap/*.pcapng /root/cap/*.cap /root/cap/*.log /root/cap/*.txt 2>/dev/null; "
+            "echo CLEAR_OK"
+        )
+        res = self.runner.run("clear_cap_dir", cmd, timeout=15, cancel_event=cancel_event)
+        if res.cancelled:
+            return False, "清理操作已取消。"
+        if res.exit_code != 0 or "CLEAR_OK" not in (res.stdout or ""):
+            return False, f"清空抓包目录失败: {res.stderr or res.stdout}"
+        return True, "已成功清空路由器抓包目录 (/root/cap/)。"
+
     def read_recent_session_log(self, max_lines: int = 35, cancel_event=None) -> str:
         """读取远端最新的抓包会话日志末尾文本。"""
         max_lines = max(1, min(int(max_lines), 200))

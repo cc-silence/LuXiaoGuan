@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 
 from modules.capture_services.openwrt.models import OpenWrtRadioInfo
 from modules.main_pages.page_action_buttons import create_page_text_button
+from .auto_capture_button_styles import apply_stop_button_style
 from modules.ui_scale_manager import UiScaleManager
 
 
@@ -201,6 +202,7 @@ class AutoCaptureRadioCard(QFrame):
         self.stop_btn.setEnabled(False)
         self.stop_btn.setVisible(False)
         self.stop_btn.clicked.connect(self._on_stop_clicked)
+        apply_stop_button_style(self.stop_btn, True, self._light_theme)
         actions_row.addWidget(self.stop_btn)
 
         # 弹性空白：将监看终端推至最右边右对齐
@@ -308,6 +310,9 @@ class AutoCaptureRadioCard(QFrame):
         self._light_theme = bool(enabled)
         self.start_btn.set_light_theme(self._light_theme)
         self.stop_btn.set_light_theme(self._light_theme)
+        is_stop = getattr(self, "_capturing", False) or getattr(self, "_stopping", False)
+        apply_stop_button_style(self.start_btn, is_stop, self._light_theme)
+        apply_stop_button_style(self.stop_btn, True, self._light_theme)
         self._update_console_style()
         self._update_metrics_style()
 
@@ -392,6 +397,10 @@ class AutoCaptureRadioCard(QFrame):
     def apply_state(self, state: str, error_message: str = ""):
         """更新抓包状态与按钮使能，使用高区分度色彩与大号字体。"""
         self._capturing = state in {"starting", "capturing"}
+        self._stopping = state == "stopping"
+        is_stop = state in {"capturing", "stopping"}
+        apply_stop_button_style(self.start_btn, is_stop, self._light_theme)
+        apply_stop_button_style(self.stop_btn, True, self._light_theme)
         self.stop_btn.setEnabled(self._capturing)
         self.channel_edit.setEnabled(not self._capturing)
         self.takeover_check.setEnabled(not self._capturing)

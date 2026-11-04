@@ -1011,8 +1011,9 @@ class AutoCaptureRadioSession:
                 cleanup_errors.append("\u65e0\u7ebf\u6062\u590d\u8bb0\u5f55\u7f3a\u5c11\u6301\u4e45\u5316\u4e0a\u4e0b\u6587\uff0c\u672a\u6267\u884c\u6062\u590d\u3002")
 
         # 4. 尝试拉回本次抓包产物 .pcapng
+        pulled_dest = None
         if self.remote_cap_file and connection_unchanged:
-            self._pull_capture_result()
+            pulled_dest = self._pull_capture_result()
 
         if cleanup_errors:
             self.stats.error_message = (self.stats.error_message + "; " if self.stats.error_message else "") + "; ".join(cleanup_errors)
@@ -1032,6 +1033,8 @@ class AutoCaptureRadioSession:
             )
         self.service.radioStateChanged.emit(self.radio_name, final_state)
         self.service.radioStatsUpdated.emit(self.radio_name, self._build_stats_dict())
+        if pulled_dest and Path(pulled_dest).is_file():
+            self.service.foregroundCapturePulled.emit(str(pulled_dest))
         return not cleanup_errors
 
     def _pull_capture_result(self):
@@ -1062,11 +1065,19 @@ class AutoCaptureRadioSession:
                 temp_dest.unlink(missing_ok=True)
             if dest_file.exists():
                 if stable:
-                    _product, note = cap_product_note(dest_file)
+                    if getattr(self.service, "should_generate_cap", lambda: False)():
+                        _product, note = cap_product_note(dest_file, enabled=True)
+                    else:
+                        _product, note = None, "原始抓包已安全保存至本地（未开启同时输出 CAP 格式）。"
                 else:
-                    note = "CAP \u672a\u751f\u6210\uff1a\u4e0b\u8f7d\u671f\u95f4\u539f\u59cb\u5305\u4ecd\u5728\u53d8\u5316\u6216\u672a\u4e0b\u8f7d\u5b8c\u6574\uff0c\u672c\u5730\u539f\u5305\u5df2\u4fdd\u7559\u3002"
+                    note = "CAP 未生成：下载期间原始包仍在变化或未下载完整，本地原包已保留。"
                 self.service.radioStreamOutput.emit(self.radio_name, note + "\n")
-                self.service.messageGenerated.emit(note, "success" if stable and _product else "warning")
+                self.service.messageGenerated.emit(
+                    note,
+                    "success" if stable and (_product or not getattr(self.service, "should_generate_cap", lambda: False)()) else "warning"
+                )
+                if stable:
+                    return dest_file
         except FileNotFoundError:
             return
         except Exception as exc:
@@ -1104,6 +1115,8 @@ class AutoCaptureService(QObject):
     messageGenerated = Signal(str, str)                     # message, level
     radioIdleStatusUpdated = Signal(dict)                   # {radio_name: RadioUsage}; accepts legacy bool/None values in receivers
     bootLogUpdated = Signal(str)                            # 最新后台会话日志文本
+    remoteCapDirCleared = Signal(bool, str)                 # success, message
+    foregroundCapturePulled = Signal(str)                   # pulled_file_path
 
     def __init__(self, owner):
         super().__init__(owner if isinstance(owner, QObject) else None)
@@ -1165,6 +1178,48 @@ class AutoCaptureService(QObject):
         """检查是否有正在抓包的会话。"""
         return any(s.stats.state in {"starting", "capturing", "stopping"} for s in self.sessions.values())
 
+    def should_generate_cap(self) -> bool:
+        """检查是否启用了自动抓包同时输出 CAP 格式。"""
+        settings = getattr(self.owner, "settings", None)
+        if isinstance(settings, dict) and "auto_capture_generate_cap" in settings:
+            return bool(settings["auto_capture_generate_cap"])
+        try:
+            from modules.config_services.capture_settings_manager import CaptureSettingsManager
+            return bool(CaptureSettingsManager().load().get("openwrt", {}).get("auto_capture_generate_cap", False))
+        except Exception:
+            return False
+
+    def is_any_capture_running(self) -> bool:
+        """检查前台或后台是否有任何正在运行的抓包任务。"""
+        fg_running = any(
+            s.stats.state in {"starting", "capturing", "stopping"}
+            for s in self.sessions.values()
+        )
+        bg_running = bool(self.boot_status and self.boot_status.is_running)
+        return fg_running or bg_running
+
+    def clear_remote_cap_artifacts_async(self):
+        """异步清空远端 /root/cap/ 目录下的所有抓包成果与日志。"""
+        def _task():
+            try:
+                if self.is_any_capture_running():
+                    msg = "检测到当前有抓包任务正在运行，已跳过清空路由器抓包目录以防数据丢失。"
+                    self.messageGenerated.emit(msg, "warning")
+                    self.remoteCapDirCleared.emit(False, msg)
+                    return
+                success, msg = self.boot_manager.clear_remote_capture_artifacts()
+                level = "success" if success else "error"
+                self.messageGenerated.emit(msg, level)
+                self.remoteCapDirCleared.emit(success, msg)
+                self.refresh_boot_status()
+            except Exception as exc:
+                LOGGER.warning("Clear remote cap artifacts failed: %s", exc)
+                self.messageGenerated.emit(f"清空路由器抓包目录失败: {exc}", "error")
+                self.remoteCapDirCleared.emit(False, str(exc))
+
+        t = threading.Thread(target=_task, name="ClearRemoteCapArtifacts", daemon=True)
+        t.start()
+
     def get_output_dir(self) -> Path:
         """获取本地抓包成果存储目录。"""
         settings = getattr(self.owner, "settings", {}) or {}
@@ -1192,6 +1247,9 @@ class AutoCaptureService(QObject):
 
     def start_radio_capture(self, radio_info: OpenWrtRadioInfo, channels: str = "", allow_takeover: bool = False, coordinator: Optional[CaptureStartupCoordinator] = None):
         """启动单路射频抓包。"""
+        if bool(self.boot_status and self.boot_status.is_running):
+            self.messageGenerated.emit("后台抓包正在运行中，前后台抓包互斥，无法启动前台抓包。", "warning")
+            return
         session = self.get_or_create_session(radio_info)
         session.start(channels, allow_takeover, coordinator=coordinator)
         if not self._resource_timer.isActive():
@@ -1451,6 +1509,10 @@ class AutoCaptureService(QObject):
 
     def start_boot_script(self):
         """异步手动启动后台抓包脚本。"""
+        if self.is_busy:
+            self.messageGenerated.emit("前台抓包正在运行中，前后台抓包互斥，无法启动后台抓包。", "warning")
+            return
+
         def _task():
             try:
                 self.messageGenerated.emit("正在启动后台抓包脚本（仅启用空闲射频）...", "info")
@@ -1473,6 +1535,10 @@ class AutoCaptureService(QObject):
 
     def install_and_start_boot_script(self):
         """异步安装部署自启脚本与服务，并在部署完成后立即启动抓包脚本。"""
+        if self.is_busy:
+            self.messageGenerated.emit("前台抓包正在运行中，前后台抓包互斥，无法启动后台抓包。", "warning")
+            return
+
         def _task():
             try:
                 self.messageGenerated.emit("正在部署自启脚本与系统服务...", "info")
@@ -1580,11 +1646,18 @@ class AutoCaptureService(QObject):
         for filename in pulled:
             if Path(filename).suffix.lower() != ".pcapng":
                 continue
+            gen_cap = self.should_generate_cap()
             if filename in stable_captures:
-                product, note = cap_product_note(filename)
+                if gen_cap:
+                    product, note = cap_product_note(filename, enabled=True)
+                else:
+                    product, note = None, "原始抓包已拉取并保存（未开启同时输出 CAP 格式）。"
             else:
-                product, note = None, "CAP \u672a\u751f\u6210\uff1a\u539f\u59cb\u5305\u4ecd\u5728\u53d8\u5316\u6216\u4e0b\u8f7d\u4e0d\u5b8c\u6574\uff0c\u5df2\u4fdd\u7559\uff0c\u8bf7\u505c\u6b62\u6293\u5305\u540e\u91cd\u65b0\u62c9\u53d6\u3002"
-            self.messageGenerated.emit(note, "success" if product else "warning")
+                product, note = None, "CAP 未生成：原始包仍在变化或下载不完整，已保留，请停止抓包后重新拉取。"
+            self.messageGenerated.emit(
+                note,
+                "success" if product or (filename in stable_captures and not gen_cap) else "warning"
+            )
             if product is not None:
                 products.append(str(product))
         return products
