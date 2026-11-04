@@ -194,7 +194,8 @@ init_bpf_filter
         # 测试状态切换
         card_free.apply_state("capturing")
         self.assertTrue(card_free.stop_btn.isEnabled())
-        self.assertFalse(card_free.start_btn.isEnabled())
+        self.assertIn("停止", card_free.start_btn.text())
+        self.assertTrue(card_free.start_btn.isEnabled())
 
         # 测试主题切换
         card_free.set_light_theme(True)
@@ -289,7 +290,7 @@ init_bpf_filter
         header_layout = card.layout().itemAt(0).layout()
         self.assertIsNotNone(header_layout)
         self.assertEqual(header_layout.itemAt(0).widget(), card.status_badge)
-        self.assertEqual(header_layout.itemAt(3).widget(), card.title_label)
+        self.assertEqual(header_layout.itemAt(5).widget(), card.title_label)
         self.assertTrue(bool(card.title_label.alignment() & Qt.AlignRight))
 
         mock_slot = MagicMock()
@@ -790,8 +791,8 @@ __WINBOX_KERNEL__=5.15.137
             auto_cap_service._boot_status = installed_status
             mock_run_dialog.assert_not_called()
 
-        self.assertIn("脚本运行中", page.boot_status_badge.text())
-        self.assertIn("抓包状态尚未确认", page.running_alert_label.text())
+        self.assertIn("自启服务已就绪", page.boot_status_badge.text())
+        self.assertIn("运行中", page.running_alert_label.text())
         self.assertIn("脚本运行中", page.metric_running_label.text())
         self.assertIn("已注册", page.metric_service_label.text())
         self.assertIn("已启用", page.metric_autostart_label.text())
@@ -875,7 +876,7 @@ __WINBOX_KERNEL__=5.15.137
         self.assertEqual(page.boot_enable_check.text(), "开机自启抓包")
         self.assertIn("空闲", page.start_script_btn.toolTip())
         self.assertIn("实时保存", page.start_script_btn.toolTip())
-        self.assertIn("拉取离线包", page.pull_offline_btn.text())
+        self.assertIn("拉取握手包", page.pull_offline_btn.text())
         self.assertIn("分析日志", page.analyze_offline_btn.text())
         self.assertTrue(hasattr(page, "bg_open_output_dir_btn"))
         self.assertIn("打开输出目录", page.bg_open_output_dir_btn.text())
@@ -900,7 +901,8 @@ __WINBOX_KERNEL__=5.15.137
         )
         page._on_boot_status_changed(running_status)
         auto_cap_service._boot_status = running_status
-        self.assertFalse(page.start_script_btn.isEnabled())
+        self.assertIn("结束并收尾", page.start_script_btn.text())
+        self.assertTrue(page.start_script_btn.isEnabled())
         self.assertIn("后台脚本正在运行", page.start_script_btn.toolTip())
 
         # 4. 模拟就绪且空闲状态
@@ -1755,7 +1757,8 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
                 page._on_start_script_clicked()
 
         # 此时应处于过渡状态
-        self.assertEqual(page.boot_status_badge.text(), "【正在启动脚本...】")
+        self.assertEqual(page.running_alert_label.text(), "⏳ 正在启动抓包脚本...")
+        self.assertEqual(page.boot_status_badge.text(), "【自启服务已就绪】")
         self.assertFalse(page.start_script_btn.isEnabled())
 
         # 当远端探针返回与点击前相同的 idle 状态时，必须打破缓存、执行回显并恢复按钮使能，禁止永久卡在正在启动

@@ -16,7 +16,8 @@ from typing import Dict, List, Optional
 
 from PySide6.QtCore import Qt, Signal, QTimer, QSize, QObject
 from .service_page_slots import active_service_slot
-from PySide6.QtGui import QBrush, QColor, QFont, QTextCursor
+from PySide6.QtGui import QBrush, QColor, QFont, QTextCursor, QDesktopServices
+from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
@@ -50,7 +51,7 @@ from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog, 
 from modules.common_widgets.frameless_dialog import FramelessDialog
 from modules.config_manager import ConfigManager
 from modules.dialog_theme import build_base_stylesheet, detect_light_theme
-from modules.main_pages.packet_capture.ui_helpers import create_capture_card
+from modules.main_pages.packet_capture.ui_helpers import create_capture_card, create_step_card, VerticalResizeHandle
 from modules.main_pages.page_action_buttons import create_page_text_button
 from modules.ui_scale_manager import UiScaleManager
 from .auto_capture_radio_card import AutoCaptureRadioCard
@@ -115,372 +116,49 @@ class RadioCardsSideTabBar(QTabBar):
 RadioCardsWestTabBar = RadioCardsSideTabBar
 
 
-class AutoCaptureReportDialog(FramelessDialog):
-    """离线成果拉取与智能诊断分析报告弹窗。"""
+from .auto_capture_report_dialog import AutoCaptureReportDialog
 
-    def __init__(self, report: AutoCaptureDiagnosticReport, local_dir: str, parent=None):
-        super().__init__("离线抓包成果与智能健康诊断报告", parent, inherit_parent_stylesheet=False)
-        self.light_theme = self._detect_theme(parent)
+
+class AutoCaptureGuideDialog(FramelessDialog):
+    """现场脱机抓包工作流程指南弹窗。"""
+
+    def __init__(self, output_dir: str, parent=None):
+        super().__init__("现场脱机抓包工作流程指南", parent, inherit_parent_stylesheet=False)
+        self.light_theme = detect_light_theme(parent, fallback=False)
         scale = UiScaleManager.for_widget(self)
         base_stylesheet = build_base_stylesheet(ConfigManager(), light_theme=self.light_theme, scale_manager=scale)
-        dialog_extra_qss = self._build_report_dialog_stylesheet(self.light_theme)
-        self.setStyleSheet(f"{base_stylesheet}\n\n{dialog_extra_qss}")
-        self.set_scaled_size((800, 550), (1020, 720))
+        self.setStyleSheet(base_stylesheet)
+        self.set_scaled_size((680, 480), (840, 580))
 
-        # 头部状态卡片
-        header_card = QFrame(self)
-        header_card.setObjectName("reportHeaderCard")
-        header_layout = QVBoxLayout(header_card)
-        header_layout.setContentsMargins(14, 12, 14, 12)
-        header_layout.setSpacing(6)
-
-        title_lbl = QLabel(f"健康度状态: 【{report.health_title}】", header_card)
-        title_lbl.setObjectName("reportTitleLabel")
-        if report.health_level == "danger":
-            title_color = "#dc2626" if self.light_theme else "#ef4444"
-        elif report.health_level == "warning":
-            title_color = "#d97706" if self.light_theme else "#f59e0b"
-        else:
-            title_color = "#16a34a" if self.light_theme else "#10b981"
-        title_lbl.setStyleSheet(f"color: {title_color}; font-size: 14px; font-weight: bold;")
-        header_layout.addWidget(title_lbl)
-
-        status_detail = QLabel(
-            f"退出原因: {report.exit_reason} (退出代码: {report.exit_code if report.exit_code is not None else '未记录'})\n"
-            f"路由器固件: {report.firmware_info or '未知'} | 工具版本: {report.hcx_version or '未知'} (方言: {report.dialect_mode or 'auto'})\n"
-            f"BPF 过滤: {report.bpf_status}",
-            header_card,
+        card, layout = create_capture_card(
+            self,
+            "现场脱机自主抓包核心工作流 (无需电脑连线)",
+            "利用 OpenWrt 系统的守护服务，让路由器在现场自主全自动抓包，适合外出采集与多场地移动巡检。",
+            collapsible=False,
         )
-        status_detail.setObjectName("reportDetailLabel")
-        status_detail.setWordWrap(True)
-        header_layout.addWidget(status_detail)
+        steps_text = (
+            "【步骤 1 · 部署自启守护服务】\n"
+            "在【后台抓包】页面确认系统守护服务已就绪；如提示未安装或需升级，点击“上传/同步脚本与服务”。\n\n"
+            "【步骤 2 · 开启自启或手动启动】\n"
+            "勾选“开机自启抓包”开关。抓包脚本只会使用未开启 Wi-Fi 的空闲无线频段，正在正常上网的 Wi-Fi 业务不受任何影响。\n\n"
+            "【步骤 3 · 现场断网插电自主抓包】\n"
+            "拔下网线并将路由器放置在目标现场，接通电源开机即可自动启动抓包。\n"
+            "捕获到的握手包与 PMKID 每 30 秒自动安全写入存储 (/root/cap/)，测试完毕直接拔掉电源也不会丢失数据。\n\n"
+            "【步骤 4 · 带回连线一键拉取与智能诊断】\n"
+            f"现场测试完成后，带回路由器插上网线连上电脑，点击“一键拉取握手包”同步到本地电脑 ({output_dir})。\n"
+            "随后点击“智能分析日志”，系统将自动评估握手包有效性、周边 AP 热点分布与设备运行健康度报告。"
+        )
+        steps_lbl = QLabel(steps_text, card)
+        steps_lbl.setObjectName("captureDescription")
+        steps_lbl.setWordWrap(True)
+        steps_lbl.setStyleSheet("line-height: 160%; font-size: 13px; padding: 6px;")
+        layout.addWidget(steps_lbl)
+        self.content_layout.addWidget(card)
 
-        if report.hardware_notes:
-            for note in report.hardware_notes:
-                nlbl = QLabel(f"● 说明: {note}", header_card)
-                nlbl.setObjectName("reportNoteLabel")
-                nlbl.setWordWrap(True)
-                header_layout.addWidget(nlbl)
-
-        self.content_layout.addWidget(header_card)
-
-        # 统计看板
-        metrics_row = QHBoxLayout()
-        metrics_row.setSpacing(16)
-        pmkid_color = "#0284c7" if self.light_theme else "#38bdf8"
-        pmkid_lbl = QLabel(f"捕获 PMKID: {report.pmkid_count} 个", self)
-        pmkid_lbl.setStyleSheet(f"color: {pmkid_color}; font-weight: bold; font-size: 13px;")
-        metrics_row.addWidget(pmkid_lbl)
-
-        eapol_color = "#16a34a" if self.light_theme else "#10b981"
-        eapol_lbl = QLabel(f"捕获握手包 (EAPOL): {report.eapol_count} 个", self)
-        eapol_lbl.setStyleSheet(f"color: {eapol_color}; font-weight: bold; font-size: 13px;")
-        metrics_row.addWidget(eapol_lbl)
-
-        ap_lbl = QLabel(f"识别周边 AP 热点: {len(report.targets)} 个", self)
-        ap_lbl.setObjectName("reportMetricsText")
-        metrics_row.addWidget(ap_lbl)
-
-        pcap_count = len(report.captured_files)
-        pcap_lbl = QLabel(f"生成的 .pcapng 原始包: {pcap_count} 个", self)
-        pcap_lbl.setObjectName("reportMetricsText")
-        metrics_row.addWidget(pcap_lbl)
-        metrics_row.addStretch(1)
-        self.content_layout.addLayout(metrics_row)
-
-        # AP 列表与详细日志选项卡
-        tabs = QTabWidget(self)
-        tabs.setObjectName("reportTabs")
-
-        # Tab 1: 发现的 AP 热点
-        ap_widget = QWidget(tabs)
-        ap_layout = QVBoxLayout(ap_widget)
-        ap_layout.setContentsMargins(6, 8, 6, 6)
-        ap_table = QTableWidget(ap_widget)
-        ap_table.setObjectName("reportTable")
-        ap_table.setAlternatingRowColors(True)
-        ap_table.setColumnCount(5)
-        ap_table.setHorizontalHeaderLabels(["BSSID (MAC)", "SSID (Wi-Fi名称)", "信道", "握手帧构成", "捕获状态"])
-        ap_table.setRowCount(len(report.targets))
-        success_color = QColor("#16a34a") if self.light_theme else QColor("#4ade80")
-        warning_color = QColor("#d97706") if self.light_theme else QColor("#fbbf24")
-        muted_color = QColor("#64748b") if self.light_theme else QColor("#94a3b8")
-        for row, target in enumerate(report.targets):
-            ap_table.setItem(row, 0, QTableWidgetItem(target.bssid))
-            ap_table.setItem(row, 1, QTableWidgetItem(target.ssid or "<隐藏或未解析>"))
-            ap_table.setItem(row, 2, QTableWidgetItem(target.channel or "--"))
-
-            # 握手帧构成列
-            frames = set(re.findall(r"M[1-4]", target.handshake_frames))
-            if "M1" in frames and "M2" in frames:
-                if len(frames) == 4:
-                    frame_text = "M1+M2+M3+M4 (完整)"
-                elif "M3" in frames:
-                    frame_text = "M1+M2+M3 (可跑包)"
-                else:
-                    frame_text = "M1+M2 (可跑包)"
-                frame_color = success_color
-            elif "M2" in frames and "M3" in frames:
-                frame_text = "M2+M3 (可跑包)"
-                frame_color = success_color
-            elif target.handshake_frames:
-                frame_text = f"仅 {target.handshake_frames} (残缺)"
-                frame_color = warning_color
-            elif target.has_eapol:
-                frame_text = "已检测到 EAPOL"
-                frame_color = warning_color
-            else:
-                frame_text = "--"
-                frame_color = muted_color
-
-            frame_item = QTableWidgetItem(frame_text)
-            frame_item.setForeground(QBrush(frame_color))
-            ap_table.setItem(row, 3, frame_item)
-
-            # 捕获状态列
-            cap_status = []
-            if target.has_pmkid:
-                cap_status.append("PMKID")
-            if target.has_eapol:
-                cap_status.append("握手包")
-            status_text = " + ".join(cap_status) if cap_status else "信标嗅探中"
-            item = QTableWidgetItem(status_text)
-            item.setForeground(QBrush(success_color if cap_status else muted_color))
-            ap_table.setItem(row, 4, item)
-        ap_table.setColumnWidth(0, scale.px(145))
-        ap_table.setColumnWidth(1, scale.px(210))
-        ap_table.setColumnWidth(2, scale.px(65))
-        ap_table.setColumnWidth(3, scale.px(210))
-        ap_table.horizontalHeader().setStretchLastSection(True)
-        ap_layout.addWidget(ap_table)
-        tabs.addTab(ap_widget, f"AP 热点列表 ({len(report.targets)})")
-
-        # Tab 2: 完整分析诊断文本
-        log_widget = QWidget(tabs)
-        log_layout = QVBoxLayout(log_widget)
-        log_layout.setContentsMargins(6, 8, 6, 6)
-        log_view = QTextBrowser(log_widget)
-        log_view.setObjectName("reportLogBrowser")
-        summary_text = (report.raw_summary or "").strip()
-        if not summary_text:
-            summary_text = (
-                "当前本地目录尚未检测到抓包会话日志 (script_*.log / run_*.log)。\n\n"
-                "操作指引：\n"
-                "1. 若路由器刚完成脱机抓包，请先点击【📥 一键拉取离线包】将成果文件同步到电脑；\n"
-                "2. 同步完成后再次点击【📊 智能分析日志】即可查看完整的抓包分析与热点诊断；\n"
-                f"3. 您也可以点击下方的“📂 打开本地成果文件夹”直接查看本地目录 ({local_dir})。"
-            )
-        log_view.setPlainText(summary_text)
-        log_layout.addWidget(log_view)
-        tabs.addTab(log_widget, "诊断摘要文本")
-
-        self.content_layout.addWidget(tabs, 1)
-
-        # 底部操作栏
-        dir_lbl = QLabel(f"拉取成果目录: {local_dir}", self)
-        dir_lbl.setObjectName("settingsHint")
-        self.button_layout.addWidget(dir_lbl)
         self.button_layout.addStretch(1)
-
-        open_btn = _create_dialog_button("📂 打开本地成果文件夹", self, "settingsSecondaryButton")
-        open_btn.clicked.connect(lambda: self._open_dir(local_dir))
-        self.button_layout.addWidget(open_btn)
-
-        close_btn = _create_dialog_button("确定", self, "settingsPrimaryButton")
+        close_btn = _create_dialog_button("我知道了", self, "settingsPrimaryButton")
         close_btn.clicked.connect(self.accept)
         self.button_layout.addWidget(close_btn)
-
-    @staticmethod
-    def _detect_theme(widget) -> bool:
-        current = widget
-        while current is not None:
-            if hasattr(current, "_light_theme"):
-                return bool(current._light_theme)
-            if hasattr(current, "light_theme"):
-                return bool(current.light_theme)
-            current = current.parent() if hasattr(current, "parent") else None
-        return detect_light_theme(widget, fallback=False)
-
-    @staticmethod
-    def _build_report_dialog_stylesheet(is_light: bool) -> str:
-        if is_light:
-            return """
-            QFrame#reportHeaderCard {
-                background-color: #f8fafc;
-                border: 1px solid #cbd5e1;
-                border-radius: 8px;
-            }
-            QLabel#reportTitleLabel {
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QLabel#reportDetailLabel {
-                color: #334155;
-                font-size: 12px;
-            }
-            QLabel#reportNoteLabel {
-                color: #0284c7;
-                font-size: 12px;
-            }
-            QLabel#reportMetricsText {
-                color: #1e293b;
-                font-size: 13px;
-            }
-            QTabWidget#reportTabs::pane {
-                border: 1px solid #cbd5e1;
-                background: #ffffff;
-                border-radius: 6px;
-                top: -1px;
-            }
-            QTabWidget#reportTabs QTabBar::tab {
-                background: #f1f5f9;
-                color: #64748b;
-                border: 1px solid #cbd5e1;
-                border-bottom: none;
-                border-top-left-radius: 6px;
-                border-top-right-radius: 6px;
-                padding: 6px 16px;
-                margin-right: 4px;
-                font-weight: 500;
-            }
-            QTabWidget#reportTabs QTabBar::tab:selected {
-                background: #ffffff;
-                color: #0284c7;
-                border-bottom: 1px solid #ffffff;
-                font-weight: bold;
-            }
-            QTabWidget#reportTabs QTabBar::tab:hover:!selected {
-                color: #0f172a;
-                background: #e2e8f0;
-            }
-            QTableWidget#reportTable {
-                background-color: #ffffff;
-                alternate-background-color: #f8fafc;
-                color: #0f172a;
-                gridline-color: #e2e8f0;
-                border: none;
-                border-radius: 4px;
-                selection-background-color: #e0f2fe;
-                selection-color: #0369a1;
-            }
-            QTableWidget#reportTable::item {
-                padding: 4px 8px;
-                border: none;
-            }
-            QTableWidget#reportTable QHeaderView::section {
-                background-color: #f1f5f9;
-                color: #475569;
-                padding: 6px 8px;
-                border: none;
-                border-right: 1px solid #e2e8f0;
-                border-bottom: 1px solid #e2e8f0;
-                font-weight: bold;
-            }
-            QTextBrowser#reportLogBrowser {
-                background-color: #f8fafc;
-                color: #0f172a;
-                border: 1px solid #cbd5e1;
-                border-radius: 6px;
-                padding: 10px;
-                font-family: "Consolas", "Courier New", monospace;
-                font-size: 12px;
-                line-height: 1.4;
-            }
-            """
-        else:
-            return """
-            QFrame#reportHeaderCard {
-                background-color: #1e293b;
-                border: 1px solid #334155;
-                border-radius: 8px;
-            }
-            QLabel#reportTitleLabel {
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QLabel#reportDetailLabel {
-                color: #94a3b8;
-                font-size: 12px;
-            }
-            QLabel#reportNoteLabel {
-                color: #38bdf8;
-                font-size: 12px;
-            }
-            QLabel#reportMetricsText {
-                color: #e2e8f0;
-                font-size: 13px;
-            }
-            QTabWidget#reportTabs::pane {
-                border: 1px solid #334155;
-                background: #0f172a;
-                border-radius: 6px;
-                top: -1px;
-            }
-            QTabWidget#reportTabs QTabBar::tab {
-                background: #1e293b;
-                color: #94a3b8;
-                border: 1px solid #334155;
-                border-bottom: none;
-                border-top-left-radius: 6px;
-                border-top-right-radius: 6px;
-                padding: 6px 16px;
-                margin-right: 4px;
-                font-weight: 500;
-            }
-            QTabWidget#reportTabs QTabBar::tab:selected {
-                background: #0f172a;
-                color: #38bdf8;
-                border-bottom: 1px solid #0f172a;
-                font-weight: bold;
-            }
-            QTabWidget#reportTabs QTabBar::tab:hover:!selected {
-                color: #f1f5f9;
-                background: #334155;
-            }
-            QTableWidget#reportTable {
-                background-color: #0f172a;
-                alternate-background-color: #141d2e;
-                color: #f8fafc;
-                gridline-color: #334155;
-                border: none;
-                border-radius: 4px;
-                selection-background-color: #1e3a8a;
-                selection-color: #ffffff;
-            }
-            QTableWidget#reportTable::item {
-                padding: 4px 8px;
-                border: none;
-            }
-            QTableWidget#reportTable QHeaderView::section {
-                background-color: #1e293b;
-                color: #cbd5e1;
-                padding: 6px 8px;
-                border: none;
-                border-right: 1px solid #334155;
-                border-bottom: 1px solid #334155;
-                font-weight: bold;
-            }
-            QTextBrowser#reportLogBrowser {
-                background-color: #0b1120;
-                color: #cbd5e1;
-                border: 1px solid #334155;
-                border-radius: 6px;
-                padding: 10px;
-                font-family: "Consolas", "Courier New", monospace;
-                font-size: 12px;
-                line-height: 1.4;
-            }
-            """
-
-    def _open_dir(self, dir_path: str):
-        try:
-            if os.path.exists(dir_path):
-                os.startfile(dir_path)
-            else:
-                os.makedirs(dir_path, exist_ok=True)
-                os.startfile(dir_path)
-        except Exception:
-            pass
 
 
 def is_modern_hcx_supported_on_device(device) -> bool:
@@ -649,6 +327,11 @@ class AutoCapturePage(QWidget):
         self._bg_status_timer.setInterval(15000)  # 放宽至 15 秒巡检间隔，降低设备负荷并消除高频刷新打扰
         self._bg_status_timer.timeout.connect(self._poll_bg_boot_status)
 
+        # 终端实时日志监看定时器：严格对齐远端脚本的 2 秒循环刷新节奏
+        self._bg_log_timer = QTimer(self)
+        self._bg_log_timer.setInterval(2000)
+        self._bg_log_timer.timeout.connect(self._poll_bg_console_log)
+
         # 若服务层已有自启状态快照，立即回显展示
         if self.auto_capture_service.boot_status is not None:
             self._on_boot_status_changed(self.auto_capture_service.boot_status)
@@ -658,6 +341,15 @@ class AutoCapturePage(QWidget):
 
     def _connect_service_signal(self, signal, slot):
         self._service_connections.append(signal.connect(slot))
+
+    def _poll_bg_console_log(self):
+        snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
+        conn_state = getattr(snapshot, "connection_state", None)
+        connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
+        if connected and hasattr(self, "bg_console_card") and self.bg_console_card.isVisible():
+            self.auto_capture_service.poll_boot_log()
+        else:
+            self._bg_log_timer.stop()
 
     def _poll_bg_boot_status(self):
         """周期性轮询刷新后台自启与脚本状态。"""
@@ -700,9 +392,12 @@ class AutoCapturePage(QWidget):
         """子标签页切换时响应：每当切换到前台抓包或后台抓包时，均刷新对应页面上的状态。"""
         if index == 0:
             self._bg_status_timer.stop()
+            self._bg_log_timer.stop()
             self.refresh_foreground_status()
         elif index == 1:
             self.refresh_background_status()
+            if hasattr(self, "bg_console_card") and self.bg_console_card.isVisible():
+                self._bg_log_timer.start(2000)
 
     def refresh_foreground_status(self):
         """刷新前台抓包页面上的所有状态（快照同步、射频卡片状态与回显、系统资源）。"""
@@ -769,6 +464,12 @@ class AutoCapturePage(QWidget):
         """兼容保留。视图切换功能已直接整合至顶部紧凑控制栏。"""
         pass
 
+
+    def _on_guide_clicked(self):
+        """弹出现场脱机自主抓包工作流使用指南。"""
+        out_dir = self.auto_capture_service.get_output_dir()
+        dlg = AutoCaptureGuideDialog(str(out_dir), self)
+        dlg.exec()
     def _build_status_banner(self):
         """构建后台抓包顶部连接与环境加载状态提示横幅。"""
         self.status_banner = QFrame(self.bg_content)
@@ -822,6 +523,14 @@ class AutoCapturePage(QWidget):
         self.step3_label.setObjectName("captureDescription")
         self.step3_label.setStyleSheet("color: #94a3b8;")
         steps_row.addWidget(self.step3_label)
+
+        # ❓ 使用指南按钮
+        steps_row.addSpacing(8)
+        self.guide_btn = QPushButton("❓ 使用指南", self.status_banner)
+        self.guide_btn.setObjectName("captureSecondaryButton")
+        self.guide_btn.setToolTip("查看现场脱机自主抓包的完整流程与使用步骤")
+        self.guide_btn.clicked.connect(self._on_guide_clicked)
+        steps_row.addWidget(self.guide_btn)
 
         top_row.addLayout(steps_row)
         banner_layout.addLayout(top_row)
@@ -1116,109 +825,74 @@ class AutoCapturePage(QWidget):
             self.step3_label.setStyleSheet(f"color: {waiting_color};")
 
     def _build_boot_section(self):
-        """构建【开机自启管理】面板，采用分块式现代指标看板设计。"""
-        card, layout = create_capture_card(
+        """构建后台抓包面板，按清晰的功能步骤顺序组织三个卡片：
+        步骤 1：自启守护服务与环境准备；
+        步骤 2：抓包启动与自启控制；
+        步骤 3：离线成果回收与智能诊断。
+        """
+        # ================= 步骤 1：自启守护服务与环境准备 =================
+        self.boot_card, layout = create_step_card(
             self.bg_content,
-            "开机自启管理",
-            "配置 OpenWrt 系统级服务 (/etc/init.d/luxiaoguan-autocap)。拔下网线拿到现场插电即可自主抓包，断电不丢数据；带回连线一键拉取成果。",
-            collapsible=False,
+            "步骤 1 · 自启守护服务与环境准备",
+            "配置 OpenWrt 系统级服务 (/etc/init.d/luxiaoguan-autocap)，为现场脱机抓包提供系统守护支持。",
         )
-        self.boot_card = card
 
-        # 1. 顶部状态徽章与服务路径（就绪提示与状态信息）
-        header_row = QHBoxLayout()
-        header_row.setContentsMargins(0, 0, 0, 0)
-        header_row.setSpacing(12)
-
-        self.boot_status_badge = QLabel("【检测中...】", card)
-        self.boot_status_badge.setObjectName("captureFormLabel")
-        self.boot_status_badge.setStyleSheet("color: #94a3b8; font-weight: bold;")
-        header_row.addWidget(self.boot_status_badge)
-
-        self.boot_status_desc = QLabel("OpenWrt 系统自启守护服务", card)
-        self.boot_status_desc.setObjectName("captureDescription")
-        header_row.addWidget(self.boot_status_desc)
-
-        # 保持别名兼容
-        self.boot_status_label = self.boot_status_badge
-
-        header_row.addStretch(1)
-
-        self.service_path_label = QLabel("⚙ 系统守护服务: /etc/init.d/luxiaoguan-autocap", card)
+        # 步骤 1 标题栏最右侧：展示系统服务路径提示
+        self.service_path_label = QLabel("⚙ 系统守护服务: /etc/init.d/luxiaoguan-autocap", self.boot_card)
         self.service_path_label.setObjectName("captureDescription")
         self.service_path_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        header_row.addWidget(self.service_path_label)
-        layout.addLayout(header_row)
+        self.service_path_label.setStyleSheet("color: #94a3b8; font-size: 12px;")
+        if hasattr(self.boot_card, "title_bar"):
+            self.boot_card.title_bar.addWidget(self.service_path_label, 0, Qt.AlignRight | Qt.AlignVCenter)
 
-        # 1.1 正在抓包运行警示与收尾操作条 (仅后台抓包运行时可见)
-        self.running_alert_widget = QWidget(card)
-        r_layout = QHBoxLayout(self.running_alert_widget)
-        r_layout.setContentsMargins(10, 6, 10, 6)
-        r_layout.setSpacing(10)
-        self.running_alert_widget.setStyleSheet(
-            "background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; border-radius: 6px;"
-        )
-        self.running_alert_label = QLabel("⚡ 后台脚本已运行，抓包状态尚未确认；请查看后台会话日志", self.running_alert_widget)
-        self.running_alert_label.setStyleSheet("color: #10b981; font-weight: bold;")
-        r_layout.addWidget(self.running_alert_label, 1)
-
-        self.stop_capture_btn = QPushButton("⏹ 结束并收尾抓包", self.running_alert_widget)
-        self.stop_capture_btn.setObjectName("captureSecondaryButton")
-        self.stop_capture_btn.setStyleSheet("color: #ef4444; font-weight: bold; border-color: #ef4444;")
-        self.stop_capture_btn.setToolTip("停止后台抓包并安全保存数据，自动恢复无线网络正常状态")
-        self.stop_capture_btn.clicked.connect(self._on_stop_and_cleanup_clicked)
-        r_layout.addWidget(self.stop_capture_btn)
-
-        self.running_alert_widget.setVisible(False)
-        layout.addWidget(self.running_alert_widget)
-
-        # 2. 核心状态指标看板 (对齐前台抓包卡片设计)
-        self.boot_metrics_frame = QFrame(card)
+        # 核心状态指标看板：自启服务就绪状态与其他指标并排紧凑展示，字号不缩小
+        self.boot_metrics_frame = QFrame(self.boot_card)
         self.boot_metrics_frame.setObjectName("captureCard")
         self._update_boot_metrics_style()
         self._update_status_banner_style()
         metrics_layout = QHBoxLayout(self.boot_metrics_frame)
-        metrics_layout.setContentsMargins(12, 8, 12, 8)
+        metrics_layout.setContentsMargins(14, 8, 14, 8)
         metrics_layout.setSpacing(18)
 
-        # 指标 1：抓包脚本
+        # 自启服务主状态徽章（直接与几个状态并排排列，不缩小）
+        self.boot_status_badge = QLabel("【检测中...】", self.boot_metrics_frame)
+        self.boot_status_badge.setObjectName("captureFormLabel")
+        self.boot_status_badge.setStyleSheet("color: #94a3b8; font-weight: bold; font-size: 13px;")
+        metrics_layout.addWidget(self.boot_status_badge)
+        self.boot_status_label = self.boot_status_badge
+
         self.metric_script_label = QLabel("📄 抓包脚本: 检测中...", self.boot_metrics_frame)
         self.metric_script_label.setObjectName("captureDescription")
+        self.metric_script_label.setStyleSheet("font-size: 13px;")
         metrics_layout.addWidget(self.metric_script_label)
-
-        # 保持别名兼容
         self.script_loc_label = self.metric_script_label
 
-        # 指标 2：脚本版本
         self.metric_version_label = QLabel("🏷 版本: --", self.boot_metrics_frame)
         self.metric_version_label.setObjectName("captureDescription")
+        self.metric_version_label.setStyleSheet("font-size: 13px;")
         metrics_layout.addWidget(self.metric_version_label)
 
-        # 指标 3：系统服务
         self.metric_service_label = QLabel("🛡 系统服务: 检测中...", self.boot_metrics_frame)
         self.metric_service_label.setObjectName("captureDescription")
+        self.metric_service_label.setStyleSheet("font-size: 13px;")
         metrics_layout.addWidget(self.metric_service_label)
 
-        # 指标 4：自启配置
-        self.metric_autostart_label = QLabel("🚀 自启配置: 检测中...", self.boot_metrics_frame)
-        self.metric_autostart_label.setObjectName("captureDescription")
-        metrics_layout.addWidget(self.metric_autostart_label)
-
-        # 指标 5：后台进程
-        self.metric_running_label = QLabel("⚡ 运行状态: 检测中...", self.boot_metrics_frame)
-        self.metric_running_label.setObjectName("captureDescription")
-        metrics_layout.addWidget(self.metric_running_label)
-
+        # 整体并排后留出弹性空白
         metrics_layout.addStretch(1)
+
+        # 兼容性保留隐藏的 boot_status_desc
+        self.boot_status_desc = QLabel("", self.boot_card)
+        self.boot_status_desc.setVisible(False)
+
         layout.addWidget(self.boot_metrics_frame)
 
-        # 3. 版本比对告警行 (默认隐藏)
-        self.version_diff_widget = QWidget(card)
+        # 版本比对告警行
+        self.version_diff_widget = QWidget(self.boot_card)
         v_layout = QHBoxLayout(self.version_diff_widget)
         v_layout.setContentsMargins(0, 0, 0, 0)
         v_layout.setSpacing(10)
         self.version_diff_label = QLabel(self.version_diff_widget)
-        self.version_diff_label.setStyleSheet("color: #f59e0b; font-weight: bold;")
+        self.version_diff_label.setStyleSheet("color: #f59e0b; font-weight: bold; font-size: 12px;")
         v_layout.addWidget(self.version_diff_label)
 
         self.update_script_btn = QPushButton("▶ 立即更新脚本", self.version_diff_widget)
@@ -1229,16 +903,16 @@ class AutoCapturePage(QWidget):
         self.version_diff_widget.setVisible(False)
         layout.addWidget(self.version_diff_widget)
 
-        # 4. 系统服务安装与运维分组（安装服务的按键独立分组放置）
+        # 系统服务部署与卸载按钮
         service_row = QHBoxLayout()
         service_row.setContentsMargins(0, 4, 0, 0)
         service_row.setSpacing(10)
 
-        self.install_boot_btn = create_page_text_button(card, "📤 上传/同步脚本与服务", "将本地最新抓包脚本与自启服务部署至路由器")
+        self.install_boot_btn = create_page_text_button(self.boot_card, "📤 上传/同步脚本与服务", "将本地最新抓包脚本与自启服务部署至路由器")
         self.install_boot_btn.clicked.connect(self.auto_capture_service.install_or_update_boot_service)
         service_row.addWidget(self.install_boot_btn)
 
-        self.uninstall_boot_btn = QPushButton("🗑 完全卸载自启服务", card)
+        self.uninstall_boot_btn = QPushButton("🗑 完全卸载自启服务", self.boot_card)
         self.uninstall_boot_btn.setObjectName("captureSecondaryButton")
         self.uninstall_boot_btn.setToolTip("完全卸载路由器上的自启服务与抓包脚本（已保存的抓包文件将被保留）")
         self.uninstall_boot_btn.clicked.connect(self._on_uninstall_clicked)
@@ -1246,74 +920,89 @@ class AutoCapturePage(QWidget):
 
         service_row.addStretch(1)
         layout.addLayout(service_row)
+        self.bg_layout.addWidget(self.boot_card)
 
-        # 5. 抓包执行与成果管理分组（自启、手动启动，加分割线后放一键拉取3个按钮）
+        # ================= 步骤 2：抓包启动与自启控制 =================
+        self.step2_card, step2_layout = create_step_card(
+            self.bg_content,
+            "步骤 2 · 抓包启动与自启控制",
+            "开启开机自启或手动启动后台抓包。仅占用未开启 Wi-Fi 的空闲无线频段，不影响上网业务。",
+        )
+
+        # 步骤 2 标题同行右侧并排展示两个纯文本状态（无边框，只留文字，间距 24px）
+        # 1. 自启配置状态
+        self.metric_autostart_widget = QWidget(self.step2_card)
+        self.metric_autostart_widget.setObjectName("autostartStatusBadge")
+        as_layout = QHBoxLayout(self.metric_autostart_widget)
+        as_layout.setContentsMargins(0, 0, 0, 0)
+        as_layout.setSpacing(0)
+        self.metric_autostart_widget.setStyleSheet("border: none; background: transparent;")
+        self.metric_autostart_label = QLabel("🚀 自启配置: 检测中...", self.metric_autostart_widget)
+        self.metric_autostart_label.setStyleSheet("color: #94a3b8; font-weight: bold; font-size: 13px; border: none; background: transparent;")
+        as_layout.addWidget(self.metric_autostart_label)
+
+        # 2. 脚本运行状态
+        self.running_alert_widget = QWidget(self.step2_card)
+        self.running_alert_widget.setObjectName("runningAlertWidget")
+        r_layout = QHBoxLayout(self.running_alert_widget)
+        r_layout.setContentsMargins(0, 0, 0, 0)
+        r_layout.setSpacing(0)
+        self.running_alert_widget.setStyleSheet("border: none; background: transparent;")
+        self.running_alert_label = QLabel("⚡ 运行状态: 空闲待机", self.running_alert_widget)
+        self.running_alert_label.setStyleSheet("color: #94a3b8; font-weight: bold; font-size: 13px; border: none; background: transparent;")
+        r_layout.addWidget(self.running_alert_label)
+        self.metric_running_label = self.running_alert_label
+
+        if hasattr(self.step2_card, "title_bar"):
+            self.step2_card.title_bar.addWidget(self.metric_autostart_widget)
+            self.step2_card.title_bar.addSpacing(24)
+            self.step2_card.title_bar.addWidget(self.running_alert_widget)
+
+        # 启动与收尾操作行
         exec_row = QHBoxLayout()
-        exec_row.setContentsMargins(2, 6, 0, 0)
+        exec_row.setContentsMargins(2, 4, 0, 0)
         exec_row.setSpacing(12)
         exec_row.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
-        self.boot_enable_check = QCheckBox("开机自启抓包", card)
+        self.boot_enable_check = QCheckBox("开机自启抓包", self.step2_card)
         self.boot_enable_check.setObjectName("captureCheckBox")
         self.boot_enable_check.setEnabled(False)
         self.boot_enable_check.setToolTip("请先连接路由器")
         self.boot_enable_check.clicked.connect(self._on_boot_check_clicked)
         exec_row.addWidget(self.boot_enable_check)
 
+        # 合并后的手动启动/收尾切换按钮
         self.start_script_btn = create_page_text_button(
-            card,
+            self.step2_card,
             "▶ 手动启动脚本",
             "立即在后台启动抓包\n【说明】：只会使用未开启 Wi-Fi 的空闲无线频段，正在正常上网的 Wi-Fi 不受任何影响；抓包数据实时保存，断电不丢失",
         )
-        self.start_script_btn.clicked.connect(self._on_start_script_clicked)
+        self.start_script_btn.clicked.connect(self._on_start_or_stop_script_clicked)
         exec_row.addWidget(self.start_script_btn)
 
+        # 兼容性保留隐藏的 stop_capture_btn 对象
+        self.stop_capture_btn = QPushButton("⏹ 结束并收尾抓包", self.step2_card)
+        self.stop_capture_btn.setVisible(False)
+        self.stop_capture_btn.clicked.connect(self._on_stop_and_cleanup_clicked)
+
+        # 中间伸缩，将监看终端推向最右侧
+        exec_row.addStretch(1)
+
         # 中间垂直分割线
-        exec_row.addSpacing(4)
-        self.exec_divider = QFrame(card)
+        self.exec_divider = QFrame(self.step2_card)
         self.exec_divider.setFixedWidth(1)
         self.exec_divider.setFixedHeight(22)
         exec_row.addWidget(self.exec_divider)
-        exec_row.addSpacing(4)
 
-        # 一键拉取 3 个按钮（紧随手动启动与分割线之后）
-        out_dir = self.auto_capture_service.get_output_dir()
-        self.pull_offline_btn = create_page_text_button(
-            card,
-            "📥 一键拉取离线包",
-            f"从路由器 /root/cap/ 下载全部抓包文件与日志到本地电脑：\n【本地保存位置】：{out_dir}\n（仅从路由器下载文件，如需查看健康度请点击旁边的“智能分析日志”）",
-        )
-        self.pull_offline_btn.clicked.connect(self._on_pull_offline_clicked)
-        exec_row.addWidget(self.pull_offline_btn)
-
-        self.analyze_offline_btn = create_page_text_button(
-            card,
-            "📊 智能分析日志",
-            f"对本地已拉取的抓包文件与会话日志进行健康度诊断分析：\n【分析目录】：{out_dir}\n识别捕获握手包与PMKID数量、周边热点、运行退出状态与排错建议",
-        )
-        self.analyze_offline_btn.clicked.connect(self._on_analyze_offline_clicked)
-        exec_row.addWidget(self.analyze_offline_btn)
-
-        self.bg_open_output_dir_btn = QPushButton("📂 打开输出目录", card)
-        self.bg_open_output_dir_btn.setObjectName("captureSecondaryButton")
-        self.bg_open_output_dir_btn.setToolTip(f"在文件资源管理器中打开电脑上的抓包输出目录：\n{out_dir}")
-        self.bg_open_output_dir_btn.clicked.connect(self._on_open_output_dir_clicked)
-        exec_row.addWidget(self.bg_open_output_dir_btn)
-
-        self.bg_toggle_console_btn = QPushButton("🖥 监看终端", card)
+        self.bg_toggle_console_btn = QPushButton("🖥 监看终端", self.step2_card)
         self.bg_toggle_console_btn.setObjectName("captureSecondaryButton")
         self.bg_toggle_console_btn.setToolTip("展开或收起后台抓包控制台与实时监看窗口")
         self.bg_toggle_console_btn.clicked.connect(self._on_toggle_console_clicked)
         exec_row.addWidget(self.bg_toggle_console_btn)
 
-        exec_row.addStretch(1)
-        layout.addLayout(exec_row)
-
-        self._update_boot_metrics_style()
-        self._update_status_banner_style()
-        self.bg_layout.addWidget(card)
-
-        # 4. 后台抓包实时终端控制台卡片（卡片外部独立卡片，手动启动后显示，停止后隐藏）
+        step2_layout.addLayout(exec_row)
+        self.bg_layout.addWidget(self.step2_card)
+        # 后台实时终端监看卡片 (高度可调)
         self.bg_console_card = QFrame(self.bg_content)
         self.bg_console_card.setObjectName("captureCard")
         self.bg_console_card.setAttribute(Qt.WA_StyledBackground, True)
@@ -1336,15 +1025,35 @@ class AutoCapturePage(QWidget):
         self.bg_autoscroll_check.setChecked(True)
         console_bar.addWidget(self.bg_autoscroll_check)
 
+        # 终端右上角小巧工具栏风格
+        tool_btn_style = (
+            "QPushButton { min-width: 26px; min-height: 24px; padding: 2px 10px; "
+            "border-radius: 4px; border: 1px solid #475569; color: #cbd5e1; background: transparent; } "
+            "QPushButton:hover { border-color: #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.12); }"
+        )
+
         self.bg_clear_btn = QPushButton("清空", self.bg_console_card)
-        self.bg_clear_btn.setObjectName("captureSecondaryButton")
+        self.bg_clear_btn.setStyleSheet(tool_btn_style)
         self.bg_clear_btn.clicked.connect(self._clear_bg_console)
         console_bar.addWidget(self.bg_clear_btn)
 
+        # 终端高度调节按钮
+        self.bg_zoom_in_btn = QPushButton("+ 放大", self.bg_console_card)
+        self.bg_zoom_in_btn.setStyleSheet(tool_btn_style)
+        self.bg_zoom_in_btn.setToolTip("增加终端高度")
+        self.bg_zoom_in_btn.clicked.connect(lambda: self._adjust_bg_console_height(40))
+        console_bar.addWidget(self.bg_zoom_in_btn)
+
+        self.bg_zoom_out_btn = QPushButton("- 缩小", self.bg_console_card)
+        self.bg_zoom_out_btn.setStyleSheet(tool_btn_style)
+        self.bg_zoom_out_btn.setToolTip("减少终端高度")
+        self.bg_zoom_out_btn.clicked.connect(lambda: self._adjust_bg_console_height(-40))
+        console_bar.addWidget(self.bg_zoom_out_btn)
+
         self.bg_collapse_btn = QPushButton("收起", self.bg_console_card)
-        self.bg_collapse_btn.setObjectName("captureSecondaryButton")
+        self.bg_collapse_btn.setStyleSheet(tool_btn_style)
         self.bg_collapse_btn.setToolTip("收起实时监看终端（不影响抓包脚本在路由器后台的持续运行）")
-        self.bg_collapse_btn.clicked.connect(lambda: self.bg_console_card.setVisible(False))
+        self.bg_collapse_btn.clicked.connect(lambda: (self.bg_console_card.setVisible(False), self._bg_log_timer.stop()))
         console_bar.addWidget(self.bg_collapse_btn)
 
         bg_console_layout.addLayout(console_bar)
@@ -1355,21 +1064,74 @@ class AutoCapturePage(QWidget):
         font = QFont("Consolas", 9)
         font.setStyleHint(QFont.Monospace)
         self.bg_console.setFont(font)
-        self.bg_console.setMinimumHeight(150)
-        self.bg_console.setMaximumHeight(260)
+        self.bg_console.setFixedHeight(240)
         bg_console_layout.addWidget(self.bg_console)
+
+        # 可垂直拖拽调整高度手柄
+        self.bg_resize_handle = VerticalResizeHandle(self.bg_console, min_height=100, max_height=700, parent=self.bg_console_card)
+        bg_console_layout.addWidget(self.bg_resize_handle)
 
         self.bg_console_card.setVisible(False)
         self.bg_layout.addWidget(self.bg_console_card)
 
+        # ================= 步骤 3：离线成果回收与智能诊断 =================
+        self.step3_card, step3_layout = create_step_card(
+            self.bg_content,
+            "步骤 3 · 离线成果回收与智能诊断",
+            "路由器在现场断网插电自主抓包完成后，连回电脑一键取回握手成果与日志并进行健康度分析。",
+        )
+
+        out_dir = self.auto_capture_service.get_output_dir()
+        result_row = QHBoxLayout()
+        result_row.setContentsMargins(2, 4, 0, 0)
+        result_row.setSpacing(12)
+        result_row.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+
+        self.pull_offline_btn = create_page_text_button(
+            self.step3_card,
+            "📥 一键拉取握手包",
+            f"从路由器 /root/cap/ 下载全部抓包文件与日志到本地电脑：\n【本地保存位置】：{out_dir}\n（仅从路由器下载文件，如需查看健康度请点击旁边的“智能分析日志”）",
+        )
+        self.pull_offline_btn.clicked.connect(self._on_pull_offline_clicked)
+        result_row.addWidget(self.pull_offline_btn)
+
+        self.analyze_offline_btn = create_page_text_button(
+            self.step3_card,
+            "📊 智能分析日志",
+            f"对本地已拉取的抓包文件与会话日志进行健康度诊断分析：\n【分析目录】：{out_dir}\n识别捕获握手包与PMKID数量、周边热点、运行退出状态与排错建议",
+        )
+        self.analyze_offline_btn.clicked.connect(self._on_analyze_offline_clicked)
+        result_row.addWidget(self.analyze_offline_btn)
+
+        self.bg_open_output_dir_btn = QPushButton("📂 打开输出目录", self.step3_card)
+        self.bg_open_output_dir_btn.setObjectName("captureSecondaryButton")
+        self.bg_open_output_dir_btn.setToolTip(f"在文件资源管理器中打开电脑上的抓包输出目录：\n{out_dir}")
+        self.bg_open_output_dir_btn.clicked.connect(self._on_open_output_dir_clicked)
+        result_row.addWidget(self.bg_open_output_dir_btn)
+
+        result_row.addStretch(1)
+        step3_layout.addLayout(result_row)
+        self.bg_layout.addWidget(self.step3_card)
+
+        self._update_boot_metrics_style()
+        self._update_status_banner_style()
+
+    def _adjust_bg_console_height(self, delta: int):
+        """调整后台监看终端高度。"""
+        new_h = max(100, min(700, self.bg_console.height() + delta))
+        self.bg_console.setFixedHeight(new_h)
+
     def _on_toggle_console_clicked(self):
-        """响应点击监看终端切换按钮。"""
+        """响应点击监看终端切换按钮。开启时以 2 秒高频刷新对齐脚本。"""
         if not hasattr(self, "bg_console_card"):
             return
         is_visible = not self.bg_console_card.isVisible()
         self.bg_console_card.setVisible(is_visible)
         if is_visible:
             self.auto_capture_service.poll_boot_log()
+            self._bg_log_timer.start(2000)
+        else:
+            self._bg_log_timer.stop()
 
     def _update_boot_metrics_style(self):
         """同步后台指标看板的明暗主题样式。"""
@@ -1389,35 +1151,11 @@ class AutoCapturePage(QWidget):
                 self.exec_divider.setStyleSheet("background: rgba(255, 255, 255, 0.18); border: none;")
 
     def _build_offline_workflow_section(self):
-        """构建后台抓包现场脱机自主工作流程指南卡片。"""
-        card, layout = create_capture_card(
-            self.bg_content,
-            "现场脱机抓包工作流程指南",
-            "无需电脑长时连接，让路由器在现场自主全自动抓包，适合外出采集与多场地移动巡检。",
-            collapsible=False,
-        )
-        out_dir = self.auto_capture_service.get_output_dir()
-        steps_lbl = QLabel(
-            "1. 【部署服务】：确认上方服务状态为“已安装”，并开启“开机自启开关”。\n"
-            "2. 【现场断网插电】：拔下网线并将路由器放置在测试区域，接通电源即可自动启动空闲无线频段自主抓包。\n"
-            "3. 【全自动实时保存】：抓到的握手包每 30 秒自动安全保存到路由器存储 (/root/cap/)，直接拔掉电源也不会丢失数据。\n"
-            f"4. 【取回拉取与分析】：连上电脑后点击“一键拉取离线包”将文件保存至本地 ({out_dir})；随时点击“智能分析日志”可查看健康诊断报告，也可点击“打开本地成果文件夹”直接查看原始文件。",
-            card,
-        )
-        steps_lbl.setObjectName("captureDescription")
-        steps_lbl.setWordWrap(True)
-        steps_lbl.setStyleSheet("line-height: 150%; padding: 4px 0;")
-        layout.addWidget(steps_lbl)
-
-        self.bg_layout.addWidget(card)
+        """兼容保留。完整工作流指南已整合进顶部【❓ 使用指南】弹窗。"""
         self.bg_layout.addStretch(1)
 
     def _build_guard_section(self):
-        """构建紧凑型【全局总控与系统资源守卫】控制栏。
-
-        去除了占用大量垂直空间的卡片标题和描述文字，将全局启停、本地成果、
-        内存/Flash资源指标与视图模式切换整合为单行紧凑控制栏。
-        """
+        """构建紧凑型【全局总控与系统资源守卫】控制栏。"""
         self.guard_card = QFrame(self.fg_content)
         self.guard_card.setObjectName("captureCard")
         self.guard_card.setAttribute(Qt.WA_StyledBackground, True)
@@ -1436,18 +1174,19 @@ class AutoCapturePage(QWidget):
         self.stop_all_btn.clicked.connect(self._on_stop_all_clicked)
         guard_layout.addWidget(self.stop_all_btn)
 
-        self.open_output_dir_btn = QPushButton("📂 本地成果", self.guard_card)
+        self.open_output_dir_btn = QPushButton("📂 打开输出目录", self.guard_card)
         self.open_output_dir_btn.setObjectName("captureSecondaryButton")
-        self.open_output_dir_btn.setToolTip("打开本地抓包成果目录")
+        self.open_output_dir_btn.setToolTip("打开本地抓包输出目录")
         self.open_output_dir_btn.clicked.connect(self._on_open_output_dir_clicked)
         guard_layout.addWidget(self.open_output_dir_btn)
-        self.export_logs_btn = QPushButton("\u5bfc\u51fa\u65e5\u5fd7", self.guard_card)
+
+        self.export_logs_btn = QPushButton("导出日志", self.guard_card)
         self.export_logs_btn.setObjectName("captureSecondaryButton")
         guard_layout.addWidget(self.export_logs_btn)
         from .auto_capture_log_export import AutoCaptureLogExport
         self._log_export = AutoCaptureLogExport(self, self.export_logs_btn)
 
-        guard_layout.addSpacing(8)
+        guard_layout.addSpacing(12)
 
         # 2. 内存与 Flash 资源指标 (紧凑单行排布)
         self.mem_health_label = QLabel("可用内存: --", self.guard_card)
@@ -1462,21 +1201,15 @@ class AutoCapturePage(QWidget):
 
         guard_layout.addStretch(1)
 
-        # 3. 视图模式切换器 (整合到右侧)
-        view_label = QLabel("视图:", self.guard_card)
-        view_label.setObjectName("captureDescription")
-        guard_layout.addWidget(view_label)
-
-        self.radio_split = QRadioButton("◉ 同屏并排", self.guard_card)
-        self.radio_split.setToolTip("同屏并排显示所有射频卡片")
+        # 兼容保留单选框对象（隐藏不显示，默认固定为竖向列表）
+        self.radio_split = QRadioButton("◉ 列表", self.guard_card)
         self.radio_split.setChecked(True)
+        self.radio_split.setVisible(False)
         self.radio_split.toggled.connect(self._on_view_mode_toggled)
-        guard_layout.addWidget(self.radio_split)
 
-        self.radio_tabbed = QRadioButton("○ 分屏标签", self.guard_card)
-        self.radio_tabbed.setToolTip("以多标签页方式切换各射频卡片")
+        self.radio_tabbed = QRadioButton("○ 标签", self.guard_card)
+        self.radio_tabbed.setVisible(False)
         self.radio_tabbed.toggled.connect(self._on_view_mode_toggled)
-        guard_layout.addWidget(self.radio_tabbed)
 
         self.fg_layout.addWidget(self.guard_card)
 
@@ -1494,11 +1227,12 @@ class AutoCapturePage(QWidget):
         self.empty_label.setStyleSheet("padding: 30px;")
         self.cards_container_layout.addWidget(self.empty_label)
 
-        # 同屏并排布局容器
+        # 竖向普通列表布局容器 (原 split_container，现垂直排列卡片)
         self.split_container = QWidget(self.cards_frame)
-        self.split_layout = QHBoxLayout(self.split_container)
+        self.split_layout = QVBoxLayout(self.split_container)
         self.split_layout.setContentsMargins(0, 0, 0, 0)
         self.split_layout.setSpacing(10)
+        self.split_layout.setAlignment(Qt.AlignTop)
         self.cards_container_layout.addWidget(self.split_container)
 
         # 分屏多标签容器 (标签栏居右显示，文字左对齐)
@@ -1557,7 +1291,14 @@ class AutoCapturePage(QWidget):
 
         self.start_all_btn.setEnabled(connected and bool(radios))
         boot_running = bool(self.auto_capture_service.boot_status and self.auto_capture_service.boot_status.is_running)
-        self.start_script_btn.setEnabled(connected and not boot_running)
+        if boot_running:
+            self.start_script_btn.setText("⏹ 结束并收尾抓包")
+            self.start_script_btn.setToolTip("后台脚本正在运行\n停止后台抓包并安全保存数据，自动恢复无线网络正常状态。")
+            self.start_script_btn.setEnabled(connected)
+        else:
+            self.start_script_btn.setText("▶ 手动启动脚本")
+            self.start_script_btn.setToolTip("立即在后台启动抓包\n【说明】：只会使用未开启 Wi-Fi 的空闲无线频段，正在正常上网的 Wi-Fi 不受任何影响；抓包数据实时保存，断电不丢失")
+            self.start_script_btn.setEnabled(connected)
         self.install_boot_btn.setEnabled(connected)
         self.pull_offline_btn.setEnabled(connected)
         self.boot_enable_check.setEnabled(connected)
@@ -1566,6 +1307,9 @@ class AutoCapturePage(QWidget):
             self._initial_loaded = False
             self._last_rendered_boot_status = None
             self.running_alert_widget.setVisible(False)
+            if hasattr(self, "metric_autostart_widget"):
+                self.metric_autostart_widget.setVisible(False)
+            self.start_script_btn.setText("▶ 手动启动脚本")
             self.start_script_btn.setEnabled(False)
             self._bg_status_timer.stop()
             self.boot_enable_check.setEnabled(False)
@@ -1664,7 +1408,7 @@ class AutoCapturePage(QWidget):
 
             for card in self.radio_cards.values():
                 card.setParent(self.split_container)
-                self.split_layout.addWidget(card, 1)
+                self.split_layout.addWidget(card, 0, Qt.AlignTop)
                 card.show()
         else:
             # 2. 切换到分屏多标签页模式
@@ -1699,31 +1443,40 @@ class AutoCapturePage(QWidget):
         if not force and not is_transitioning and getattr(self, "_last_rendered_boot_status", None) == status:
             return
         self._last_rendered_boot_status = status
-        # 1. 顶部大号状态徽章
-        if status.is_running:
-            self.boot_status_badge.setText("【脚本运行中】")
-            self.boot_status_badge.setStyleSheet("color: #10b981; font-weight: bold;")
-        elif status.installed:
+        # 1. 步骤 1 自启服务状态徽章（独立展示服务就绪与部署状态，不被脚本运行状态覆盖）
+        if status.installed:
             self.boot_status_badge.setText("【自启服务已就绪】")
-            self.boot_status_badge.setStyleSheet("color: #38bdf8; font-weight: bold;")
+            self.boot_status_badge.setStyleSheet("color: #38bdf8; font-weight: bold; font-size: 13px;")
         elif status.remote_script_exists:
             self.boot_status_badge.setText("【脚本就绪 · 待注册自启】")
-            self.boot_status_badge.setStyleSheet("color: #f59e0b; font-weight: bold;")
+            self.boot_status_badge.setStyleSheet("color: #f59e0b; font-weight: bold; font-size: 13px;")
         else:
             self.boot_status_badge.setText("【服务未部署】")
-            self.boot_status_badge.setStyleSheet("color: #94a3b8; font-weight: bold;")
+            self.boot_status_badge.setStyleSheet("color: #94a3b8; font-weight: bold; font-size: 13px;")
 
-        # 1.1 正在运行状态告警横幅控制（仅在已连接且正在运行时显示，断开连接或未运行时隐藏）
+        # 1.1 步骤 2 标题同行两个状态持续显示（自启配置 + 运行状态，无边框纯文本）
         snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
         conn_state = getattr(snapshot, "connection_state", None)
         connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
-        if connected and status.is_running:
+        if connected:
             self.running_alert_widget.setVisible(True)
-            self.stop_capture_btn.setEnabled(True)
-            if getattr(self, "_manual_boot_started", False) and hasattr(self, "bg_console_card"):
-                self.bg_console_card.setVisible(True)
+            if hasattr(self, "metric_autostart_widget"):
+                self.metric_autostart_widget.setVisible(True)
+            if status.is_running:
+                self.running_alert_label.setText("⚡ 脚本运行中 (后台抓包中)")
+                self.running_alert_label.setStyleSheet("color: #10b981; font-weight: bold; font-size: 13px; border: none; background: transparent;")
+                self.stop_capture_btn.setEnabled(True)
+                if getattr(self, "_manual_boot_started", False) and hasattr(self, "bg_console_card"):
+                    self.bg_console_card.setVisible(True)
+            else:
+                self.running_alert_label.setText("⚡ 运行状态: 空闲待机")
+                self.running_alert_label.setStyleSheet("color: #94a3b8; font-weight: bold; font-size: 13px; border: none; background: transparent;")
+                self._manual_boot_started = False
         else:
             self.running_alert_widget.setVisible(False)
+            if hasattr(self, "metric_autostart_widget"):
+                self.metric_autostart_widget.setVisible(False)
+            self.running_alert_label.setText("⚡ 运行状态: 空闲待机")
             self._manual_boot_started = False
 
         # 2. 指标看板各指标清晰排布
@@ -1757,21 +1510,14 @@ class AutoCapturePage(QWidget):
             color = "#f59e0b" if status.remote_script_exists else "#94a3b8"
             self.metric_service_label.setStyleSheet(f"color: {color};")
 
-        # 自启配置
-        if status.autostart_enabled:
-            self.metric_autostart_label.setText("🚀 自启配置: 已启用")
-            self.metric_autostart_label.setStyleSheet("color: #10b981; font-weight: bold;")
-        else:
-            self.metric_autostart_label.setText("🚀 自启配置: 已关闭")
-            self.metric_autostart_label.setStyleSheet("color: #94a3b8;")
-
-        # 进程状态
-        if status.is_running:
-            self.metric_running_label.setText("⚡ 运行状态: 脚本运行中")
-            self.metric_running_label.setStyleSheet("color: #10b981; font-weight: bold;")
-        else:
-            self.metric_running_label.setText("⚡ 运行状态: 空闲待机")
-            self.metric_running_label.setStyleSheet("color: #94a3b8;")
+        # 自启配置（步骤 2 标题同行状态，无边框纯文本）
+        if hasattr(self, "metric_autostart_widget"):
+            if status.autostart_enabled:
+                self.metric_autostart_label.setText("🚀 自启配置: 已启用")
+                self.metric_autostart_label.setStyleSheet("color: #10b981; font-weight: bold; font-size: 13px; border: none; background: transparent;")
+            else:
+                self.metric_autostart_label.setText("🚀 自启配置: 已关闭")
+                self.metric_autostart_label.setStyleSheet("color: #94a3b8; font-weight: bold; font-size: 13px; border: none; background: transparent;")
 
         # 3. 同步开关
         self.boot_enable_check.blockSignals(True)
@@ -1804,13 +1550,18 @@ class AutoCapturePage(QWidget):
         else:
             self.version_diff_widget.setVisible(False)
 
-        # 5. 手动启动脚本按钮状态同步
-        self.start_script_btn.setEnabled(connected and not status.is_running)
+        # 5. 手动启动/收尾脚本切换按钮状态同步
         if not connected:
+            self.start_script_btn.setText("▶ 手动启动脚本")
+            self.start_script_btn.setEnabled(False)
             self.start_script_btn.setToolTip("请先连接路由器")
         elif status.is_running:
-            self.start_script_btn.setToolTip("后台脚本正在运行\n是否已开始抓包尚未确认，请查看后台会话日志。如需停止请点击上方“结束并收尾抓包”。")
+            self.start_script_btn.setText("⏹ 结束并收尾抓包")
+            self.start_script_btn.setEnabled(True)
+            self.start_script_btn.setToolTip("后台脚本正在运行\n停止后台抓包并安全保存数据，自动恢复无线网络正常状态。")
         else:
+            self.start_script_btn.setText("▶ 手动启动脚本")
+            self.start_script_btn.setEnabled(True)
             self.start_script_btn.setToolTip("立即在后台启动抓包\n【说明】：只会使用未开启 Wi-Fi 的空闲无线频段，正在正常上网的 Wi-Fi 不受任何影响；抓包数据实时保存，断电不丢失")
 
         if connected:
@@ -1962,6 +1713,14 @@ class AutoCapturePage(QWidget):
         self.boot_status_badge.setStyleSheet("color: #38bdf8; font-weight: bold;")
         self.auto_capture_service.toggle_autostart(checked)
 
+    def _on_start_or_stop_script_clicked(self):
+        """点击手动启动/收尾切换按钮：运行中则执行收尾，未运行则启动。"""
+        b_status = getattr(self.auto_capture_service, "boot_status", None) or getattr(self, "_last_boot_status", None)
+        if b_status and b_status.is_running:
+            self._on_stop_and_cleanup_clicked()
+        else:
+            self._on_start_script_clicked()
+
     def _on_start_script_clicked(self):
         """响应手动启动抓包脚本操作。"""
         snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
@@ -2011,14 +1770,15 @@ class AutoCapturePage(QWidget):
                 self._manual_boot_started = True
                 if hasattr(self, "bg_console_card"):
                     self.bg_console_card.setVisible(True)
+                    self._bg_log_timer.start(2000)
                     from datetime import datetime
                     self.append_bg_console_text(
                         f"\n[{datetime.now().strftime('%H:%M:%S')}] ▶ 正在准备并启动后台抓包脚本...\n"
                         "⏳ 正在准备抓包环境与探测空闲射频，请稍候...\n"
                     )
                 self.start_script_btn.setEnabled(False)
-                self.boot_status_badge.setText("【正在准备并启动...】")
-                self.boot_status_badge.setStyleSheet("color: #38bdf8; font-weight: bold;")
+                self.running_alert_label.setText("⏳ 正在准备抓包环境并启动...")
+                self.running_alert_label.setStyleSheet("color: #f59e0b; font-weight: bold; font-size: 13px;")
                 self.auto_capture_service.install_and_start_boot_script()
             return
 
@@ -2041,8 +1801,8 @@ class AutoCapturePage(QWidget):
                     "⏳ 正在探测无线环境与空闲射频，请稍候...\n"
                 )
             self.start_script_btn.setEnabled(False)
-            self.boot_status_badge.setText("【正在启动脚本...】")
-            self.boot_status_badge.setStyleSheet("color: #38bdf8; font-weight: bold;")
+            self.running_alert_label.setText("⏳ 正在启动抓包脚本...")
+            self.running_alert_label.setStyleSheet("color: #f59e0b; font-weight: bold; font-size: 13px;")
             self.auto_capture_service.start_boot_script()
 
     def _on_stop_and_cleanup_clicked(self):
@@ -2050,11 +1810,12 @@ class AutoCapturePage(QWidget):
         self._manual_boot_started = False
         if hasattr(self, "bg_console_card"):
             self.bg_console_card.setVisible(False)
+        self._bg_log_timer.stop()
         self._last_rendered_boot_status = None
         self.stop_capture_btn.setEnabled(False)
         self.start_script_btn.setEnabled(False)
-        self.boot_status_badge.setText("【正在收尾抓包...】")
-        self.boot_status_badge.setStyleSheet("color: #f59e0b; font-weight: bold;")
+        self.running_alert_label.setText("⏳ 正在收尾抓包...")
+        self.running_alert_label.setStyleSheet("color: #f97316; font-weight: bold; font-size: 13px;")
         self.auto_capture_service.stop_and_cleanup_capture()
 
     def _on_uninstall_clicked(self):
@@ -2068,7 +1829,7 @@ class AutoCapturePage(QWidget):
         conn_state = getattr(snapshot, "connection_state", None)
         connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
         if not connected:
-            MessageDialog("提示", "路由器尚未连接，请先连接路由器后再拉取离线包。", self).exec()
+            MessageDialog("提示", "路由器尚未连接，请先连接路由器后再拉取握手包。", self).exec()
             return
 
         self.pull_offline_btn.setEnabled(False)
@@ -2094,7 +1855,7 @@ class AutoCapturePage(QWidget):
         MessageDialog("拉取成果失败", f"从路由器拉取离线成果时出现异常:\n{err_msg}", self).exec()
 
     def _on_analyze_offline_clicked(self):
-        """对本地成果目录中的离线抓包与日志进行智能健康诊断并弹出报告。"""
+        """对本地输出目录中的离线抓包与日志进行智能健康诊断并弹出报告。"""
         out_dir = self.auto_capture_service.get_output_dir()
         try:
             report = self.auto_capture_service.analyze_offline_artifacts(str(out_dir))
@@ -2106,8 +1867,9 @@ class AutoCapturePage(QWidget):
     def _on_open_output_dir_clicked(self):
         out_dir = self.auto_capture_service.get_output_dir()
         try:
-            if out_dir.exists():
-                os.startfile(str(out_dir))
+            if not out_dir.exists():
+                out_dir.mkdir(parents=True, exist_ok=True)
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(out_dir.resolve())))
         except Exception:
             pass
 
@@ -2134,11 +1896,12 @@ class AutoCapturePage(QWidget):
                 self._manual_boot_started = True
                 if hasattr(self, "bg_console_card"):
                     self.bg_console_card.setVisible(True)
+                    self._bg_log_timer.start(2000)
                     from datetime import datetime
                     self.append_bg_console_text(
                         f"[{datetime.now().strftime('%H:%M:%S')}] ▶ 后台抓包脚本已启动成功！\n"
                         f"⚡ 抓包进程正在后台自主运行，仅启用空闲无线频段，不影响正常业务 Wi-Fi\n"
-                        f"📁 抓包产物实时保存在路由器 /root/cap/ 目录，随时可点击【一键拉取离线包】拉回本地\n"
+                        f"📁 抓包产物实时保存在路由器 /root/cap/ 目录，随时可点击【一键拉取握手包】拉回本地\n"
                         f"----------------------------------------------------------------------\n"
                     )
                     self.auto_capture_service.poll_boot_log()
