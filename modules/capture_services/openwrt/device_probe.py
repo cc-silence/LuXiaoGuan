@@ -453,7 +453,7 @@ class OpenWrtDeviceProbe:
             from .radio_usage import read_radio_usage
             from .radio_usage_state import radio_usage_fields
             try:
-                owned = {f"hcxmon{m.group(0)}" for r in device.radios if (m := re.search(r"\d+", r.name))}
+                owned = {item for r in device.radios if (m := re.search(r"\d+", r.name)) for item in (f"hcxmon{m.group(0)}", f"hcxstub{m.group(0)}")}
                 usages = read_radio_usage(self.command_runner, cancel_event, snapshot=wireless_text, owned_interface=owned)
                 device = replace(device, radios=tuple(replace(r, **radio_usage_fields(usages[r.name]))
                                  if r.name in usages else replace(r, **radio_usage_fields(None)) for r in device.radios))
