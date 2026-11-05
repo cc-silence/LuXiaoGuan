@@ -59,7 +59,7 @@ class ConnectionSection:
         self.remember_password = QCheckBox("记住密码", self.card)
         self.remember_password.setObjectName("captureCheckBox")
         self.remember_password.setToolTip(
-            "自己的电脑可勾选，下次连接不用重新输入密码；公用电脑不要勾选。密码由 Windows 为当前用户保存，不写入普通配置文件；取消勾选会删除已记住的密码。"
+            "自己的电脑可勾选，下次连接不用重新输入密码；公用电脑不要勾选。密码由系统安全密码库为当前用户保存，不写入普通配置文件；取消勾选会删除已记住的密码。"
         )
         self.auth_method = QComboBox(self.card)
         self.auth_method.setObjectName("captureComboBox")
@@ -71,7 +71,7 @@ class ConnectionSection:
         self.private_key_button = create_page_icon_button(
             self.card,
             ":/icons/images/icons/cil-file.png",
-            "选择 Windows 本地 SSH 私钥文件。",
+            "选择本机 SSH 私钥文件。",
         )
         self.login_button = QPushButton("登录", self.card)
         self.login_button.setObjectName("captureSecondaryButton")

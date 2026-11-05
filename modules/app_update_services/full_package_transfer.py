@@ -23,6 +23,12 @@ class FullPackageTransfer(QThread):
         try:
             from modules.platform_services.app_update_support import require_native_updater
             require_native_updater()
+            from modules.platform_services.runtime import is_linux
+            if is_linux():
+                from .linux_full_package_transfer import download
+                plan=download(self)
+                if not self.cancel_event.is_set():self.result.emit(plan)
+                return
             release=verify_manifest(self.manifest,PUBLIC_KEY)
             stage=validate_stage(self.root/CACHE_DIRECTORY/release.sha256,self.root)
             from .cache import prune_completed

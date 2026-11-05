@@ -60,6 +60,18 @@ class UpdateTransfer(QThread):
         begin_operation("download" if self.download else "plan", self.catalog.get("version", ""))
         record("download_started" if self.download else "plan_started")
         try:
+            from modules.platform_services.app_update_support import require_native_updater
+            platform=require_native_updater()
+            if platform=='linux-x64':
+                from .linux_desktop_plan import make_plan as linux_plan
+                plan=linux_plan(self.root,self.catalog,self.cancel_event.is_set)
+                self.preview.emit(plan)
+                if self.download:
+                    if plan['conflicts']:raise ValueError('Local edited files conflict; review the update plan first')
+                    from .linux_download import download
+                    download(self,plan)
+                if not self.cancel_event.is_set():self.result.emit(plan)
+                return
             if not self.download: self.preview.emit(preview_plan(self.root,self.catalog))
             plan=make_plan(self.root,self.catalog,self.cancel_event.is_set,cache=self.cache)
             if self.download:

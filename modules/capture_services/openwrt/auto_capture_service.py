@@ -189,6 +189,29 @@ class AutoCaptureRadioSession:
         if self._coordinator is not None:
             self._coordinator.cancel()
 
+    def _build_sweep_stale_script(self) -> str:
+        from .capture_placeholders import placeholder_removal_command
+        stub_name = "hcxstub" + self.phy[3:] if re.fullmatch(r"phy[0-9]+", self.phy) else ""
+        stub_cleanup = ""
+        if stub_name and stub_name in self._created_stubs:
+            stub_cleanup = placeholder_removal_command(stub_name, self.phy) + "; "
+        cleanup_script = (
+            f"stale_pids=$(ps w 2>/dev/null | grep 'hcxdumptool' | grep -w '{self.mon_iface}' | grep -v grep | awk '{{print $1}}'); "
+            f"if [ -n \"$stale_pids\" ]; then "
+            f"  for p in $stale_pids; do kill -TERM \"$p\" 2>/dev/null; done; "
+            f"  sleep 1; "
+            f"  for p in $stale_pids; do kill -KILL \"$p\" 2>/dev/null; done; "
+            f"fi; "
+            f"{stub_cleanup}"
+        )
+        from .auto_capture_cleanup import monitor_removal_command
+        cleanup_script += monitor_removal_command(self.mon_iface, self.phy)
+        return cleanup_script
+
+    def _build_ensure_phy_stubs_script(self) -> str:
+        from .capture_placeholders import build_placeholder_script
+        return build_placeholder_script(self.phy)
+
     def _run_capture_pipeline(self, channels: str, allow_takeover: bool):
         """抓包完整流程：接管 -> 建口 -> 起 hcxdumptool -> 读流 -> 收尾回滚 -> 拉成果。"""
         coordinator = self._coordinator
@@ -265,17 +288,9 @@ class AutoCaptureRadioSession:
                     f"🧹 [环境净化] 扫描并清理残留旧监听接口与冲突进程...\n",
                 )
                 # 2. 清理旧残留监听口与残留外部抓包进程 (严格对齐 hcx_autocap.sh，绝不误伤或关闭同 PHY 其他接口，不误杀其它路抓包)
-                cleanup_script = (
-                    f"stale_pids=$(ps w 2>/dev/null | grep 'hcxdumptool' | grep -w '{self.mon_iface}' | grep -v grep | awk '{{print $1}}'); "
-                    f"if [ -n \"$stale_pids\" ]; then "
-                    f"  for p in $stale_pids; do kill -TERM \"$p\" 2>/dev/null; done; "
-                    f"  sleep 1; "
-                    f"  for p in $stale_pids; do kill -KILL \"$p\" 2>/dev/null; done; "
-                    f"fi; "
-                )
-                from .auto_capture_cleanup import monitor_removal_command, verified_monitor_result
-                cleanup_script += monitor_removal_command(self.mon_iface, self.phy)
-                sweep_result = self.runner.run("sweep_stale", cleanup_script, timeout=8, cancel_event=self._stop_event)
+                cleanup_script = self._build_sweep_stale_script()
+                from .auto_capture_cleanup import verified_monitor_result
+                sweep_result = self.runner.run("sweep_stale",cleanup_script,timeout=8,cancel_event=self._stop_event)
                 try:
                     monitor_state = verified_monitor_result(sweep_result)
                 except Exception as exc:
@@ -351,12 +366,14 @@ class AutoCaptureRadioSession:
                 if not coordinator.wait_ready(self.radio_name, timeout=30.0, cancel_event=self._stop_event):
                     raise RuntimeError("Capture startup coordination was cancelled or timed out.")
 
-            if self._stop_event.is_set():
-                return
-
+                # 防御 hcxdumptool 6.3.x 内部 Multi-PHY 枚举 Bug：
+                # 若系统中其他空闲物理卡处于零接口状态，hcxdumptool 会在 get_interfacelist 时
+                # 误判首个 PHY index 为 0 并直接报 failed to get interface list 崩溃退出。
+                # 为零接口物理卡挂载极轻量占位 stub 接口，保证工具正确枚举系统无线卡列表。
+                # 注意：排除正在本次任务中进行抓包的 PHY，避免给即将创建监听网卡的 PHY 造成双监听口冲突。
             from .capture_placeholders import prepare_placeholders
             with takeover_transaction(cancel_event=self._stop_event):
-                prepare_placeholders(self)
+                prepare_placeholders(self, exclude_phy=self.phy)
             from .capture_initialization_evidence import collect_scene
             collect_scene(self, "prepared")
 
@@ -956,8 +973,9 @@ class AutoCaptureRadioSession:
                 cleanup_errors.append("\u65e0\u7ebf\u6062\u590d\u8bb0\u5f55\u7f3a\u5c11\u6301\u4e45\u5316\u4e0a\u4e0b\u6587\uff0c\u672a\u6267\u884c\u6062\u590d\u3002")
 
         # 4. 尝试拉回本次抓包产物 .pcapng
+        pulled_dest = None
         if self.remote_cap_file and connection_unchanged:
-            self._pull_capture_result()
+            pulled_dest = self._pull_capture_result()
 
         if cleanup_errors:
             self.stats.error_message = (self.stats.error_message + "; " if self.stats.error_message else "") + "; ".join(cleanup_errors)
@@ -977,6 +995,8 @@ class AutoCaptureRadioSession:
             )
         self.service.radioStateChanged.emit(self.radio_name, final_state)
         self.service.radioStatsUpdated.emit(self.radio_name, self._build_stats_dict())
+        if pulled_dest and Path(pulled_dest).is_file():
+            self.service.foregroundCapturePulled.emit(str(pulled_dest))
         return not cleanup_errors
 
     def _pull_capture_result(self):
@@ -1007,11 +1027,19 @@ class AutoCaptureRadioSession:
                 temp_dest.unlink(missing_ok=True)
             if dest_file.exists():
                 if stable:
-                    _product, note = cap_product_note(dest_file)
+                    if getattr(self.service, "should_generate_cap", lambda: False)():
+                        _product, note = cap_product_note(dest_file, enabled=True)
+                    else:
+                        _product, note = None, "原始抓包已安全保存至本地（未开启同时输出 CAP 格式）。"
                 else:
-                    note = "CAP \u672a\u751f\u6210\uff1a\u4e0b\u8f7d\u671f\u95f4\u539f\u59cb\u5305\u4ecd\u5728\u53d8\u5316\u6216\u672a\u4e0b\u8f7d\u5b8c\u6574\uff0c\u672c\u5730\u539f\u5305\u5df2\u4fdd\u7559\u3002"
+                    note = "CAP 未生成：下载期间原始包仍在变化或未下载完整，本地原包已保留。"
                 self.service.radioStreamOutput.emit(self.radio_name, note + "\n")
-                self.service.messageGenerated.emit(note, "success" if stable and _product else "warning")
+                self.service.messageGenerated.emit(
+                    note,
+                    "success" if stable and (_product or not getattr(self.service, "should_generate_cap", lambda: False)()) else "warning"
+                )
+                if stable:
+                    return dest_file
         except FileNotFoundError:
             return
         except Exception as exc:
@@ -1049,6 +1077,8 @@ class AutoCaptureService(QObject):
     messageGenerated = Signal(str, str)                     # message, level
     radioIdleStatusUpdated = Signal(dict)                   # {radio_name: RadioUsage}; accepts legacy bool/None values in receivers
     bootLogUpdated = Signal(str)                            # 最新后台会话日志文本
+    remoteCapDirCleared = Signal(bool, str)                 # success, message
+    foregroundCapturePulled = Signal(str)                   # pulled_file_path
 
     def __init__(self, owner):
         super().__init__(owner if isinstance(owner, QObject) else None)
@@ -1071,9 +1101,14 @@ class AutoCaptureService(QObject):
         self._is_polling_boot_log = False
         self._boot_connection = None
         self._diagnostic_lock = threading.Lock()
+        self._setup_lock = threading.Lock()
         self._recovery_diagnostics = deque(maxlen=32)
         backend.capture_diagnostic_callback = self.record_recovery_diagnostic
         self._disposed = False
+        self._boot_log_thread: Optional[threading.Thread] = None
+        self._boot_log_channel = None
+        self._boot_log_stop_event = threading.Event()
+        self._boot_log_lock = threading.Lock()
 
         owner.openwrtSnapshotChanged.connect(self._on_snapshot_changed)
         from modules.capture_services.local_capture_diagnostics import AutoCaptureDiagnostics
@@ -1105,6 +1140,48 @@ class AutoCaptureService(QObject):
         """检查是否有正在抓包的会话。"""
         return any(s.stats.state in {"starting", "capturing", "stopping"} for s in self.sessions.values())
 
+    def should_generate_cap(self) -> bool:
+        """检查是否启用了自动抓包同时输出 CAP 格式。"""
+        settings = getattr(self.owner, "settings", None)
+        if isinstance(settings, dict) and "auto_capture_generate_cap" in settings:
+            return bool(settings["auto_capture_generate_cap"])
+        try:
+            from modules.config_services.capture_settings_manager import CaptureSettingsManager
+            return bool(CaptureSettingsManager().load().get("openwrt", {}).get("auto_capture_generate_cap", False))
+        except Exception:
+            return False
+
+    def is_any_capture_running(self) -> bool:
+        """检查前台或后台是否有任何正在运行的抓包任务。"""
+        fg_running = any(
+            s.stats.state in {"starting", "capturing", "stopping"}
+            for s in self.sessions.values()
+        )
+        bg_running = bool(self.boot_status and self.boot_status.is_running)
+        return fg_running or bg_running
+
+    def clear_remote_cap_artifacts_async(self):
+        """异步清空远端 /root/cap/ 目录下的所有抓包成果与日志。"""
+        def _task():
+            try:
+                if self.is_any_capture_running():
+                    msg = "检测到当前有抓包任务正在运行，已跳过清空路由器抓包目录以防数据丢失。"
+                    self.messageGenerated.emit(msg, "warning")
+                    self.remoteCapDirCleared.emit(False, msg)
+                    return
+                success, msg = self.boot_manager.clear_remote_capture_artifacts()
+                level = "success" if success else "error"
+                self.messageGenerated.emit(msg, level)
+                self.remoteCapDirCleared.emit(success, msg)
+                self.refresh_boot_status()
+            except Exception as exc:
+                LOGGER.warning("Clear remote cap artifacts failed: %s", exc)
+                self.messageGenerated.emit(f"清空路由器抓包目录失败: {exc}", "error")
+                self.remoteCapDirCleared.emit(False, str(exc))
+
+        t = threading.Thread(target=_task, name="ClearRemoteCapArtifacts", daemon=True)
+        t.start()
+
     def get_output_dir(self) -> Path:
         """获取本地抓包成果存储目录。"""
         settings = getattr(self.owner, "settings", {}) or {}
@@ -1113,8 +1190,10 @@ class AutoCaptureService(QObject):
             out = Path(custom)
         else:
             repo_root = Path(__file__).resolve().parents[3]
-            out = repo_root / "dist" / "captures"
-        out.mkdir(parents=True, exist_ok=True)
+            from modules.platform_services.application_paths import automatic_capture_directory
+            out = automatic_capture_directory(repo_root)
+        from modules.platform_services.application_paths import ensure_directory
+        ensure_directory(out)
         return out
 
     def get_or_create_session(self, radio_info: OpenWrtRadioInfo) -> AutoCaptureRadioSession:
@@ -1132,6 +1211,9 @@ class AutoCaptureService(QObject):
 
     def start_radio_capture(self, radio_info: OpenWrtRadioInfo, channels: str = "", allow_takeover: bool = False, coordinator: Optional[CaptureStartupCoordinator] = None):
         """启动单路射频抓包。"""
+        if bool(self.boot_status and self.boot_status.is_running):
+            self.messageGenerated.emit("后台抓包正在运行中，前后台抓包互斥，无法启动前台抓包。", "warning")
+            return
         session = self.get_or_create_session(radio_info)
         session.start(channels, allow_takeover, coordinator=coordinator)
         if not self._resource_timer.isActive():
@@ -1165,6 +1247,7 @@ class AutoCaptureService(QObject):
             self._active_coordinator = None
         for session in list(self.sessions.values()):
             session.stop()
+        self.stop_boot_log_stream()
         self._resource_timer.stop()
 
     def poll_boot_log(self, max_lines: int = 35):
@@ -1196,6 +1279,122 @@ class AutoCaptureService(QObject):
                 self._is_polling_boot_log = False
             raise
         return True
+
+    def is_boot_log_streaming(self) -> bool:
+        """检查后台日志实时流式监听线程是否处于活跃状态。"""
+        with self._boot_log_lock:
+            return bool(
+                self._boot_log_thread is not None
+                and self._boot_log_thread.is_alive()
+                and not self._boot_log_stop_event.is_set()
+            )
+
+    def start_boot_log_stream(self, restart: bool = False):
+        """Start an isolated log stream without waiting on the UI thread."""
+        client = getattr(self.ssh, "_client", None)
+        if self._disposed or client is None or not self.ssh.connected:
+            return False
+        with self._boot_log_lock:
+            running = self._boot_log_thread is not None and self._boot_log_thread.is_alive()
+            if running and not self._boot_log_stop_event.is_set() and not restart:
+                return False
+            self._boot_log_stop_event.set()
+            channel = self._boot_log_channel
+            self._boot_log_channel = None
+            if channel is not None:
+                channel.close()
+            cancel = threading.Event()
+            self._boot_log_stop_event = cancel
+            self._boot_log_thread = threading.Thread(
+                target=self._run_boot_log_stream, args=(cancel, client),
+                name="BootLogStreamWorker", daemon=True,
+            )
+            try:
+                self._boot_log_thread.start()
+            except Exception:
+                cancel.set()
+                raise
+        return True
+
+    def stop_boot_log_stream(self):
+        """停止后台会话日志的流式推送，安全关闭 channel。"""
+        self._boot_log_stop_event.set()
+        with self._boot_log_lock:
+            chan = self._boot_log_channel
+            self._boot_log_channel = None
+        if chan is not None:
+            try:
+                chan.close()
+            except Exception:
+                pass
+
+    def _run_boot_log_stream(self, cancel=None, client=None):
+        """后台日志流式读取工作线程循环。"""
+        import socket
+        import codecs
+        cancel = cancel if cancel is not None else self._boot_log_stop_event
+        client = client if client is not None else getattr(self.ssh, "_client", None)
+        if client is None or not getattr(self.ssh, "connected", False):
+            return
+        if cancel.is_set():
+            return
+
+        cmd = (
+            "if pidof hcxdumptool >/dev/null 2>&1 || [ -f /tmp/.hcx_autocap.lock ]; then "
+            "  touch /tmp/.hcx_autocap.stdout.log 2>/dev/null; "
+            "  exec tail -f -n 50 /tmp/.hcx_autocap.stdout.log 2>/dev/null; "
+            "else "
+            "  LATEST=$(ls -1t /root/cap/script_*.log 2>/dev/null | head -n 1); "
+            "  if [ -n \"$LATEST\" ] && [ -f \"$LATEST\" ]; then "
+            "    exec tail -f -n 50 \"$LATEST\" 2>/dev/null; "
+            "  else "
+            "    touch /tmp/.hcx_autocap.stdout.log 2>/dev/null; "
+            "    exec tail -f -n 50 /tmp/.hcx_autocap.stdout.log 2>/dev/null; "
+            "  fi; "
+            "fi"
+        )
+        try:
+            chan = self.ssh.open_capture_stream(
+                client, cmd, cancel, timeout=10
+            )
+        except Exception:
+            return
+
+        with self._boot_log_lock:
+            if (cancel.is_set() or self._disposed
+                    or getattr(self.ssh, "_client", None) is not client):
+                try:
+                    chan.close()
+                except Exception:
+                    pass
+                return
+            self._boot_log_channel = chan
+
+        decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+        try:
+            while (not cancel.is_set() and not self._disposed
+                   and getattr(self.ssh, "_client", None) is client):
+                if chan.exit_status_ready():
+                    break
+                try:
+                    data = chan.recv(2048)
+                    if not data:
+                        break
+                    text = decoder.decode(data)
+                    if not cancel.is_set() and getattr(self.ssh, "_client", None) is client:
+                        self.bootLogUpdated.emit(text)
+                except socket.timeout:
+                    continue
+                except Exception:
+                    break
+        finally:
+            try:
+                chan.close()
+            except Exception:
+                pass
+            with self._boot_log_lock:
+                if self._boot_log_channel is chan:
+                    self._boot_log_channel = None
 
     def refresh_boot_status(self):
         """在后台异步刷新开机自启状态。"""
@@ -1277,6 +1476,10 @@ class AutoCaptureService(QObject):
 
     def start_boot_script(self):
         """异步手动启动后台抓包脚本。"""
+        if self.is_busy:
+            self.messageGenerated.emit("前台抓包正在运行中，前后台抓包互斥，无法启动后台抓包。", "warning")
+            return
+
         def _task():
             try:
                 self.messageGenerated.emit("正在启动后台抓包脚本（仅启用空闲射频）...", "info")
@@ -1299,6 +1502,10 @@ class AutoCaptureService(QObject):
 
     def install_and_start_boot_script(self):
         """异步安装部署自启脚本与服务，并在部署完成后立即启动抓包脚本。"""
+        if self.is_busy:
+            self.messageGenerated.emit("前台抓包正在运行中，前后台抓包互斥，无法启动后台抓包。", "warning")
+            return
+
         def _task():
             try:
                 self.messageGenerated.emit("正在部署自启脚本与系统服务...", "info")
@@ -1376,6 +1583,7 @@ class AutoCaptureService(QObject):
         """异步结束并收尾后台抓包进程（安全封包、清理残留进程与监听接口）。"""
         def _task():
             try:
+                self.stop_boot_log_stream()
                 self.messageGenerated.emit("正在结束并收尾后台抓包操作...", "info")
                 self.boot_manager.stop_and_cleanup_capture()
                 import time
@@ -1405,11 +1613,18 @@ class AutoCaptureService(QObject):
         for filename in pulled:
             if Path(filename).suffix.lower() != ".pcapng":
                 continue
+            gen_cap = self.should_generate_cap()
             if filename in stable_captures:
-                product, note = cap_product_note(filename)
+                if gen_cap:
+                    product, note = cap_product_note(filename, enabled=True)
+                else:
+                    product, note = None, "原始抓包已拉取并保存（未开启同时输出 CAP 格式）。"
             else:
-                product, note = None, "CAP \u672a\u751f\u6210\uff1a\u539f\u59cb\u5305\u4ecd\u5728\u53d8\u5316\u6216\u4e0b\u8f7d\u4e0d\u5b8c\u6574\uff0c\u5df2\u4fdd\u7559\uff0c\u8bf7\u505c\u6b62\u6293\u5305\u540e\u91cd\u65b0\u62c9\u53d6\u3002"
-            self.messageGenerated.emit(note, "success" if product else "warning")
+                product, note = None, "CAP 未生成：原始包仍在变化或下载不完整，已保留，请停止抓包后重新拉取。"
+            self.messageGenerated.emit(
+                note,
+                "success" if product or (filename in stable_captures and not gen_cap) else "warning"
+            )
             if product is not None:
                 products.append(str(product))
         return products
@@ -1500,9 +1715,15 @@ class AutoCaptureService(QObject):
         self._idle_probe_cancel = cancel
 
         def _task():
-            free_map = {r.name: None for r in getattr(getattr(snapshot, "device", None), "radios", ())}
+            radios = getattr(getattr(snapshot, "device", None), "radios", ())
+            free_map = {r.name: None for r in radios}
+            owned = set()
+            for r in radios:
+                idx_m = re.search(r"\d+", r.name)
+                if idx_m:
+                    owned.add(f"hcxmon{idx_m.group(0)}")
             try:
-                usages = read_radio_usage(self.runner, cancel)
+                usages = read_radio_usage(self.runner, cancel, owned_interface=owned)
                 free_map = usages
             except Exception as exc:
                 LOGGER.debug("Probe radio idle status failed: %s", exc)

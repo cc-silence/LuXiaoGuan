@@ -34,6 +34,9 @@ class RouterCommonSettingsPage(QWidget):
         self.status_label.setWordWrap(True)
         self.status_label.setTextFormat(Qt.PlainText)
         root.addWidget(self.status_label)
+        from .management_dependency_prompt import ManagementDependencyBanner
+        self.dependency_banner=ManagementDependencyBanner(self,root)
+        self.install_button=self.dependency_banner.button
         scroll = BounceScrollArea(self)
         scroll.setObjectName("captureScrollArea")
         scroll.setWidgetResizable(True)
@@ -52,7 +55,7 @@ class RouterCommonSettingsPage(QWidget):
             "密码经加密连接输入；修改后验证新密码，不中断当前登录。")
         self.password_button.clicked.connect(self._change_password)
         layout.addWidget(self.password_button)
-        self.lan_card, layout = create_capture_card(body, "LAN 网络设置",
+        self.lan_card, layout = create_capture_card(body, "LAN 网络设置-修改登录IP地址",
             "修改管理地址、网关和 IPv6；可保存并应用或仅保存。", icon_path=icon_root / "System Router.png", actions_at_bottom=True)
         self.lan_button = create_page_text_button(self.lan_card, "打开设置", "读取路由器当前局域网设置后编辑。")
         layout.addWidget(self.lan_button)
@@ -134,6 +137,10 @@ class RouterCommonSettingsPage(QWidget):
         self.service.messageGenerated.connect(self._message)
         self._sync()
 
+    def showEvent(self,event):
+        super().showEvent(event)
+        self.dependency_banner.enter()
+
     def eventFilter(self, watched, event):
         if watched is self.scroll.viewport() and event.type() in (QEvent.Resize, QEvent.FontChange):
             self._layout_cards()
@@ -174,15 +181,17 @@ class RouterCommonSettingsPage(QWidget):
         ssh = self.manager.manager.ssh
         connected = ssh.connected
         available = not self.capture_service.is_busy and not self.config_actions.active and not self.maintenance_actions.active and not self.policy_actions.active and self._password_key is None
+        self.dependency_banner.sync()
+        configuration_available = available and not self.dependency_banner.blocked
         set_page_action_enabled(self.password_button, available)
-        set_page_action_enabled(self.lan_button, available)
-        set_page_action_enabled(self.system_button, available)
+        set_page_action_enabled(self.lan_button, configuration_available)
+        set_page_action_enabled(self.system_button, configuration_available)
         for button in (self.backup_button, self.restore_button, self.reset_button, self.reboot_button):
             set_page_action_enabled(button, available)
-        self.policy_actions.sync(available)
+        self.policy_actions.sync(configuration_available)
         self.relocation_actions._sync()
         self.orphan_actions._sync()
-        if self.capture_service.is_busy or self.config_actions.active or self.maintenance_actions.active or self.policy_actions.active or self._password_key:
+        if self.dependency_banner.blocked or self.capture_service.is_busy or self.config_actions.active or self.maintenance_actions.active or self.policy_actions.active or self._password_key:
             set_page_action_enabled(self.relocation_actions.button, False)
             set_page_action_enabled(self.orphan_actions.button, False)
         notice = "请先到“路由器登录”登录路由器。"
@@ -249,6 +258,7 @@ class RouterCommonSettingsPage(QWidget):
         self._password_error(message)
 
     def dispose(self):
+        self.dependency_banner.dispose()
         self.policy_actions.dispose()
         self.maintenance_actions.dispose()
         self.config_actions.dispose()

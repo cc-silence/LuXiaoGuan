@@ -34,6 +34,10 @@ def api():
 
 def read_code(*,publisher=False):
     """\u8bfb\u53d6\u5f53\u524d\u7528\u6237\u5df2\u9a8c\u8bc1\u7684\u5185\u6d4b\u7801\uff0c\u672a\u4fdd\u5b58\u65f6\u8fd4\u56de\u7a7a\u3002"""
+    from .runtime import is_linux
+    if is_linux():
+        from .credentials import read_generic_password
+        return normalize_code(read_generic_password(TARGET+('/Publisher' if publisher else '')))
     dll=api();pointer=ctypes.POINTER(Credential)()
     if not dll.CredReadW(TARGET+("/Publisher" if publisher else ""),1,0,ctypes.byref(pointer)):
         if ctypes.get_last_error()==1168:return ""
@@ -43,7 +47,15 @@ def read_code(*,publisher=False):
 
 def save_code(value,*,publisher=False):
     """\u9a8c\u8bc1\u6210\u529f\u540e\u4fdd\u5b58\uff1b\u7a7a\u503c\u64a4\u9500\u672c\u673a\u5185\u6d4b\u8d44\u683c\u3002"""
-    value=normalize_code(value);dll=api()
+    value=normalize_code(value)
+    from .runtime import is_linux
+    if is_linux():
+        from .credentials import write_generic_password,delete_generic_password
+        target=TARGET+('/Publisher' if publisher else '')
+        if value:write_generic_password(target,'RouterManager tester',value)
+        else:delete_generic_password(target)
+        return
+    dll=api()
     if not value:
         if not dll.CredDeleteW(TARGET+("/Publisher" if publisher else ""),1,0) and ctypes.get_last_error()!=1168:raise ctypes.WinError(ctypes.get_last_error())
         return

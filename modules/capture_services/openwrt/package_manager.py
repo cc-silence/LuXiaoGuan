@@ -6,6 +6,19 @@ from .command_builder import quote_argument
 _PACKAGE = re.compile(r"[A-Za-z0-9][A-Za-z0-9+_.-]*")
 
 
+class RemovalRetained(ValueError):
+    """A valid removal simulation explicitly retains its selected package."""
+
+
+def removal_dependency_blocked(output):
+    text = str(output or '').lower()
+    fatal = ('could not lock', 'unable to lock', 'database is locked', 'permission denied',
+             'read-only file system', 'no space left', 'not root', 'operation not permitted',
+             'input/output error')
+    return (not any(marker in text for marker in fatal) and any(marker in text for marker in
+            ('is depended upon by packages', 'is depended upon by other packages', 'has dependent packages')))
+
+
 @dataclass(frozen=True)
 class PackageManager:
     """按真实探针选择包管理器，不按系统版本猜测。"""
@@ -70,6 +83,8 @@ class PackageManager:
                        if verb in {"Purging", "Removing"}}
             retained = allowed - removed
             if retained:
+                if 'not removed due to:' in text and re.search(r'(?m)^OK[:\s]', text):
+                    raise RemovalRetained('Selected package is retained by other installed packages')
                 raise ValueError("卸载预演中以下包仍被保留，未执行卸载：" + "、".join(sorted(retained)))
         if not actions and not re.search(r'(?m)^OK[:\s]', text):
             raise ValueError('apk 未返回可核实的操作计划。')
@@ -116,6 +131,10 @@ def package_error_reason(output):
     # captured output so a genuine failure in an earlier feed is not discarded.
     text = str(output or '').lower()
     text = re.sub(r'(?m)^[ \t]*signature check passed\.?[ \t]*\r?$', '', text)
+    if any(reason in text for reason in ('permission denied', 'operation not permitted')):
+        return '\u5f53\u524d\u7528\u6237\u6743\u9650\u4e0d\u8db3'
+    if 'input/output error' in text:
+        return '\u8def\u7531\u5668\u6587\u4ef6\u7cfb\u7edf\u8bfb\u5199\u5f02\u5e38'
     if any(x in text for x in ('could not lock', 'unable to lock', 'database is locked')):
         return '包管理器正被其他任务占用，稍后重试'
     if 'no space left on device' in text:

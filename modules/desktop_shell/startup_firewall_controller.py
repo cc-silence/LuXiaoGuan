@@ -10,6 +10,7 @@ import time
 from PySide6.QtCore import QObject, Signal
 
 from modules.platform_services.startup_firewall import ensure_startup_firewall_rules
+from modules.platform_services.runtime import is_windows
 
 
 class StartupFirewallController(QObject):
@@ -34,7 +35,9 @@ class StartupFirewallController(QObject):
         self._completed = False
         self._ready = threading.Event()
         self._error = ""
-        self._stage = "checking"
+        self._audit_route = None
+        self.applicable = is_windows()
+        self._stage = "checking" if self.applicable else "not_applicable"
 
     @property
     def active(self):
@@ -63,9 +66,16 @@ class StartupFirewallController(QObject):
         with self._lock:
             if self._active or self._completed:
                 return False
-            self._active = True
+            self._active = self.applicable
             self._ready.clear()
             self._error = ""
+            if not self.applicable:
+                self._completed = True
+                self._ready.set()
+        if not self.applicable:
+            # Only the Windows audit is inapplicable; Linux policy is not certified.
+            self.finished.emit(True, "")
+            return True
         self.activity_changed.emit()
         threading.Thread(target=self._run_audit, daemon=True, name="WinBoxStartupFirewallAudit").start()
         return True
@@ -85,6 +95,21 @@ class StartupFirewallController(QObject):
         if self._error:
             raise OSError(self._error)
 
+    def prepare_connection(self, address, port, cancel_event):
+        """Prepare only this login target after the ordinary startup audit."""
+        self.wait_ready(cancel_event)
+        if self.applicable:
+            from modules.platform_services.network_policy import prepare_target
+            from modules.platform_services.windows_network_services import firewall_route
+            route=firewall_route()
+            if route!=self._audit_route:
+                messages=ensure_startup_firewall_rules(progress=self._report_stage)
+                if any("失败" in message for message in messages):
+                    raise OSError("网络策略放行未完成；"+"；".join(messages))
+                self._audit_route=getattr(messages,'route',route)
+            return prepare_target(address, port, cancel_event)
+        return None
+
     def _run_audit(self):
         """执行平台审计并把结果转换为主线程可消费的信号。
 
@@ -94,6 +119,7 @@ class StartupFirewallController(QObject):
         completed = False
         try:
             messages = ensure_startup_firewall_rules(progress=self._report_stage)
+            self._audit_route=getattr(messages,'route','firewall')
             for message in messages:
                 print(f"[防火墙] {message}")
             if any("失败" in message for message in messages):

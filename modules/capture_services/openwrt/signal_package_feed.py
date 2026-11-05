@@ -48,7 +48,8 @@ def download_session(message=None):
     if _download_state.get() is not None:
         yield
         return
-    token = _download_state.set({"route_names": {}, "message": message, "unavailable": {}, "diagnostic_configuration": False, "bridges": None})
+    from .package_mirror_policy import MirrorPreference
+    token = _download_state.set({"route_names": {}, "message": message, "unavailable": {}, "diagnostic_configuration": False, "bridges": None, "mirror_preference": MirrorPreference()})
     try:
         yield
     finally:
@@ -57,6 +58,20 @@ def download_session(message=None):
             if bridges is not None:bridges.close()
         finally:
             _download_state.reset(token)
+
+
+def last_download_source(default):
+    state = _download_state.get()
+    return (state or {}).get('last_source', default)
+
+
+def preferred_mirror_order():
+    """Share the task's proven working mirror with the native source scope."""
+    state = _download_state.get()
+    if state is not None:
+        return state['mirror_preference'].order()
+    from .package_mirror_policy import DOMESTIC
+    return DOMESTIC
 
 
 def _download_message(text, level="info"):
@@ -413,7 +428,8 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
     state = _download_state.get()
     from .package_mirror_policy import route_requests,domestic_request,SourceRedirectHandler
     base_plans=list(_attempt_plans())
-    plans=route_requests(url,base_plans)
+    preference = state["mirror_preference"]
+    plans=route_requests(url,base_plans,preference.order())
     if state.get("message") is not None and not state.get("diagnostic_configuration"):
         for line in configuration_lines(base_plans):_download_message(line,"diagnostic")
         state["diagnostic_configuration"]=True
@@ -470,12 +486,15 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
                         payload = _read_body(response, limit, cancel_event, diagnostic)
                 _download_message(diagnostic.result(),"diagnostic")
                 _download_message(diagnostic.short_result(),"success")
+                preference.succeeded(label, request_url)
+                state["last_source"] = request_url
                 return payload
             except RuntimeError as exc:
                 _download_message(diagnostic.result(exc),"diagnostic")
                 raise
             except urllib.error.HTTPError as exc:
                 status = exc.code
+                preference.failed_http(label, request_url, status)
                 diagnostic.status=status
                 _download_message(diagnostic.result(exc),"diagnostic")
                 retry_delay = _retry_after_seconds(exc.headers) if status in (429, 503) else 0.0

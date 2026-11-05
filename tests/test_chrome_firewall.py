@@ -87,9 +87,12 @@ class ChromeTests(unittest.TestCase):
         self.assertEqual(nav.sidebar.objectName(),'leftMenuBg')
         self.assertFalse(nav.sidebar.isHidden())
         self.assertIs(nav.stack.currentWidget(),self.window.packet_capture_page)
-        nav.toggle_button.click();self.assertTrue(nav.expanded)
+        self.assertTrue(nav.expanded)
         self.assertTrue(nav.settings_button.text())
         nav.toggle_button.click();self.assertFalse(nav.expanded)
+        self.assertEqual(self.runtime.config.get("ui", "sidebar_expanded"), "false")
+        nav.toggle_button.click();self.assertTrue(nav.expanded)
+        self.assertEqual(self.runtime.config.get("ui", "sidebar_expanded"), "true")
         self.window.navigation.settings_button.click();APP.processEvents()
         controller=self.window.settings_window
         self.assertIsNotNone(controller)

@@ -12,6 +12,11 @@ _LABELS = {
 def apply_usage_status(card):
     state = radio_state(card.radio_info)
     card.status_badge.setText(_LABELS[state])
-    color = "#10b981" if state == "idle" else "#f59e0b"
-    card.status_badge.setStyleSheet("color: " + color + "; font-weight: bold;")
+    if state == "idle":
+        color = "#38bdf8"  # 天蓝青色：空闲就绪，与正在抓包的绿色明确区分
+    elif state == "business":
+        color = "#f59e0b"  # 琥珀金橙：业务占用
+    else:
+        color = "#94a3b8"  # 青灰色：待确认或冲突
+    card.status_badge.setStyleSheet(f"color: {color}; font-weight: bold; font-size: 12pt;")
     card.takeover_check.setVisible(state == "business")

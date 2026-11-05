@@ -9,8 +9,7 @@ import sys
 from uuid import uuid4
 from modules.config_manager import BASE_DIR
 from modules.release_identity import APPLICATION_EXECUTABLES, DISPLAY_NAME
-from .windows_user_paths import current_user_desktop
-from .desktop_shortcut_native import SHELL_LINK_SOURCE
+from .runtime import is_linux
 
 SHORTCUT_NAME = DISPLAY_NAME + ".lnk"
 DESCRIPTION = "LuXiaoGuan Desktop"
@@ -26,6 +25,10 @@ class ShortcutSpec:
 
 
 def shortcut_spec(desktop=None, base=None, executable=None, frozen=None):
+    if is_linux():
+        from .linux_desktop_shortcut import shortcut_spec as linux_spec
+        return linux_spec(desktop, base, executable, frozen)
+    from .windows_user_paths import current_user_desktop
     frozen = getattr(sys, "frozen", False) if frozen is None else frozen
     executable = Path(executable or sys.executable).absolute()
     base = Path(base or BASE_DIR).absolute()
@@ -47,6 +50,9 @@ def _path(value):
 
 
 def shortcut_state(spec, observed):
+    if spec.path.suffix == '.desktop':
+        from .linux_desktop_shortcut import shortcut_state as linux_state
+        return linux_state(spec, observed)
     if not observed.get("exists"):
         return "missing"
     target = str(observed.get("target", ""))
@@ -118,6 +124,11 @@ if ($p.operation -eq 'inspect') {
 
 
 def shell_arguments(spec, operation, observed=None, replace_foreign=False, temporary=None):
+    if spec.path.suffix == '.desktop':
+        from .linux_desktop_shortcut import worker_arguments
+        temporary = temporary or spec.path.with_name('.luxiaoguan-shortcut-' + uuid4().hex + '.desktop')
+        return worker_arguments(spec, operation, observed, replace_foreign, temporary)
+    from .desktop_shortcut_native import SHELL_LINK_SOURCE
     if operation not in {"inspect", "create"}:
         raise ValueError("Unknown shortcut operation")
     if operation == "create":
@@ -139,3 +150,7 @@ def shell_arguments(spec, operation, observed=None, replace_foreign=False, tempo
     script = _SCRIPT.replace("__PAYLOAD__", encoded).replace("__NATIVE_SOURCE__", SHELL_LINK_SOURCE)
     command = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
     return ["-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-EncodedCommand", command]
+
+
+def shortcut_program(spec):
+    return sys.executable if spec.path.suffix == '.desktop' else 'powershell.exe'

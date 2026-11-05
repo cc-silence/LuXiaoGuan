@@ -134,11 +134,12 @@ def snapshot():
 def persist_operation(root):
     """The independent installer has no application logging hooks or Qt runtime."""
     from modules.error_logs import ErrorLogStore
+    from modules.platform_services.application_paths import error_log_dir
     try:
         context = _operation.get() or {}
         with _lock:
             rows = tuple(row for row in _events if row.get('operation_id') == context.get('operation_id'))
-        store = ErrorLogStore(root / 'RouterManagerData' / 'error-logs', context.get('operation_version', ''))
+        store = ErrorLogStore(error_log_dir(root), context.get('operation_version', ''))
         store.append(_encoded_context(rows))
         return True
     except OSError:

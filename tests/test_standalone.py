@@ -14,7 +14,7 @@ from modules.config_manager import ConfigManager, BASE_DIR
 from modules.config_services.config_store import user_config_dir
 from modules.config_services.capture_settings_manager import CaptureSettingsManager
 from modules.desktop_shell.single_instance import SingleInstanceController
-from modules.platform_services import local_gpo_firewall
+from modules.platform_services import firewall_identity
 from router_app.runtime import RouterRuntime
 from router_app.window import RouterWindow
 from router_app.settings import RouterSettings
@@ -53,25 +53,29 @@ class StandaloneTests(unittest.TestCase):
     def test_01_identity_and_config_isolation(self):
         self.assertEqual(BASE_DIR, Path(__file__).resolve().parents[1])
         self.assertTrue(SingleInstanceController._build_server_name().startswith('RouterManager.'))
-        self.assertEqual(local_gpo_firewall.STARTUP_OWNER,'routermanager-startup')
-        self.assertIn('LuXiaoGuan',local_gpo_firewall.OWNER_DESCRIPTION_PREFIX)
+        self.assertEqual(firewall_identity.STARTUP_OWNER,'routermanager-startup')
+        self.assertIn('LuXiaoGuan',firewall_identity.OWNER_DESCRIPTION_PREFIX)
         self.assertEqual(user_config_dir(),Path(self.temp.name)/'user')
         self.assertTrue(self.runtime.capture_service._openwrt_credential_target({'host':'router','port':22,'username':'root'}).startswith('RouterManager:'))
 
     def test_02_seven_pages_theme_and_scale(self):
-        tabs=self.window.packet_capture_page.openwrt_tab.tabs
-        self.assertEqual(tabs.count(),7)
-        self.assertEqual([tabs.tabText(i) for i in range(7)], ["路由器登录", "常用设置", "信号管理", "文件管理", "路由器终端", "自动抓包", "常规抓包"])
-        theme=os.environ.get('ROUTERMANAGER_TEST_THEME','dark.qss')
-        for index in range(7):
-            tabs.setCurrentIndex(index);APP.processEvents()
-            self.assertIsNotNone(tabs.currentWidget())
         container = self.window.packet_capture_page.openwrt_tab
-        self.assertIs(tabs.widget(1), container.common_page)
-        self.assertIs(tabs.widget(3), container.files_page)
-        self.assertIs(tabs.widget(4), container.terminal_page)
-        self.assertIs(tabs.widget(5), container.auto_capture_page)
-        self.assertIs(tabs.widget(6), container.capture_page)
+        tabs = container.tabs
+        self.assertEqual(tabs.count(), 2)
+        self.assertEqual(tabs.tabText(0), "路由器登录")
+        self.assertEqual(tabs.tabText(1), "安装依赖")
+        self.assertIs(tabs.widget(0), container.login_page)
+        self.assertIs(tabs.widget(1), container.dependency_page)
+        nav_buttons = self.window.navigation.page_buttons
+        self.assertEqual(len(nav_buttons), 7)
+        self.assertEqual([btn.property("navigationLabel") for btn, _icon in nav_buttons.values()],
+                         ["路由器登录", "常用设置", "信号管理", "文件管理", "路由器终端", "自动抓包", "常规抓包"])
+        theme=os.environ.get('ROUTERMANAGER_TEST_THEME','dark.qss')
+        pages = [container.login_page, container.dependency_page, container.common_page,
+                 container.signal_page, container.files_page, container.terminal_page,
+                 container.auto_capture_page, container.capture_page]
+        for page in pages:
+            self.assertIsNotNone(page)
         self.assertNotIn("settings", container._page_indices)
         self.window.hide()
         for scale in (100,125,150,175,100):
@@ -79,8 +83,8 @@ class StandaloneTests(unittest.TestCase):
             APP.processEvents()
             self.assertEqual(self.window.packet_capture_page.scale_manager.global_scale,scale)
             from modules.ui_scale_manager import UiScaleManager
-            for index in range(7):
-                self.assertEqual(UiScaleManager.for_widget(tabs.widget(index)).global_scale,scale)
+            for page in pages:
+                self.assertEqual(UiScaleManager.for_widget(page).global_scale,scale)
         tabs.setCurrentIndex(0);self.window.show();APP.processEvents()
         if os.environ.get('ROUTERMANAGER_CAPTURE_PREVIEW') == '1':
             self.window.grab().save(str(BASE_DIR/'tests'/('router-'+theme+'.png')))

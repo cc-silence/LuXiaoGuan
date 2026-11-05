@@ -127,18 +127,21 @@ def domestic_sources(manager, base, cancel, tell):
     from modules.network_policy import configured_proxy_channels
     if configured_proxy_channels():
         raise SignalError('offline_retry', '\u5df2\u914d\u7f6e\u4ee3\u7406\uff0c\u6539\u7531\u7535\u8111\u901a\u8fc7\u4ee3\u7406\u4ece\u5b98\u65b9\u6e90\u4e0b\u8f7d\u5e76\u4f20\u5305\u5b89\u88c5\u3002')
+    from .signal_package_feed import preferred_mirror_order
+    from .package_mirror_policy import source_name
+    mirror = preferred_mirror_order()[0]
     token = secrets.token_hex(16)
     folder = source_directory(token)
     try:
         try:
-            reported = manager._execute('dependency_sources_prepare', prepare_script(base.name, token), 15, cancel).strip()
+            reported = manager._execute('dependency_sources_prepare', prepare_script(base.name, token, mirror), 15, cancel).strip()
             if reported != folder:
                 raise ValueError('Unexpected temporary source directory')
         except (SignalError, ValueError) as exc:
             if getattr(exc, 'code', None) == 'cancelled' or (cancel is not None and cancel.is_set()):
                 raise
             raise SignalError('offline_retry', '\u8def\u7531\u5668\u4e34\u65f6\u955c\u50cf\u6e90\u672a\u80fd\u5b89\u5168\u51c6\u5907\uff0c\u6539\u7531\u7535\u8111\u4e0b\u8f7d\u5e76\u6821\u9a8c\u3002') from exc
-        tell('\u8def\u7531\u5668\u76f4\u8fde\u4f7f\u7528\u56fd\u5185\u955c\u50cf\uff08\u4e34\u65f6\u914d\u7f6e\uff09\uff0c\u539f\u8f6f\u4ef6\u6e90\u4fdd\u6301\u4e0d\u53d8\u3002', 'info')
+        tell('\u8def\u7531\u5668\u76f4\u8fde\u4f7f\u7528' + source_name(mirror + '/') + '\uff08\u4e34\u65f6\u914d\u7f6e\uff09\uff0c\u539f\u8f6f\u4ef6\u6e90\u4fdd\u6301\u4e0d\u53d8\u3002', 'info')
         yield ScopedPackageManager(base, folder)
     finally:
         if folder:

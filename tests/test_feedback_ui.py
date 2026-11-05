@@ -78,6 +78,15 @@ class FolderTests(unittest.TestCase):
 class WindowFeedbackTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # These regressions simulate the synchronous Windows credential backend.
+        # Linux worker ordering and stale replies have dedicated async tests.
+        cls.sync_ui = patch("modules.main_pages.packet_capture.openwrt.login_credentials.is_linux", return_value=False)
+        cls.windows_store = patch("modules.platform_services.credentials.is_windows", return_value=True)
+        cls.sync_ui.start();cls.windows_store.start()
+        for operation,value in (("read", ""), ("write", True), ("delete", True)):
+            backend = patch("modules.platform_services.windows_credentials." + operation + "_generic_password", return_value=value)
+            backend.start();cls.addClassCleanup(backend.stop)
+        cls.addClassCleanup(cls.sync_ui.stop);cls.addClassCleanup(cls.windows_store.stop)
         standalone.StandaloneTests.setUpClass();cls.window=standalone.StandaloneTests.window
 
     @classmethod
@@ -374,6 +383,7 @@ class WindowFeedbackTests(unittest.TestCase):
 
     def test_install_rejection_is_shown_in_common_dependency_section(self):
         page=self.window.packet_capture_page
+        page.openwrt_tab.tabs.setCurrentIndex(1)
         section=page.openwrt_tab.login_page.common_tools
         section.card.set_expanded(True,animate=False);APP.processEvents()
         with patch("modules.main_pages.packet_capture.openwrt.common_tool_section.MessageDialog") as message:

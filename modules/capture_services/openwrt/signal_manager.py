@@ -186,17 +186,19 @@ class RouterSignalManager:
                        if not before[flag])
         if not wanted:
             return before
-        source = install_with_sources(
-            lambda: install_from_local(OpenWrtDependencyManager(self.runner), wanted, device,
-                cache_dir, bool(getattr(device, "sftp_available", False)), cancel_event, tell, uploader),
-            lambda: self.install_dependencies(cancel_event, tell),
-            lambda: self.install_offline(device, cache_dir, cancel_event, tell, uploader), tell)
-        after = self.probe_dependencies(cancel_event)
-        ready = all(after[key] for key in ("lua", "uci", "ubus", "jsonc"))
-        report_verified(source, ready, tell)
-        if not ready:
-            raise SignalError("dependencies", "安装后信号依赖仍未就绪，请导出诊断日志。")
-        return after
+        from .signal_package_feed import download_session
+        with download_session(tell):
+            source = install_with_sources(
+                lambda: install_from_local(OpenWrtDependencyManager(self.runner), wanted, device,
+                    cache_dir, bool(getattr(device, "sftp_available", False)), cancel_event, tell, uploader),
+                lambda: self.install_dependencies(cancel_event, tell),
+                lambda: self.install_offline(device, cache_dir, cancel_event, tell, uploader), tell)
+            after = self.probe_dependencies(cancel_event)
+            ready = all(after[key] for key in ("lua", "uci", "ubus", "jsonc"))
+            report_verified(source, ready, tell)
+            if not ready:
+                raise SignalError("dependencies", "安装后信号依赖仍未就绪，请导出诊断日志。")
+            return after
 
     @offline_cache_transaction(lambda result: all(result.get(key) for key in ("lua", "uci", "ubus", "jsonc")))
     def install_offline(self, device, cache_dir, cancel_event, message=None, uploader=None):

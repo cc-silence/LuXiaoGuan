@@ -93,8 +93,8 @@ QPushButton#captureSecondaryButton[riskAction="true"] { color: #c62828; border-c
 QPushButton#captureSecondaryButton[riskAction="true"]:hover { background: #f9d8d8; border-color: #b23a3a; }
 QWidget#captureToolPanel QPushButton#downloadActionButton[hasCaptureResult="true"] { color: #0f7a3d; border-color: #7cc79b; background: #e9f7ef; }
 QWidget#captureToolPanel QPushButton#downloadActionButton[hasCaptureResult="true"]:hover { background: #d7efdf; border-color: #4da975; }
-QWidget#openwrtSignalPage QPushButton#downloadActionButton[needsDependencyInstall="true"] { color: #0f7a3d; border-color: #7cc79b; background: #e9f7ef; }
-QWidget#openwrtSignalPage QPushButton#downloadActionButton[needsDependencyInstall="true"]:hover { background: #d7efdf; border-color: #4da975; }
+QWidget#openwrtSignalPage QPushButton#downloadActionButton[needsDependencyInstall="true"], QWidget#routerCommonSettingsPage QPushButton#downloadActionButton[needsDependencyInstall="true"] { color: #0f7a3d; border-color: #7cc79b; background: #e9f7ef; }
+QWidget#openwrtSignalPage QPushButton#downloadActionButton[needsDependencyInstall="true"]:hover, QWidget#routerCommonSettingsPage QPushButton#downloadActionButton[needsDependencyInstall="true"]:hover { background: #d7efdf; border-color: #4da975; }
 QFrame#captureDependencyRow { background: transparent; }
 /* 路由器信号管理列表：分组标题、空提示和单行卡片。 */
 QLabel#captureSignalSectionTitle { color: #172033; font: __BODY_PT__pt "__FONT_FAMILY__"; padding-top: 8px; border: none; background: transparent; }

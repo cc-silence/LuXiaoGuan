@@ -17,6 +17,14 @@ from modules.platform_services.windows_firewall import (
 
 _AUDIT_LOCK = threading.Lock()
 _AUDIT_COMPLETE = False
+_AUDIT_ROUTE = None
+
+
+class AuditMessages(list):
+    """Bind cached audit completion to the actual service route."""
+    def __init__(self,messages,route):
+        super().__init__(messages)
+        self.route=route
 
 
 def startup_network_programs():
@@ -58,28 +66,38 @@ def ensure_startup_firewall_rules(progress=None):
     WinBox 规则时跳过。后台常驻和完整主窗口可共用此函数。
     """
 
-    global _AUDIT_COMPLETE
+    global _AUDIT_COMPLETE, _AUDIT_ROUTE
     if progress is not None:
         progress("checking")
+    from .windows_network_services import firewall_route
+    route=firewall_route()
     with _AUDIT_LOCK:
+        if _AUDIT_ROUTE!=route:
+            _AUDIT_COMPLETE=False
+            _AUDIT_ROUTE=route
+        if route=='ipsec':
+            return AuditMessages(['防火墙服务已禁用，登录时将核对 IP 安全策略并为目标 SSH 端口添加放行。'],route)
+        if route=='not_applicable':
+            return AuditMessages(['Windows network policy audit is not applicable on this platform.'],route)
         if _AUDIT_COMPLETE:
-            return ["本进程已完成联网组件防火墙审计"]
+            return AuditMessages(["本进程已完成联网组件防火墙审计"],route)
         programs = startup_network_programs()
         if persistent_allow_rules_ready(programs):
             _AUDIT_COMPLETE = True
-            return ["全部防火墙规则已验证且未变化，已批量通过，无需重复检查或添加。"]
+            return AuditMessages(["全部防火墙规则已验证且未变化，已批量通过，无需重复检查或添加。"],route)
         if not outbound_is_blocked():
             _AUDIT_COMPLETE = True
-            return ["默认出站未阻止，无需创建放行规则"]
+            return AuditMessages(["默认出站未阻止，无需创建放行规则"],route)
         if not programs:
-            return ["未找到需要检测的联网组件，跳过规则检查"]
+            return AuditMessages(["未找到需要检测的联网组件，跳过规则检查"],route)
         if progress is not None:
             progress("adding")
         messages = ensure_persistent_allow_rules(programs)
         # 用户取消 UAC 时允许后续操作再次尝试；已处理成功或发现已有规则才缓存结果。
         if not any("失败" in message for message in messages):
             _AUDIT_COMPLETE = True
-        return messages
+        return AuditMessages(messages,route)
+
 
 
 def remove_startup_firewall_rules():

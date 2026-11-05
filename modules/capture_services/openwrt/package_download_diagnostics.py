@@ -41,6 +41,8 @@ def configuration_lines(plans):
 
 class AttemptDiagnostics:
     def __init__(self,url,route,timeout,round_number,bypass=None):
+        from .package_mirror_policy import source_name
+        self.source = source_name(url)
         self.target=endpoint(url);self.route=route;self.timeout=timeout
         self.round=round_number+1;self.started=time.monotonic()
         self.stage="建立连接/等待响应头"
@@ -51,9 +53,15 @@ class AttemptDiagnostics:
         return "\u76f4\u8fde" if self.bypass else self.route.split("\uff08",1)[0]
 
     def short_start(self):
-        return "\u6b63\u5728\u901a\u8fc7 "+self.channel+" \u4e0b\u8f7d\u2026"
+        target = ("\uff08" + self.source + "\uff09") if self.source else ""
+        return "\u6b63\u5728\u901a\u8fc7 "+self.channel+" \u4e0b\u8f7d"+target+"\u2026"
 
     def short_result(self,failed=False):
+        if self.source:
+            if failed:
+                status = (' (HTTP ' + str(self.status) + ')') if self.status is not None else ''
+                return self.source + '\uff1a' + self.channel + '\u4e0b\u8f7d\u5931\u8d25' + status + '\u3002'
+            return '\u4e0b\u8f7d\u5b8c\u6210\uff08' + self.channel + '\uff0c' + self.source + '\uff09\u3002'
         return (self.channel+" \u4e0b\u8f7d\u5931\u8d25\u3002" if failed else
                 "\u4e0b\u8f7d\u5b8c\u6210\uff08"+self.channel+"\uff09\u3002")
 

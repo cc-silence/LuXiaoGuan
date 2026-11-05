@@ -9,10 +9,10 @@ from scripts.publishing import application as app
 class AlphaPublicationTests(unittest.TestCase):
     def run_publication(self, *, corrupt=False, version="1.0.3_alpha"):
         with tempfile.TemporaryDirectory() as folder, patch("scripts.publishing.storage.ROOT", Path(folder)):
-            archive=Path(folder)/"release.zip"; archive.write_bytes(b"archive")
+            archive=Path(folder)/"LuXiaoGuan_v1.0.3_alpha.zip"; archive.write_bytes(b"archive")
             manifest=Path(folder)/"manifest.json"; manifest.write_bytes(b"signed")
             digest=app.sha256_file(archive)
-            payload=dict(version=version,sha256=digest,size=7,url="https://example.invalid/archive")
+            payload=dict(platform="win-x64",version=version,sha256=digest,size=7,url="https://example.invalid/archive")
             release=SimpleNamespace(sha256=digest,size=7,url=payload["url"],version=version,catalog_url="catalog",catalog_size=2)
             events=[]
             reads=0
@@ -50,10 +50,10 @@ class StablePublicationTests(unittest.TestCase):
     def test_public_zip_checked_before_formal_channel_switch(self):
         for corrupt in [False, True]:
             with self.subTest(corrupt=corrupt), tempfile.TemporaryDirectory() as folder, patch("scripts.publishing.storage.ROOT", Path(folder)):
-                archive=Path(folder)/'release.zip';archive.write_bytes(b'archive')
+                archive=Path(folder)/'LuXiaoGuan_v1.0.11.zip';archive.write_bytes(b'archive')
                 manifest=Path(folder)/'manifest.json';manifest.write_bytes(b'signed')
                 digest=app.sha256_file(archive)
-                payload=dict(version='1.0.11',sha256=digest,size=7,url='https://example.invalid/archive')
+                payload=dict(platform='win-x64',version='1.0.11',sha256=digest,size=7,url='https://example.invalid/archive')
                 release=SimpleNamespace(version='1.0.11',sha256=digest,catalog_url='catalog',catalog_size=2)
                 events=[]
                 def receive(url,destination,*args,**kwargs):
@@ -76,7 +76,7 @@ class AlphaQuotaPublicationTests(unittest.TestCase):
         from contextlib import ExitStack
         with tempfile.TemporaryDirectory() as folder, ExitStack() as stack:
             root = Path(folder)
-            archive, manifest = root / "release.zip", root / "manifest.json"
+            archive, manifest = root / "LuXiaoGuan_v1.0.3_alpha.zip", root / "manifest.json"
             archive.write_bytes(b"archive"); manifest.write_bytes(b"signed")
             digest = app.sha256_file(archive)
             payload = dict(version="1.0.3_alpha", sha256=digest, size=7,

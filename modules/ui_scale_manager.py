@@ -16,9 +16,10 @@ class UiScaleManager:
     BASE_FONT_PT = 11
     # 折叠导航宽度与标题栏高度共享基准，左上角 Logo 区域保持正方形。
     CHROME_EDGE = 56
-    NAV_EXPANDED_WIDTH = 132
+    NAV_EXPANDED_WIDTH = 88
     NAV_BUTTON_SIZE = CHROME_EDGE - 12
-    NAV_MARGIN_Y = 3
+    NAV_BUTTON_HEIGHT = 60
+    NAV_MARGIN_Y = 2
     NAV_MARGIN_X = 6
     TREE_MIN = 80
     TREE_MAX = 160
@@ -301,12 +302,16 @@ QTreeWidget#softwareItemsTree::item {{
 }}
 
 #topMenu QPushButton,
-#bottomMenu QPushButton,
+#bottomMenu QPushButton {{
+    margin: {self.px(self.NAV_MARGIN_Y)}px {self.px(self.NAV_MARGIN_X)}px;
+    font: {self.font_pt(-1)}pt "{font}", "Microsoft YaHei", "Segoe UI";
+}}
+
 #toggleButton {{
     margin: {self.px(self.NAV_MARGIN_Y)}px {self.px(self.NAV_MARGIN_X)}px;
-    min-height: {menu_button_height}px;
-    max-height: {menu_button_height}px;
-    font: {self.font_pt()}pt "{font}", "Microsoft YaHei", "Segoe UI";
+    min-height: {self.px(self.NAV_BUTTON_SIZE)}px;
+    max-height: {self.px(self.NAV_BUTTON_SIZE)}px;
+    font: {self.font_pt()}pt "{font}";
 }}
 
 #topSettings .QPushButton {{
@@ -314,12 +319,6 @@ QTreeWidget#softwareItemsTree::item {{
     max-width: {icon_button_size}px;
     min-height: {icon_button_size}px;
     max-height: {icon_button_size}px;
-}}
-
-#bottomMenu .QPushButton {{
-    min-height: {menu_button_height}px;
-    max-height: {menu_button_height}px;
-    font: {self.font_pt()}pt "{font}", "Microsoft YaHei", "Segoe UI";
 }}
 
 #toggleBox {{

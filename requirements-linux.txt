@@ -1,0 +1,4 @@
+# Private Python 3.10 / Debian 12 candidate; Windows requirements stay unchanged.
+-r requirements.txt
+SecretStorage==3.3.3
+jeepney==0.9.0

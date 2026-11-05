@@ -123,6 +123,45 @@ class CaptureAdmissionTests(unittest.TestCase):
         with patch(module,return_value=self.usages(rows='I|phy2|other|monitor|1|0\n')):
             with self.assertRaises(IdleRadioUnavailable):require_idle_phy(Mock(),'phy2')
 
+    def test_parse_radio_usage_filters_owned_interface_and_collection(self):
+        text = "wireless.radio1=wifi-device\nwireless.radio1.band='5g'\nwireless.radio1.disabled='1'\n"
+        text += IDENTITY_MARKER + json.dumps({'phys': ['phy1'], 'inventory_complete': True, 'radios': {'radio1': 'phy1'}}) + '\n'
+        evidence = (
+            "__RM_USAGE_BEGIN__\n"
+            "P|phy1\n"
+            "I|phy1|hcxmon1|monitor|1|0\n"
+            "__RM_USAGE_END__\n"
+        )
+        usage_blocked = parse_radio_usage(text, evidence)
+        self.assertEqual(usage_blocked['radio1'].state, 'blocked')
+        self.assertFalse(usage_blocked['radio1'].free)
+        usage_owned_str = parse_radio_usage(text, evidence, owned_interface='hcxmon1')
+        self.assertEqual(usage_owned_str['radio1'].state, 'idle')
+        self.assertTrue(usage_owned_str['radio1'].free)
+        usage_owned_set = parse_radio_usage(text, evidence, owned_interface={'hcxmon0', 'hcxmon1'})
+        self.assertEqual(usage_owned_set['radio1'].state, 'idle')
+        self.assertTrue(usage_owned_set['radio1'].free)
+
+    def test_device_probe_parse_iwdev_filters_monitor_interfaces(self):
+        from modules.capture_services.openwrt.device_probe import _parse_iwdev
+        raw_iwdev = (
+            "phy#1\n"
+            "    Interface hcxmon1\n"
+            "        ifindex 30\n"
+            "        type monitor\n"
+            "        channel 44 (5220 MHz)\n"
+            "phy#0\n"
+            "    Interface wlan0\n"
+            "        ifindex 20\n"
+            "        type AP\n"
+            "        channel 6 (2437 MHz)\n"
+        )
+        ifaces, channels = _parse_iwdev(raw_iwdev)
+        self.assertEqual(ifaces.get('phy1', ()), ())
+        self.assertNotIn('phy1', channels)
+        self.assertEqual(ifaces.get('phy0', ()), ('wlan0',))
+        self.assertEqual(channels.get('phy0'), 6)
+
     def test_auto_pipeline_uses_same_disabled_business_verdict(self):
         from pathlib import Path
         from types import SimpleNamespace as NS

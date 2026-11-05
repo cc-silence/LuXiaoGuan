@@ -16,6 +16,11 @@ class RouterChrome(QObject):
         self.logo.setAlignment(Qt.AlignCenter)
         self.logo.setAttribute(Qt.WA_TransparentForMouseEvents)
         window.title_bar_layout.insertWidget(0, self.logo)
+        self.version_label = QLabel('v' + window.app_version, window.title_bar)
+        self.version_label.setObjectName('labelVersion')
+        self.version_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.version_label.setAttribute(Qt.WA_TransparentForMouseEvents)
+        window.title_bar_layout.insertWidget(2, self.version_label)
         window.scale_manager.bind_layout(window.title_bar_layout, margins=(0,0,8,0), spacing=10)
         self.privacy_button = self._button('privacyToggleBtn', self._toggle_privacy)
         self.privacy_button.setCheckable(True)
@@ -91,8 +96,6 @@ class RouterChrome(QObject):
             grip.setVisible(not maximized)
             grip.raise_()
         window.size_grip.hide()
-        if hasattr(window, 'navigation'):
-            window.navigation.footer_grip.setVisible(not maximized)
         edge = 0
         window.root_layout.setContentsMargins(edge,edge,edge,edge)
 

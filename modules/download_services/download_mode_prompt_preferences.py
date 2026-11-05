@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 
 from modules.config_manager import DOWNLOAD_MODE_PROMPT_DECISIONS_FILE
+from modules.platform_services.application_paths import ensure_directory
 
 
 class DownloadModePromptPreferences:
@@ -45,7 +46,7 @@ class DownloadModePromptPreferences:
         data = self._load()
         data.setdefault("skip_prompt_software_ids", {})[software_key] = True
         try:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
+            ensure_directory(self.path.parent)
             self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         except OSError:
             return False

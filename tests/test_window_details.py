@@ -42,7 +42,8 @@ class WindowDetailsTests(unittest.TestCase):
             QTest.mouseRelease(grip,Qt.LeftButton,Qt.NoModifier,point)
             self.assertGreater(window.width(),start.width(),name)
             self.assertGreater(window.height(),start.height(),name)
-        self.assertTrue(window.navigation.footer_grip.isVisible())
+        self.assertEqual(window.chrome.version_label.text(), 'v' + window.app_version)
+        self.assertTrue(window.chrome.version_label.isVisible())
         self.assertFalse(window.chrome.logo.pixmap().isNull())
 
     def test_settings_close_action_immediate_save_reopen(self):

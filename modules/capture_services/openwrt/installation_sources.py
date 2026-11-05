@@ -37,7 +37,8 @@ def install_with_sources(local, online, computer, tell):
 
 def report_verified(source, ready, tell):
     text = "安装后复测" + ("通过" if ready else "未通过")
-    tell(text + "；本次最终安装路线：" + source + "。", "success" if ready else "error")
+    detail = ("本次最终安装路线：" + source) if source else "本次未完成任何安装路线"
+    tell(text + "；" + detail + "。", "success" if ready else "error")
 
 
 def network_retry_error(error):

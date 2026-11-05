@@ -157,3 +157,52 @@ class BackgroundLogAdmissionTests(unittest.TestCase):
 
     def test_old_connection_result_is_not_published_to_new_login(self):
         self.check_snapshot(True)
+
+
+class BackgroundStreamLifecycleTests(unittest.TestCase):
+    def owner(self):
+        from types import MethodType
+        from modules.capture_services.openwrt.auto_capture_service import AutoCaptureService
+        owner = NS(_disposed=False, ssh=NS(_client=object(), connected=True),
+                   _boot_log_lock=threading.Lock(), _boot_log_stop_event=threading.Event(),
+                   _boot_log_channel=None, _boot_log_thread=None, bootLogUpdated=Mock())
+        owner._run_boot_log_stream = MethodType(AutoCaptureService._run_boot_log_stream, owner)
+        return owner
+
+    def test_stream_restart_does_not_join_or_reuse_old_cancellation(self):
+        from modules.capture_services.openwrt.auto_capture_service import AutoCaptureService
+        owner = self.owner()
+        old_cancel = owner._boot_log_stop_event
+        old_thread = Mock(); old_thread.is_alive.return_value = True
+        old_thread.join.side_effect = AssertionError("UI must never wait for old reader")
+        owner._boot_log_thread = old_thread
+        with patch("modules.capture_services.openwrt.auto_capture_service.threading.Thread") as thread:
+            self.assertTrue(AutoCaptureService.start_boot_log_stream(owner, restart=True))
+            self.assertTrue(old_cancel.is_set())
+            self.assertIsNot(owner._boot_log_stop_event, old_cancel)
+            self.assertFalse(owner._boot_log_stop_event.is_set())
+            self.assertIs(thread.call_args.kwargs["args"][0], owner._boot_log_stop_event)
+        old_thread.join.assert_not_called()
+
+    def test_late_stream_from_old_login_is_closed_without_publish(self):
+        owner = self.owner(); old_client = owner.ssh._client; channel = Mock()
+        def opened(*args, **kwargs):
+            owner.ssh._client = object()
+            return channel
+        owner.ssh.open_capture_stream = opened
+        owner._run_boot_log_stream(owner._boot_log_stop_event, old_client)
+        channel.close.assert_called_once()
+        owner.bootLogUpdated.emit.assert_not_called()
+        self.assertIsNone(owner._boot_log_channel)
+
+    def test_split_utf8_log_chunks_keep_chinese_characters(self):
+        owner = self.owner(); channel = Mock()
+        original = "\u8def\u5c0f\u7ba1"
+        chunks = [original.encode("utf-8")[i:i+2] for i in range(0,len(original.encode("utf-8")),2)]
+        channel.exit_status_ready.side_effect = [False]*len(chunks)+[True]
+        channel.recv.side_effect = chunks
+        owner.ssh.open_capture_stream = Mock(return_value=channel)
+        owner._run_boot_log_stream(owner._boot_log_stop_event, owner.ssh._client)
+        text = "".join(call.args[0] for call in owner.bootLogUpdated.emit.call_args_list)
+        self.assertEqual(text, original)
+        channel.close.assert_called_once()

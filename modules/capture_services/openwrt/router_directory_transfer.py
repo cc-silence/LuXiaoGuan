@@ -7,6 +7,8 @@ import time
 from pathlib import Path
 from threading import Event
 from uuid import uuid4
+from modules.platform_services.local_rename import rename_without_replace
+from modules.platform_services.runtime import is_windows
 
 MAX_ENTRIES = 10000
 MAX_DEPTH = 64
@@ -20,7 +22,7 @@ def _local_info(path):
 
 
 def _name(name, windows=False):
-    if not name or name in {'.', '..'} or '/' in name or chr(92) in name or any(ord(c) < 32 for c in name):
+    if not name or name in {'.', '..'} or '/' in name or (windows and chr(92) in name) or any(ord(c) < 32 for c in name):
         raise ValueError('文件夹内含非法名称：' + repr(name))
     if windows:
         reserved = {'CON', 'PRN', 'AUX', 'NUL'} | {'COM'+str(i) for i in range(1,10)} | {'LPT'+str(i) for i in range(1,10)}
@@ -73,7 +75,7 @@ def transfer_directory(manager, upload, local, remote, cancel, progress, expecte
 
     def add(relative, info, directory):
         if len(files)+len(folders)>=MAX_ENTRIES:raise ValueError('文件夹超过 10000 项，请分批传输子文件夹。')
-        key=relative if upload else relative.casefold()
+        key=relative.casefold() if not upload and is_windows() else relative
         if key in seen:raise ValueError('目标存在同名冲突：'+relative)
         seen.add(key);identities[relative]=manager.identity(info)
         (folders if directory else files).append(relative)
@@ -111,7 +113,7 @@ def transfer_directory(manager, upload, local, remote, cancel, progress, expecte
             if depth>MAX_DEPTH:raise ValueError('文件夹嵌套超过 64 层，请分批传输。')
             value=manager.list_directory(folder,cancel);check()
             for entry in value['entries']:
-                name=_name(entry['name'],windows=True);rel=posixpath.join(relative,name)
+                name=_name(entry['name'],windows=is_windows());rel=posixpath.join(relative,name)
                 path=posixpath.join(folder,name)
                 info=remote_call(lambda fs,p=path:fs.lstat(p))
                 directory=stat.S_ISDIR(info.st_mode)
@@ -164,7 +166,7 @@ def transfer_directory(manager, upload, local, remote, cancel, progress, expecte
             missing_remote(remote);remote_call(lambda fs:fs.rename(staging,remote))
         else:
             if local.exists() or local.is_symlink():raise FileExistsError('传输时目标目录已被其他操作创建，原内容已保留。')
-            os.rename(staging,local)
+            rename_without_replace(staging,local)
         made_dirs.clear();made_files.clear()
         progress(dict(completed=total,total=total,stage='文件夹传输完成'))
         return str(remote if upload else local)

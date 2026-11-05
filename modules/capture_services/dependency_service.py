@@ -31,6 +31,8 @@ class OpenWrtDependencyService(QObject):
         super().__init__(owner)
         self.owner=owner
         self.manager=OpenWrtDependencyManager(owner.openwrt_backend.command_runner)
+        from .dependency_confirmation import PackageConfirmationGate
+        self.package_confirmation=PackageConfirmationGate(self)
         self._active=False
         self.last_rejection_reason=""
         self.task=None
@@ -38,6 +40,8 @@ class OpenWrtDependencyService(QObject):
         self._login_prompt_binding=None
         self._diagnostics=deque(maxlen=32)
         owner.openwrtSnapshotChanged.connect(self._reset_login_prompt)
+        readiness=getattr(getattr(owner,'router_signals',None),'management_readiness',None)
+        if readiness is not None:readiness.watch(self)
 
     def _reset_login_prompt(self, snapshot):
         if snapshot.connection_state.value != 'connected':
@@ -103,7 +107,9 @@ class OpenWrtDependencyService(QObject):
     def cancel(self,session_id):
         """只取消所属任务，旧页面不能取消后来启动的任务。"""
         if self.task and self.task.session_id==session_id:
-            return self.owner.task_controller.cancel()
+            cancelled=self.owner.task_controller.cancel()
+            self.package_confirmation.cancel_pending()
+            return cancelled
         return False
 
     def _same_connection(self,binding):
@@ -226,12 +232,13 @@ class OpenWrtDependencyService(QObject):
                 import logging
                 logging.getLogger("routermanager.dependency").exception("Dependency %s failed: %s", action, exc)
                 error=str(exc) or type(exc).__name__
+                checked=tuple(getattr(exc, "checked_dependencies", ()))
                 diagnostic=getattr(exc,"package_diagnostic","")
                 if diagnostic:
                     try:diagnostic_path=self._save_diagnostic(session,diagnostic)
                     except (OSError,ValueError):message("\u8be6\u7ec6\u8bca\u65ad\u6587\u4ef6\u672a\u80fd\u4fdd\u5b58\uff0c\u5df2\u4fdd\u7559\u539f\u5b89\u88c5\u9519\u8bef\uff1b\u8bf7\u68c0\u67e5\u672c\u673a\u76ee\u5f55\u4e0e\u6743\u9650\u3002","warning")
                 # 取消安装后允许一次只读复测；不继续安装、不忽略安装首错。
-                if managed and self._same_connection(binding) and not self.owner._shutting_down:
+                if managed and not checked and self._same_connection(binding) and not self.owner._shutting_down:
                     try:
                         if group=="capture":checked=self.manager.check(refresh_features,device.sftp_available,Event(),device=device)
                         elif group in {"common_all","login_all"}:checked=self.manager.check(features,self.manager._probe_sftp(Event(),device.sftp_available),Event(),device=device)
@@ -285,8 +292,14 @@ class OpenWrtDependencyService(QObject):
                        if action=="uninstall" else "\u68c0\u6d4b\u5c1a\u672a\u901a\u8fc7\uff0c\u8bf7\u67e5\u770b\u8be6\u60c5\u5e76\u91cd\u65b0\u68c0\u67e5\u3002")
             return dict(checked=tuple(checked),error=error,diagnostic_path=diagnostic_path)
 
+        def confirmed_operation(cancel,message):
+            from .openwrt.hcx_candidate import candidate_confirmation
+            connected=lambda: self._same_connection(binding) and not self.owner._shutting_down
+            with candidate_confirmation(lambda review:self.package_confirmation.request(review,cancel,connected)):
+                return operation(cancel,message)
+
         try:
-            self.owner._start_openwrt_worker(session,operation,event,
+            self.owner._start_openwrt_worker(session,confirmed_operation,event,
                 lambda result:self._complete(session,result),
                 lambda summary,detail:self._complete(session,dict(checked=(),error=summary)),
                 None,self._emit_settings_message)

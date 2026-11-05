@@ -63,6 +63,8 @@ class CaptureService(QObject):
         self.task_controller = CaptureTaskController(self)
         from .scan_management_service import ScanManagementService
         self.scan_management = ScanManagementService(self)
+        from .password_history_service import PasswordHistoryService
+        self.password_history = PasswordHistoryService(self)
         self.task_controller.stateChanged.connect(self._on_task_state_changed)
         self.task_controller.pauseChanged.connect(self._on_task_pause_changed)
         self.windows_capabilities = WindowsCaptureCapabilities.unchecked()
@@ -118,12 +120,15 @@ class CaptureService(QObject):
         self._shutdown_maintenance.warning.connect(self.messageGenerated)
         self._shutdown_maintenance.activityChanged.connect(self._shutdown_activity_changed)
         self._shutdown_started = False
+        from modules.platform_services.credential_controller import CredentialController
+        self.credentials = CredentialController(self)
+        self.credentials.activityChanged.connect(self.activityChanged)
 
     @property
     def is_busy(self):
         """返回探测、启动、抓包或停止是否正在进行，无副作用。"""
 
-        return ((self._shutting_down and self.router_terminal.active) or self._shutdown_maintenance.active or bool(self._openwrt_workers)
+        return (self.credentials.active or (self._shutting_down and self.router_terminal.active) or self._shutdown_maintenance.active or bool(self._openwrt_workers)
                 or bool(self._probe_thread and self._probe_thread.is_alive()) or (hasattr(self, "auto_capture") and self.auto_capture.is_busy)) or self.state in {
             CaptureSessionState.CHECKING,
             CaptureSessionState.STARTING,
@@ -448,9 +453,16 @@ class CaptureService(QObject):
         if cancel_event is None:
             return False
         network_ready = getattr(self, "network_ready", None)
+        network_prepare = getattr(self, "network_prepare", None)
 
         def operation(event, progress=None):
-            if network_ready is not None:
+            if event is not None and event.is_set():
+                raise InterruptedError("登录已取消")
+            if network_prepare is not None:
+                normalized = self.openwrt_backend.validate_settings(settings_copy)
+                settings_copy.update(normalized)
+                network_prepare(normalized["host"], normalized["port"], event)
+            elif network_ready is not None:
                 network_ready(event)
             return self.openwrt_backend.connect(
                 settings_copy,
@@ -2096,7 +2108,7 @@ class CaptureService(QObject):
 
         if not bool(settings.get("remember_password", False)):
             return ""
-        from modules.platform_services.windows_credentials import read_generic_password
+        from modules.platform_services.credentials import read_generic_password
 
         password = read_generic_password(self._openwrt_credential_target(settings))
         self._openwrt_password = password
@@ -2105,7 +2117,7 @@ class CaptureService(QObject):
     def save_openwrt_password_preference(self, settings):
         """按“记住密码”状态写入或删除 Windows 凭据，不把密码写入 JSON。"""
 
-        from modules.platform_services.windows_credentials import (
+        from modules.platform_services.credentials import (
             delete_generic_password,
             write_generic_password,
         )
@@ -2119,7 +2131,7 @@ class CaptureService(QObject):
     def forget_saved_openwrt_password(self, settings):
         """Delete only the persistent credential; retain the current session password."""
 
-        from modules.platform_services.windows_credentials import delete_generic_password
+        from modules.platform_services.credentials import delete_generic_password
 
         delete_generic_password(self._openwrt_credential_target(settings))
 
@@ -2144,6 +2156,7 @@ class CaptureService(QObject):
         """
 
         self._shutting_down = True
+        self.credentials.shutdown()
         shutdown_event=getattr(self.openwrt_backend,"shutdown_event",None)
         if shutdown_event is not None:
             shutdown_event.set()

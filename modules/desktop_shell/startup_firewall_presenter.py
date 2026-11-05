@@ -24,6 +24,9 @@ class StartupFirewallPresenter(QObject):
         """锁住主窗口操作直到检查结束。"""
         if self.done or self.dialog is not None:
             return
+        if not getattr(self.controller, "applicable", True):
+            self.controller.start()
+            return
         self.dialog = _AuditDialog("防火墙检查", parent=window, show_immediately=False)
         self.dialog.setWindowModality(Qt.ApplicationModal)
         self.dialog.cancel_button.hide()

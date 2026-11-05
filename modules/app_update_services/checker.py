@@ -36,7 +36,7 @@ class UpdateChecker(QObject):
         self.resource_revision = 0
         self._load_revision()
         from modules.platform_services.app_update_access import read_code
-        self.test_code = "" if package_unavailable_reason() else read_code()
+        self.test_code = '' if package_unavailable_reason() or require_package_platform()=='linux-x64' else read_code()
         self.latest = None
         self.manifest_data = b""
         self._stage = "manifest"

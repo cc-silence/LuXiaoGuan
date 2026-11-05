@@ -12,6 +12,10 @@ _SAFE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9+_.-]*")
 _SAFE_PACKAGE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.+~\-]*\.(ipk|apk)")
 
 
+class BundleCoverageUnavailable(ValueError):
+    """A verified older catalog cannot cover this application's current roots."""
+
+
 def bundle_root(kind="common"):
     """\u72ec\u7acb\u8d44\u6e90\u653e\u5728\u8f6f\u4ef6\u76ee\u5f55\uff0c\u53ef\u968f\u8f6f\u4ef6\u4e00\u8d77\u62f7\u8d1d\u79bb\u7ebf\u4f7f\u7528\u3002"""
     from modules.config_manager import BASE_DIR
@@ -49,7 +53,7 @@ def _validate_catalog(data, kind="common"):
             and isinstance(data.get("roots"), list)
             and data["roots"] and all(isinstance(key, str) for key in data["roots"])
             and set(data["roots"]) < roots):
-        raise ValueError("\u79bb\u7ebf\u4f9d\u8d56\u5305\u7248\u672c\u8fc7\u65e7\uff0c\u7f3a\u5c11\u5f53\u524d\u8f6f\u4ef6\u6240\u9700\u4f9d\u8d56\uff0c\u8bf7\u66f4\u65b0\u79bb\u7ebf\u4f9d\u8d56\u5305\u540e\u91cd\u8bd5\u3002")
+        raise BundleCoverageUnavailable("\u79bb\u7ebf\u4f9d\u8d56\u5305\u7248\u672c\u8fc7\u65e7\uff0c\u7f3a\u5c11\u5f53\u524d\u8f6f\u4ef6\u6240\u9700\u4f9d\u8d56\uff0c\u8bf7\u66f4\u65b0\u79bb\u7ebf\u4f9d\u8d56\u5305\u540e\u91cd\u8bd5\u3002")
     if (not isinstance(data, dict) or data.get("schema_version") != 1
             or data.get("purpose") != bundle_spec(kind).catalog_purpose or set(data.get("roots", [])) != roots or data.get("complete") is not True
             or data.get("index_errors") or data.get("download_errors") or data.get("unsupported")):
@@ -120,20 +124,25 @@ class CommonBundleRepository:
         raw = receipt.read_bytes()
         payload = verify_bundle_manifest(raw, kind=self.kind, **({"public_key": self.public_key} if self.public_key else {}))
         from .bundle_layout import version_path
-        self.content_root = version_path(self.root, payload["sha256"], self.kind, payload=payload)
-        if self.content_root is None:
+        content_root = version_path(self.root, payload["sha256"], self.kind, payload=payload)
+        if content_root is None:
             raise ValueError("\u672c\u5730\u79bb\u7ebf\u8d44\u6e90\u7f3a\u5931\uff0c\u8bf7\u91cd\u65b0\u4e0b\u8f7d\u3002")
-        self.revision = payload["sha256"]
-        path = safe_path(self.content_root, "catalog.json")
+        path = safe_path(content_root, "catalog.json")
         if not path.is_file() or path.stat().st_size != payload["catalog_size"]:
             raise ValueError("\u79bb\u7ebf\u5305\u9002\u914d\u6e05\u5355\u7f3a\u5931\uff0c\u8bf7\u91cd\u65b0\u4e0b\u8f7d\u3002")
         catalog = path.read_bytes()
         if hashlib.sha256(catalog).hexdigest() != payload["catalog_sha256"]:
             raise ValueError("\u79bb\u7ebf\u5305\u9002\u914d\u6e05\u5355\u6821\u9a8c\u5931\u8d25\uff0c\u8bf7\u91cd\u65b0\u4e0b\u8f7d\u3002")
-        self.catalog = json.loads(catalog.decode("utf-8"))
+        validated_catalog = json.loads(catalog.decode("utf-8"))
         from .bundle_object_paths import object_names, numbered_layout
-        self.object_names = object_names(validate_catalog(self.catalog, self.kind))
-        self.numbered_objects = numbered_layout(self.content_root)
+        validated_objects = object_names(validate_catalog(validated_catalog, self.kind))
+        numbered = numbered_layout(content_root)
+        # Publish a complete verified repository, never a rejected partial catalog.
+        self.content_root = content_root
+        self.revision = payload["sha256"]
+        self.object_names = validated_objects
+        self.numbered_objects = numbered
+        self.catalog = validated_catalog
         return True
 
     def profile(self, device):

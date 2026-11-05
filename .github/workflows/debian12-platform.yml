@@ -1,0 +1,118 @@
+name: Debian 12 platform preparation
+'on':
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: debian12-platform-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  platform:
+    name: Debian 12 userland checks - desktop acceptance pending
+    runs-on: ubuntu-22.04
+    container: debian:12-slim
+    timeout-minutes: 45
+    env:
+      QT_QPA_PLATFORM: offscreen
+      PYTHONIOENCODING: utf-8
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+    steps:
+      - name: Install build prerequisites inside the disposable CI container
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl git python3 \
+            build-essential pkg-config libssl-dev zlib1g-dev libbz2-dev \
+            libreadline-dev libsqlite3-dev libffi-dev liblzma-dev libgdbm-dev uuid-dev \
+            libgl1 libegl1 libfontconfig1 libxkbcommon0 libdbus-1-3 libglib2.0-0 \
+            libx11-6 libx11-xcb1 libxcb1 libxcb-render0 libxcb-shape0 libxcb-xfixes0 \
+            libxcb-randr0 libxcb-image0 libxcb-keysyms1 libxcb-icccm4 libxcb-render-util0
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Obtain the fixed official Python source
+        run: |
+          mkdir -p build/ci-debian
+          curl --fail --location --proto '=https' --proto-redir '=https' \
+            --connect-timeout 15 --max-time 180 --output build/ci-debian/python.tar.xz \
+            https://www.python.org/ftp/python/3.10.22/Python-3.10.22.tar.xz
+      - name: Verify and build the isolated interpreter
+        run: python3 -m scripts.prepare_linux_python --source build/ci-debian/python.tar.xz
+      - name: Select only the verified private interpreter
+        run: |
+          python3 - <<'PYTHON'
+          import json, os
+          from pathlib import Path
+          root = Path.cwd().resolve()
+          record = json.loads((root / 'build/debian12/python-runtime/current.json').read_text())
+          executable = Path(record['executable']).resolve()
+          assert record['status'] == 'private-runtime-verified'
+          assert executable.is_relative_to(root / 'build') and executable.is_file()
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as output:
+              output.write('PRIVATE_PYTHON=' + str(executable) + '\n')
+          PYTHON
+      - name: Install the existing candidate dependencies
+        run: '"$PRIVATE_PYTHON" -m pip install -r requirements-linux-ci.txt'
+      - name: Check exact native dependency imports
+        run: '"$PRIVATE_PYTHON" scripts/linux_runtime_check.py --report build/ci-debian/runtime.json'
+      - name: Check selected platform behavior without devices or desktop certification
+        run: |
+          id -u routermanager-ci >/dev/null 2>&1 || useradd --create-home --shell /bin/bash routermanager-ci
+          chown -R routermanager-ci:routermanager-ci "$GITHUB_WORKSPACE"
+          runuser -u routermanager-ci -- "$PRIVATE_PYTHON" scripts/run_compatibility_audit.py \
+            --output build/ci-debian/platform --timeout 120 --workers 2 \
+            tests.test_linux_runtime tests.test_application_paths \
+            tests.test_linux_local_files tests.test_linux_credentials \
+            tests.test_linux_result_presence tests.test_linux_terminal \
+            tests.test_linux_python_prepare tests.test_platform_sync \
+            tests.test_linux_update_catalog tests.test_linux_update_snapshot \
+            tests.test_linux_release_layout tests.test_linux_release_build \
+            tests.test_frozen_source_verification tests.test_build_cleanup \
+            tests.test_linux_transaction tests.test_linux_update_files \
+            tests.test_linux_update_process tests.test_linux_update_worker \
+            tests.test_linux_recovery_launcher tests.test_qt_runtime_contract \
+            tests.test_posix_shell tests.test_factory_reset_recovery \
+            tests.test_linux_update_pipeline tests.test_linux_user_install \
+            tests.test_linux_update_handoff tests.test_linux_update_desktop \
+            tests.test_linux_publishing tests.test_linux_full_package
+      - name: Validate the bounded partial audit and disclose expected skips
+        run: |
+          "$PRIVATE_PYTHON" - <<'PYTHON'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('build/ci-debian/platform/summary.json').read_text())
+          rows = report['modules']
+          expected = {'tests.test_linux_runtime', 'tests.test_application_paths',
+                      'tests.test_linux_local_files', 'tests.test_linux_credentials',
+                      'tests.test_linux_result_presence', 'tests.test_linux_terminal',
+                      'tests.test_linux_python_prepare', 'tests.test_platform_sync',
+                      'tests.test_linux_update_catalog', 'tests.test_linux_update_snapshot',
+                      'tests.test_linux_release_layout', 'tests.test_linux_release_build',
+                      'tests.test_frozen_source_verification', 'tests.test_build_cleanup',
+                      'tests.test_linux_transaction', 'tests.test_linux_update_files',
+                      'tests.test_linux_update_process', 'tests.test_linux_update_worker',
+                      'tests.test_linux_recovery_launcher', 'tests.test_qt_runtime_contract',
+                      'tests.test_posix_shell', 'tests.test_factory_reset_recovery',
+                      'tests.test_linux_update_pipeline', 'tests.test_linux_user_install',
+                      'tests.test_linux_update_handoff', 'tests.test_linux_update_desktop',
+                      'tests.test_linux_publishing', 'tests.test_linux_full_package'}
+          assert {row['module'] for row in rows} == expected and len(rows) == len(expected)
+          limits = {'tests.test_linux_runtime': 1, 'tests.test_linux_result_presence': 1}
+          for row in rows:
+              assert row['status'] == 'passed' and row['tests'] > 0
+              assert row['skipped'] <= limits.get(row['module'], 0)
+          print('Selected Debian userland checks only; full GUI, keyring, installer and router acceptance remain pending.')
+          print('Skipped:', {row['module']: row['skipped'] for row in rows if row['skipped']})
+          PYTHON
+      - name: Save bounded preparation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: debian12-platform-evidence
+          path: |
+            build/ci-debian/runtime.json
+            build/ci-debian/platform/*.json
+            build/ci-debian/platform/*.log
+            build/debian12/python-runtime/*/report.json
+            build/debian12/python-runtime/*/compile/*.log
+          if-no-files-found: ignore
+          retention-days: 3

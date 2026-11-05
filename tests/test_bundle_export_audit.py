@@ -115,7 +115,7 @@ class FileFailureAuditTests(unittest.TestCase):
 
     def test_publish_failure_removes_partial_files_without_touching_existing_files(self):
         marker=self.output/"keep.txt";marker.write_bytes(b"keep")
-        with patch("modules.capture_services.openwrt.bundle_export.Path.rename",side_effect=PermissionError("rename denied")):
+        with patch("modules.capture_services.openwrt.bundle_export.rename_without_replace",side_effect=PermissionError("rename denied")):
             with self.assertRaises(PermissionError):self.export()
         self.assertEqual(list(self.output.iterdir()),[marker])
         self.assertEqual(marker.read_bytes(),b"keep")

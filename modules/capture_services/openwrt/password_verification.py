@@ -2,8 +2,10 @@
 
 import json
 import re
+import secrets
 import time
 from dataclasses import dataclass, replace
+from contextlib import contextmanager
 from pathlib import Path
 
 from modules.capture_services.openwrt.command_builder import normalize_bssid, quote_argument
@@ -32,6 +34,8 @@ class PasswordTargetResult:
     total: int
     password_file: str = ""
     note: str = ""
+    skipped: int = 0
+    final: bool = True
 
 
 @dataclass(frozen=True)
@@ -82,28 +86,13 @@ class OpenWrtPasswordVerifier:
     def load_candidates(local_path, cancel_event=None):
         """读取 Windows 本地字典，返回 (候选元组, 跳过数)。
 
-        参数 local_path 是已校验存在的字典文件。只收 8-64 字符的去重非空行
-        （WPA 口令长度范围）；超限截断。调用方负责文件存在性校验。
+        Only unique 8-63-byte passphrases or 64 hexadecimal digits are accepted.
+        The caller checks file existence; oversized dictionaries are bounded.
         """
 
-        seen = []
-        unique = set()
-        skipped = 0
-        paths = (local_path,) if isinstance(local_path, (str, Path)) else tuple(local_path)
-        for path in paths:
-            if cancel_event is not None and cancel_event.is_set():
-                raise InterruptedError("字典统计已取消。")
-            with open(path, "r", encoding="utf-8", errors="replace") as handle:
-                for line in handle:
-                    if cancel_event is not None and cancel_event.is_set():
-                        raise InterruptedError("字典统计已取消。")
-                    text = line.strip().strip("\ufeff")
-                    if len(seen) >= _MAX_CANDIDATES or not 8 <= len(text) <= 64 or text in unique:
-                        skipped += 1
-                        continue
-                    seen.append(text)
-                    unique.add(text)
-        return tuple(seen), skipped
+        from .password_rounds import load_rounds
+        rounds,skipped=load_rounds(local_path,cancel_event,_MAX_CANDIDATES)
+        return tuple(password for group in rounds for password in group.candidates),skipped
 
     @verification_phase("execute")
     def verify_targets(
@@ -116,6 +105,7 @@ class OpenWrtPasswordVerifier:
         progress_callback=None,
         target_callback=None,
         pause_control=None,
+        *, rounds=(), dictionary_first=False, attempt_history=None, round_callback=None,
     ):
         """对多个已扫描目标逐个在线试密码，返回每目标结局元组。
 
@@ -137,35 +127,18 @@ class OpenWrtPasswordVerifier:
         self.last_restore_errors = ""
         self._configuration_touched = False
         primary_error = None
+        self._attempt_history = attempt_history
         try:
             self._backup_configs(backup_dir, cancel_event)
-            for index, target in enumerate(targets):
-                if pause_control is not None:
-                    pause_control.checkpoint()
-                self._check_cancel(cancel_event)
-                if target_callback is not None:
-                    target_callback(index, None)
-                outcome = self._verify_single(
-                    target,
-                    candidates,
-                    index,
-                    len(targets),
-                    sta_section,
-                    net_name,
-                    local_output_dir,
-                    cancel_event,
-                    progress_callback,
-                    setup_done,
-                    pause_control,
-                )
-                setup_done = outcome["setup_done"]
-                results.append(outcome["entry"])
-                if target_callback is not None:
-                    target_callback(index, outcome["entry"])
+            from .password_rounds import run_rounds
+            results=list(run_rounds(self,targets,candidates,sta_section,net_name,local_output_dir,
+                cancel_event,progress_callback,target_callback,pause_control,rounds,
+                dictionary_first,round_callback))
         except Exception as exc:
             primary_error = exc
             raise
         finally:
+            self._attempt_history = None
             finish_error = None
             if pause_control is not None:
                 try:
@@ -257,48 +230,71 @@ class OpenWrtPasswordVerifier:
                 ),
                 "setup_done": setup_done,
             }
+        history = getattr(self, "_attempt_history", None)
+        skipped = 0
+        if history is not None:
+            pending = []
+            for candidate in candidates:
+                self._check_cancel(cancel_event)
+                if history.contains(target, candidate):skipped += 1
+                else:pending.append(candidate)
+            candidates = tuple(pending)
+        if not candidates:
+            return {"entry": PasswordTargetResult(bssid,ssid,False,0,skipped,
+                note="本轮没有新候选，已跳过已尝试记录。",skipped=skipped),"setup_done":setup_done}
         label = ssid or bssid
-        if not setup_done:
-            radio = self._pick_radio(str(getattr(target, "band", "2.4G") or "2.4G"), cancel_event)
+        radio = self._pick_radio(str(getattr(target, "band", "2.4G") or "2.4G"), cancel_event)
+        if not setup_done or getattr(self, "_verification_radio", None) != radio:
             self._setup_environment(sta_section, net_name, radio, cancel_event)
+            self._verification_radio = radio
             setup_done = True
-        tried = 0
-        for password in candidates:
-            if pause_control is not None:
-                pause_control.checkpoint()
-            self._check_cancel(cancel_event)
-            self._set_credentials(sta_section, ssid, bssid, password, cancel_event)
-            tried += 1
-            if progress_callback is not None:
-                progress_callback(
-                    PasswordVerifyUpdate(
-                        tried=tried,
-                        total=len(candidates),
-                        target_label=label,
-                        target_index=index,
-                        target_total=total_targets,
+        with self._control_session(sta_section, cancel_event) as control:
+            tried = 0
+            for password in candidates:
+                if pause_control is not None:
+                    pause_control.checkpoint()
+                self._check_cancel(cancel_event)
+                tried += 1
+                if progress_callback is not None:
+                    progress_callback(
+                        PasswordVerifyUpdate(
+                            tried=tried,
+                            total=len(candidates),
+                            target_label=label,
+                            target_index=index,
+                            target_total=total_targets,
+                        )
                     )
-                )
-            if self._verify_connection(net_name, cancel_event):
-                stem = safe_result_stem(ssid, bssid)
-                out_path = final_results_dir(local_output_dir) / f"{stem}-password.txt"
-                # 密码只写结果文件，不进日志、消息和快照。
-                fields = [
-                    value.replace("\\", "\\\\").replace("\t", "\\t").replace("\r", "\\r").replace("\n", "\\n")
-                    for value in (ssid, bssid, password)
-                ]
-                out_path.write_text("Wi-Fi名称\tMAC\t密码\n" + "\t".join(fields) + "\n", encoding="utf-8")
-                return {
-                    "entry": PasswordTargetResult(
-                        bssid=bssid,
-                        ssid=ssid,
-                        found=True,
-                        tried=tried,
-                        total=len(candidates),
-                        password_file=str(out_path),
-                    ),
-                    "setup_done": setup_done,
-                }
+                if control is None:
+                    self._set_credentials(sta_section, ssid, bssid, password, cancel_event)
+                    connected = self._verify_connection(net_name, cancel_event)
+                else:
+                    connected = control.attempt(ssid, bssid, password)
+                if history is not None and not connected:
+                    history.mark(target, password)
+                if connected:
+                    stem = safe_result_stem(ssid, bssid)
+                    out_path = final_results_dir(local_output_dir) / f"{stem}-password.txt"
+                    # 密码只写结果文件，不进日志、消息和快照。
+                    fields = [
+                        value.replace("\\", "\\\\").replace("\t", "\\t").replace("\r", "\\r").replace("\n", "\\n")
+                        for value in (ssid, bssid, password)
+                    ]
+                    out_path.write_text("Wi-Fi名称\tMAC\t密码\n" + "\t".join(fields) + "\n", encoding="utf-8")
+                    if history is not None:
+                        history.mark(target, password)
+                    return {
+                        "entry": PasswordTargetResult(
+                            bssid=bssid,
+                            ssid=ssid,
+                            found=True,
+                            tried=tried,
+                            total=len(candidates),
+                            password_file=str(out_path),
+                            skipped=skipped,
+                        ),
+                        "setup_done": setup_done,
+                    }
         return {
             "entry": PasswordTargetResult(
                 bssid=bssid,
@@ -307,9 +303,31 @@ class OpenWrtPasswordVerifier:
                 tried=tried,
                 total=len(candidates),
                 note=f"字典 {len(candidates)} 个候选全部试过，未连上。",
+                skipped=skipped,
             ),
             "setup_done": setup_done,
         }
+
+    @contextmanager
+    def _control_session(self, section, cancel_event):
+        from .password_control import open_control, ControlUnavailable
+        control = None
+        try:
+            try:
+                control = open_control(self.command_runner, section, cancel_event)
+            except ControlUnavailable:
+                # Capability fallback is allowed only before submitting a candidate.
+                control = None
+            journal = getattr(self.command_runner, "operation_diagnostics", None)
+            if journal is not None:
+                journal.record("workflow", operation="password_auth", stage="capabilities", status="completed",
+                               reason="native_control_ready" if control is not None else "native_control_unavailable")
+            yield control
+        except InterruptedError:
+            raise PasswordVerifyCancelled("在线密码验证已取消。") from None
+        finally:
+            if control is not None:
+                control.close()
 
     @verification_phase("select_radio")
     def _pick_radio(self, band, cancel_event):
@@ -342,6 +360,8 @@ class OpenWrtPasswordVerifier:
             f"uci set wireless.{sta_section}.network={quote_argument(net_name)}",
             f"uci set wireless.{sta_section}.mode='sta'",
             f"uci set wireless.{sta_section}.encryption='psk2'",
+            f"uci set wireless.{sta_section}.ssid={quote_argument('verify-' + sta_section)}",
+            f"uci set wireless.{sta_section}.key={quote_argument(secrets.token_hex(16))}",
             f"uci set wireless.{sta_section}.disabled='0'",
             f"uci set network.{net_name}=interface",
             f"uci set network.{net_name}.proto='dhcp'",
@@ -376,7 +396,7 @@ class OpenWrtPasswordVerifier:
             f"uci set wireless.{sta_section}.key={quote_argument(password)}",
             "uci commit wireless",
         ]
-        self._run_batch("password_set_cred", commands, cancel_event)
+        self._run("password_set_cred", " && ".join(commands), 30, cancel_event)
         self._run("password_reload", "wifi reload >/dev/null 2>&1", 60, cancel_event)
         self._sleep(5, cancel_event)
 

@@ -33,6 +33,11 @@
 #   6. 【白名单放行与握手录制准则】:
 #      - 白名单放行信标(Beacon/ProbeResp)以维护热点发现能力，无握手时文件增量均源于周期信标；
 #      - 流式全量录入，主动收割单 AP 限 3 次，被动监听允许多次握手录入，为后续哈希提取提供抗丢包冗余。
+#   7. 【日志容量精简与守护 (Log Capping Guard)】:
+#      - 6.2.x 降噪: 将 --enable_status=15 优化为 1，剔除 8(Beacon/ProbeResponse) 广播刷屏，
+#        仅在捕获到真实 EAPOL 握手时输出，从源头减少 98% 冗余日志；
+#      - 现代固件容量守护: 主监控循环集成 Log Capping Guard，单个日志硬封顶 256KB，
+#        超限时就地截断保留首部启动环境与尾部最新排障记录，坚决杜绝长期脱机写爆 Flash。
 # ============================================================
 red='\e[91m'
 green='\e[92m'
@@ -953,7 +958,20 @@ detect_idle_radios() {
             for d in $(ls /sys/class/net 2>/dev/null)
             do
                 case "${d}" in
-                    ${_real_phy}-*)       busy=1; break ;;
+                    ${_real_phy}-*)
+                        # 仅当接口实际处于 UP 状态且承载业务时才判定忙碌
+                        if [ -e "/sys/class/net/${d}/flags" ]; then
+                            _f=$(cat "/sys/class/net/${d}/flags" 2>/dev/null)
+                            case "${_f}" in
+                                0x*) _f_num=$((_f)) ;;
+                                *) _f_num=0 ;;
+                            esac
+                            if [ "$((_f_num & 1))" -ne 0 ]; then
+                                busy=1
+                                break
+                            fi
+                        fi
+                        ;;
                     hcxmon${idx}|hcxmon${idx}-*)     busy=1; break ;;
                 esac
             done

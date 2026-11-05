@@ -43,6 +43,17 @@ class UpdateDiagnosticTests(unittest.TestCase):
         for secret in ('private-testing-code','proxy-password','Authorization','https://user'):
             self.assertNotIn(secret,payload)
 
+    def test_installer_persistence_uses_shared_platform_log_directory(self):
+        with TemporaryDirectory() as folder:
+            root=Path(folder);target=root/'user-state'/'error-logs'
+            d.begin_operation('linux-install','1.0.22_alpha')
+            d.record('install_failed',error_type='OSError',safe_to_restart=True)
+            with patch('modules.platform_services.application_paths.error_log_dir',return_value=target) as location:
+                self.assertTrue(d.persist_operation(root))
+            location.assert_called_once_with(root)
+            self.assertTrue(list(target.glob('*.log')))
+            self.assertFalse((root/'RouterManagerData').exists())
+
     def test_events_have_bounded_retention(self):
         for n in range(300):d.record('blob_verified',received=n)
         self.assertEqual(len(d._events),256)

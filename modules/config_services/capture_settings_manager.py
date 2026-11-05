@@ -7,6 +7,7 @@ from pathlib import Path
 from modules.config_manager import APP_DIR_TOKEN, CONFIG_DIR, USER_DOWNLOADS_TOKEN, make_portable_path, resolve_portable_path
 from modules.config_services.config_store import ConfigPair, user_config_dir
 from modules.release_identity import DISPLAY_NAME
+from modules.platform_services.application_paths import ensure_directory
 from modules.config_services.verified_result_paths import PATH_FIELDS, bounded_paths
 
 
@@ -69,6 +70,7 @@ class CaptureSettingsManager:
             "auto_open_dir": True,
             "keep_raw_capture": True,
             "generate_cap": True,
+            "auto_capture_generate_cap": False,
             "pmkid_active_beacon": False,
             "active_deauth": True,
             "online_dependency_install": True,
@@ -96,6 +98,8 @@ class CaptureSettingsManager:
                 "resume_file": "",
                 "mode": "normal",
             },
+            "password_dictionary_rounds": False,
+            "deauth_batches": 5,
             "password_dictionaries": None,
             "password_dictionary": f"{APP_DIR_TOKEN}\\bin\\crack_password.txt",
         }}
@@ -141,7 +145,7 @@ class CaptureSettingsManager:
         """原子写普通 JSON 文件（单存界面偏好用）。"""
 
         path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
+        ensure_directory(path.parent)
         temp_path = path.with_suffix(path.suffix + ".tmp")
         temp_path.write_text(
             json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
@@ -383,11 +387,14 @@ class CaptureSettingsManager:
         openwrt["keep_raw_capture"] = True
         openwrt.pop("generate_22000", None)
         openwrt["generate_cap"] = True
+        openwrt["auto_capture_generate_cap"] = self._bool(openwrt.get("auto_capture_generate_cap"), False)
         openwrt["pmkid_active_beacon"] = self._bool(openwrt.get("pmkid_active_beacon"), False)
         openwrt.pop("auto_parallel_radios", None)
         # 模拟热点辅助已整体移除；旧配置里的开关不再有执行路径，直接丢弃。
         openwrt.pop("handshake_hotspot_assist", None)
         openwrt["active_deauth"] = self._bool(openwrt.get("active_deauth"), True)
+        openwrt["password_dictionary_rounds"] = self._bool(openwrt.get("password_dictionary_rounds"), False)
+        openwrt["deauth_batches"] = self._clamp_int(openwrt.get("deauth_batches"), 1, 20, 5)
         openwrt["online_dependency_install"] = self._bool(openwrt.get("online_dependency_install"), True)
         openwrt["memory_warning_mb"] = self._clamp_int(openwrt.get("memory_warning_mb"), 8, 4096, 32)
         openwrt["memory_stop_mb"] = self._clamp_int(openwrt.get("memory_stop_mb"), 1, 1024, 5)

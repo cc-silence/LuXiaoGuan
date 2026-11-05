@@ -230,12 +230,16 @@ class OpenWrtSshClient:
             if self.connected:
                 key = self._client.get_transport().get_remote_server_key()
                 return HostKeyInfo(self.fingerprint_for_key(key), key.get_name())
+            method = "private_key" if auth_method == "private_key" else "password"
+            key_path = str(private_key_path or "").strip() if method == "private_key" else ""
+            if method == "private_key" and not key_path:
+                self.login_diagnostics.update(stage="configuration")
+                raise ValueError("私钥认证已启用，但没有选择 SSH 私钥文件。")
             client = paramiko.SSHClient()
             self._connecting_client = client
             client.set_missing_host_key_policy(
                 _ConfirmingHostKeyPolicy(self, expected_fingerprint)
             )
-            method = "private_key" if auth_method == "private_key" else "password"
             connect_kwargs = {
                 "hostname": self._host,
                 "port": self._port,
@@ -247,9 +251,6 @@ class OpenWrtSshClient:
                 "look_for_keys": False,
             }
             if method == "private_key":
-                key_path = str(private_key_path or "").strip()
-                if not key_path:
-                    raise ValueError("私钥认证已启用，但没有选择 SSH 私钥文件。")
                 connect_kwargs["key_filename"] = key_path
                 # 页面在私钥模式下隐藏并清空密码字段；当前只使用未加密的 OpenSSH/PEM 私钥。
                 connect_kwargs["passphrase"] = None
@@ -262,13 +263,22 @@ class OpenWrtSshClient:
                     connect_kwargs.pop("allow_agent")
                     connect_kwargs.pop("look_for_keys")
                     connect_kwargs["auth_strategy"] = EmptyPasswordAuthStrategy(self._user)
+        from .ssh_login_probe import observed_transport_factory, connection_message, load_selected_private_key
+        connect_kwargs['transport_factory'] = observed_transport_factory(self.login_diagnostics)
+        self.login_diagnostics.update(stage='tcp_connect', tcp_connected=False, ssh_banner_received=False)
         try:
+            if method == "private_key":
+                self.login_diagnostics.update(stage="configuration")
+                connect_kwargs["pkey"] = load_selected_private_key(connect_kwargs.pop("key_filename"))
+                self.login_diagnostics.update(stage="tcp_connect")
             client.connect(**connect_kwargs)
         except Exception as exc:
             self.login_diagnostics.transport(client.get_transport())
             client.close()
-            message = ""
-            if isinstance(exc, OSError) and getattr(exc, "winerror", None) == 10013:
+            message = connection_message(exc, self.login_diagnostics.current(), self._port)
+            if message:
+                pass
+            elif isinstance(exc, OSError) and getattr(exc, "winerror", None) == 10013:
                 message = "Windows \u963b\u6b62\u4e86\u672c\u6b21\u7f51\u7edc\u8fde\u63a5\uff0c\u767b\u5f55\u672a\u5b8c\u6210\u3002\u8bf7\u5c1d\u8bd5\u91cd\u65b0\u767b\u5f55\uff1b\u82e5\u4ecd\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u9632\u706b\u5899\u6216\u5b89\u5168\u8f6f\u4ef6\u662f\u5426\u9650\u5236 \u8def\u5c0f\u7ba1\u3002\u6b64\u9519\u8bef\u65e0\u6cd5\u5224\u65ad\u5bc6\u7801\u662f\u5426\u6b63\u786e\u3002"
             elif isinstance(exc, paramiko.BadAuthenticationType):
                 message = (
@@ -307,7 +317,7 @@ class OpenWrtSshClient:
             self._client = client
             self._authenticated_settings = dict(host=connect_kwargs["hostname"],port=connect_kwargs["port"],
                 user=connect_kwargs["username"],auth_method=method,
-                private_key_path=connect_kwargs.get("key_filename",""))
+                private_key_path=key_path if method == "private_key" else "")
             self._failure_detail = ""
             transport = client.get_transport()
             try:

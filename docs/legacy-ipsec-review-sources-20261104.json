@@ -1,0 +1,89 @@
+{
+  "checked_utc": "2026-11-04T13:18:03.448086+00:00",
+  "scope": "Windows local policy only; no router command changes",
+  "sources": [
+    {
+      "name": "netsh-ipsec",
+      "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/netsh-ipsec",
+      "error": "URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get issuer certificate (_ssl.c:1007)>",
+      "verification_method": "web tool read official documentation",
+      "source_url": "https://raw.githubusercontent.com/MicrosoftDocs/windowsserverdocs/main/WindowsServerDocs/administration/windows-commands/netsh-ipsec.md",
+      "path": "build/ipsec-review-20261104/sources/netsh-ipsec.md",
+      "sha256": "f10d3957029685b82bbd02e966f40497f5d44726b6d5bfc305a9fb68ce0ae871",
+      "bytes": 36772
+    },
+    {
+      "name": "query-service-status",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-queryservicestatusex",
+      "error": "URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get issuer certificate (_ssl.c:1007)>",
+      "verification_method": "web tool read official documentation",
+      "source_url": "https://raw.githubusercontent.com/MicrosoftDocs/sdk-api/docs/sdk-api-src/content/winsvc/nf-winsvc-queryservicestatusex.md",
+      "path": "build/ipsec-review-20261104/sources/query-service-status.md",
+      "sha256": "ba3cd5ed62649d775117b40708acc2cb4527024946f9137fab67ca7865e17942",
+      "bytes": 6262
+    },
+    {
+      "name": "query-service-config",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-queryserviceconfigw",
+      "error": "URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get issuer certificate (_ssl.c:1007)>",
+      "verification_method": "web tool read official documentation",
+      "source_url": "https://raw.githubusercontent.com/MicrosoftDocs/sdk-api/docs/sdk-api-src/content/winsvc/nf-winsvc-queryserviceconfigw.md",
+      "path": "build/ipsec-review-20261104/sources/query-service-config.md",
+      "sha256": "9beffd5ac832d64ad99b6859de5ee3f95de95b3fb9bd7c073b72094637e04149",
+      "bytes": 7093
+    },
+    {
+      "name": "legacy-policy-locations",
+      "url": "https://learn.microsoft.com/fr-fr/security-updates/security/20141607",
+      "error": "URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get issuer certificate (_ssl.c:1007)>",
+      "verification_method": "web tool read official documentation"
+    },
+    {
+      "name": "create-directory-security",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createdirectoryw",
+      "error": "URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get issuer certificate (_ssl.c:1007)>",
+      "verification_method": "web tool read official documentation",
+      "source_url": "https://raw.githubusercontent.com/MicrosoftDocs/sdk-api/docs/sdk-api-src/content/fileapi/nf-fileapi-createdirectoryw.md",
+      "path": "build/ipsec-review-20261104/sources/create-directory-security.md",
+      "sha256": "7fcdb839d70b7beb6384ddf4a858e92ddebdd0d13d1b1bc14a5757db181f4a19",
+      "bytes": 7729
+    },
+    {
+      "name": "python310-subprocess",
+      "url": "https://docs.python.org/3.10/library/subprocess.html",
+      "resolved_url": "https://docs.python.org/3.10/library/subprocess.html",
+      "path": "build/ipsec-review-20261104/sources/python310-subprocess.html",
+      "sha256": "3f788fd53724bf1785ed7e9db5bae9bc2c7a3504fbfed042f94cb4285223494e",
+      "bytes": 195628,
+      "verification_method": "web tool read official documentation"
+    },
+    {
+      "name": "python310-locale",
+      "url": "https://docs.python.org/3.10/library/locale.html",
+      "resolved_url": "https://docs.python.org/3.10/library/locale.html",
+      "path": "build/ipsec-review-20261104/sources/python310-locale.html",
+      "sha256": "b6693eac2df56a8498ea6e7c698c4bf70f1d53569d28950158ec86f6d86f1323",
+      "bytes": 75185,
+      "verification_method": "web tool read official documentation"
+    },
+    {
+      "name": "python311-locale",
+      "url": "https://docs.python.org/3.11/library/locale.html",
+      "resolved_url": "https://docs.python.org/3.11/library/locale.html",
+      "path": "build/ipsec-review-20261104/sources/python311-locale.html",
+      "sha256": "76f4548ce042f3b52c7f1df95efbe069917e785c2bbef31f443ae54660bc88cb",
+      "bytes": 96277,
+      "verification_method": "web tool read official documentation"
+    },
+    {
+      "name": "ansi-code-page",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winnls/nf-winnls-getacp",
+      "error": "URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get issuer certificate (_ssl.c:1007)>",
+      "verification_method": "web tool read official documentation",
+      "source_url": "https://raw.githubusercontent.com/MicrosoftDocs/sdk-api/docs/sdk-api-src/content/winnls/nf-winnls-getacp.md",
+      "path": "build/ipsec-review-20261104/sources/ansi-code-page.md",
+      "sha256": "9492252d041bf146b4d72044508569cc1171eba46c5419a3a4a45b300bec9731",
+      "bytes": 3634
+    }
+  ]
+}

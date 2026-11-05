@@ -194,7 +194,8 @@ init_bpf_filter
         # 测试状态切换
         card_free.apply_state("capturing")
         self.assertTrue(card_free.stop_btn.isEnabled())
-        self.assertFalse(card_free.start_btn.isEnabled())
+        self.assertIn("停止", card_free.start_btn.text())
+        self.assertTrue(card_free.start_btn.isEnabled())
 
         # 测试主题切换
         card_free.set_light_theme(True)
@@ -289,7 +290,7 @@ init_bpf_filter
         header_layout = card.layout().itemAt(0).layout()
         self.assertIsNotNone(header_layout)
         self.assertEqual(header_layout.itemAt(0).widget(), card.status_badge)
-        self.assertEqual(header_layout.itemAt(3).widget(), card.title_label)
+        self.assertEqual(header_layout.itemAt(5).widget(), card.title_label)
         self.assertTrue(bool(card.title_label.alignment() & Qt.AlignRight))
 
         mock_slot = MagicMock()
@@ -790,8 +791,8 @@ __WINBOX_KERNEL__=5.15.137
             auto_cap_service._boot_status = installed_status
             mock_run_dialog.assert_not_called()
 
-        self.assertIn("脚本运行中", page.boot_status_badge.text())
-        self.assertIn("抓包状态尚未确认", page.running_alert_label.text())
+        self.assertIn("自启服务已就绪", page.boot_status_badge.text())
+        self.assertIn("运行中", page.running_alert_label.text())
         self.assertIn("脚本运行中", page.metric_running_label.text())
         self.assertIn("已注册", page.metric_service_label.text())
         self.assertIn("已启用", page.metric_autostart_label.text())
@@ -875,7 +876,7 @@ __WINBOX_KERNEL__=5.15.137
         self.assertEqual(page.boot_enable_check.text(), "开机自启抓包")
         self.assertIn("空闲", page.start_script_btn.toolTip())
         self.assertIn("实时保存", page.start_script_btn.toolTip())
-        self.assertIn("拉取离线包", page.pull_offline_btn.text())
+        self.assertIn("拉取握手包", page.pull_offline_btn.text())
         self.assertIn("分析日志", page.analyze_offline_btn.text())
         self.assertTrue(hasattr(page, "bg_open_output_dir_btn"))
         self.assertIn("打开输出目录", page.bg_open_output_dir_btn.text())
@@ -900,7 +901,8 @@ __WINBOX_KERNEL__=5.15.137
         )
         page._on_boot_status_changed(running_status)
         auto_cap_service._boot_status = running_status
-        self.assertFalse(page.start_script_btn.isEnabled())
+        self.assertIn("结束并收尾", page.start_script_btn.text())
+        self.assertTrue(page.start_script_btn.isEnabled())
         self.assertIn("后台脚本正在运行", page.start_script_btn.toolTip())
 
         # 4. 模拟就绪且空闲状态
@@ -947,13 +949,19 @@ __WINBOX_KERNEL__=5.15.137
                 page._on_start_script_clicked()
                 mock_install_start.assert_called_once()
 
-        # 7. 验证 AutoCaptureBootManager.start_script 的远程命令执行
+        # 7. 验证 AutoCaptureBootManager.start_script 的远程命令执行与启动输出捕获
         runner = MagicMock()
-        runner.run.return_value = MagicMock(exit_code=0, cancelled=False, timed_out=False, stdout="", stderr="")
+        runner.run.return_value = MagicMock(
+            exit_code=0, cancelled=False, timed_out=False,
+            stdout="===== hcx_autocap.sh (v26.11.2) =====\n检测到空闲射频: phy0 phy1\n正在并行抓包",
+            stderr="",
+        )
         bm = AutoCaptureBootManager(runner, MagicMock())
-        bm.start_script()
+        startup_out = bm.start_script()
+        self.assertIn("正在并行抓包", startup_out)
         start_call = next(c for c in runner.run.call_args_list if c.args[0] == "start_autocap_script")
         start_cmd = start_call.args[1]
+        self.assertIn("/tmp/.hcx_autocap.stdout.log", start_cmd)
         # 8. 验证点击“智能分析日志”按钮时直接拉起报告弹窗，杜绝非Qt事件循环静默失效
         with patch("modules.main_pages.packet_capture.openwrt.auto_capture_page.AutoCaptureReportDialog") as mock_report_dialog:
             mock_dlg_instance = MagicMock()
@@ -1669,6 +1677,116 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         self.assertTrue(page.bg_console_card.isHidden())
         page.dispose()
 
+    def test_background_capture_tail_stream_lifecycle(self):
+        """测试后台监看终端的 tail -f 流式实时推送与生命周期。"""
+        service = MagicMock()
+        service.openwrt_backend = MagicMock()
+        service.settings = {}
+        auto_cap_service = self.ui_service(service)
+        service.auto_capture = auto_cap_service
+
+        page = AutoCapturePage(service, {})
+
+        # 1. 验证切换终端按钮与收起按钮联动触发 start_boot_log_stream 与 stop_boot_log_stream
+        with patch.object(auto_cap_service, "start_boot_log_stream") as mock_start_stream,              patch.object(auto_cap_service, "stop_boot_log_stream") as mock_stop_stream:
+            # 展开终端
+            page.bg_toggle_console_btn.click()
+            mock_start_stream.assert_called_once()
+
+            # 收起终端
+            page.bg_collapse_btn.click()
+            mock_stop_stream.assert_called_once()
+
+        # 2. 验证底层 AutoCaptureService 的流式线程工作循环
+        mock_channel = MagicMock()
+        mock_channel.exit_status_ready.side_effect = [False, False, True]
+        mock_channel.recv.side_effect = [
+            "\x1b[H================================================================\n  [已抓包     6s] 1/1 路存活\n================================================================".encode("utf-8"),
+            b"",
+        ]
+        auto_cap_service.ssh._client = MagicMock()
+        auto_cap_service.ssh.connected = True
+        auto_cap_service.ssh.open_capture_stream.return_value = mock_channel
+
+        received_logs = []
+        auto_cap_service.bootLogUpdated.connect(lambda text: received_logs.append(text))
+
+        auto_cap_service.start_boot_log_stream()
+        # 等待流式线程处理
+        if auto_cap_service._boot_log_thread:
+            auto_cap_service._boot_log_thread.join(timeout=2.0)
+        from PySide6.QtWidgets import QApplication
+        QApplication.processEvents()
+
+        self.assertTrue(len(received_logs) > 0)
+        self.assertIn("已抓包     6s", received_logs[0])
+
+        # 3. 验证 stop_boot_log_stream 安全清理 channel
+        auto_cap_service.stop_boot_log_stream()
+        self.assertTrue(auto_cap_service._boot_log_stop_event.is_set())
+
+        page.dispose()
+
+    def test_background_capture_stream_restart_on_script_started_and_poll_suppression(self):
+        """测试脚本启动成功时重启流式监听接入新输出，且活跃流抑制冗余的15秒日志轮询。"""
+        service = MagicMock()
+        service.openwrt_backend = MagicMock()
+        service.settings = {}
+        auto_cap_service = self.ui_service(service)
+        service.auto_capture = auto_cap_service
+
+        page = AutoCapturePage(service, {})
+        page.show()
+        page.sub_tabs.setCurrentIndex(1)
+        page.bg_console_card.setVisible(True)
+
+        # 1. 验证脚本启动发出 bootScriptStarted 时，页面槽函数调用 start_boot_log_stream(restart=True)
+        with patch.object(auto_cap_service, "start_boot_log_stream") as mock_start:
+            auto_cap_service.bootScriptStarted.emit()
+            from PySide6.QtWidgets import QApplication
+            QApplication.processEvents()
+            mock_start.assert_called_with(restart=True)
+
+        # 2. 验证流活跃时抑制 poll_boot_log，流停止时兜底调用 poll_boot_log
+        with patch.object(auto_cap_service, "refresh_boot_status"),              patch.object(auto_cap_service, "poll_boot_log") as mock_poll:
+            snapshot = MagicMock()
+            snapshot.connection_state = OpenWrtConnectionState.CONNECTED
+            service.openwrt_snapshot = snapshot
+            page._on_snapshot_changed(snapshot)
+
+            # 流活跃状态
+            with patch.object(auto_cap_service, "is_boot_log_streaming", return_value=True):
+                page._poll_bg_boot_status()
+                mock_poll.assert_not_called()
+
+            # 流未活跃状态
+            with patch.object(auto_cap_service, "is_boot_log_streaming", return_value=False):
+                page._poll_bg_boot_status()
+                mock_poll.assert_called_once()
+
+        # 3. 验证底层 start_boot_log_stream(restart=True) 在旧线程存在时的安全重启
+        mock_old_thread = MagicMock()
+        mock_old_thread.is_alive.return_value = True
+        auto_cap_service._boot_log_thread = mock_old_thread
+        mock_chan = MagicMock()
+        auto_cap_service._boot_log_channel = mock_chan
+
+        with patch("threading.Thread") as mock_thread_cls:
+            mock_new_thread = MagicMock()
+            mock_thread_cls.return_value = mock_new_thread
+
+            # restart=False 时直接返回，不创建新线程
+            auto_cap_service.start_boot_log_stream(restart=False)
+            mock_thread_cls.assert_not_called()
+
+            # restart=True 时终止旧线程并启动新线程
+            auto_cap_service.start_boot_log_stream(restart=True)
+            mock_old_thread.join.assert_not_called()
+            mock_chan.close.assert_called_once()
+            mock_new_thread.start.assert_called_once()
+
+        page.dispose()
+
     def test_foreground_capture_pipeline_emits_full_lifecycle_logs(self):
         """测试前台抓包流水线在整个生命周期均有清晰的控制台日志输出。"""
         service = MagicMock()
@@ -1749,7 +1867,8 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
                 page._on_start_script_clicked()
 
         # 此时应处于过渡状态
-        self.assertEqual(page.boot_status_badge.text(), "【正在启动脚本...】")
+        self.assertEqual(page.running_alert_label.text(), "⏳ 正在启动抓包脚本...")
+        self.assertEqual(page.boot_status_badge.text(), "【自启服务已就绪】")
         self.assertFalse(page.start_script_btn.isEnabled())
 
         # 当远端探针返回与点击前相同的 idle 状态时，必须打破缓存、执行回显并恢复按钮使能，禁止永久卡在正在启动
@@ -1794,6 +1913,100 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
             auto_cap_service._diagnose_boot_script_exit()
 
         self.assertTrue(any(lvl == "warning" and "未检测到空闲射频" in msg for msg, lvl in messages))
+
+    def test_hcx_dialect_probing_6_2_4_legacy(self):
+        """测试在 hcxdumptool 6.2.4 实机输出下准确识别 legacy 方言并构建包含 -o 的旧版指令。"""
+        radio = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("2.4G",))
+        service = MagicMock()
+        runner = MagicMock()
+        help_624 = (
+            "hcxdumptool 6.2.4 (C) 2021 by ZeroBeat\n"
+            "usage  : hcxdumptool <options>\n"
+            "short options:\n"
+            "-i <interface> : interface (monitor mode will be enabled by hcxdumptool)\n"
+            "-o <dump file> : output file in pcapng format, filename '-' outputs to stdout\n"
+            "-c <digit>     : set channel (1,2,3, ...)\n"
+            "--enable_status=15\n"
+        )
+        runner.run.return_value = MagicMock(exit_code=0, stdout=help_624, stderr="")
+        ssh_client = MagicMock()
+        session = AutoCaptureRadioSession(radio, runner, ssh_client, Path(tempfile.gettempdir()), service)
+
+        # 1. 验证方言识别为 legacy
+        dialect = session._probe_dialect()
+        self.assertEqual(dialect, "legacy")
+
+        # 2. 验证构建的阶梯命令为旧版 -o 格式，且绝不包含新版未识别的 -w
+        attempts = session._build_attempt_commands("1,6,11", "/tmp/test.bpf")
+        descs = [a[0] for a in attempts]
+        self.assertTrue(any("legacy-chan" in d for d in descs))
+        self.assertTrue(any("legacy-nochan" in d for d in descs))
+        self.assertTrue(any("legacy-min" in d for d in descs))
+        for desc, cmd in attempts:
+            self.assertIn(" -o ", cmd)
+            self.assertNotIn(" -w ", cmd)
+            self.assertNotIn("--attemptapmax", cmd)
+
+    def test_hcx_dialect_probing_options_fallback_without_version(self):
+        """测试无版本号暴露但帮助文本含 -o <dump file> 时可靠回退至 legacy。"""
+        radio = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("5G",))
+        service = MagicMock()
+        runner = MagicMock()
+        unversioned_legacy_help = (
+            "usage: hcxdumptool <options>\n"
+            "-i <interface> : interface\n"
+            "-o <dump file> : output file\n"
+        )
+        runner.run.return_value = MagicMock(exit_code=0, stdout=unversioned_legacy_help, stderr="")
+        session = AutoCaptureRadioSession(radio, runner, MagicMock(), Path(tempfile.gettempdir()), service)
+        self.assertEqual(session._probe_dialect(), "legacy")
+
+    def test_script_log_capping_and_enable_status_noise_reduction(self):
+        """验证 hcx_autocap.sh 脚本日志精简机制：6.2.x 降噪与容量硬封顶守护。"""
+        from modules.capture_services.openwrt.auto_capture_boot_manager import (
+            read_local_script_content,
+            read_local_script_version,
+        )
+        from modules.capture_services.openwrt.auto_capture_log_analyzer import AutoCaptureLogAnalyzer
+
+        # 1. 验证脚本版本已递增至 v26.11.2
+        ver = read_local_script_version()
+        self.assertTrue(ver.startswith("v26.11"))
+
+        content = read_local_script_content()
+
+        # 4. 验证 iw 命令包含正确的 phy 参数且空闲射频探测结合链路 flags
+        self.assertIn('iw phy "${_use_phy}" interface add', content)
+        self.assertIn('flags" 2>/dev/null', content)
+
+        # 2. 验证 6.2.x legacy 状态已由 15 优化为 1 (仅 EAPOL，剔除 Beacon 刷屏)
+        self.assertIn('_flags="--enable_status=1"', content)
+        self.assertNotIn('_flags="--enable_status=15"', content)
+
+        # 3. 验证具备 MAX_RUNLOG_KB 与 cap_runlogs 容量守护逻辑
+        self.assertIn("MAX_RUNLOG_KB=", content)
+        self.assertIn("cap_runlogs()", content)
+        # 必须是原地覆盖写入保持 inode 连续性
+        self.assertIn('cat "${_cap_tmp}" > "${_cap_file}"', content)
+
+        # 4. 验证经容量守卫截断后的日志在 AutoCaptureLogAnalyzer 中依然能完整识别首尾信息
+        truncated_mock_log = (
+            "[2026-11-03 10:00:00] 启动命令(形态=new-chan): /usr/bin/hcxdumptool -i hcxmon0 -w /root/cap/dump.pcapng -c 1a\n"
+            "固件: OpenWrt 23.05.2\n"
+            "hcxdumptool: 6.3.4\n"
+            "hcxdumptool 方言: new\n"
+            "\n[--- 日志容量守卫就地截断 (已达 256KB 上限): 保留首部启动环境与尾部最新排障记录 ---]\n\n"
+            "   1 10:30:00       + + 64bf6be17c64 MyAP_Handshake\n"
+            "退出原因: 收到中断信号，正常收尾并同步落盘\n"
+            "退出码: 130\n"
+        )
+        report = AutoCaptureLogAnalyzer.analyze_log_text(truncated_mock_log)
+        self.assertEqual(report.firmware_info, "OpenWrt 23.05.2")
+        self.assertEqual(report.hcx_version, "6.3.4")
+        self.assertEqual(report.exit_code, 130)
+        self.assertEqual(report.health_level, "normal")
+        self.assertEqual(report.pmkid_count, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

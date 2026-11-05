@@ -1,10 +1,12 @@
 {
   "qt_version": "6.3.2",
-  "dll_sha256": "14606ae775bd804da03f44622e0f354cc3b8213a4fc6c0259e52fb771e1cb5d9",
+  "dll_sha256": "71c6c059e8862311cd8f47e4fa2b848b4eb5c0285853ddaab57b2d91cd716cdb",
   "source_sha256": {
     "adaptations.patch": "40fc81f9becfc6914541e36dfa54afc32c2f73c06da17d05b8700c0a5ced15d3",
-    "bridge.cpp": "a163db58f074a886beb9f075bd6c2dc8c11985400ab7e57fa1119a74c5701f76",
-    "terminal.pro": "93ddd63df2d42233998c5fc0d6911263023438d6acef5afab8a991d97ffbc139",
+    "bridge.cpp": "cc69aa65ff39ab6434bb7c8e2723926d561bcf4258216ce7ce0acc22f0953137",
+    "CMakeLists.txt": "8b4473cacd433446b6fb2412c393961328c54879adfb8b360dd09995e5669a71",
+    "README.md": "4d46062908df6d9843ac369efd77021aa38450199ee130e6c31d5f11d94bca4b",
+    "terminal.pro": "031a37999767010ac62f8b1a010141cba02491f2a31b8da5e903fee1d2e918ad",
     "upstream.json": "652260867b4afd57a5d003f68dfeeab9b0512105d03790e99e9a00537f110695",
     "vendor/kodoterm/include/KodoTerm/KodoTerm.hpp": "5c3b7c59326b4f3531a3a8b466db3c389bbd53f6fc62f4d7b6bdace10283524f",
     "vendor/kodoterm/include/KodoTerm/KodoTermConfig.hpp": "600986d72e71efd9ae8f504676650351beb64567e806ce30c16300b62542a3a2",

@@ -71,7 +71,7 @@ class MirrorDownloadTests(unittest.TestCase):
 
     def test_mixed_timeout_and_missing_retains_format_fallback(self):
         with self.assertRaises(feed.DownloadHTTPError) as caught:
-            self.fetch([self.missing(),TimeoutError(),self.missing(),TimeoutError()])
+            self.fetch([self.missing(),TimeoutError()]+[self.missing()]*(len(policy.DOMESTIC)-2)+[TimeoutError()])
         self.assertEqual(caught.exception.code,404)
 
     def test_mixed_failures_actually_fall_back_to_plain_index(self):
@@ -79,7 +79,7 @@ class MirrorDownloadTests(unittest.TestCase):
         urls=[]
         def download(url,**kwargs):
             urls.append(url)
-            outcomes=([self.missing(),TimeoutError(),self.missing(),TimeoutError()]
+            outcomes=([self.missing(),TimeoutError()]+[self.missing()]*(len(policy.DOMESTIC)-2)+[TimeoutError()]
                       if url.endswith('.gz') else [b'Package: demo\n'])
             return self.fetch(outcomes,url=url)
         self.assertEqual(fetch_package_index(URL[:-3],download),b'Package: demo\n')
@@ -91,7 +91,7 @@ class MirrorDownloadTests(unittest.TestCase):
             cancel.set()
             return self.missing()
         with self.assertRaisesRegex(RuntimeError,'\u53d6\u6d88'):
-            self.fetch([self.missing(),self.missing(),last_missing],cancel=cancel)
+            self.fetch([self.missing()]*(len(policy.DOMESTIC)-1)+[last_missing],cancel=cancel)
 
     def test_all_denied_stop_after_each_mirror_once(self):
         denied=[HTTPError(URL,403,'denied',{},io.BytesIO()) for _ in policy.DOMESTIC]

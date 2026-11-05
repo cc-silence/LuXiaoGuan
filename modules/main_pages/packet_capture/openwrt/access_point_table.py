@@ -7,6 +7,7 @@ from PySide6.QtGui import QAction, QColor, QFont, QFontMetrics
 from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QMenu, QTableWidget, QTableWidgetItem, QStyle, QStyleOptionViewItem
 
 from modules.capture_services.openwrt.models import AccessPointCaptureState
+from modules.capture_services.openwrt.wps_scan import wps_status_text
 from modules.capture_services.privacy_mask import mask_text
 from modules.display_privacy import controller_for, masker_for, Masker
 from modules.common_widgets.auto_hide_scroll_bar import AutoHideScrollBar
@@ -598,9 +599,7 @@ class AccessPointTable(QTableWidget):
 
     @staticmethod
     def _wps_text(point):
-        if not point.wps_supported:
-            return "不支持"
-        return "已锁定" if point.wps_locked else "支持"
+        return wps_status_text(point)
 
     def _renumber_rows(self):
         """按当前显示顺序重写序号，永远 1..N；只改文本，不碰勾选。"""

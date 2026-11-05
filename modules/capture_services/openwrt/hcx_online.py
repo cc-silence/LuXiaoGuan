@@ -78,7 +78,7 @@ def online_primary_package(device, cancel, tell):
             _cancelled(cancel)
             try:
                 raw = bounded_fetch(url, timeout=45, cancel_event=cancel,
-                                    limit=row["size"] or MAX_BODY)
+                                    limit=(row["size"] or MAX_BODY) if url == row["url"] else MAX_BODY)
             except InterruptedError:
                 raise
             except (RuntimeError, OSError) as exc:
@@ -86,13 +86,24 @@ def online_primary_package(device, cancel, tell):
                 errors.append(str(exc)[-400:])
                 continue
             _cancelled(cancel)
-            if (not 0 < len(raw) <= MAX_BODY or row["size"] is not None and len(raw) != row["size"]
-                    or hashlib.sha256(raw).hexdigest() != row["sha256"]):
-                raise SignalError("dependencies", "\u8054\u7f51\u83b7\u53d6\u7684 hcx 6.3.4 \u5927\u5c0f\u6216 SHA256 \u6821\u9a8c\u4e0d\u7b26\uff0c\u672a\u6267\u884c\u5b89\u88c5\u3002")
-            row = dict(row, size=len(raw))
-            path = Path(directory) / row["filename"]
+            matches = (0 < len(raw) <= MAX_BODY
+                       and (row['size'] is None or len(raw) == row['size'])
+                       and hashlib.sha256(raw).hexdigest() == row['sha256'])
+            if not matches and (url == row['url'] or not row['url'].startswith(_SOURCE)):
+                raise SignalError('dependencies', '\u8054\u7f51\u83b7\u53d6\u7684 hcx 6.3.4 \u5927\u5c0f\u6216 SHA256 \u6821\u9a8c\u4e0d\u7b26\uff0c\u672a\u6267\u884c\u5b89\u88c5\u3002')
+            path = Path(directory) / row['filename']
             path.write_bytes(raw)
+            actual_size = len(raw)
             del raw
+            if not matches:
+                from .hcx_candidate import confirm_alternate
+                from .signal_package_feed import last_download_source
+                source = last_download_source(url)
+                tell('\u53d1\u73b0\u540c\u7248\u672c\u53e6\u4e00\u6784\u5efa\uff0c\u6b63\u5728\u6838\u5bf9\u6765\u6e90\u7d22\u5f15\u5e76\u7b49\u5f85\u7528\u6237\u786e\u8ba4\u3002', 'info')
+                row = confirm_alternate(device, path, row, bounded_fetch, cancel, source, tell)
+                tell('\u7528\u6237\u5df2\u786e\u8ba4 hcx \u540c\u7248\u672c\u5019\u9009\u6784\u5efa\uff0c\u7ee7\u7eed\u5b89\u88c5\u540e\u590d\u6d4b\u3002', 'warning')
+            else:
+                row = dict(row, size=actual_size)
             _cancelled(cancel)
             tell("hcx 6.3.4 \u4e3b\u4f53\u4e0b\u8f7d\u53ca\u6307\u7eb9\u6821\u9a8c\u901a\u8fc7\uff0c\u7ee7\u7eed\u6309\u539f\u6709\u89c4\u5219\u5b89\u88c5\u3002", "success")
             yield path, row

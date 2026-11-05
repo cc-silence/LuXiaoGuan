@@ -6,7 +6,7 @@ from pathlib import Path
 from .bundle_specs import COMMON_ROOTS, CAPTURE_ROOTS, bundle_spec
 from .hcx_bundle import HCX_LIBRARIES
 
-from .common_bundle_repository import CommonBundleRepository
+from .common_bundle_repository import CommonBundleRepository, BundleCoverageUnavailable
 from .signal_package_feed import default_cache_dir, parse_installed
 from .package_manager import compare_opkg_versions
 from .candidate_policy import CandidatePlanRejected
@@ -113,6 +113,9 @@ def _install_downloaded(manager, wanted, device, cache_dir, sftp_available, canc
         from .bundle_archive_cleanup import cleanup_repository_archive
         cleanup_repository_archive(repository, cancel, tell)
         return True
+    except BundleCoverageUnavailable as exc:
+        tell("本机已下载的离线包范围不满足当前需求，本次跳过旧包，继续选择安装来源：" + str(exc), "warning")
+        return False
     except CandidatePlanRejected as exc:
         tell("本地候选安装预演未通过，尚未执行安装；跳过此候选，继续尝试路由器自身的软件源：" + str(exc), "info")
         if exc.package_diagnostic:

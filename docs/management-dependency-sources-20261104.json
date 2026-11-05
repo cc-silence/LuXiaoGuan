@@ -1,0 +1,35 @@
+{
+  "scope": "Existing capability probe and installer are reused without new router commands or package identities.",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.0/package/utils/lua/Makefile",
+      "sha256": "3e68f1f41a43946291215016036a96372a55532e5e5d90872eef44e0214f022d",
+      "checked": "Package/lua"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.0/package/system/uci/Makefile",
+      "sha256": "c062dd9f13a1430c1686e82417f9fb0a885ed78feb3a14bac2e20d8ed6f7ea8b",
+      "checked": "Package/libuci-lua"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.0/package/system/ubus/Makefile",
+      "sha256": "d1e86b7d192083a80b39362fecbfa754a7912f89f77d5888013b8a38843aebed",
+      "checked": "Package/libubus-lua"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/utils/lua/Makefile",
+      "sha256": "0ea44b6bb2db65e52a4b14f7213686f221314c100dd3c4647e94b0233e38a110",
+      "checked": "Package/lua"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/system/uci/Makefile",
+      "sha256": "548a58ea67abe65de6482e3eef8c6d044f6e65c351b092b3c3ee07216d98d055",
+      "checked": "Package/libuci-lua"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/system/ubus/Makefile",
+      "sha256": "3ad819ad571d688af3c3c3c1ba92759eb7974e317ac39848a5e99ffbdb99f3f5",
+      "checked": "Package/libubus-lua"
+    }
+  ]
+}

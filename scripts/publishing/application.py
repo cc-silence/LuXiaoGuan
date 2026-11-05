@@ -20,14 +20,18 @@ from scripts.release_metadata import metadata_path
 from .storage import ensure_space, publication_lock, StorageQuotaError
 from .retention import cleanup_retention
 from scripts.build_cleanup import cleanup_publishing
-from modules.app_update_services.release_targets import channel_key, manifest_endpoint, validate_platform, compatibility_key
+from modules.app_update_services.release_targets import channel_key, manifest_endpoint, validate_platform, compatibility_key, archive_key
 from .alpha_space import reserve_alpha_space, resume_alpha_space, prepared_alpha, assert_alpha_channel, complete_alpha_space
 
 
 def prepare(archive, notes, previous_manifest=None, previous_catalog=None, *, legacy_bridge=False):
     archive = Path(archive).resolve()
     descriptor = json.loads(metadata_path(archive,".release.json",existing=True).read_text(encoding="utf-8"))
-    if descriptor.get("product") != "RouterManager" or descriptor.get("platform") != "win-x64":
+    platform=validate_platform(descriptor.get("platform"))
+    if legacy_bridge and platform!="win-x64":raise ValueError("Legacy bridge is only supported for existing Windows clients")
+    if platform=="linux-x64" and (descriptor.get("native_validated") is not True or descriptor.get("desktop_validated") is not True):
+        raise ValueError("Linux publication requires native desktop acceptance")
+    if descriptor.get("product") != "RouterManager":
         raise ValueError("Only verified RouterManager releases may be published")
     version_key(descriptor["version"])
     digest = sha256_file(archive)
@@ -37,18 +41,22 @@ def prepare(archive, notes, previous_manifest=None, previous_catalog=None, *, le
         raise ValueError("Application archive differs from its release descriptor")
     with zipfile.ZipFile(archive) as zipped:
         prefix=archive_root(zipped.namelist())
-        if zipped.testzip() or not any(prefix+name in zipped.namelist() for name in APPLICATION_EXECUTABLES):
+        names=("LuXiaoGuan",) if platform=="linux-x64" else APPLICATION_EXECUTABLES
+        if zipped.testzip() or not any(prefix+name in zipped.namelist() for name in names):
             raise ValueError("Application ZIP is incomplete or belongs to another product")
+    if platform=="linux-x64":
+        from scripts.linux_package_validation import verify_archive
+        verify_archive(archive,descriptor["version"])
     previous = None
     if previous_manifest is not None:
-        release = verify_manifest(Path(previous_manifest).read_bytes(), PUBLIC_KEY)
+        release = verify_manifest(Path(previous_manifest).read_bytes(), PUBLIC_KEY, expected_platform=platform)
         if version_key(descriptor["version"]) <= version_key(release.version):
             raise ValueError("Application publication must advance the signed release version")
     folder = ROOT/"build/publishing/application"/digest
     folder.mkdir(parents=True, exist_ok=True)
-    payload = dict(schema=1, product="RouterManager", platform="win-x64",
+    payload = dict(schema=1, product="RouterManager", platform=platform,
         version=descriptor["version"], notes=notes,
-        url=gateway()+"/files/"+digest+"/"+archive.name, size=archive.stat().st_size,
+        url=gateway()+"/"+archive_key(platform,digest,archive.name), size=archive.stat().st_size,
         sha256=digest, published_at=datetime.now(timezone(timedelta(hours=8))).isoformat(timespec="seconds"))
     payload["delivery_mode"] = "full-package"
     objects = {}
@@ -59,7 +67,7 @@ def prepare(archive, notes, previous_manifest=None, previous_catalog=None, *, le
         payload['legacy_bridge']=True
     manifest = folder/"manifest.json"
     manifest.write_bytes(sign(payload))
-    release = verify_manifest(manifest.read_bytes(), PUBLIC_KEY)
+    release = verify_manifest(manifest.read_bytes(), PUBLIC_KEY, expected_platform=platform)
     if release.catalog_url:parse_catalog(canonical(catalog),release)
     return archive, manifest, payload, objects
 
@@ -77,19 +85,22 @@ def _require_empty_bridge(platform,channel):
 
 @publication_lock
 def publish(archive, notes, previous_manifest=None, previous_catalog=None, *, legacy_bridge=False):
-    if legacy_bridge:_require_empty_bridge("win-x64","stable")
+    platform=_publication_platform(archive)
+    if legacy_bridge and platform!="win-x64":raise ValueError("Linux has no legacy bridge")
+    if legacy_bridge:_require_empty_bridge(platform,"stable")
     archive, manifest, payload, objects = prepare(archive, notes, previous_manifest, previous_catalog,legacy_bridge=legacy_bridge)
     if version_key(payload["version"])[1] != 4:
         raise ValueError("Preview releases require a separately configured tester channel; stable channel was not changed")
+    platform=payload["platform"]
     space_objects=dict(objects)
     if legacy_bridge:space_objects['bridge-reserve']=dict(key=compatibility_key('win-x64','stable'),size=manifest.stat().st_size)
-    ensure_space(space_objects, archive, manifest, payload, "channel/stable.json")
+    ensure_space(space_objects, archive, manifest, payload, channel_key(platform,"stable"))
     for row in objects.values():
         path = Path(row["path"])
         if sha256_file(path) != row["sha256"] or path.stat().st_size != row["size"]:
             raise ValueError("Application update object changed after preparation")
         upload(path, row["key"], "application/octet-stream" if row["key"].startswith("blobs/") else "application/json")
-    upload(archive, "files/"+payload["sha256"]+"/"+archive.name, "application/zip")
+    upload(archive, archive_key(platform,payload["sha256"],archive.name), "application/zip")
     # Apply the same public-byte validation to formal and preview releases.
     import tempfile
     with tempfile.TemporaryDirectory(prefix="public-stable-", dir=manifest.parent) as temporary:
@@ -97,11 +108,11 @@ def publish(archive, notes, previous_manifest=None, previous_catalog=None, *, le
         _receive(payload["url"], downloaded, payload["size"], Event(), lambda *_: None, time.monotonic()+900, expected_sha=payload["sha256"])
         if downloaded.stat().st_size != payload["size"] or sha256_file(downloaded) != payload["sha256"]:
             raise ValueError("Public stable archive verification failed; channel was not switched")
-    release = verify_manifest(manifest.read_bytes(), PUBLIC_KEY)
+    release = verify_manifest(manifest.read_bytes(), PUBLIC_KEY, expected_platform=platform)
     # The signed channel is switched only after all referenced immutable content exists.
-    upload(manifest, "channel/stable.json", "application/json")
-    raw = _receive(gateway()+"/manifest", None, 65536, Event(), lambda *_: None, time.monotonic()+60, headers={"X-RouterManager-Update-Mode":"full-package"})
-    release = verify_manifest(raw, PUBLIC_KEY)
+    upload(manifest, channel_key(platform,"stable"), "application/json")
+    raw = _receive(gateway()+manifest_endpoint(platform), None, 65536, Event(), lambda *_: None, time.monotonic()+60, headers={"X-RouterManager-Update-Mode":"full-package"})
+    release = verify_manifest(raw, PUBLIC_KEY, expected_platform=platform)
     if raw != manifest.read_bytes() or release.sha256 != payload["sha256"]:
         raise ValueError("Public application update manifest verification failed")
     if legacy_bridge:
@@ -117,7 +128,7 @@ def publish(archive, notes, previous_manifest=None, previous_catalog=None, *, le
         finally:bridge_api.close()
     cleanup_retention()
     cleanup_publishing(ROOT,manifest.parent)
-    return dict(status="published-and-client-verified", version=release.version, manifest_url=gateway()+"/manifest")
+    return dict(status="published-and-client-verified", version=release.version, manifest_url=gateway()+manifest_endpoint(platform))
 
 
 
@@ -138,6 +149,7 @@ def publish_alpha(archive, notes='', previous_manifest=None, previous_catalog=No
     import tempfile
     import base64
     platform = _publication_platform(archive)
+    if legacy_bridge and platform!="win-x64":raise ValueError("Linux has no legacy bridge")
     if legacy_bridge:_require_empty_bridge(platform,"alpha")
     alpha_key = channel_key(platform, 'alpha')
     endpoint = gateway() + manifest_endpoint(platform)
@@ -200,7 +212,7 @@ def publish_alpha(archive, notes='', previous_manifest=None, previous_catalog=No
                 print('Update objects uploaded: '+str(completed)+'/'+str(len(pending)), flush=True)
     uploaded = len(pending)
     print('Uploading full alpha ZIP', flush=True)
-    upload(archive, 'files/'+payload['sha256']+'/'+archive.name, 'application/zip')
+    upload(archive, archive_key(platform,payload['sha256'],archive.name), 'application/zip')
     with tempfile.TemporaryDirectory(prefix='public-alpha-', dir=manifest.parent) as temporary:
         downloaded = Path(temporary)/archive.name
         _receive(payload['url'], downloaded, payload['size'], Event(), lambda *_:None, time.monotonic()+900, expected_sha=payload['sha256'])

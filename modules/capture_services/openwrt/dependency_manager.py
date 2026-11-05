@@ -424,24 +424,17 @@ class OpenWrtDependencyManager:
         if "openssh-sftp-server" in targets:
             tell("注意：卸载后文件同步不可用，重装即恢复；SSH 命令通道不受影响。", "warning")
         package_manager = package_manager or self._preflight(0, cancel_event)
-        total = len(targets)
-        for position, package in enumerate(targets, start=1):
-            tell(f"正在卸载 {package}（第 {position}/{total} 个）…", "info")
-            command = self._package_change(package_manager, (package,), cancel_event, remove=True)
-            self._execute_stage(
-                "dependency_uninstall_" + package,
-                command,
-                120, cancel_event, f"卸载 {package}")
-            tell(f"{package} 卸载完成。", "success")
-        if exact_selection:
-            remaining = installed_tool_packages(self.command_runner, package_manager,
-                                                targets, cancel_event)
-            if remaining:
-                raise SignalError("environment", "卸载后仍安装：" + "、".join(remaining))
+        from .dependency_batch_uninstall import remove_packages
+        outcome = remove_packages(self, package_manager, targets, cancel_event, tell)
         if include_sftp:
             sftp_available = self._probe_sftp(cancel_event, sftp_available)
         tell("正在复测依赖…", "info")
-        return checked()
+        checked_result = checked()
+        if outcome.retained:
+            error = outcome.error()
+            error.checked_dependencies = checked_result
+            raise error
+        return checked_result
 
     def check_terminal(self, cancel_event=None):
         """只读检查会话保留工具；超时不冒充未安装。"""
@@ -738,7 +731,9 @@ class OpenWrtDependencyManager:
             raise
         except ValueError as exc:
             reason=package_error_reason(plan)
-            error=SignalError("environment", reason if reason!=package_error_reason("") else str(exc))
+            from .package_manager import RemovalRetained
+            code = 'removal_blocked' if remove and isinstance(exc, RemovalRetained) else 'environment'
+            error=SignalError(code, reason if reason!=package_error_reason("") else str(exc))
             error.package_diagnostic=self._package_diagnostic("dependency_package_plan",plan)
             raise error from exc
 
@@ -887,9 +882,11 @@ class OpenWrtDependencyManager:
         if result.exit_code != 0:
             output=(result.stdout or "")+"\n"+(result.stderr or "")
             reason=self._stage_reason(output)
-            blocked=any(value in output.lower() for value in ("is depended upon by packages","is depended upon by other packages","has dependent packages"))
+            from .package_manager import removal_dependency_blocked
+            blocked=removal_dependency_blocked(output)
+            removal = command_name == 'dependency_package_plan' or command_name.startswith('dependency_uninstall_')
             error=SignalError(
-                "environment" if blocked else "transport", reason if blocked else f"{stage}失败：{self._stage_reason(output)}；请处理后重试。")
+                ('removal_blocked' if removal else 'environment') if blocked else "transport", reason if blocked else f"{stage}失败：{self._stage_reason(output)}；请处理后重试。")
             error.package_diagnostic=self._package_diagnostic(command_name+" exit="+str(result.exit_code),(result.stdout or "")+"\n"+(result.stderr or ""))
             raise error
         return (result.stdout or "") + "\n" + (result.stderr or "") if command_name.endswith("_plan") else result.stdout

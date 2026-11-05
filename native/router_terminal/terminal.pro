@@ -9,4 +9,5 @@ INCLUDEPATH += $$PWD/vendor/kodoterm/include $$PWD/vendor/kodoterm/src $$PWD/ven
 SOURCES += $$PWD/bridge.cpp $$PWD/vendor/kodoterm/src/KodoTerm.cpp $$PWD/vendor/kodoterm/src/KodoTermConfig.cpp $$files($$PWD/vendor/libvterm/src/*.c)
 HEADERS += $$PWD/vendor/kodoterm/include/KodoTerm/KodoTerm.hpp $$PWD/vendor/kodoterm/src/PtyProcess.h
 RESOURCES += $$PWD/vendor/kodoterm/KodoTermThemes.qrc
-QMAKE_CFLAGS += /std:c17
+win32-msvc: QMAKE_CFLAGS += /std:c17
+unix: QMAKE_CFLAGS += -std=c17

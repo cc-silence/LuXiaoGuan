@@ -19,6 +19,8 @@ SAFE_VALUES = {
         "unexpected_error", "restore_reported_errors", "phase_completed", "native_identity_available",
         "native_identity_unavailable", "configuration_untouched"}),
 }
+SAFE_VALUES["operation"] |= {"password_auth", "password_control_probe"}
+SAFE_VALUES["reason"] |= {"authenticated", "wrong_key", "authentication_unconfirmed", "native_control_ready", "native_control_unavailable"}
 SAFE_VALUES["operation"] |= ACTIONS | {"configuration_apply", "wireless_readiness", "wireless_scan_interface"}
 SAFE_VALUES["stage"] |= {"queue","progress","preflight","commit","download","publish","reboot","validation","connect","capabilities","session","stage","apply","verify","confirm","rollback","restore_verify","discard","finish"}
 SAFE_VALUES["reason"] |= {"accepted","unchanged","reply_lost","verified","verification_false","native_rpc_error","exception","restored","restore_unconfirmed","renewal_busy",
@@ -237,6 +239,8 @@ class OperationDiagnostics:
                     "action_failures": deepcopy(list(self._action_failures.values())),
                     "configuration": deepcopy(list(self._configuration)),
                     "configuration_failures": deepcopy(list(self._configuration_failures))}
+            from modules.platform_services.network_policy import policy_snapshot
+            result["network_policy"] = policy_snapshot()
             from .login_diagnostics import LoginDiagnostics
             if isinstance(self._login_diagnostics, LoginDiagnostics):
                 result["login_attempts"] = self._login_diagnostics.snapshot()
@@ -249,6 +253,8 @@ def sanitized_operation_evidence(data, masker):
     if not isinstance(data, dict) or data.get("schema_version") != 1:
         raise ValueError("unsupported operation diagnostic evidence")
     result = {"schema_version": 1}
+    from modules.platform_services.network_policy import sanitized_policy_rows
+    result["network_policy"] = sanitized_policy_rows(data.get("network_policy", []))
     for key, limit in (("events", MAX_EVENTS), ("failures", MAX_FAILURES), ("command_failures", MAX_COMMAND_FAILURES), ("workflows", MAX_WORKFLOWS),
                        ("action_failures", len(ACTIONS)), ("management", MAX_MANAGEMENT), ("management_failures", MAX_MANAGEMENT_FAILURES),
                        ("configuration", MAX_CONFIGURATION), ("configuration_failures", MAX_CONFIGURATION_FAILURES)):

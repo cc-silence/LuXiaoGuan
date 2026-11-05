@@ -31,6 +31,7 @@ class CaptureTaskType(str, Enum):
     AUTO_HANDSHAKE = "auto_handshake"
     WPS = "wps"
     PASSWORD_VERIFY = "password_verify"
+    PASSWORD_HISTORY_CLEAR = "password_history_clear"
     RECOVERY = "recovery"
     ROUTER_MANAGEMENT = "router_management"
     WIRELESS_SETUP = "wireless_setup"
@@ -88,7 +89,7 @@ class AccessPointInfo:
     ssid: str = ""
     power: int | None = None
     clients: Tuple[ClientInfo, ...] = field(default_factory=tuple)
-    wps_supported: bool = False
+    wps_supported: bool | None = None
     wps_locked: bool = False
     channel: int = 0
     band: str = "2.4G"

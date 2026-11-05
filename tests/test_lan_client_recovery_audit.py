@@ -1,4 +1,5 @@
 """Second-pass fault cases for client recovery; never mutate real adapters."""
+from tests.platform_fixtures import mock_windows_elevation
 import time
 import unittest
 from unittest.mock import patch,Mock
@@ -59,7 +60,7 @@ class RecoveryAuditTests(unittest.TestCase):
     def test_windows_denied_renewal_uses_same_identity_and_expiry_after_authorization(self):
         import base64
         from modules.platform_services import lan_network_windows as windows
-        with patch.object(windows.subprocess,'run',return_value=Mock(returncode=5)) as run,patch('modules.platform_services.update_elevation.run_elevated_update',return_value=(True,0)) as elevate:
+        with patch.object(windows.subprocess,'run',return_value=Mock(returncode=5)) as run,mock_windows_elevation(return_value=(True,0)) as elevate:
             windows.renew(adapter(),20,lambda:True)
         self.assertEqual(run.call_count,1);self.assertEqual(elevate.call_count,1)
         original=run.call_args.args[0][-1]
@@ -70,7 +71,7 @@ class RecoveryAuditTests(unittest.TestCase):
 
     def test_windows_expired_authorization_is_not_launched(self):
         from modules.platform_services import lan_network_windows as windows
-        with patch.object(windows.time,'time',side_effect=[100,125]),patch.object(windows.subprocess,'run',return_value=Mock(returncode=5)),patch('modules.platform_services.update_elevation.run_elevated_update') as elevate:
+        with patch.object(windows.time,'time',side_effect=[100,125]),patch.object(windows.subprocess,'run',return_value=Mock(returncode=5)),mock_windows_elevation() as elevate:
             with self.assertRaises(RuntimeError):windows.renew(adapter(),20,lambda:True)
         elevate.assert_not_called()
 

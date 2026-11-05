@@ -161,7 +161,8 @@ class RouterSignalPage(QWidget):
         self.status_label.setVisible(problem and bool(text))
 
     def _show_problem_message(self, text, level):
-        if self.info_panel is not None and level in ("warning", "error", "critical"):
+        from modules.capture_services.management_readiness import READY_NOTICE
+        if self.info_panel is not None and (level in ("warning", "error", "critical") or level == "success" and text == READY_NOTICE):
             self.info_panel.append_info(text, level)
 
     def _navigation_changed(self, index):
@@ -235,29 +236,11 @@ class RouterSignalPage(QWidget):
         return mask_text(self._display_name(row), bool(self._privacy and self._privacy.enabled))
 
     def _on_install(self):
-        """主线程确认后安装信号依赖；装完服务自动重读，不在这里断言成功。"""
-
-        dialog = ConfirmDialog(
-            "安装信号依赖",
-            "路由器缺少信号管理运行环境，\u8def\u5c0f\u7ba1 可以自动安装：\n\n"
-            "lua、libuci-lua、libubus-lua、luci-lib-jsonc\n\n"
-            "官方软件源小包（共约几百 KB），只加解释器和库文件，不改任何配置、"
-            "不断网。路由器能上网时直接安装；路由器上不了网时自动使用 "
-            "\u8def\u5c0f\u7ba1 下载安装（需要这台电脑能联网，\u8def\u5c0f\u7ba1 下载后传到路由器安装），"
-            "完成后自动重新读取列表。",
-            self,
-            yes_text="确认安装",
-            no_text="取消",
-        )
-        if dialog.exec() != ConfirmDialog.Accepted:
-            return
-        if not self.service.install_dependencies():
-            self._show_status_notice("安装未开始：连接已断开或有其他任务运行。")
-            if self.info_panel is not None:
-                self.info_panel.append_info(
-                    "依赖安装未开始：请确认已连接，并等待其他任务结束。",
-                    "warning",
-                )
+        from .management_dependency_prompt import install_management_dependencies
+        def report(text,level):
+            self._show_status_notice(text,level)
+            if self.info_panel is not None:self.info_panel.append_info(text,level)
+        install_management_dependencies(self,self.service,report)
 
     def _confirm_inventory_action(self, dialog, inventory):
         connection = getattr(self.service, "_current_status_connection", None)
