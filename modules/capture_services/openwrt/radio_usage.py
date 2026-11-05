@@ -34,7 +34,9 @@ for path in /sys/class/net/*; do
   link=$(iw dev "$iface" link 2>/dev/null) || exit 89
   case "$link" in *'Not connected.'*) linked=0;; *'Connected to '*) linked=1;; *) exit 90;; esac
  elif [ "$up" = 1 ]; then
-  linked=$(cat "$path/carrier") || exit 91
+  # 非 managed 模式（如 monitor 口或特定驱动 AP 口）读取 carrier 可能因无物理载波返回 EINVAL；
+  # 容错回退为 0，避免读取 carrier 报错导致探测以 91 退出。
+  linked=$(cat "$path/carrier" 2>/dev/null) || linked=0
   case "$linked" in 0|1) :;; *) exit 92;; esac
  fi
  printf 'I|%s|%s|%s|%s|%s\n' "$phy" "$iface" "$mode" "$up" "$linked"

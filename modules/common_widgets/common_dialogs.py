@@ -78,18 +78,28 @@ class ConfirmDialog(FramelessDialog):
     """项目统一确认弹窗。
 
     参数：title 是标题；message 是确认正文；parent 是父窗口；remember_option_text 非空时
-    在正文下显示一个可选复选框。
-    返回值：调用方通过 exec() 是否等于 Accepted 判断用户选择；需要时读取 remember_checked。
+    在正文下显示一个可选复选框；cancel_text 非空时启用三按钮模式 (yes/no/cancel)。
+    返回值：调用方通过 exec() 是否等于 Accepted 或 ActionNo 判断用户选择；也可读取 result_action；需要时读取 remember_checked。
     副作用：只显示模态弹窗，不直接保存业务配置。
     """
 
-    def __init__(self, title, message, parent=None, remember_option_text="", yes_text="确定", no_text="取消"):
+    RESULT_YES = "yes"
+    RESULT_NO = "no"
+    RESULT_CANCEL = "cancel"
+    ActionNo = 2
+
+    def __init__(self, title, message, parent=None, remember_option_text="", yes_text="确定", no_text="取消", cancel_text=""):
         # 公共确认弹窗不能继承页面或快捷面板的局部 QSS，否则外壳会被不完整的样式覆盖。
         super().__init__(title, parent, inherit_parent_stylesheet=False, window_controls=False)
         apply_common_dialog_theme(self, parent)
-        self.set_scaled_size((460, 220))
+        self.cancel_text = str(cancel_text or "")
+        if self.cancel_text:
+            self.set_scaled_size((520, 220))
+        else:
+            self.set_scaled_size((460, 220))
         self.remember_checked = False
         self.secondary_selected = False
+        self.result_action = None
         _add_message_content(self, message)
         self.remember_option = None
         if remember_option_text:
@@ -105,15 +115,36 @@ class ConfirmDialog(FramelessDialog):
         self.button_layout.addSpacing(10)
         self.button_layout.addWidget(self.no_button)
 
+        self.cancel_button = None
+        if self.cancel_text:
+            self.cancel_button = _create_dialog_button(self.cancel_text, self, "settingsSecondaryButton")
+            self.cancel_button.clicked.connect(self._select_cancel)
+            self.button_layout.addSpacing(10)
+            self.button_layout.addWidget(self.cancel_button)
+
     def _select_secondary(self):
+        self.result_action = self.RESULT_NO
         self.secondary_selected = True
+        self.remember_checked = bool(self.remember_option and self.remember_option.isChecked())
+        if self.cancel_text:
+            self.done(self.ActionNo)
+        else:
+            self.reject()
+
+    def _select_cancel(self):
+        self.result_action = self.RESULT_CANCEL
         self.reject()
 
     def _accept(self):
         """确认时读取可选复选框状态，再关闭弹窗。"""
-
+        self.result_action = self.RESULT_YES
         self.remember_checked = bool(self.remember_option and self.remember_option.isChecked())
         self.accept()
+
+    def reject(self):
+        if self.result_action is None:
+            self.result_action = self.RESULT_CANCEL
+        super().reject()
 
 
 class MessageDialog(FramelessDialog):

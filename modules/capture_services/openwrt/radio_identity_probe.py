@@ -47,10 +47,34 @@ def enrich_radio_identity(runner, snapshot, cancel_event=None):
                 try:
                     value = json.loads(body)
                 except (TypeError, ValueError):
-                    continue
+                    value = None
                 phy = value.get("phyname") if isinstance(value, dict) else None
+
+                # 对齐后台脚本 tools/scripts/hcx_autocap.sh:910 与 device_probe.py:586：
+                # 检查 UCI 中配置的 wireless.<name>.phy（如 mac80211.sh 或 wifi config 生成的 option phy 'phy0'）
+                phy_match = re.search(r"(?m)^wireless\." + re.escape(name) + r"\.phy=['\"]?([^'\"\s]+)", snapshot)
+                configured_phy = phy_match.group(1).strip() if phy_match else None
+                if configured_phy and not re.fullmatch(r"phy[0-9]+", configured_phy):
+                    configured_phy = None
+
+                # 1. 若 ubus 与 uci 同时存在且冲突，判定为身份冲突，不可使用（遵守 hcx_autocap.sh:911-914）
+                if phy and configured_phy and phy != configured_phy:
+                    continue
+                # 2. 若 ubus 未返回（例如固件缺少 rpcd-mod-iwinfo 或该节点未响应），回退使用 UCI 配置的 phy
+                # 必须经内核真实物理设备列表 data["phys"] 核实存在，严禁凭空盲猜编号
+                if not phy and configured_phy:
+                    if not data["inventory_complete"] or configured_phy in data["phys"]:
+                        phy = configured_phy
+
                 if isinstance(phy, str) and re.fullmatch(r"phy[0-9]+", phy):
                     data["radios"][name] = phy
+
+            # 防止多个 radio 错误配置指向同一个物理 phy 导致歧义
+            phy_counts = {}
+            for p in data["radios"].values():
+                phy_counts[p] = phy_counts.get(p, 0) + 1
+            if any(cnt > 1 for cnt in phy_counts.values()):
+                data["radios"] = {r: p for r, p in data["radios"].items() if phy_counts[p] == 1}
     from .operation_diagnostics import OperationDiagnostics
     journal = getattr(runner, "operation_diagnostics", None)
     if isinstance(journal, OperationDiagnostics):

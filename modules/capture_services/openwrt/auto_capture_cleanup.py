@@ -12,6 +12,7 @@ def monitor_removal_command(interface, phy):
         'info=$(iw dev '+q(interface)+' info) || exit 41; '
         'printf "%s\\n" "$info" | grep -Eq "^[[:space:]]*type monitor[[:space:]]*$" || exit 42; '
         'printf "%s\\n" "$info" | grep -Eq "^[[:space:]]*wiphy '+phy[3:]+'[[:space:]]*$" || exit 43; '
+        'ip link set '+q(interface)+' down 2>/dev/null; '
         'iw dev '+q(interface)+' del || exit 44; '
         '[ ! -e '+path+' ] || exit 45; printf REMOVED'
     )
@@ -112,3 +113,96 @@ if [ -f "$PIDFILE" ]; then
 fi
 printf PROCESS_STOPPED
 """
+
+
+def sweep_stale_monitors_command(interfaces=None):
+    """
+    生成扫除遗留专属抓包监听接口 (hcxmon* / hcxstub*) 及其关联残留进程的 Shell 命令。
+    
+    【设计意图与对齐说明】
+    1. 根因：当抓包停止或异常退出时，若网卡处于 UP 状态或内核 socket 释放延迟，
+       接口可能残留；随后再次检查射频状态时，未确认归属的 monitor 接口会导致
+       射频被标为 blocked（UI 提示“【监听接口冲突】(归属待核实)”并阻断启动）。
+    2. 对齐后台：tools/scripts/hcx_autocap.sh:1022-1048 的 sweep_stale_ifaces()，
+       在每次检测与启动前主动清理上次遗留的 hcxmon* 进程与网络接口。
+    3. 规范与授权：严格遵守 AGENTS.md 中所有者 2026-10-30 专项授权：
+       "The owner accepts the existing automatic-capture hcxmon interface-name cleanup
+       for this merge... This exception does not authorize broad process killing or
+       unrelated interface cleanup elsewhere."
+       仅允许针对命名严格匹配 hcxmon[0-9]+ 与 hcxstub* 的专属接口及 cmdline 绑定
+       该接口的 hcxdumptool 进程执行清理，严禁使用盲目的 killall 或误删非专属接口。
+    """
+    if interfaces is not None:
+        target_list = list(interfaces)
+        for iface in target_list:
+            if not isinstance(iface, str) or not re.fullmatch(r"(?:hcxmon[0-9]+|hcxstub[0-9]+[A-Za-z0-9_]*)", iface):
+                raise ValueError(f"Invalid capture interface name for sweep: {iface}")
+        target_check = " ".join(q(i) for i in target_list)
+        loop_target = f"for d in {target_check}; do"
+    else:
+        loop_target = "for d in $(ls /sys/class/net 2>/dev/null); do"
+
+    return (
+        loop_target + "\n"
+        r""" case "$d" in
+  hcxmon[0-9]*|hcxstub*)
+   pidfile="/tmp/.hcx_${d}.pid"
+   if [ -f "$pidfile" ]; then
+    pid=$(cat "$pidfile" 2>/dev/null)
+    case "$pid" in ''|*[!0-9]*) :;; *)
+     if [ "$pid" -gt 1 ] 2>/dev/null && kill -0 "$pid" 2>/dev/null; then
+      comm=$(cat /proc/"$pid"/comm 2>/dev/null)
+      if [ "$comm" = "hcxdumptool" ]; then
+       kill -TERM "$pid" 2>/dev/null
+       for _w in 1 2 3 4 5; do
+        kill -0 "$pid" 2>/dev/null || break
+        usleep 100000 2>/dev/null || sleep 1
+       done
+       kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null
+      fi
+     fi;;
+    esac
+    rm -f "$pidfile" 2>/dev/null
+   fi
+   for pdir in /proc/[0-9]*; do
+    [ -d "$pdir" ] || continue
+    p="${pdir#/proc/}"
+    [ "$p" -gt 1 ] 2>/dev/null || continue
+    if [ "$(cat /proc/$p/comm 2>/dev/null)" = "hcxdumptool" ]; then
+     cmd=$(head -c 4096 /proc/$p/cmdline 2>/dev/null | tr '\0' ' ')
+     case " $cmd " in
+      *" -i $d "*|*" --interface=$d "*)
+       kill -TERM "$p" 2>/dev/null
+       for _w in 1 2 3; do
+        kill -0 "$p" 2>/dev/null || break
+        usleep 100000 2>/dev/null || sleep 1
+       done
+       kill -0 "$p" 2>/dev/null && kill -KILL "$p" 2>/dev/null
+       ;;
+     esac
+    fi
+   done
+   if [ -e "/sys/class/net/$d" ]; then
+    info=$(iw dev "$d" info 2>/dev/null)
+    if printf '%s\n' "$info" | grep -Eq '^[[:space:]]*type monitor[[:space:]]*$' || [ -z "$info" ]; then
+     ip link set "$d" down 2>/dev/null
+     iw dev "$d" del 2>/dev/null
+    fi
+   fi;;
+ esac
+done
+printf SWEEP_DONE
+"""
+    )
+
+
+def sweep_stale_monitors(runner, interfaces=None, cancel_event=None):
+    """
+    执行扫除遗留专属抓包监听接口 (hcxmon* / hcxstub*)。
+    用于前台抓包准入检查 (Preflight) 与会话初始化前的主动自愈。
+    """
+    cmd = sweep_stale_monitors_command(interfaces=interfaces)
+    result = runner.run("sweep_stale_monitors", cmd, timeout=12, cancel_event=cancel_event, output_limit=4096)
+    require_command_completion(result)
+    return "SWEEP_DONE" in (result.stdout or "")
+

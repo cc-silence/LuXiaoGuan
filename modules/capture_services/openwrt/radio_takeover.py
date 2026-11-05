@@ -49,8 +49,20 @@ class OpenWrtRadioTakeover:
                 if probe.exit_code != 0 or probe.cancelled or probe.timed_out:
                     raise RuntimeError("信号接管依赖检查失败，未继续修改配置。")
                 data = json.loads(probe.stdout).get("result", {})
-                if not all(data.get(key) == 1 for key in ("lua", "uci", "ubus", "jsonc", "sha256sum")) or data.get("lua_bin") not in _LUA_BINS:
-                    raise RuntimeError("信号接管缺少依赖，请在信号管理页检查安装后重试。")
+                missing = [key for key in ("lua", "uci", "ubus", "jsonc", "sha256sum") if data.get(key) != 1]
+                if data.get("lua_bin") not in _LUA_BINS and "lua" not in missing:
+                    missing.append("lua_bin")
+                if missing:
+                    pkg_map = {
+                        "lua": "lua",
+                        "uci": "libuci-lua",
+                        "ubus": "libubus-lua",
+                        "jsonc": "luci-lib-jsonc",
+                        "sha256sum": "sha256sum",
+                        "lua_bin": "lua",
+                    }
+                    missing_pkgs = ", ".join(dict.fromkeys(pkg_map.get(k, k) for k in missing))
+                    raise RuntimeError(f"信号接管缺少依赖 ({missing_pkgs})，请在【路由器登录】常用工具列表或【信号管理】页安装后重试。")
                 self._config_lua = data["lua_bin"]
             result = self.command_runner.run(action, signal_command(
                 action, self._config_lua, token=record.config_token, radio=record.radio), 60, cancel_event)

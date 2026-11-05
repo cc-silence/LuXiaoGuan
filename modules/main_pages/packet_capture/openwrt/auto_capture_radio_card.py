@@ -396,6 +396,7 @@ class AutoCaptureRadioCard(QFrame):
 
     def apply_state(self, state: str, error_message: str = ""):
         """更新抓包状态与按钮使能，使用高区分度色彩与大号字体。"""
+        was_capturing = getattr(self, "_capturing", False)
         self._capturing = state in {"starting", "capturing"}
         self._stopping = state == "stopping"
         is_stop = state in {"capturing", "stopping"}
@@ -406,6 +407,8 @@ class AutoCaptureRadioCard(QFrame):
         self.takeover_check.setEnabled(not self._capturing)
 
         if state == "starting":
+            if not was_capturing:
+                self._clear_console()
             self.start_btn.setEnabled(False)
             self.start_btn.setText("⏳ 正在启动...")
             self.status_badge.setText("【正在启动...】")
@@ -457,6 +460,7 @@ class AutoCaptureRadioCard(QFrame):
         self.console.clear()
 
     def _on_start_clicked(self):
+        self._clear_console()
         channels = self.channel_edit.text().strip()
         allow_takeover = self.takeover_check.isChecked()
 

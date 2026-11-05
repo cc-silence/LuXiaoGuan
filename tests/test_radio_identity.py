@@ -127,6 +127,28 @@ ubus(){ test "$1" = '-S' && test "$2" = '-t' && test "$4" = 'call' && test "$5" 
         text=snapshot(bands={'radio7':'2g','radio8':'5g'})
         self.assertEqual(snapshot_radio_mapping(enrich_radio_identity(runner,text),{}),{})
 
+    def test_uci_option_phy_fallback_when_ubus_missing_or_empty(self):
+        # 对齐 hcx_autocap.sh:910：当 ubus iwinfo phyname 返回空或解析不到时，
+        # 回退至 uci wireless.<r>.phy，但必须经真实内核设备核实
+        runner = Mock()
+        runner.run.return_value = RemoteCommandResult("probe", 0,
+            "__RM_PHYS__\nphy2\n__RM_PHYS_OK__\n__RM_RADIO__radio7\n\n__RM_END__\n")
+        base = snapshot(bands={"radio7": "2g"})
+        snap_with_phy = base.replace("wireless.radio7=wifi-device\n", "wireless.radio7=wifi-device\nwireless.radio7.phy='phy2'\n")
+        text = enrich_radio_identity(runner, snap_with_phy)
+        self.assertEqual(snapshot_radio_mapping(text, {}), {"radio7": "phy2"})
+
+    def test_uci_option_phy_conflict_with_ubus_is_rejected(self):
+        # 对齐 hcx_autocap.sh:911-914：当 ubus 得到 phy2 但 uci 配置写的是 phy8 时，
+        # 判定为身份冲突，拒绝建立映射，防止错配双频网卡
+        runner = Mock()
+        runner.run.return_value = RemoteCommandResult("probe", 0,
+            "__RM_PHYS__\nphy2\nphy8\n__RM_PHYS_OK__\n__RM_RADIO__radio7\n{\"phyname\":\"phy2\"}\n__RM_END__\n")
+        base = snapshot(bands={"radio7": "2g"})
+        snap_with_phy = base.replace("wireless.radio7=wifi-device\n", "wireless.radio7=wifi-device\nwireless.radio7.phy='phy8'\n")
+        text = enrich_radio_identity(runner, snap_with_phy)
+        self.assertEqual(snapshot_radio_mapping(text, {}), {})
+
     def test_current_kernel_inventory_overrules_stale_runtime_dump(self):
         text=snapshot(identities={'radio7':'phy2'},phys=['phy3']).replace('"phys": ["phy3"]','"phys": ["phy3"], "inventory_complete": true')
         self.assertEqual(snapshot_radio_mapping(text,{'phy2':('wlan2',)}),{})

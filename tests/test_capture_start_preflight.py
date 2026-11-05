@@ -52,6 +52,17 @@ class StartPreflightTests(unittest.TestCase):
             result = self.finish(controller, configs, {"radio7": RadioUsage("radio7", "phy2", state, "unverified")})
             self.assertEqual(result.error, "unverified")
 
+    def test_preflight_sweeps_stale_monitors_when_not_busy(self):
+        controller, configs = self.fixture()
+        controller.service.runner = MagicMock()
+        controller.service.is_busy = False
+        with patch("modules.capture_services.openwrt.auto_capture_cleanup.sweep_stale_monitors") as sweep:
+            self.finish(controller, configs, {"radio7": RadioUsage("radio7", "phy2", "idle", "disabled")})
+            sweep.assert_called_once()
+            call_args = sweep.call_args
+            self.assertEqual(call_args.args[0], controller.service.runner)
+            self.assertEqual(call_args.kwargs["interfaces"], {"hcxmon7", "hcxstub7"})
+
     def test_preflight_conflict_keeps_existing_diagnostic_collection(self):
         controller, configs = self.fixture()
         usage = RadioUsage("radio7", "phy2", "blocked", "unverified")

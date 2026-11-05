@@ -264,7 +264,8 @@ class AutoCaptureRadioSession:
 
                 # 1. 如果射频正在承载实际业务接口，且用户允许接管，才执行无线安全接管事务；
                 # 若当前没有任何业务接口（例如重置后未开启无线或处于空闲），本身即无需接管
-                usage = usage_for_phy(read_radio_usage(self.runner, self._stop_event, snapshot=snapshot), self.phy, runner=self.runner, cancel_event=self._stop_event)
+                # 传入 owned_interface=self.mon_iface，避免本任务计划创建或持有的监听网卡被误判为未确认冲突
+                usage = usage_for_phy(read_radio_usage(self.runner, self._stop_event, snapshot=snapshot, owned_interface=self.mon_iface), self.phy, runner=self.runner, cancel_event=self._stop_event)
                 is_free = usage.free
                 if not is_free:
                     if not allow_takeover:
@@ -334,7 +335,8 @@ class AutoCaptureRadioSession:
                     f"ip link set {self.mon_iface} up && sleep 1"
                 )
                 # Recheck after preparation and before touching the radio.
-                latest = usage_for_phy(read_radio_usage(self.runner, self._stop_event), self.phy, runner=self.runner, cancel_event=self._stop_event)
+                # 传入 owned_interface=self.mon_iface，确保创建前的最终状态校验认可本会话专属接口
+                latest = usage_for_phy(read_radio_usage(self.runner, self._stop_event, owned_interface=self.mon_iface), self.phy, runner=self.runner, cancel_event=self._stop_event)
                 if not latest.free:
                     raise RuntimeError(latest.reason)
                 from .capture_placeholders import release_owned_placeholder
@@ -1722,6 +1724,7 @@ class AutoCaptureService(QObject):
                 idx_m = re.search(r"\d+", r.name)
                 if idx_m:
                     owned.add(f"hcxmon{idx_m.group(0)}")
+                    owned.add(f"hcxstub{idx_m.group(0)}")
             try:
                 usages = read_radio_usage(self.runner, cancel, owned_interface=owned)
                 free_map = usages
