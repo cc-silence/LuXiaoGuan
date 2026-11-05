@@ -221,25 +221,57 @@ class AutoCaptureBootManager:
         except Exception as exc:
             LOGGER.info("SFTP upload to %s failed (%s), fallback to base64 chunked upload", remote_path, exc)
 
-        # 2. 降级为 Base64 分片写入，彻底规避命令行溢出与 stdin 缺失
+        # 2. 降级为分片写入，彻底规避命令行溢出与 stdin 缺失
         rm_res = self.runner.run("rm_target", f"rm -f {remote_path}", timeout=10, cancel_event=cancel_event)
         if rm_res.cancelled:
             raise InterruptedError("上传已被用户取消。")
 
-        b64_str = base64.b64encode(data).decode("ascii")
-        chunk_size = 4096
-        total_chunks = (len(b64_str) + chunk_size - 1) // chunk_size
+        # 探测路由器是否支持 base64 命令
+        check_b64 = self.runner.run(
+            "check_b64",
+            "if command -v base64 >/dev/null 2>&1; then echo base64; else echo none; fi",
+            timeout=10,
+            cancel_event=cancel_event,
+        )
+        if check_b64.cancelled:
+            raise InterruptedError("上传已被用户取消。")
+        use_base64 = (check_b64.stdout or "").strip() == "base64"
 
-        for i in range(total_chunks):
-            if cancel_event is not None and cancel_event.is_set():
-                raise InterruptedError("上传已被用户取消。")
-            chunk = b64_str[i * chunk_size : (i + 1) * chunk_size]
-            append_cmd = f"printf '%s' '{chunk}' | base64 -d >> {remote_path}"
-            res = self.runner.run("upload_chunk", append_cmd, timeout=15, cancel_event=cancel_event)
-            if res.cancelled:
-                raise InterruptedError("上传已被用户取消。")
-            if res.exit_code != 0:
-                raise RuntimeError(f"写入分片 {i + 1}/{total_chunks} 失败: {res.stderr or res.stdout}")
+        if use_base64:
+            b64_str = base64.b64encode(data).decode("ascii")
+            chunk_size = 4096
+            total_chunks = (len(b64_str) + chunk_size - 1) // chunk_size
+
+            for i in range(total_chunks):
+                if cancel_event is not None and cancel_event.is_set():
+                    raise InterruptedError("上传已被用户取消。")
+                chunk = b64_str[i * chunk_size : (i + 1) * chunk_size]
+                append_cmd = f"printf '%s' '{chunk}' | base64 -d >> {remote_path}"
+                res = self.runner.run("upload_chunk", append_cmd, timeout=15, cancel_event=cancel_event)
+                if res.cancelled:
+                    raise InterruptedError("上传已被用户取消。")
+                if res.exit_code != 0:
+                    err = (res.stderr or res.stdout or "").strip()
+                    hint = "（提示：路由器精简环境缺少命令，建议在页面中点击“一键安装抓包依赖”以安装“文件传输(SFTP)”服务）" if "not found" in err else ""
+                    raise RuntimeError(f"写入分片 {i + 1}/{total_chunks} 失败: {err} {hint}".strip())
+        else:
+            # POSIX printf '%b' 八进制转义，BusyBox/ash 原生内置，无需外部 base64 工具
+            # 每 1024 字节转为八进制 (\0xxx)，保证单条 shell 命令请求远低于 Dropbear 缓冲区限制
+            step = 1024
+            total_chunks = max(1, (len(data) + step - 1) // step)
+            for i in range(total_chunks):
+                if cancel_event is not None and cancel_event.is_set():
+                    raise InterruptedError("上传已被用户取消。")
+                chunk = data[i * step : (i + 1) * step]
+                encoded = "".join(f"\\0{byte:03o}" for byte in chunk)
+                append_cmd = f"printf '%b' '{encoded}' >> {remote_path}"
+                res = self.runner.run("upload_chunk", append_cmd, timeout=15, cancel_event=cancel_event)
+                if res.cancelled:
+                    raise InterruptedError("上传已被用户取消。")
+                if res.exit_code != 0:
+                    err = (res.stderr or res.stdout or "").strip()
+                    hint = "（提示：路由器精简环境缺少命令，建议在页面中点击“一键安装抓包依赖”以安装“文件传输(SFTP)”服务）" if "not found" in err else ""
+                    raise RuntimeError(f"写入分片 {i + 1}/{total_chunks} 失败: {err} {hint}".strip())
 
         chmod_res = self.runner.run("chmod_target", f"chmod {oct(mode)[2:]} {remote_path}", timeout=10, cancel_event=cancel_event)
         if chmod_res.exit_code != 0:

@@ -99,13 +99,34 @@ class AutoCaptureFeatureTests(unittest.TestCase):
         self.assertEqual(sftp_mock.open.call_count, 2)
         self.assertEqual(sftp_mock.chmod.call_count, 2)
 
-        # 2. 模拟 SFTP 故障，验证自动降级至 base64 分片上传
+        # 2. 模拟 SFTP 故障，验证自动降级至分片上传 (具备 base64)
         runner.run.reset_mock()
+        runner.run.side_effect = lambda name, cmd, *args, **kwargs: (
+            RemoteCommandResult("check_b64", 0, "base64\n", "") if name == "check_b64"
+            else RemoteCommandResult(name, 0, "", "")
+        )
         ssh.transfer.side_effect = Exception("SFTP not supported on remote")
         manager.install_or_update()
         fallback_names = [call.args[0] for call in runner.run.call_args_list]
         self.assertIn("upload_chunk", fallback_names)
         self.assertIn("chmod_target", fallback_names)
+        b64_cmds = [call.args[1] for call in runner.run.call_args_list if call.args[0] == "upload_chunk"]
+        self.assertTrue(all("base64 -d" in cmd for cmd in b64_cmds))
+
+        # 2.1 模拟 SFTP 故障且系统缺失 base64 命令，验证自动降级至 POSIX printf '%b' 八进制转义
+        runner.run.reset_mock()
+        runner.run.side_effect = lambda name, cmd, *args, **kwargs: (
+            RemoteCommandResult("check_b64", 0, "none\n", "") if name == "check_b64"
+            else RemoteCommandResult(name, 0, "", "")
+        )
+        manager.install_or_update()
+        fallback_names2 = [call.args[0] for call in runner.run.call_args_list]
+        self.assertIn("upload_chunk", fallback_names2)
+        self.assertIn("chmod_target", fallback_names2)
+        printf_cmds = [call.args[1] for call in runner.run.call_args_list if call.args[0] == "upload_chunk"]
+        self.assertTrue(all("printf '%b'" in cmd for cmd in printf_cmds))
+        runner.run.side_effect = None
+        runner.run.return_value = RemoteCommandResult("cmd", 0, "", "")
 
         # 3. 测试自启使能
         manager.set_autostart_enabled(True)

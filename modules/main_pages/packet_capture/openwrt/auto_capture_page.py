@@ -171,18 +171,20 @@ def is_modern_hcx_supported_on_device(device) -> bool:
 
 def check_auto_capture_environment(device, snapshot=None) -> tuple[bool, str, str]:
     """判定自动抓包运行环境与工具版本兼容性。
-    只有系统真正支持现代版 6.3.4+，却依然使用旧版 6.2.x/6.0.x 时，才给出升级警告。
+    1. 检测是否缺失自动抓包核心依赖 (hcxdumptool 未安装) -> 'auto_capture_dep_missing'
+    2. 检测是否为旧版可升级环境 (系统支持 6.3.4+ 但仍使用 6.2.x/6.0.x) -> 'hcx_outdated_upgradeable'
     当系统不支持 6.3.4 时，使用官方适配的旧版工具（WEXT 兼容模式）属于正常兼容状态，不误报警告。
     返回 (has_issue, issue_type, issue_detail)。
-    issue_type: 'hcx_outdated_upgradeable' | ''
+    issue_type: 'auto_capture_dep_missing' | 'hcx_outdated_upgradeable' | ''
     """
     if not device:
         return False, "", ""
 
     # 优先检查实机上的 hcxdumptool 版本（动态提取实际版本，不硬编码 6.2.4）
     if snapshot is not None and hasattr(snapshot, "dependencies"):
-        pmkid_dep = next((d for d in snapshot.dependencies if getattr(d, "key", "") == "pmkid"), None)
-        if pmkid_dep:
+        deps = getattr(snapshot, "dependencies", ()) or ()
+        pmkid_dep = next((d for d in deps if getattr(d, "key", "") == "pmkid"), None)
+        if pmkid_dep is not None:
             detail = getattr(pmkid_dep, "detail", "") or ""
             dep_state_val = getattr(pmkid_dep.state, "value", pmkid_dep.state)
             vm = re.search(r"hcxdumptool\s+v?(\d+\.\d+(?:\.\d+)?)", detail) or re.search(r"v?(\d+\.\d+(?:\.\d+)?)", detail)
@@ -191,15 +193,49 @@ def check_auto_capture_environment(device, snapshot=None) -> tuple[bool, str, st
             is_outdated = False
             if detected_ver:
                 is_outdated = is_hcx_outdated(detected_ver)
-            else:
-                is_outdated = (dep_state_val in ("upgradable", "outdated")
-                               or any(k in detail for k in ("旧版", "需升级", "不支持自动抓包")))
+            elif dep_state_val in ("upgradable", "outdated") or any(k in detail for k in ("旧版", "需升级", "不支持自动抓包")):
+                is_outdated = True
 
             if is_outdated:
                 # 只有系统真正支持 6.3.4，却使用的旧版本，才给出升级警告
                 if is_modern_hcx_supported_on_device(device):
                     ver_label = f"hcxdumptool {detected_ver}" if detected_ver else "旧版 hcxdumptool"
                     return True, "hcx_outdated_upgradeable", f"检测到旧版抓包工具 ({ver_label}，需升级)"
+                return False, "", ""
+
+            # 未检测到已安装版本，检查是否缺失依赖
+            missing_pkgs = getattr(pmkid_dep, "missing_packages", ()) or ()
+            is_missing = (
+                dep_state_val in ("missing", "disabled")
+                or "hcxdumptool" in missing_pkgs
+                or "缺少命令" in detail
+                or "未安装" in detail
+            )
+            if is_missing:
+                return True, "auto_capture_dep_missing", "未安装自动抓包依赖 (缺少 hcxdumptool)"
+        elif len(deps) > 0:
+            return True, "auto_capture_dep_missing", "未安装自动抓包依赖 (缺少 hcxdumptool)"
+
+        # 检查是否缺失文件传输 (sftp) 或信号管理 (signal)
+        sftp_dep = next((d for d in deps if getattr(d, "key", "") == "sftp"), None)
+        if sftp_dep is not None:
+            s_state = getattr(sftp_dep.state, "value", sftp_dep.state)
+            if s_state == "missing":
+                return True, "auto_capture_dep_missing", "未安装自动抓包依赖 (缺少文件传输支持)"
+        elif getattr(device, "sftp_available", None) is False:
+            return True, "auto_capture_dep_missing", "未安装自动抓包依赖 (缺少文件传输支持)"
+
+        signal_dep = next((d for d in deps if getattr(d, "key", "") == "signal"), None)
+        if signal_dep is not None:
+            sig_state = getattr(signal_dep.state, "value", signal_dep.state)
+            if sig_state == "missing":
+                return True, "auto_capture_dep_missing", "未安装自动抓包依赖 (缺少信号管理支持)"
+
+        iw_dep = next((d for d in deps if getattr(d, "key", "") == "iw"), None)
+        if iw_dep is not None:
+            iw_state = getattr(iw_dep.state, "value", iw_dep.state)
+            if iw_state == "missing":
+                return True, "auto_capture_dep_missing", "未安装自动抓包依赖 (缺少无线管理工具 iw)"
 
     return False, "", ""
 
@@ -254,11 +290,15 @@ class AutoCapturePage(QWidget):
         self.content_widget = self.fg_content
         self.main_layout = self.fg_layout
 
-        # 1. 射频卡片容器区 (置于前台视图上方主要区域)
-        self._build_cards_container()
+        # 0. 前台依赖与版本告警条 (置于前台视图最上方)
+        self.fg_warning_card, self.fg_warning_icon, self.fg_warning_title, self.fg_warning_detail, self.fg_warning_btn = self._create_warning_card(self.fg_content)
+        self.fg_layout.addWidget(self.fg_warning_card)
 
-        # 2. 全局总控与系统资源守卫控制栏 (置于前台视图最下方)
+        # 1. 全局总控与系统资源守卫控制栏 (置于列表最上方)
         self._build_guard_section()
+
+        # 2. 射频卡片容器区 (置于前台视图主要区域)
+        self._build_cards_container()
 
         # ----------------- 子标签页 2：后台抓包 -----------------
         self.background_tab = QWidget(self.sub_tabs)
@@ -639,6 +679,145 @@ class AutoCapturePage(QWidget):
         out_dir = self.auto_capture_service.get_output_dir()
         dlg = AutoCaptureGuideDialog(str(out_dir), self)
         dlg.exec()
+
+    def _create_warning_card(self, parent_content: QWidget):
+        """创建用于前后台页面的统一依赖与版本告警操作卡片。"""
+        card = QFrame(parent_content)
+        card.setObjectName("captureCard")
+        vw_layout = QHBoxLayout(card)
+        vw_layout.setContentsMargins(14, 10, 14, 10)
+        vw_layout.setSpacing(12)
+
+        icon_lbl = QLabel("⚠️", card)
+        icon_lbl.setStyleSheet("font-size: 16pt;")
+        vw_layout.addWidget(icon_lbl)
+
+        text_layout = QVBoxLayout()
+        text_layout.setContentsMargins(0, 0, 0, 0)
+        text_layout.setSpacing(4)
+
+        title_lbl = QLabel("⚠️ 预警提示", card)
+        title_lbl.setStyleSheet("font-size: 11pt; font-weight: bold; color: #f59e0b;")
+        text_layout.addWidget(title_lbl)
+
+        detail_lbl = QLabel(card)
+        detail_lbl.setObjectName("captureDescription")
+        detail_lbl.setWordWrap(True)
+        text_layout.addWidget(detail_lbl)
+
+        vw_layout.addLayout(text_layout, 1)
+
+        action_btn = QPushButton("⚡ 一键操作", card)
+        action_btn.setObjectName("captureSecondaryButton")
+        action_btn.setStyleSheet("color: #f59e0b; font-weight: bold; border-color: #f59e0b; padding: 6px 14px;")
+        action_btn.clicked.connect(self._on_warning_action_clicked)
+        vw_layout.addWidget(action_btn)
+
+        card.setVisible(False)
+        return card, icon_lbl, title_lbl, detail_lbl, action_btn
+
+    def _on_warning_action_clicked(self):
+        """响应警告卡片上的一键操作按钮点击。"""
+        if getattr(self, "_current_issue_type", "") == "auto_capture_dep_missing":
+            self._on_install_dependency_clicked()
+        else:
+            self._on_upgrade_hcx_clicked()
+
+    def _update_warning_cards(self, connected: bool, has_issue: bool, issue_type: str, issue_detail: str, detected_hcx_ver: str = ""):
+        """更新前后台警告卡片的显示内容、按钮行为及样式。"""
+        self._current_issue_type = issue_type if (connected and has_issue) else ""
+        self._detected_hcx_ver = detected_hcx_ver
+
+        if not (connected and has_issue) or not self._current_issue_type:
+            if hasattr(self, "fg_warning_card"):
+                self.fg_warning_card.setVisible(False)
+            if hasattr(self, "bg_warning_card"):
+                self.bg_warning_card.setVisible(False)
+            return
+
+        is_missing = (issue_type == "auto_capture_dep_missing")
+        if is_missing:
+            title_text = "⚠️ 未安装自动抓包依赖"
+            detail_text = (
+                "检测到当前路由器尚未完整就绪自动抓包所必需的依赖环境（含 hcxdumptool 抓包工具、SFTP 文件传输、信号管理或 iw 工具）。\n"
+                "前后台自动抓包依赖这些工具进行空中握手包捕获、脚本与文件安全传输以及射频状态接管。\n"
+                "【解决办法】建议点击右侧【一键安装抓包依赖】自动补齐以上全部依赖并完成部署。"
+            )
+            btn_text = "⚡ 一键安装抓包依赖"
+            btn_tooltip = "从随包离线库或软件源为当前路由器自动安装 hcxdumptool、文件传输(SFTP)、信号管理与 iw 等必要依赖"
+        else:
+            ver_display = f"hcxdumptool {detected_hcx_ver}" if detected_hcx_ver else "旧版 hcxdumptool"
+            title_text = f"⚠️ 检测到旧版抓包工具 ({ver_display}，需升级)"
+            detail_text = (
+                f"当前路由器系统具备现代 Netlink 运行环境（支持 6.3.4+），但当前使用的抓包工具为 {ver_display}（旧版方言）。\n"
+                f"现代 Linux 内核已废弃传统 Wireless Extensions (WEXT) ioctl，旧版工具易因缺少接口导致秒退报错。\n"
+                f"【解决办法】建议点击右侧【一键升级抓包工具 (6.3.4)】升级至现代版本，以获得基于虚拟监听口的无损并发抓包体验。"
+            )
+            btn_text = "⚡ 一键升级抓包工具 (6.3.4)"
+            btn_tooltip = "从随包离线库直接为路由器部署现代版 hcxdumptool 6.3.4，无需手动敲命令"
+
+        for title_lbl, detail_lbl, btn in (
+            (getattr(self, "fg_warning_title", None), getattr(self, "fg_warning_detail", None), getattr(self, "fg_warning_btn", None)),
+            (getattr(self, "bg_warning_title", None), getattr(self, "bg_warning_detail", None), getattr(self, "bg_warning_btn", None)),
+        ):
+            if title_lbl is not None:
+                title_lbl.setText(title_text)
+            if detail_lbl is not None:
+                detail_lbl.setText(detail_text)
+            if btn is not None:
+                btn.setText(btn_text)
+                btn.setToolTip(btn_tooltip)
+                btn.setVisible(True)
+
+        self._update_warning_cards_style()
+
+        if hasattr(self, "fg_warning_card"):
+            self.fg_warning_card.setVisible(True)
+        if hasattr(self, "bg_warning_card"):
+            self.bg_warning_card.setVisible(True)
+
+    def _update_warning_cards_style(self):
+        """同步前后台警告卡片的明暗主题配色。"""
+        issue_type = getattr(self, "_current_issue_type", "")
+        if not issue_type:
+            return
+        is_missing = (issue_type == "auto_capture_dep_missing")
+        if is_missing:
+            if self._light_theme:
+                card_style = "QFrame#captureCard { background: #fef2f2; border: 1px solid #ef4444; border-radius: 7px; }"
+                title_style = "font-size: 11pt; font-weight: bold; color: #dc2626;"
+                detail_style = "color: #991b1b; line-height: 1.4;"
+                btn_style = "color: #dc2626; font-weight: bold; border-color: #dc2626; padding: 6px 14px;"
+            else:
+                card_style = "QFrame#captureCard { background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 7px; }"
+                title_style = "font-size: 11pt; font-weight: bold; color: #f87171;"
+                detail_style = "color: #fecaca; line-height: 1.4;"
+                btn_style = "color: #f87171; font-weight: bold; border-color: #ef4444; padding: 6px 14px;"
+        else:
+            if self._light_theme:
+                card_style = "QFrame#captureCard { background: #fffbeb; border: 1px solid #f59e0b; border-radius: 7px; }"
+                title_style = "font-size: 11pt; font-weight: bold; color: #d97706;"
+                detail_style = "color: #78350f; line-height: 1.4;"
+                btn_style = "color: #d97706; font-weight: bold; border-color: #d97706; padding: 6px 14px;"
+            else:
+                card_style = "QFrame#captureCard { background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; border-radius: 7px; }"
+                title_style = "font-size: 11pt; font-weight: bold; color: #f59e0b;"
+                detail_style = "color: #fef3c7; line-height: 1.4;"
+                btn_style = "color: #f59e0b; font-weight: bold; border-color: #f59e0b; padding: 6px 14px;"
+
+        for card, title_lbl, detail_lbl, btn in (
+            (getattr(self, "fg_warning_card", None), getattr(self, "fg_warning_title", None), getattr(self, "fg_warning_detail", None), getattr(self, "fg_warning_btn", None)),
+            (getattr(self, "bg_warning_card", None), getattr(self, "bg_warning_title", None), getattr(self, "bg_warning_detail", None), getattr(self, "bg_warning_btn", None)),
+        ):
+            if card is not None:
+                card.setStyleSheet(card_style)
+            if title_lbl is not None:
+                title_lbl.setStyleSheet(title_style)
+            if detail_lbl is not None:
+                detail_lbl.setStyleSheet(detail_style)
+            if btn is not None:
+                btn.setStyleSheet(btn_style)
+
     def _build_status_banner(self):
         """构建后台抓包顶部连接与环境加载状态提示横幅。"""
         self.status_banner = QFrame(self.bg_content)
@@ -714,42 +893,16 @@ class AutoCapturePage(QWidget):
         self._update_bg_console_style()
         self.bg_layout.addWidget(self.status_banner)
 
-        # 0.1 固件版本过低预警横幅（当 OpenWrt 版本低于 23.05 或内核低于 5.15 时醒目告警）
-        self.version_warning_card = QFrame(self.bg_content)
-        self.version_warning_card.setObjectName("captureCard")
-        vw_layout = QHBoxLayout(self.version_warning_card)
-        vw_layout.setContentsMargins(14, 10, 14, 10)
-        vw_layout.setSpacing(12)
+        # 0.1 后台依赖与版本预警横幅
+        self.bg_warning_card, self.bg_warning_icon, self.bg_warning_title, self.bg_warning_detail, self.bg_warning_btn = self._create_warning_card(self.bg_content)
+        self.bg_layout.addWidget(self.bg_warning_card)
 
-        self.version_warning_icon = QLabel("⚠️", self.version_warning_card)
-        self.version_warning_icon.setStyleSheet("font-size: 16pt;")
-        vw_layout.addWidget(self.version_warning_icon)
-
-        text_layout = QVBoxLayout()
-        text_layout.setContentsMargins(0, 0, 0, 0)
-        text_layout.setSpacing(4)
-
-        self.version_warning_title = QLabel("⚠️ 固件版本过低预警（需升级固件至 OpenWrt 23.05+）", self.version_warning_card)
-        self.version_warning_title.setStyleSheet("font-size: 11pt; font-weight: bold; color: #f59e0b;")
-        text_layout.addWidget(self.version_warning_title)
-
-        self.version_warning_detail = QLabel(self.version_warning_card)
-        self.version_warning_detail.setObjectName("captureDescription")
-        self.version_warning_detail.setWordWrap(True)
-        text_layout.addWidget(self.version_warning_detail)
-
-        vw_layout.addLayout(text_layout, 1)
-
-        # 一键升级到 6.3.4 快捷操作按钮
-        self.upgrade_hcx_btn = QPushButton("⚡ 一键升级抓包工具 (6.3.4)", self.version_warning_card)
-        self.upgrade_hcx_btn.setObjectName("captureSecondaryButton")
-        self.upgrade_hcx_btn.setStyleSheet("color: #f59e0b; font-weight: bold; border-color: #f59e0b; padding: 6px 14px;")
-        self.upgrade_hcx_btn.setToolTip("从随包离线库直接为路由器部署现代版 hcxdumptool 6.3.4，无需手动敲命令")
-        self.upgrade_hcx_btn.clicked.connect(self._on_upgrade_hcx_clicked)
-        vw_layout.addWidget(self.upgrade_hcx_btn)
-
-        self.version_warning_card.setVisible(False)
-        self.bg_layout.addWidget(self.version_warning_card)
+        # 保持向后兼容的属性引用
+        self.version_warning_card = self.bg_warning_card
+        self.version_warning_icon = self.bg_warning_icon
+        self.version_warning_title = self.bg_warning_title
+        self.version_warning_detail = self.bg_warning_detail
+        self.upgrade_hcx_btn = self.bg_warning_btn
 
     def _update_bg_console_style(self):
         """同步后台抓包控制台的明暗主题样式。"""
@@ -851,17 +1004,7 @@ class AutoCapturePage(QWidget):
             self.status_banner.setStyleSheet(
                 "QFrame#captureCard { background: rgba(30, 41, 59, 0.45); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 7px; }"
             )
-        if hasattr(self, "version_warning_card") and self.version_warning_card:
-            if self._light_theme:
-                self.version_warning_card.setStyleSheet(
-                    "QFrame#captureCard { background: #fffbeb; border: 1px solid #f59e0b; border-radius: 7px; }"
-                )
-                self.version_warning_detail.setStyleSheet("color: #78350f; line-height: 1.4;")
-            else:
-                self.version_warning_card.setStyleSheet(
-                    "QFrame#captureCard { background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; border-radius: 7px; }"
-                )
-                self.version_warning_detail.setStyleSheet("color: #fef3c7; line-height: 1.4;")
+        self._update_warning_cards_style()
 
     @active_service_slot()
     def _on_boot_status_checking(self):
@@ -1528,31 +1671,15 @@ class AutoCapturePage(QWidget):
                 self._update_loading_status("checking_env")
                 self.auto_capture_service.refresh_boot_status()
 
-        # 校验自动抓包环境与 hcxdumptool 版本兼容性
-        if hasattr(self, "version_warning_card"):
-            has_issue, issue_type, issue_detail = check_auto_capture_environment(device, snapshot)
-            pmkid_dep = next((d for d in getattr(snapshot, "dependencies", ()) or () if getattr(d, "key", "") == "pmkid"), None)
-            detected_hcx_ver = ""
-            if pmkid_dep and getattr(pmkid_dep, "detail", ""):
-                vm = re.search(r"hcxdumptool\s+v?(\d+\.\d+(?:\.\d+)?)", pmkid_dep.detail) or re.search(r"v?(\d+\.\d+(?:\.\d+)?)", pmkid_dep.detail)
-                detected_hcx_ver = vm.group(1) if vm else ""
+        # 校验自动抓包环境与 hcxdumptool 依赖及版本兼容性
+        has_issue, issue_type, issue_detail = check_auto_capture_environment(device, snapshot)
+        pmkid_dep = next((d for d in getattr(snapshot, "dependencies", ()) or () if getattr(d, "key", "") == "pmkid"), None)
+        detected_hcx_ver = ""
+        if pmkid_dep and getattr(pmkid_dep, "detail", ""):
+            vm = re.search(r"hcxdumptool\s+v?(\d+\.\d+(?:\.\d+)?)", pmkid_dep.detail) or re.search(r"v?(\d+\.\d+(?:\.\d+)?)", pmkid_dep.detail)
+            detected_hcx_ver = vm.group(1) if vm else ""
 
-            if connected and has_issue and issue_type == "hcx_outdated_upgradeable":
-                dev_ver = getattr(device, "version", "") or "未知版本"
-                dev_kern = getattr(device, "kernel_version", "") or "未知"
-                ver_display = f"hcxdumptool {detected_hcx_ver}" if detected_hcx_ver else "旧版 hcxdumptool"
-
-                self.version_warning_title.setText(f"⚠️ 检测到旧版抓包工具 ({ver_display}，需升级)")
-                self.version_warning_detail.setText(
-                    f"当前路由器系统具备现代 Netlink 运行环境（支持 6.3.4+），但当前使用的抓包工具为 {ver_display}（旧版方言）。\n"
-                    f"现代 Linux 内核已废弃传统 Wireless Extensions (WEXT) ioctl，旧版工具易因缺少接口导致秒退报错。\n"
-                    f"【解决办法】建议点击右侧【一键升级抓包工具 (6.3.4)】升级至现代版本，以获得基于虚拟监听口的无损并发抓包体验。"
-                )
-                if hasattr(self, "upgrade_hcx_btn"):
-                    self.upgrade_hcx_btn.setVisible(True)
-                self.version_warning_card.setVisible(True)
-            else:
-                self.version_warning_card.setVisible(False)
+        self._update_warning_cards(connected, has_issue, issue_type, issue_detail, detected_hcx_ver)
 
         if not radios:
             self.empty_label.setVisible(True)
@@ -1800,6 +1927,21 @@ class AutoCapturePage(QWidget):
         if bool(bg_status and bg_status.is_running) or getattr(self, "_manual_boot_started", False):
             MessageDialog("操作受限", "当前后台抓包正在运行中。\n前后台抓包为互斥功能，无法同时启动；请先停止后台抓包后再启动前台抓包。", self).exec()
             return
+        snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
+        device = getattr(snapshot, "device", None) if snapshot else None
+        has_issue, issue_type, _ = check_auto_capture_environment(device, snapshot)
+        if has_issue and issue_type == "auto_capture_dep_missing":
+            dialog = ConfirmDialog(
+                "未安装抓包依赖",
+                "检测到当前路由器尚未完整安装自动抓包所必需的依赖环境（hcxdumptool、文件传输或信号管理），无法启动抓包。\n\n"
+                "是否立即一键安装自动抓包依赖？",
+                self,
+                yes_text="立即安装",
+                no_text="取消",
+            )
+            if dialog.exec() == ConfirmDialog.Accepted:
+                self._on_install_dependency_clicked()
+            return
         self._is_starting_foreground = True
         self._update_mutual_exclusion_state()
         self._start_preflight.request([dict(radio_info=radio_info, channels=channels,
@@ -1821,6 +1963,25 @@ class AutoCapturePage(QWidget):
             self._update_toggle_all_btn_state()
             self._update_mutual_exclusion_state()
             MessageDialog("操作受限", "当前后台抓包正在运行中。\n前后台抓包为互斥功能，无法同时启动；请先停止后台抓包后再启动前台抓包。", self).exec()
+            return
+
+        snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
+        device = getattr(snapshot, "device", None) if snapshot else None
+        has_issue, issue_type, _ = check_auto_capture_environment(device, snapshot)
+        if has_issue and issue_type == "auto_capture_dep_missing":
+            self._is_starting_foreground = False
+            self._update_toggle_all_btn_state()
+            self._update_mutual_exclusion_state()
+            dialog = ConfirmDialog(
+                "未安装抓包依赖",
+                "检测到当前路由器尚未完整安装自动抓包所必需的依赖环境（hcxdumptool、文件传输或信号管理），无法启动抓包。\n\n"
+                "是否立即一键安装自动抓包依赖？",
+                self,
+                yes_text="立即安装",
+                no_text="取消",
+            )
+            if dialog.exec() == ConfirmDialog.Accepted:
+                self._on_install_dependency_clicked()
             return
 
         if not self.radio_cards:
@@ -1853,27 +2014,73 @@ class AutoCapturePage(QWidget):
         configs = [dict(item) for item in result.configs]
         busy_unauthorized = [item for item in configs
                              if not item["radio_info"].free and not item["allow_takeover"]]
+        idle_or_authorized = [item for item in configs
+                              if item["radio_info"].free or item["allow_takeover"]]
         if busy_unauthorized:
             names = ", ".join(item["radio_info"].name for item in busy_unauthorized)
-            dialog = ConfirmDialog("无线射频接管确认",
-                                   "当前仍有启用的无线业务：" + names +
-                                   "\n\n是否允许临时接管并开始抓包？停止后将恢复原有无线配置。", self)
-            if dialog.exec() != ConfirmDialog.Accepted:
-                self._update_toggle_all_btn_state()
-                self._update_mutual_exclusion_state()
-                return
-            for item in busy_unauthorized:
-                item["allow_takeover"] = True
-                card = self.radio_cards.get(item["radio_info"].name)
-                if card is not None:
-                    card.takeover_check.setChecked(True)
+            if len(configs) == 1:
+                dialog = ConfirmDialog("无线射频接管确认",
+                                       f"当前无线射频 {names} 仍有启用的无线业务。\n\n是否允许临时接管并开始抓包？停止后将恢复原有无线配置。",
+                                       self, yes_text="临时接管", no_text="取消")
+                if dialog.exec() != ConfirmDialog.Accepted:
+                    self._update_toggle_all_btn_state()
+                    self._update_mutual_exclusion_state()
+                    return
+                for item in busy_unauthorized:
+                    item["allow_takeover"] = True
+                    card = self.radio_cards.get(item["radio_info"].name)
+                    if card is not None:
+                        card.takeover_check.setChecked(True)
+            elif not idle_or_authorized:
+                dialog = ConfirmDialog("无线射频接管确认",
+                                       f"当前所有无线射频均在运行无线业务：{names}\n\n是否允许临时接管并开始抓包？停止后将恢复原有无线配置。",
+                                       self, yes_text="全部接管", no_text="全部取消")
+                if dialog.exec() != ConfirmDialog.Accepted:
+                    self._update_toggle_all_btn_state()
+                    self._update_mutual_exclusion_state()
+                    return
+                for item in busy_unauthorized:
+                    item["allow_takeover"] = True
+                    card = self.radio_cards.get(item["radio_info"].name)
+                    if card is not None:
+                        card.takeover_check.setChecked(True)
+            else:
+                dialog = ConfirmDialog("无线射频接管确认",
+                                       f"当前有正在使用的无线射频：{names}\n\n是否允许临时接管并开始抓包？停止后将恢复原有无线配置。",
+                                       self, yes_text="全部接管", no_text="仅接管允许", cancel_text="全部取消")
+                res = dialog.exec()
+                if res == ConfirmDialog.Accepted or dialog.result_action == ConfirmDialog.RESULT_YES:
+                    for item in busy_unauthorized:
+                        item["allow_takeover"] = True
+                        card = self.radio_cards.get(item["radio_info"].name)
+                        if card is not None:
+                            card.takeover_check.setChecked(True)
+                elif res == ConfirmDialog.ActionNo or dialog.result_action == ConfirmDialog.RESULT_NO:
+                    configs = idle_or_authorized
+                else:
+                    self._update_toggle_all_btn_state()
+                    self._update_mutual_exclusion_state()
+                    return
         # A modal prompt can process connection-change events while it is open.
         if not self._start_preflight.is_current(result):
+            self._update_toggle_all_btn_state()
+            self._update_mutual_exclusion_state()
+            return
+        if not configs:
+            self._update_toggle_all_btn_state()
+            self._update_mutual_exclusion_state()
             return
         if len(configs) == 1:
             item = configs[0]
+            card = self.radio_cards.get(item["radio_info"].name)
+            if card is not None:
+                card._clear_console()
             self.auto_capture_service.start_radio_capture(item["radio_info"], item["channels"], item["allow_takeover"])
         else:
+            for item in configs:
+                card = self.radio_cards.get(item["radio_info"].name)
+                if card is not None:
+                    card._clear_console()
             self.auto_capture_service.start_all(configs)
         self._update_toggle_all_btn_state()
         self._update_mutual_exclusion_state()
@@ -1887,6 +2094,7 @@ class AutoCapturePage(QWidget):
             MessageDialog("操作受限", "当前前台抓包正在运行中，无法修改开机自启或启动后台抓包。\n请先停止前台抓包。", self).exec()
             return
         snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
+        device = getattr(snapshot, "device", None) if snapshot else None
         conn_state = getattr(snapshot, "connection_state", None)
         connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
         if not connected:
@@ -1899,6 +2107,25 @@ class AutoCapturePage(QWidget):
             self.boot_enable_check.setChecked(not checked)
             MessageDialog("提示", "正在检测路由器开机自启服务状态，请稍后再试。", self).exec()
             return
+
+        if checked:
+            has_issue, issue_type, _ = check_auto_capture_environment(device, snapshot)
+            if has_issue and issue_type == "auto_capture_dep_missing":
+                self.boot_enable_check.blockSignals(True)
+                self.boot_enable_check.setChecked(False)
+                self.boot_enable_check.blockSignals(False)
+                dialog = ConfirmDialog(
+                    "未安装抓包依赖",
+                    "检测到当前路由器尚未安装后台抓包所必需的依赖环境（hcxdumptool、文件传输或信号管理）。\n"
+                    "开启开机自启前需先安装依赖，否则开机后无法自主执行抓包与文件同步。\n\n"
+                    "是否立即一键安装自动抓包依赖？",
+                    self,
+                    yes_text="立即安装",
+                    no_text="取消",
+                )
+                if dialog.exec() == ConfirmDialog.Accepted:
+                    self._on_install_dependency_clicked()
+                return
 
         if not status.installed:
             if checked:
@@ -1945,6 +2172,7 @@ class AutoCapturePage(QWidget):
     def _on_start_script_clicked(self):
         """响应手动启动抓包脚本操作。"""
         snapshot = getattr(self, "_last_snapshot", None) or getattr(self.service, "openwrt_snapshot", None)
+        device = getattr(snapshot, "device", None) if snapshot else None
         conn_state = getattr(snapshot, "connection_state", None)
         connected = bool(snapshot and getattr(conn_state, "value", conn_state) == "connected")
         if not connected:
@@ -1953,6 +2181,20 @@ class AutoCapturePage(QWidget):
 
         if getattr(self.auto_capture_service, "is_busy", False) or getattr(self, "_is_starting_foreground", False):
             MessageDialog("操作受限", "当前前台抓包正在运行中。\n前后台抓包为互斥功能，无法同时启动；请先停止前台抓包后再启动后台抓包。", self).exec()
+            return
+
+        has_issue, issue_type, _ = check_auto_capture_environment(device, snapshot)
+        if has_issue and issue_type == "auto_capture_dep_missing":
+            dialog = ConfirmDialog(
+                "未安装抓包依赖",
+                "检测到当前路由器尚未安装后台抓包所必需的依赖环境（hcxdumptool、文件传输或信号管理），无法启动抓包。\n\n"
+                "是否立即一键安装自动抓包依赖？",
+                self,
+                yes_text="立即安装",
+                no_text="取消",
+            )
+            if dialog.exec() == ConfirmDialog.Accepted:
+                self._on_install_dependency_clicked()
             return
 
         status = self.auto_capture_service.boot_status
@@ -1965,7 +2207,6 @@ class AutoCapturePage(QWidget):
             return
 
         # 检查路由器是否有空闲频段供后台抓包使用
-        device = getattr(snapshot, "device", None) if snapshot else None
         radios = getattr(device, "radios", ()) if device else ()
         free_radios = [r for r in radios if getattr(r, "free", False)]
         if radios and not free_radios:
@@ -1994,11 +2235,12 @@ class AutoCapturePage(QWidget):
                 self._last_rendered_boot_status = None
                 self._manual_boot_started = True
                 if hasattr(self, "bg_console_card"):
+                    self._clear_bg_console()
                     self.bg_console_card.setVisible(True)
                     self.auto_capture_service.stop_boot_log_stream()
                     from datetime import datetime
                     self.append_bg_console_text(
-                        f"\n[{datetime.now().strftime('%H:%M:%S')}] ▶ 正在准备并启动后台抓包脚本...\n"
+                        f"[{datetime.now().strftime('%H:%M:%S')}] ▶ 正在准备并启动后台抓包脚本...\n"
                         "⏳ 正在准备抓包环境与探测空闲射频，请稍候...\n"
                     )
                 self.start_script_btn.setEnabled(False)
@@ -2021,11 +2263,12 @@ class AutoCapturePage(QWidget):
             self._last_rendered_boot_status = None
             self._manual_boot_started = True
             if hasattr(self, "bg_console_card"):
+                self._clear_bg_console()
                 self.bg_console_card.setVisible(True)
                 self.auto_capture_service.stop_boot_log_stream()
                 from datetime import datetime
                 self.append_bg_console_text(
-                    f"\n[{datetime.now().strftime('%H:%M:%S')}] ▶ 正在手动启动后台抓包脚本...\n"
+                    f"[{datetime.now().strftime('%H:%M:%S')}] ▶ 正在手动启动后台抓包脚本...\n"
                     "⏳ 正在探测无线环境与空闲射频，请稍候...\n"
                 )
             self.start_script_btn.setEnabled(False)
@@ -2214,6 +2457,8 @@ class AutoCapturePage(QWidget):
         self._start_preflight.cancel()
         if getattr(self, "_upgrade_progress", None) is not None:
             self._upgrade_progress.dispose()
+        if getattr(self, "_install_progress", None) is not None:
+            self._install_progress.dispose()
         try:
             self._bg_status_timer.stop()
         except Exception:
@@ -2254,3 +2499,18 @@ class AutoCapturePage(QWidget):
             MessageDialog("无法开始升级", reason, self).exec()
             return
         self.service.messageGenerated.emit("正在为当前路由器自动部署现代版 hcxdumptool 6.3.4...", "info")
+
+    def _on_install_dependency_clicked(self):
+        """在自动抓包页面一键触发安装缺失的自动抓包依赖 (hcxdumptool)。"""
+        dep_service = getattr(self.service, "dependency_service", None)
+        if dep_service is None:
+            MessageDialog("操作失败", "抓包依赖服务未就绪，请在【路由器登录】页面重试。", self).exec()
+            return
+        if getattr(self, "_install_progress", None) is None:
+            from .capture_upgrade_progress import CaptureInstallProgress
+            self._install_progress = CaptureInstallProgress(self, dep_service)
+        if not self._install_progress.start():
+            reason = dep_service.last_rejection_reason or "依赖任务未能启动，请在【路由器登录】页面查看详情。"
+            MessageDialog("无法开始安装", reason, self).exec()
+            return
+        self.service.messageGenerated.emit("正在为当前路由器安装自动抓包依赖（含 hcxdumptool、文件传输、信号管理与 iw）...", "info")
