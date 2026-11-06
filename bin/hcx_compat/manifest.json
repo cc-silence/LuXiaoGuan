@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "version": "6.3.4-rm-ifindex1",
+  "source": {
+    "commit": "8dad077bfee93281bdf8f1115ba0c047d22230d7",
+    "sha256": "b7665f924261b0c41cf7f6701a546445c42e56d4df8370221a73740f2c4d0249",
+    "url": "https://api.github.com/repos/ZerBea/hcxdumptool/tarball/8dad077bfee93281bdf8f1115ba0c047d22230d7"
+  },
+  "corrections": [
+    "selected-interface-index",
+    "single-evaluation-byte-swaps"
+  ],
+  "variants": {
+    "x86_64": {
+      "file": "x86_64/hcxdumptool",
+      "sha256": "9951021d75bec89a328cf71d25700bb2f9482835ec89000ff4feb5cf6df8ec45",
+      "size": 147064,
+      "target": "x86_64-linux-musl"
+    },
+    "aarch64": {
+      "file": "aarch64/hcxdumptool",
+      "sha256": "aabd51c035ff0ffec6b72cea9337af07ba69aab78971783088ac987d8b98aa7e",
+      "size": 152480,
+      "target": "aarch64-linux-musl"
+    },
+    "arm": {
+      "file": "arm/hcxdumptool",
+      "sha256": "d45a3f51bc11d0feb73be9ae311f3054da5a7f55b39e478e6fd2294b4f7cb21e",
+      "size": 160344,
+      "target": "arm-linux-musleabi"
+    },
+    "mips": {
+      "file": "mips/hcxdumptool",
+      "sha256": "9a2cb8635fae55f8e677e9d664c2d9f60c5138acd220a0a13499270673d8f6b8",
+      "size": 223676,
+      "target": "mips-linux-musl"
+    },
+    "mipsel": {
+      "file": "mipsel/hcxdumptool",
+      "sha256": "505348486659ee062c39ef5d0426c8ec96f62aba99405cdff4d7ccb57f7d4332",
+      "size": 221452,
+      "target": "mipsel-linux-musl"
+    }
+  }
+}

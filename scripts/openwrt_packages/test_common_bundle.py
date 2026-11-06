@@ -41,6 +41,17 @@ class CommonBundleTests(unittest.TestCase):
         self.assertEqual({r["name"] for r in selected}, {"root", "real", "leaf"})
         self.assertEqual(firmware, ["libc"])
 
+    def test_thread_runtime_is_collected_with_its_compiler_dependency(self):
+        rows = [package("root", ["libpthread"]),
+                package("libpthread", ["libgcc1"]), package("libgcc1")]
+        selected, firmware = closure(rows, ["root"])
+        self.assertEqual({row["name"] for row in selected}, {"root", "libpthread", "libgcc1"})
+        self.assertNotIn("libpthread", firmware)
+
+    def test_missing_thread_runtime_is_not_assumed_present(self):
+        with self.assertRaisesRegex(ValueError, "libpthread"):
+            closure([package("root", ["libpthread"])], ["root"])
+
     def test_missing_dependency_is_fatal(self):
         with self.assertRaisesRegex(ValueError, "Missing required packages"):
             closure([package("root", ["missing"])], ["root"])

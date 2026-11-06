@@ -30,7 +30,7 @@ class CommonBundleDownloadService(QObject):
         record_workflow(self.owner, "offline_bundle_request", "blocked", reason=reason)
         self.message = reason
         self.changed.emit()
-        self.owner.settingsMessageGenerated.emit(reason, "warning")
+        self.owner.dependencyMessageGenerated.emit(reason, "warning")
         return False
 
     def _available(self):
@@ -120,7 +120,7 @@ class CommonBundleDownloadService(QObject):
         self.decline()
 
     def _stage(self, text, _level):
-        self.owner.settingsMessageGenerated.emit(str(text), str(_level))
+        self.owner.dependencyMessageGenerated.emit(str(text), str(_level))
         self.message = str(text)
         self.changed.emit()
 
@@ -143,5 +143,5 @@ class CommonBundleDownloadService(QObject):
         self.message = message
         self.cancel_event = None
         self.changed.emit()
-        self.owner.settingsMessageGenerated.emit(message, "success" if success else "info" if "\u53d6\u6d88" in message else "error")
+        self.owner.dependencyMessageGenerated.emit(message, "success" if success else "info" if "\u53d6\u6d88" in message else "error")
         self.finished.emit(success, message)

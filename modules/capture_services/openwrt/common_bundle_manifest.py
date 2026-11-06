@@ -10,12 +10,13 @@ from modules.app_update_services.trust import PUBLIC_KEY
 from modules.app_update_services.channel import GATEWAY
 MANIFEST_URL = GATEWAY + "/offline/openwrt-common/manifest"
 MAX_ARCHIVE = 512 * 1024 * 1024
-MAX_CATALOG = 32 * 1024 * 1024
+MAX_CATALOG = 64 * 1024 * 1024
 from .bundle_specs import COMMON_ROOTS, bundle_spec
+from .bundle_compatibility import require_schema, require_client_version
 
 
 
-def verify_bundle_manifest(raw, public_key=PUBLIC_KEY, kind="common"):
+def verify_bundle_manifest(raw, public_key=PUBLIC_KEY, kind="common", *, current_version=None):
     """\u9a8c\u8bc1\u8d44\u6e90\u6e05\u5355\u7b7e\u540d\u548c\u8fb9\u754c\uff0c\u4e0d\u4fe1\u4efb\u672a\u7b7e\u540d\u5730\u5740\u3002"""
     from cryptography.exceptions import InvalidSignature
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
@@ -31,8 +32,9 @@ def verify_bundle_manifest(raw, public_key=PUBLIC_KEY, kind="common"):
     except InvalidSignature:
         raise ValueError("\u79bb\u7ebf\u5305\u7b7e\u540d\u6821\u9a8c\u5931\u8d25\u3002") from None
     p = envelope["payload"]
-    if p.get("schema") != 1 or p.get("product") != "RouterManager" or p.get("purpose") != spec.purpose:
+    if not isinstance(p, dict) or p.get("product") != "RouterManager" or p.get("purpose") != spec.purpose:
         raise ValueError("\u4e0b\u8f7d\u8d44\u6e90\u7c7b\u578b\u4e0d\u5339\u914d\u3002")
+    require_schema(p.get("schema"))
     for field in ("sha256", "catalog_sha256"):
         if not re.fullmatch("[a-f0-9]{64}", str(p.get(field, ""))):
             raise ValueError("\u79bb\u7ebf\u5305\u6307\u7eb9\u65e0\u6548\u3002")
@@ -46,8 +48,11 @@ def verify_bundle_manifest(raw, public_key=PUBLIC_KEY, kind="common"):
     if not re.fullmatch(re.escape(spec.filename_prefix) + r"[0-9A-Za-z_-]+\.zip", filename):
         raise ValueError("\u79bb\u7ebf\u5305\u6587\u4ef6\u540d\u65e0\u6548\u3002")
     expected = GATEWAY + "/offline/" + spec.namespace + "/files/" + p["sha256"] + "/" + filename
-    if p.get("url") != expected:
+    from modules.app_update_services.sources import offline_asset
+    github = offline_asset(kind, p["sha256"], filename)
+    if p.get("url") not in {expected, github}:
         raise ValueError("\u79bb\u7ebf\u5305\u5730\u5740\u4e0e\u6307\u7eb9\u4e0d\u5339\u914d\u3002")
+    require_client_version(p, current_version)
     return p
 
 

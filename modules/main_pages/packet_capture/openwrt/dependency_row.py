@@ -1,7 +1,8 @@
 """Shared dependency row for common tools and capture features."""
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QFrame, QLabel, QCheckBox, QHBoxLayout
+from PySide6.QtWidgets import QFrame, QLabel, QHBoxLayout
 from modules.main_pages.page_action_buttons import create_page_text_button
+from modules.common_widgets.eliding_check_box import ElidingCheckBox
 
 
 def create_dependency_row(parent, key, title, package, position, clicked, *, toggle=False, observer=None):
@@ -15,7 +16,7 @@ def create_dependency_row(parent, key, title, package, position, clicked, *, tog
     row = QHBoxLayout(container)
     row.setContentsMargins(8, 2, 8, 2)
     text = title + "（" + package + "）"
-    name = QCheckBox(text, container) if toggle else QLabel(text, container)
+    name = ElidingCheckBox(text, container) if toggle else QLabel(text, container)
     name.setObjectName("captureCheckBox" if toggle else "captureStatusValue")
     if not toggle:
         name.setWordWrap(True)
@@ -35,3 +36,14 @@ def create_dependency_row(parent, key, title, package, position, clicked, *, tog
     row.addWidget(status)
     row.addWidget(button)
     return container, name, status, button
+
+
+def set_dependency_row_installed(row, installed):
+    """Refresh only when the installed state changes."""
+    installed = bool(installed)
+    if bool(row.property("installed")) == installed:
+        return
+    row.setProperty("installed", installed)
+    row.style().unpolish(row)
+    row.style().polish(row)
+    row.update()

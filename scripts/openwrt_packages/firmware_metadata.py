@@ -37,7 +37,8 @@ def legacy_metadata(http, base, release, target):
     if not re.search(r"^CONFIG_TARGET_" + re.escape(family) + r"=y$", config, re.M):
         raise ValueError("Legacy firmware target differs: " + base)
     prefix = "openwrt-" + release + "-" + family + "-" + subtarget + "-"
-    has_image = any(name.startswith(prefix) for name in hashes)
+    has_image = any(name.startswith(prefix) or name == prefix.rstrip("-") + ".manifest"
+                    for name in hashes)
     # Old single-subtarget builds omit "generic" from image/SDK names.
     default_sdk = "openwrt-sdk-" + release + "-" + family + "_gcc-"
     default_target = (subtarget == "generic" and
@@ -48,8 +49,15 @@ def legacy_metadata(http, base, release, target):
         raise ValueError("Legacy firmware image target differs: " + base)
     # Original image checksums may predate a refreshed Packages.gz. The
     # checksummed build manifest still proves the original platform identity.
-    manifest = checked("packages/Packages.manifest")
-    rows = parse_feed(gzip.compress(manifest), "target", base + "/packages", False)
+    try:
+        manifest = checked("packages/Packages.manifest")
+    except FileNotFoundError:
+        if tuple(map(int, release.split(".")[:2])) < (25, 12):
+            raise
+        from .apk_index_reader import read_apk_index
+        rows = read_apk_index(checked("packages/packages.adb"))
+    else:
+        rows = parse_feed(gzip.compress(manifest), "target", base + "/packages", False)
     base_files = [row for row in rows if row["name"] == "base-files"]
     if len(base_files) != 1:
         raise ValueError("Legacy firmware has no unique base-files architecture")

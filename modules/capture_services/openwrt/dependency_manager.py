@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 from .package_manager import PackageManager, package_error_reason, compare_opkg_versions
-from .common_tool_dependencies import TOOLS, TOOL_KEYS, TOOL_BY_KEY, check_tools
+from .tool_catalog import TOOLS, TOOL_KEYS, TOOL_BY_KEY, check_tools
 from .dependency_groups import CAPTURE_PACKAGES
 from .hcx_policy import installation_satisfied
 
@@ -300,7 +300,7 @@ class OpenWrtDependencyManager:
     @offline_cache_transaction(lambda result: bool(result) and all(
         installation_satisfied(item) for item in result if item.key != "converter"))
     def install_all(self, enabled_features, sftp_available, device, cache_dir,
-                    cancel_event, message=None, uploader=None, *, include_sftp=True):
+                    cancel_event, message=None, uploader=None, *, include_sftp=True, allow_local_bundle=True):
         """确认后安装缺失的抓包依赖，装完复测返回最新清单。
 
         message 为播报回调 (text, level)；缺项为零直接返回复测结果。
@@ -316,7 +316,8 @@ class OpenWrtDependencyManager:
             return tuple(item for item in self.check(enabled_features, sftp_available, cancel_event, device=device)
                          if include_sftp or item.key != "sftp")
         from .dependency_batch_install import install_packages
-        result = install_packages(self,checked,device,cache_dir,sftp_available,cancel_event,tell,uploader)
+        result = install_packages(self,checked,device,cache_dir,sftp_available,cancel_event,tell,uploader,
+            **({} if allow_local_bundle else {"allow_local_bundle": False}))
 
         # 抓包工具兼容性与版本深度诊断报告
         pmkid_item = next((item for item in result if item.key == "pmkid"), None)

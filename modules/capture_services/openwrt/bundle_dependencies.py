@@ -3,7 +3,7 @@ import re
 from .bundle_dependency_rules import requirements,matches
 
 FIRMWARE_OWNED={
-    "libc","libpthread","librt","kernel","base-files","busybox",
+    "libc","librt","kernel","base-files","busybox",
     "opkg","apk-mbedtls","apk-openssl","apk",
 }
 

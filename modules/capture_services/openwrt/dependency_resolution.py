@@ -5,6 +5,13 @@ from types import MappingProxyType
 _REQUIREMENT = re.compile(r'([A-Za-z0-9][A-Za-z0-9+_.-]*)(?:\s*\(\s*(<<|<=|>=|>>|=|<|>)\s*([^()\s]+)\s*\))?')
 
 
+class UnsatisfiedDependency(ValueError):
+    """A valid requirement cannot be supplied without replacing installed packages."""
+    def __init__(self, expression):
+        self.expression = expression
+        super().__init__('依赖缺失或版本条件未满足（不自动替换已有包）：' + expression)
+
+
 class InstalledPackages(set):
     """保持原集合接口，附加不可变的已装版本快照。"""
     def __init__(self, versions):
@@ -78,7 +85,7 @@ def resolve_packages(index, wanted, installed, version_check=None):
             seen.add(canonical)
             ordered.append(package)
             return
-        raise ValueError('依赖缺失或版本条件未满足（不自动替换已有包）：' + expression)
+        raise UnsatisfiedDependency(expression)
 
     for name in wanted:
         visit(name, ())

@@ -64,6 +64,10 @@ def write_inventory(kind,archive,coverage=None,publication=None,docs=DOCS):
         row.update(publication)
     data["packages"]=[r for r in data["packages"] if r["kind"]!=kind]+[row]
     data["packages"].sort(key=lambda r:r["kind"])
+    covered_targets = {target for bundle in data["packages"]
+                       for targets in bundle.get("architecture_targets", {}).values() for target in targets}
+    data["excluded_targets"] = [target for target in data.get("excluded_targets", [])
+                                if target not in covered_targets]
     data["status"]="published-and-client-verified" if len(data["packages"])==2 and all(r.get("status")=="published-and-client-verified" for r in data["packages"]) else "updated-awaiting-publication"
     data["download_buttons_updated"]=data["status"]=="published-and-client-verified"
     for model in data.get("router_model_verification",[]):

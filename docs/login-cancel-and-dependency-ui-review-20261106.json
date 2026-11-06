@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-06",
+  "changes": [
+    "login cancellation reaches TCP, SSH banner and authentication waits",
+    "normal cancellation disconnects in worker and allows retry; recovery failures remain failures",
+    "required dependency rows precede optional rows, stable within groups",
+    "installed rows share theme-aware green background",
+    "login and device information cards use native draggable horizontal splitter"
+  ],
+  "validation": {
+    "login_and_dependency_regression": "102 tests passed; build/login-cancel-and-dependency-final.log",
+    "login_splitter_regression": "18 tests passed; build/login-card-width.log",
+    "loopback_cancel_seconds": {
+      "authentication": 0.047,
+      "banner": 0.031
+    },
+    "rendered_themes": [
+      "dark",
+      "light"
+    ],
+    "rendered_scales": [
+      100,
+      150
+    ],
+    "mouse_drag": "actual QTest press, move and release; widths verified"
+  },
+  "limits": [
+    "No physical router timing or Debian native run",
+    "System getaddrinfo resolution is not forcibly interrupted; configuration recovery retains safe completion",
+    "Existing running GUI requires reopen to load changed source"
+  ],
+  "references": [
+    "https://docs.paramiko.org/en/stable/api/client.html#paramiko.client.SSHClient.connect",
+    "https://docs.python.org/3/library/socket.html#socket.socket.connect_ex"
+  ],
+  "router_commands_changed": false,
+  "packaged": false
+}

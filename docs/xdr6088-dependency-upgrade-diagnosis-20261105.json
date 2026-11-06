@@ -1,0 +1,57 @@
+{
+  "checked_at": "2026-11-05",
+  "scope": "Read-only diagnosis of XRJ XDR6088 reset / required dependency install / hcx upgrade feedback; no source or router changes.",
+  "firmware": "OpenWrt 23.05.4 / mediatek/filogic / aarch64_cortex-a53",
+  "app_version": "1.0.32_alpha",
+  "confirmed": [
+    "common_all failed 2026-11-02 14:33:51 Asia/Shanghai after router source update failure and PC proxy/DNS failures.",
+    "curl source update was cancelled at 14:34:17.869; an hcx capture upgrade started at 14:34:23.544.",
+    "Two hcx upgrade attempts found the local offline bundle, then failed reading installed packages at 14:34:24.744 and 14:34:38.466 with exit 255 and opkg.lock contention.",
+    "The same hcx upgrade completed and passed recheck at 14:41:27.777.",
+    "The package command runner currently closes the SSH channel on cancellation and returns immediately; it does not prove remote package process termination.",
+    "Current source COMMON_ROOTS includes curl; the historical archives do not include the offline catalog needed to prove coverage of the affected common_all/curl attempt.",
+    "The source checkout currently has no signed common offline bundle receipt; this is not evidence of which resources the customer had."
+  ],
+  "cause_confidence": {
+    "upgrade_failure": "Confirmed package-manager lock contention, not a missing local hcx archive.",
+    "lock_owner": "Unknown from exported logs. Cancellation of the preceding curl/opkg update is temporally consistent with a surviving remote process, but no PID/lock-owner evidence identifies it conclusively.",
+    "network_failure": "Confirmed router update failure and PC proxy refusal / DNS lookup failure.",
+    "historical_local_miss": "Known miss reported for curl; common_all package list and catalog are not exported, so do not infer every miss has the same cause."
+  },
+  "remaining_issue": "Shared cancellation lifecycle does not establish remote package-manager completion before reporting the task stopped. Do not delete opkg.lock or kill unrelated package processes as a remedy.",
+  "files": [
+    {
+      "name": "XRJ_LuXiaoGuan_常用设置_20261102_150444.zip",
+      "sha256": "f80fe5e02d9e9354c0ae7b3c74a72d8ff18c6fcb99bef7e6db742da49eabadab"
+    },
+    {
+      "name": "XRJ_LuXiaoGuan_路由器登录_20261102_144136.zip",
+      "sha256": "a346a91232746ecfecfd1dc6312ae737f901f43057aacc812d3fa88495315b38"
+    },
+    {
+      "name": "XRJ_LuXiaoGuan_路由器登录_20261102_153538.zip",
+      "sha256": "6d65222b2e7ada5bb4b737a20020ee046362d39f23fc46a62c614f90a2802f2e"
+    }
+  ],
+  "live_router_tested": false,
+  "latest_local_release_review": {
+    "version": "1.0.43_alpha",
+    "archive": "LuXiaoGuan_v1.0.43_alpha_20261104_183828.zip",
+    "frozen_archive_inspected": true,
+    "packaged_identical_to_current": [
+      "command_runner",
+      "bundle_specs",
+      "hcx_sources",
+      "dependency_manager"
+    ],
+    "packaged_differs_from_current": [
+      "common_bundle_installer"
+    ],
+    "packaged_common_roots_include_curl": true,
+    "current_focused_regressions_passed": 7,
+    "test_scope": "Two production IPK/APK curl offline pipeline tests and five upgrade-state scope tests; no real router or claim that every current-source change is shipped.",
+    "cancellation_conclusion": "The packaged command runner retains close-channel-and-return cancellation. Remote process completion is not established; do not claim this historical lock contention is fixed.",
+    "current_common_bundle_archive": "RouterManager_OpenWrt_Common_Offline_20261102_222113.zip",
+    "code_changed_for_this_diagnosis": false
+  }
+}

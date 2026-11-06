@@ -36,7 +36,7 @@ def _repository(kind,guard,root=None,public_key=None):
     return repo
 
 
-@locked_bundle
+@locked_bundle(shared=True)
 def list_export_profiles(kind,cancel,progress=None,*,root=None,public_key=None):
     guard=ExportGuard(cancel)
     repo=_repository(kind,guard,root,public_key)
@@ -95,7 +95,7 @@ def _copy_verified(source,target,row,guard,report,completed,total):
         raise ValueError("软件包校验失败："+row["filename"])
 
 
-@locked_bundle
+@locked_bundle(shared=True)
 def export_packages(kind,selection,wanted,destination,cancel,progress=None,*,root=None,public_key=None):
     guard=ExportGuard(cancel)
     report=progress or (lambda _value:None)

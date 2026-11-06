@@ -11,7 +11,7 @@ def revision_label(payload):
     return str(version)[:48] + ' / ' + payload.get('sha256', '')[:12]
 
 
-@locked_bundle
+@locked_bundle(shared=True)
 def local_bundle_status(cancel, progress=None, stage=None, *, kind='common', root=None, public_key=None):
     if cancel.is_set():
         raise InterruptedError('Local resource check cancelled')

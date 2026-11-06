@@ -22,14 +22,16 @@ def checked_run(manager, name, command, cancel, timeout=30):
 def library_probe(package_manager):
     if package_manager == "opkg":
         return "; ".join(
-            "if opkg status " + name + " 2>/dev/null | grep -q 'Status:.* installed'; then "
-            "printf '" + name + "='; opkg status " + name +
+            "hcx_library_record=$(opkg status " + name + ") || exit $?; "
+            "if printf '%s\\n' \"$hcx_library_record\" | grep -q 'Status:.* installed'; then "
+            "printf '" + name + "='; printf '%s\\n' \"$hcx_library_record\""
             " | sed -n 's/^Version: //p'; fi" for name in LIBRARIES)
     if package_manager == "apk":
-        return "; ".join(
-            "if apk info -e " + name + " >/dev/null 2>&1; then printf '" + name +
-            "='; apk info -v " + name + " | sed -n 's/^" + name + "-//p'; fi"
-            for name in LIBRARIES)
+        return "hcx_installed_names=$(apk info) || exit $?; " + "; ".join(
+            "if printf '%s\\n' \"$hcx_installed_names\" | grep -q '^" + name + "$'; then "
+            "hcx_library_record=$(apk info -v -e " + name + ") || exit $?; "
+            "printf '" + name + "='; printf '%s\\n' \"$hcx_library_record\""
+            " | sed -n 's/^" + name + "-//p'; fi" for name in LIBRARIES)
     raise ValueError("Unsupported package manager")
 
 
@@ -37,8 +39,12 @@ def parse_libraries(text):
     result = {}
     for line in text.splitlines():
         name, sep, version = line.partition("=")
-        if sep and name in LIBRARIES and re.fullmatch(r"[A-Za-z0-9_.+~:-]+", version):
-            result[name] = version
+        if not sep or name not in LIBRARIES:
+            continue
+        if name in result or not re.fullmatch(r"[A-Za-z0-9_.+~:-]+", version):
+            raise SignalError("dependencies", "\u65e0\u6cd5\u786e\u8ba4\u5df2\u5b89\u88c5\u8fd0\u884c\u5e93\u7684\u7248\u672c\uff1a" + name
+                              + "\u3002\u5df2\u505c\u6b62\u5b89\u88c5\uff0c\u4e0d\u5c06\u67e5\u8be2\u5f02\u5e38\u5f53\u4f5c\u7f3a\u5e93\u3002")
+        result[name] = version
     return result
 
 
@@ -96,7 +102,9 @@ def _install_package(manager, device, package, row, sftp_available, cancel, tell
     if any(versions.get(name) != version for name, version in existing_versions.items()):
         raise RuntimeError("Existing shared library changed while installing missing libraries")
     if set(versions) != set(LIBRARIES):
-        raise RuntimeError("Required hcx libraries are unavailable; existing libraries were not replaced")
+        missing = tuple(name for name in LIBRARIES if name not in versions)
+        raise SignalError("dependencies", "\u8865\u9f50\u8fd0\u884c\u5e93\u540e\u4ecd\u65e0\u6cd5\u786e\u8ba4\u8fd0\u884c\u5e93\u7684\u5df2\u5b89\u88c5\u7248\u672c\uff1a"
+                          + ", ".join(missing) + "\u3002\u5df2\u505c\u6b62 hcx \u5b89\u88c5\uff0c\u672a\u5f3a\u5236\u66ff\u6362\u5df2\u6709\u8fd0\u884c\u5e93\u3002")
     if pm == "opkg":
         manager._preflight(required_kb((ipk_installed_size(package),)), cancel)
     ssh = getattr(manager.command_runner, "ssh_client", None)

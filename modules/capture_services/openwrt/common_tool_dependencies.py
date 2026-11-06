@@ -16,6 +16,7 @@ class CommonTool:
     packages: tuple = ()
     removable: bool = True
     required: bool = False
+    summary: str = ""
 
     @property
     def package_names(self):
@@ -39,9 +40,9 @@ REQUIRED_TOOL_KEYS = frozenset(tool.key for tool in TOOLS if tool.required)
 OPTIONAL_TOOL_KEYS = TOOL_KEYS - REQUIRED_TOOL_KEYS
 
 
-def check_tools(runner, keys, cancel_event=None):
+def check_tools(runner, keys, cancel_event=None, *, catalog=TOOLS):
     """固定白名单探测；超时或包数据库异常保留未知，不能误报缺失。"""
-    tools = tuple(tool for tool in TOOLS if tool.key in keys)
+    tools = tuple(tool for tool in catalog if tool.key in keys)
     packages = None
     package_error = ''
     if any(not tool.command and tool.key not in {'signal', 'wireless_rpc'} for tool in tools):
@@ -96,10 +97,10 @@ def check_tools(runner, keys, cancel_event=None):
                 _propagate_disconnect_or_cancel(runner, cancel_event)
                 detail = '命令检测失败：' + type(exc).__name__
         elif packages is not None:
-            state = DependencyState.READY if tool.package in packages else DependencyState.MISSING
+            state = DependencyState.READY if all(name in packages for name in tool.package_names) else DependencyState.MISSING
             detail = '软件包已安装；网页实际显示取决于 LuCI 和语言设置' if state == DependencyState.READY else '软件包未安装'
         rows.append(DependencyInfo(tool.key, tool.title, state,
-            (tool.package,) if state == DependencyState.MISSING else (), detail))
+            tuple(name for name in tool.package_names if packages is None or name not in packages) if state == DependencyState.MISSING else (), detail))
     return tuple(rows)
 
 

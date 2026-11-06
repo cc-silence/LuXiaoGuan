@@ -15,7 +15,7 @@ class RouterDependencyPage(QWidget):
     settingsChanged = Signal()
     actionRequested = Signal(str)
 
-    def __init__(self, service, settings, parent=None):
+    def __init__(self, service, settings, parent=None, info_panel=None):
         super().__init__(parent)
         self.service = service
         self.settings = settings
@@ -37,7 +37,13 @@ class RouterDependencyPage(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(8)
         self.scroll_area.setWidget(content)
-        outer.addWidget(self.scroll_area)
+        self.info_panel = info_panel
+        if info_panel is not None:
+            from modules.common_widgets.info_panel_dock import InfoPanelDock
+            self.info_dock = InfoPanelDock(self.scroll_area, info_panel, Qt.Horizontal, self, sizes=(680, 320))
+            outer.addWidget(self.info_dock, 1)
+        else:
+            outer.addWidget(self.scroll_area)
 
         self.dependencies = DependencySection(
             content,
@@ -49,7 +55,9 @@ class RouterDependencyPage(QWidget):
         root.addWidget(self.dependencies.card)
 
         self.common_tools = CommonToolSection(content, service)
-        root.addWidget(self.common_tools.card)
+        root.insertWidget(0, self.common_tools.card)
+        self.other_tools = CommonToolSection(content, service, other=True)
+        root.addWidget(self.other_tools.card)
 
         for index in range(root.count()):
             card = root.itemAt(index).widget()
@@ -70,6 +78,7 @@ class RouterDependencyPage(QWidget):
 
     def set_light_theme(self, enabled):
         self.common_tools.set_light_theme(enabled)
+        self.other_tools.set_light_theme(enabled)
         self.dependencies.offline_controls.set_light_theme(enabled)
 
     def apply_snapshot(self, snapshot):
@@ -90,4 +99,5 @@ class RouterDependencyPage(QWidget):
     def dispose(self):
         self.service.openwrtSnapshotChanged.disconnect(self._apply_snapshot)
         self.common_tools.dispose()
+        self.other_tools.dispose()
         self.dependencies.dispose()

@@ -112,6 +112,60 @@ class HcxPrimaryTests(unittest.TestCase):
         self.assertIn("libopenssl3=3.0.9-1", command)
         self.assertIn("--no-network", command)
 
+    def test_apk_installed_libraries_use_actual_shell_probe(self):
+        from tests.test_hcx_library_probe import run_probe
+        original = self.run_command
+        def run(name, command, **kwargs):
+            result = original(name, command, **kwargs)
+            if name == "hcx_library_probe":
+                result.stdout = run_probe("apk", command=command)
+            return result
+        self.manager.command_runner.run.side_effect = run
+        self.assertTrue(self.install("apk"))
+        self.manager._install_online.assert_not_called()
+        self.manager._install_offline.assert_not_called()
+        self.assertIn("libpcap1=1.10.6-r1", dict(self.calls)["install_modern_hcx"])
+        self.assertIn("libopenssl3=3.5.9-r1", dict(self.calls)["install_modern_hcx"])
+
+    def test_apk_missing_library_is_recognized_after_regular_install(self):
+        from tests.test_hcx_library_probe import run_probe
+        original = self.run_command
+        present = {"pcap": False}
+        def run(name, command, **kwargs):
+            result = original(name, command, **kwargs)
+            if name == "hcx_library_probe":
+                result.stdout = run_probe("apk", command=command, pcap=present["pcap"])
+            return result
+        self.manager.command_runner.run.side_effect = run
+        def install_missing(*args):
+            present["pcap"] = True
+        with patch("modules.capture_services.openwrt.installation_sources.install_with_sources",
+                   side_effect=install_missing) as route:
+            self.assertTrue(self.install("apk"))
+        route.assert_called_once()
+        self.assertIn("libopenssl3=3.5.9-r1", dict(self.calls)["install_modern_hcx"])
+
+    def test_real_query_failure_stops_before_any_library_install_or_upload(self):
+        from tests.test_hcx_library_probe import probe_result
+        for pm in ("opkg", "apk"):
+            with self.subTest(manager=pm):
+                self.calls.clear()
+                self.manager.reset_mock()
+                original = self.run_command
+                def run(name, command, **kwargs):
+                    result = original(name, command, **kwargs)
+                    if name == "hcx_library_probe":
+                        actual = probe_result(pm, command=command, query_error=True)
+                        result.exit_code, result.stdout, result.stderr = actual.returncode, actual.stdout, actual.stderr
+                    return result
+                self.manager.command_runner.run.side_effect = run
+                with self.assertRaisesRegex(RuntimeError, "database read failed"):
+                    self.install(pm)
+                self.manager._install_online.assert_not_called()
+                self.manager._install_offline.assert_not_called()
+                self.manager._package_uploader.assert_not_called()
+                self.assertNotIn("hcx_prepare", dict(self.calls))
+
     def test_apk_rejects_library_change_in_plan(self):
         self.plan = "(1/1) Upgrading libopenssl3 (3.0.9-r1 -> 3.0.22-r1)"
         with self.assertRaisesRegex(RuntimeError, "another package"):
@@ -142,7 +196,7 @@ class HcxPrimaryTests(unittest.TestCase):
     def test_missing_libraries_require_regular_installation(self):
         self.versions = "libpcap1=1.10.4-1\n"
         with patch("modules.capture_services.openwrt.installation_sources.install_with_sources") as route:
-            with self.assertRaisesRegex(RuntimeError, "unavailable"):
+            with self.assertRaisesRegex(RuntimeError, "libopenssl3"):
                 self.install()
         route.assert_called_once()
         self.assertNotIn("install_modern_hcx", dict(self.calls))

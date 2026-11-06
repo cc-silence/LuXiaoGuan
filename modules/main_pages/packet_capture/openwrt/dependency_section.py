@@ -7,7 +7,7 @@ from modules.main_pages.packet_capture.ui_helpers import create_capture_card
 
 
 from .ui_features import PMKID_UI_VISIBLE
-from .dependency_row import create_dependency_row
+from .dependency_row import create_dependency_row, set_dependency_row_installed
 from modules.capture_services.openwrt.dependency_groups import CAPTURE_PACKAGES
 
 
@@ -27,7 +27,7 @@ class DependencySection:
     def __init__(self, parent, settings, action_callback, dependency_service=None, owner=None):
         self.card, self.layout = create_capture_card(
             parent,
-            "路由器抓包依赖",
+            "抓包依赖",
             "这些是路由器运行相关功能所需的软件，不安装到 Windows。先登录，勾选需要的功能，再检查安装；安装前会让你确认清单。",
             collapsible=True, expanded=False,
         )
@@ -57,7 +57,7 @@ class DependencySection:
             packages=", ".join(CAPTURE_PACKAGES[key]) or "系统自带：uci、wifi、ip"
             container,checkbox,status,button=create_dependency_row(
                 self.card,key,title,packages,position,self._row_clicked,toggle=True)
-            checkbox.setToolTip(tip+"\n扫描、抓包还共用 iw、ip；缺失时通过统一安装流程补装 iw、ip-tiny。")
+            checkbox.setToolTip(checkbox.text()+"\n"+tip+"\n扫描、抓包还共用 iw、ip；缺失时通过统一安装流程补装 iw、ip-tiny。")
             checkbox.setChecked(bool(enabled.get(key, True)))
             self.checks[key]=checkbox
             self.statuses[key]=status
@@ -96,6 +96,7 @@ class DependencySection:
             own=task is not None and task.group=="capture" and key in task.items
             button.setProperty("dependencyStopSession",task.session_id if own else None)
             state=self._states.get(key,"unknown")
+            set_dependency_row_installed(button.parentWidget(), self._connected and not own and state in {"ready", "upgradable", "outdated"})
             text=("停止" if own else "检查" if not CAPTURE_PACKAGES[key]
                   else "升级" if state=="upgradable" else "卸载" if state in ("ready", "outdated") else "安装" if state=="missing" else "检查")
             button.setText(text)
