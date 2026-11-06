@@ -1,0 +1,85 @@
+{
+  "date": "2026-11-05",
+  "scope": "Opt-in rotate_mac_each_pin; default false. Original normal continuous-process and quick paths remain selected when disabled.",
+  "architecture": "Shared preparation policy plus owned-interface WpsSourceRotation and isolated native one-candidate orchestration. No copied PIN enumeration, extra UI timers, patched native binaries or persistent address history.",
+  "behavior": [
+    "Checkbox immediately after source MAC field. Requires source spoofing. Fixed/manual field disabled but its saved value retained while rotating. Offline mode disables the option; direct unsupported requests reject rather than silently ignore it.",
+    "New ephemeral source for every new task and every target first candidate. A task preparation marker prevents accidental regeneration while the same options move between existing layers. Marker is not part of persisted settings.",
+    "Source and channel verified before launch using existing ownership guards. Same candidate retries keep one source; a different source is used only at a complete candidate boundary.",
+    "Normal rotation uses native -g 1, requires the one-attempt exit marker and validates advancing native session indices before restarting. Initial session import/order preparation happens once; later launches use the same remote session without re-importing stale local state.",
+    "Quick rotation uses a disposable session per fixed candidate with the same existing finite target budget. Preparation that consumes the budget does not launch another process.",
+    "No response for 60 seconds, cancellation, process stop errors, progress transfer failures and verification errors do not trigger another candidate launch. Existing owned cleanup, checkpoints and diagnostic history remain in use.",
+    "Additional -g and -q arguments are rejected only when rotation is enabled because they conflict with the verified boundary and its marker."
+  ],
+  "compatibility": {
+    "source_versions": [
+      "v1.6.5",
+      "v1.6.6"
+    ],
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.5/src/cracker.c",
+        "version": "v1.6.5",
+        "path": "build\\wps-rotation-audit\\v1.6.5-cracker.c",
+        "sha256": "346a22224c1b427628950ae8f1cf0e2c834142269a2b6cccf5fc4676434afe5c",
+        "verified": true
+      },
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.5/src/session.c",
+        "version": "v1.6.5",
+        "path": "build\\wps-rotation-audit\\v1.6.5-session.c",
+        "sha256": "2a208d10170bc7be651221ad76e8226a4980e3b302a8d53445dd7974707c97ea",
+        "verified": true
+      },
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.5/src/wpscrack.c",
+        "version": "v1.6.5",
+        "path": "build\\wps-rotation-audit\\v1.6.5-wpscrack.c",
+        "sha256": "ff72ee57d0cfc1f72db4db3c2e7533f50ddc9e683b8820d3bc9a811e0e6f58c1",
+        "verified": true
+      },
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.6/src/cracker.c",
+        "version": "v1.6.6",
+        "path": "build\\wps-rotation-audit\\v1.6.6-cracker.c",
+        "sha256": "366382f6d97129bddc134f0d06e10f77b9fb15225d29de82fa972bf5a4a13e4f",
+        "verified": true
+      },
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.6/src/session.c",
+        "version": "v1.6.6",
+        "path": "build\\wps-rotation-audit\\v1.6.6-session.c",
+        "sha256": "9b87aab6f70ddc71f3d8183d4551eda6462cdb4b2c554fcfc8fe43655442254e",
+        "verified": true
+      },
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.6/src/wpscrack.c",
+        "version": "v1.6.6",
+        "path": "build\\wps-rotation-audit\\v1.6.6-wpscrack.c",
+        "sha256": "cf1026a3766d85e9225d101e07ad786e2fbf5bd417e564ba00eb1f0def9a61af",
+        "verified": true
+      }
+    ],
+    "conclusion": "Both exact upstream versions count rejected candidates toward max attempts, advance native indices, and save sessions after returning from crack(). Existing source/channel readback remains conditional on real driver support. The desktop policy is common Python on Windows and Debian 12.",
+    "live_router": false,
+    "debian12_runtime": false,
+    "other_reaver_builds": "No certification; missing native boundary or advancing checkpoint stops continuation."
+  },
+  "performance": {
+    "memory": "Constant state: last address and three native progress indices. Existing native session files are overwritten atomically, not accumulated per candidate.",
+    "cost": "Enabled mode restarts the native process and verifies owned interface state per candidate; it can be slower than the default continuous process. Disabled mode does not add this work."
+  },
+  "validation": {
+    "directed_tests_passed": 84,
+    "rotation_specific_tests_passed": 9,
+    "syntax_and_utf8": true,
+    "diff_check": true,
+    "light_and_dark_render_inspected": true,
+    "render_paths": [
+      "build/wps-rotation-audit/dialog-light.png",
+      "build/wps-rotation-audit/dialog-dark.png"
+    ],
+    "package_built": false
+  },
+  "acceptance": "Restart source application, select one authorized target, enable spoofing and per-candidate rotation. Verify captured source addresses and successful interaction on the real adapter, including stop/restart and normal cleanup. No success claim before this test."
+}

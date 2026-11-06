@@ -1,0 +1,90 @@
+{
+  "date": "2026-11-05",
+  "feedback_archive_sha256": "8635e4c412620a778d0d06af5948487f8de48cbddb8cdba5da35cdc37fcfd2f6",
+  "observations": [
+    "Feedback reports OpenWrt 23.05.4 on TP-Link TL-XDR6088 mediatek/filogic with Reaver 1.6.6.",
+    "Current-run application stream: WPS begins 11:21:49 CST; first target ends 11:23:02 after reported 60-second execution budget; second target is cancelled at 11:23:41.",
+    "The archive contains no raw native Reaver output. A stored Waiting for beacon status alone cannot establish rejection of the first PIN, completion of Pixie Dust, or the exact RF failure.",
+    "The original observer did not handle Received beacon, Associated with, Received M1/M3, or native Pixie execution/failure. Its old Waiting status could survive later progress.",
+    "Saved native session files are not evidence that a PIN was submitted, accepted, or rejected."
+  ],
+  "changes": [
+    "Observe native preparation, association, WPS exchange, Pixie execution and failure without copying secret arguments or recovered credentials into progress.",
+    "Second/offline result text distinguishes uncompleted testing from an observed Pixie failure and removes normal exhaustive-search wording.",
+    "Saved-file wording states that saving does not establish PIN success; unsaved Pixie results do not display unrelated automatic-resume text.",
+    "WpsUpdate carries stable target_bssid from backend preparation through target completion; page reuses existing yellow-row display and identifies activity as Pin.",
+    "Current candidate is placed first in the title. If the native tool has not reported one, show Waiting for tool report instead of inventing a candidate.",
+    "Completion, preparation failure and cancellation clear active target identity."
+  ],
+  "compatibility": {
+    "applicability": "Native Reaver output parsing and task/UI state; command arguments, timing budgets, radio ownership and driver operations remain unchanged.",
+    "exact_sources": [
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.5/src/cracker.c",
+        "version": "v1.6.5",
+        "sha256": "346a22224c1b427628950ae8f1cf0e2c834142269a2b6cccf5fc4676434afe5c"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.5/src/pixie.c",
+        "version": "v1.6.5",
+        "sha256": "803a66b8be33fd7326d7976d5d6988186983cb4ec225809254bbe132755693c6"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.5/src/exchange.c",
+        "version": "v1.6.5",
+        "sha256": "3db74ab60f7017484321af150ab8cfa20f6084856815dfccb50ab2d9f0ca8421"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.6/src/cracker.c",
+        "version": "v1.6.6",
+        "sha256": "366382f6d97129bddc134f0d06e10f77b9fb15225d29de82fa972bf5a4a13e4f"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.6/src/pixie.c",
+        "version": "v1.6.6",
+        "sha256": "9607c83ae6b0966310b3f2a9f9efc70781b5c847928d859bfc7c31359da167f7"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.6/src/exchange.c",
+        "version": "v1.6.6",
+        "sha256": "9d6ba857c6c4ca9725541d423b8c3a5fe20b74e6b434aa8285221959d6add17e"
+      }
+    ],
+    "scope": "Reaver 1.6.5/1.6.6 output contracts shared across supported OpenWrt hardware and app platforms; no new hardware-runtime certification."
+  },
+  "phone_comparison": {
+    "finding": "Default PIN/vendor-algorithm quick tests and Pixie Dust are distinct operations; a matching default PIN candidate is not proof of connection.",
+    "current_implementation": "second/offline remains Reaver Pixie Dust, not a newly implemented phone-style default-PIN calculator.",
+    "sources": [
+      "https://play.google.com/store/apps/details?id=teampro.wifi.wpsconnect&hl=en_US",
+      "https://github.com/wiire-a/pixiewps",
+      "https://github.com/0x90/wps-scripts/blob/master/WPS-PIN/WPSPIN.sh"
+    ],
+    "identity_limit": "The original FroX com.ngb.wpsconnect Play page is unavailable. Current same-name listings cannot identify the exact phone build from its name alone."
+  },
+  "validation": {
+    "syntax_utf8_files": [
+      "modules/capture_services/openwrt/wps_observation.py",
+      "modules/capture_services/openwrt/wps_capture.py",
+      "modules/capture_services/capture_service.py",
+      "modules/capture_services/backends/openwrt_backend.py",
+      "modules/main_pages/packet_capture/openwrt/openwrt_page.py",
+      "modules/main_pages/packet_capture/openwrt/access_point_table.py",
+      "tests/test_wps_presentation.py"
+    ],
+    "directed_tests": "See final unittest result; includes shared password-row presentation regression without editing password task files.",
+    "rendered": [
+      "build/previews/wps-progress/light.png",
+      "build/previews/wps-progress/dark.png"
+    ],
+    "live_router": false,
+    "debian12_runtime": false,
+    "release_built": false
+  },
+  "preserved": [
+    "No password task file changes.",
+    "No automatic import of old result-directory .wpc files.",
+    "RouterManagerData/wps-sessions retained.",
+    "No timers or shorter arbitrary RF timeout added."
+  ]
+}

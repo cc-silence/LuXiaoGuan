@@ -27,7 +27,7 @@ def _metadata_transport_errors():
 
 def wps_status_text(point):
     if point.wps_supported is not True:
-        return "\u672a\u68c0\u6d4b\u5230"
+        return "\u4e0d\u652f\u6301"
     return "\u5df2\u9501\u5b9a" if point.wps_locked else "\u652f\u6301"
 
 

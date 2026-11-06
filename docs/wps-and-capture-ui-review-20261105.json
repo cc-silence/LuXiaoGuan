@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-05",
+  "production_changes": [
+    "Advanced WPS dialog uses shared confirmation/cancel factory, complete shared theme and shared file icon button.",
+    "Existing quick/advanced WPS entry buttons become stop during a WPS task; stopping disables repeated requests; no new buttons.",
+    "Only submitted candidate digits from native Trying pin output are shown in progress. Recovered secrets are not status fields.",
+    "Reaver is exec-ed as the owned PID and gets SIGINT before existing bounded KILL fallback, as required by its save handler; cancellation does not cancel cleanup itself; cleanup errors are preserved.",
+    "Native session files are bound to normalized BSSID and an explicit owned -s path; validated atomic checkpoints are copied locally during existing observation loop and after stop; automatically reloaded on the next run. Invalid/truncated files never replace the last valid local checkpoint.",
+    "Initial order file now has the three native state header lines and both native candidate tables instead of the invalid legacy first-table-only file. LF is explicit and local read validation is bounded to 1MiB.",
+    "Native early exit, runtime limit, no result and sanitized last observed tool status are included in result messages; the runtime budget remains finite and is not described as exhaustive traversal.",
+    "Batch WPS progress now uses outer target index/count and masked label; late updates cannot overwrite stopping state.",
+    "Dictionary list accepts multiple local files by drag/drop using existing append/dedup/saving signals; bottom shared resize handle adjusts its height.",
+    "Deauth batch setting uses the shared discrete slider plus numeric value; original 1..20 range/default 5 retained; drag commits on release rather than writing every intermediate value; theme/disable/settings paths synchronized.",
+    "Main window default width changed from 1280 to 1380; saved geometry logic unchanged.",
+    "Router MAC column moved visually after channel; logical indexes, stored widths, privacy controls and sort mapping preserved."
+  ],
+  "online_feedback": {
+    "input": "CC_LuXiaoGuan_capture_20261105_083053.zip",
+    "confirmed": "First of ten targets succeeded; second switched to native control and failed with TimeoutError after its first submitted candidate; restore phase completed.",
+    "not_confirmed": "Specific timed-out native request and underlying router/client cause are absent from the submitted diagnostics.",
+    "changes": "Typed secret-free per-request timeout diagnostics and actionable UI message added; no speculative timeout increase or retry after a submitted candidate. Existing pending-candidate history policy remains unchanged."
+  },
+  "checks": {
+    "windows_related_tests": 91,
+    "new_lifecycle_tests_after_final_bounded_reader_change": 7,
+    "debian_backend_lifecycle_tests": 5,
+    "actual_official_wpa_cli_2_10_pipe_contract": true,
+    "syntax_utf8_files": 17,
+    "diff_check": true,
+    "themes_rendered": [
+      "dark",
+      "light"
+    ],
+    "existing_dialog_100_150_scale_regression": true
+  },
+  "sources": [
+    "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/master/src/cracker.c",
+    "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/master/src/session.c",
+    "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/master/src/sigint.c",
+    "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/master/src/defs.h"
+  ],
+  "limits": [
+    "No real router/RF verification; native tool integration uses offline fixtures.",
+    "Only the latest successfully transferred native checkpoint survives abrupt device/network failure; no guarantee of saving an in-flight attempt.",
+    "Submitted online failure is not claimed resolved; new request-level evidence is needed for its root cause.",
+    "No application release built."
+  ],
+  "single_target_timeout_policy": {
+    "behavior": "Only authentication/control response timeouts raised after candidate submission become per-target incomplete results. The owned control context exits before the scheduler catches the typed timeout; the next target forces temporary STA environment preparation. Completed target results are retained.",
+    "history": "An unconfirmed authentication deadline now raises a typed timeout rather than returning False; the pending candidate is not recorded as a rejected password.",
+    "batch_failures": "Cancellation, SSH loss, control-context cleanup failure, backup/configuration/preparation/restore failures remain batch-wide errors.",
+    "multi_dictionary": "A timed-out target is terminal for this batch and is not silently retried in later dictionary rounds.",
+    "reporting": "Per-target messages and final summary count timeout/incomplete results separately from not-found and skipped.",
+    "checks": {
+      "windows_related_tests": 51,
+      "actual_wpa_cli_2_10_pipe_contract": true,
+      "syntax_utf8_files": 7
+    },
+    "limits": "Offline verification only. The submitted router-specific control timeout root cause still requires new per-request diagnostics; this change fixes batch isolation, not that underlying cause."
+  }
+}

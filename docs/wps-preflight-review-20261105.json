@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-05",
+  "scope": "Pin only. No password task, UI styling, radio occupancy, router command or session-directory changes.",
+  "compatibility_scope": "These incremental changes affect local reporting and checkpoint result references only; no new OpenWrt command, firmware or driver contract is introduced. Existing Pixie Dust command path was inspected and exercised offline, not certified across routers.",
+  "configuration_findings": [
+    "Previous advanced dialog accepted spoof_mac_enabled=true with an empty address; the settings manager preserves the two values independently.",
+    "Quick and advanced entries share wps_defaults. No evidence found that load/save clears a valid source address.",
+    "The exact historical action that enabled spoofing is unknown. Existing invalid configuration is reported, not silently rewritten."
+  ],
+  "incremental_fixes": [
+    "Mode-specific service start message for Pixie Dust.",
+    "PIN-only results retain and display termination reason without exposing recovered credentials.",
+    "Retain last successful checkpoint reference when final redundant download fails."
+  ],
+  "validation": {
+    "directed_tests_passed": 23,
+    "syntax_utf8_files": [
+      "modules/capture_services/openwrt/wps_capture.py",
+      "modules/capture_services/backends/openwrt_backend.py",
+      "modules/capture_services/capture_service.py",
+      "tests/test_wps_configuration_flow.py"
+    ],
+    "live_router": false,
+    "debian12_runtime": false
+  },
+  "preserved": [
+    "Disabled spoofing accepts an empty address.",
+    "Enabled empty address prompts once before task/interface allocation.",
+    "Valid source reaches the real command builder; remote process start is mocked.",
+    "No automatic import from legacy result directories."
+  ],
+  "manual_acceptance": [
+    "Disable spoofing or enter a valid source address in advanced Pin; confirm and reopen to verify persistence.",
+    "On an authorized router, run one selected target with quick Pin; verify remote Reaver startup, target status and explicit end reason.",
+    "Verify cancellation cleanup and the next run resumes only from RouterManagerData/wps-sessions."
+  ],
+  "reference_read": "https://github.com/wiire-a/pixiewps (upstream description only; not an installed-version compatibility claim)"
+}

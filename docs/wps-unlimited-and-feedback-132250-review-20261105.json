@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-05",
+  "archive_sha256": "cc2b99a65f27798a952c555d404072c9fbdc4f3c40236e59b824af052f35404b",
+  "findings": [
+    "Quick mode skipped all ten targets because no vendor profile matched. No native candidate was validated.",
+    "Normal mode finished seven per-target 60-second budgets; target eight was manually cancelled. Targets nine and ten were not tested.",
+    "Four timed targets logged association/EAPOL start but no identity request or M1. One target could not associate.",
+    "Targets four and six logged identity, M1, M3 and NACK and advanced the last candidate beyond 00000000. Target four reported rate limiting/lock.",
+    "Upstream v1.6.5/v1.6.6 define 0x02 as RX_TIMEOUT, distinct from KEY_REJECTED. Missing log events cannot identify the cause of over-air loss.",
+    "Kernel source-address and channel readbacks passed for each started target. This does not certify every driver or target interaction."
+  ],
+  "changes": [
+    "Default and current saved attack_seconds are zero. Zero uses an infinite deadline; positive values retain their previous budgets.",
+    "Unlimited WPS reuses the PID-identity lease watchdog and renews under supervision. No fixed total-runtime watchdog is installed. Lost-controller, workspace and log-size protection remain active.",
+    "Elapsed seconds, candidate updates, periodic checkpoints, cancellation, success and precise process cleanup remain active. Zero progress total means indeterminate.",
+    "Zero disables rounds and executes one continuous native process. Quick mode keeps its independent 15-second budget.",
+    "Diagnostic descriptions translate receive timeout and watchdog stop reasons."
+  ],
+  "validation": {
+    "directed_tests_passed": 73,
+    "simulated_unlimited_seconds": 7200,
+    "live_new_unlimited_run": false,
+    "debian12_runtime": false,
+    "release_built": false
+  },
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.5/src/defs.h",
+      "version": "v1.6.5",
+      "sha256": "69ccf8c5b17398e55dd7582f333454a2d37b0392d7f117c91129c2993263acac"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.6/src/defs.h",
+      "version": "v1.6.6",
+      "sha256": "6bcef15cd94601b8e63c3f646b5a8de5fef01baa2fa8525fc9862fd2ef33e4c5"
+    }
+  ]
+}

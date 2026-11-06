@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-05",
+  "archive_sha256": "6e98576e77d326ca2813de4d30c68035a9a65476320e463fc149e46be2fb3170",
+  "findings": [
+    "At 12:45:05 CST, all 17 quick targets were skipped because no default-PIN profile matched. No quick candidate was transmitted or validated in this run. This is not evidence that all 17 targets resist default-PIN testing.",
+    "Normal Pin started at 12:45:32 CST. The first target was verified on kernel channel 56 at 12:45:41. The 60-second runtime budget ended at 12:46:44 with native association observed and WPS exchange unfinished.",
+    "The second target was verified on channel 161 at 12:46:52 and cancelled at 12:47:13. There is no result for later targets.",
+    "Channel preparation has real-device evidence of progressing beyond beacon waiting; complete WPS functionality remains unverified.",
+    "The newest stored native checkpoints remain at initial P1/P2/state 0/0/0, which does not establish a successfully rejected or accepted candidate.",
+    "The archive contains no raw native Reaver trace or detailed exchange error codes. Last-status text cannot discriminate EAP start failure, a later WPS transaction failure, target policy, or a sender/driver issue.",
+    "Current local settings were inspected only for WPS options: normal mode, 60 seconds x 1 round, spoofing enabled. Credentials were not printed or read from their secure store."
+  ],
+  "incremental_changes": [
+    "A new bounded allowlisted protocol-evidence collector retains only observed stage labels and up to eight native transaction error codes.",
+    "Normal/offline timeout, early-exit and cancellation notes include observed EAPOL-Start, identity, M1/M3/M5/M7, NACK and EAP Failure evidence. Missing records are explicitly described as missing log records, not proof of missing over-air packets.",
+    "Repeated log tails are deduplicated. PINs, PSKs, Pixie keys, identifiers and raw command text are not retained.",
+    "No router command, transmission parameter, spoof setting, mode, timeout, radio mapping or visual style was changed in this follow-up."
+  ],
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.5/src/send.c",
+      "version": "v1.6.5",
+      "sha256": "ec09733ea61125f1d1853182124e1af7b978cdc7372ae0eb7c8ad528c941cb8e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.6/src/send.c",
+      "version": "v1.6.6",
+      "sha256": "ec09733ea61125f1d1853182124e1af7b978cdc7372ae0eb7c8ad528c941cb8e"
+    }
+  ],
+  "validation": {
+    "directed_tests_passed": 56,
+    "syntax_utf8": "passed",
+    "live_protocol_retest": false,
+    "debian12_runtime": false,
+    "release_built": false
+  },
+  "next_acceptance": "After normal restart, use one authorized target and export the resulting notes. The new allowlisted trace must establish whether EAPOL start was logged, identity/M1 was observed, and which native error code occurred. Do not claim longer runtime alone resolves this stage."
+}
