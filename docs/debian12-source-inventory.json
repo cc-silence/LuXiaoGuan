@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "product": "RouterManager",
-  "upstream_commit": "431cddfbb9f12d2844fc6eff671087c88a254e6f",
+  "upstream_commit": "752462b8994b7f64458a60d3edc9552c0ff8b97f",
   "checked_date": "2026-11-06",
   "files": {
     ".github/CODEOWNERS": {
@@ -8129,8 +8129,8 @@
       "linux_sha256": "a6fe893e40d358db54c5462a4591ee833b7ccb7d6b340433a64429d3b3b45518"
     },
     "scripts/linux_release_layout.py": {
-      "upstream_sha256": "5475313e6b744d1267cb1386a7ea879e1a3295c4ebc48bcdca6d96aa375c9ac5",
-      "linux_sha256": "5475313e6b744d1267cb1386a7ea879e1a3295c4ebc48bcdca6d96aa375c9ac5"
+      "upstream_sha256": "c2546003f55e56a37a9119ccb7daacec9087c01aac59e7bea330dfed156a4e27",
+      "linux_sha256": "c2546003f55e56a37a9119ccb7daacec9087c01aac59e7bea330dfed156a4e27"
     },
     "scripts/linux_runtime_check.py": {
       "upstream_sha256": "e7ce60485a9d7c84ed42585372c315628c3d9816c8bd0c8f49c03111258ac7cb",
@@ -8293,8 +8293,8 @@
       "linux_sha256": "df19b835153b2b428feea1f760855f0b6a44bf2c9adf852c8d9681e7f608d8e8"
     },
     "scripts/release_layout.py": {
-      "upstream_sha256": "a1e9847a9fc7f48ef932102a1446ee07dad6b075ab9d7300570d95b1ba64b7d2",
-      "linux_sha256": "a1e9847a9fc7f48ef932102a1446ee07dad6b075ab9d7300570d95b1ba64b7d2"
+      "upstream_sha256": "7244b60d3b3af9426aef9c7ba9f819957982d436536629aa5f6e006e4b9ed58f",
+      "linux_sha256": "7244b60d3b3af9426aef9c7ba9f819957982d436536629aa5f6e006e4b9ed58f"
     },
     "scripts/release_metadata.py": {
       "upstream_sha256": "e09ae8f5495dbd766a62fa164a6152badddaa1ca60f5f294dbe7b3dba9e09652",
@@ -8355,6 +8355,10 @@
     "scripts/source_snapshot.py": {
       "upstream_sha256": "110632989e7312e1f24d52782ddafc688b19748b3fd8e8ee006995b5afc93365",
       "linux_sha256": "110632989e7312e1f24d52782ddafc688b19748b3fd8e8ee006995b5afc93365"
+    },
+    "scripts/update_channel_assets.py": {
+      "upstream_sha256": "15b101d44f9e9fd7dcaf11594bfcd5afed67c643f15794cc33f76a15cc059254",
+      "linux_sha256": "15b101d44f9e9fd7dcaf11594bfcd5afed67c643f15794cc33f76a15cc059254"
     },
     "scripts/verify_previous_update_client.py": {
       "upstream_sha256": "d44b2b4f80a9c4ba9d177dd6ed1ee2277380cb14db2ec49f8f8eeb09e91abe17",
@@ -9628,6 +9632,10 @@
       "upstream_sha256": "f2372c90ee86134279877f147f85be8a643394b0ec941e80f0f95cabc4a34d4f",
       "linux_sha256": "f2372c90ee86134279877f147f85be8a643394b0ec941e80f0f95cabc4a34d4f"
     },
+    "tests/test_release_channel_assets.py": {
+      "upstream_sha256": "d974cb733d3267c4704774c4b0682ae8cf09c78e1e0e9422a9f7e6b29656cad5",
+      "linux_sha256": "d974cb733d3267c4704774c4b0682ae8cf09c78e1e0e9422a9f7e6b29656cad5"
+    },
     "tests/test_release_identity.py": {
       "upstream_sha256": "8f18d5b60afe33b926260b85d6abb1c1825f974aa8fe21d78f6274cd63c942dc",
       "linux_sha256": "8f18d5b60afe33b926260b85d6abb1c1825f974aa8fe21d78f6274cd63c942dc"
@@ -9645,8 +9653,8 @@
       "linux_sha256": "346bccfa84de3f65148736028120e021c0f9fd3995e5572d10a61f8d1b15dd74"
     },
     "tests/test_release_sources.py": {
-      "upstream_sha256": "ac3c7e5109a2855f2f302e9c3458c0d20a43faca25a64722ce47b710144e4354",
-      "linux_sha256": "ac3c7e5109a2855f2f302e9c3458c0d20a43faca25a64722ce47b710144e4354"
+      "upstream_sha256": "fbe41e34f5e8a8e946c9c43b5ab23868a14897f5bb5c66901b0438eab7433c1a",
+      "linux_sha256": "fbe41e34f5e8a8e946c9c43b5ab23868a14897f5bb5c66901b0438eab7433c1a"
     },
     "tests/test_release_storage.py": {
       "upstream_sha256": "fb6238c60f8ac159fedd9054d5787fa8e04846d087c5a1de637f4077dfeb42e0",
@@ -9869,8 +9877,8 @@
       "linux_sha256": "a18341e35f1a8afb3e2447c62c03f2a3fcd4a09301c2113ba7c056b0dbaad25d"
     },
     "tests/test_standalone.py": {
-      "upstream_sha256": "be884e4bab0fa584b02b9064065a93dde374988825c070f00dfb2bcff8aab3ec",
-      "linux_sha256": "be884e4bab0fa584b02b9064065a93dde374988825c070f00dfb2bcff8aab3ec"
+      "upstream_sha256": "9eb30f3d6335ad2d0b0c4cc57414592e80333d346d8ffe9e030fcec5c6f7ebbd",
+      "linux_sha256": "9eb30f3d6335ad2d0b0c4cc57414592e80333d346d8ffe9e030fcec5c6f7ebbd"
     },
     "tests/test_startup_firewall.py": {
       "upstream_sha256": "93663927b1ff933cc225cc46edf2eb4b45e37b3dcb97ee1ec3b3f3e8972d2d24",

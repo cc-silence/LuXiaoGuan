@@ -3,23 +3,14 @@
   "product": "RouterManager",
   "platform": "linux-x64",
   "version": "1.0.49_alpha",
-  "upstream_commit": "431cddfbb9f12d2844fc6eff671087c88a254e6f",
+  "upstream_commit": "752462b8994b7f64458a60d3edc9552c0ff8b97f",
   "checked_date": "2026-11-06",
   "source_merge_reviewed": true,
   "linux_native_validated": false,
   "working_snapshot_reviewed": true,
-  "reviewed_worktree": {
-    "scripts/linux_release_layout.py": {
-      "upstream_sha256": "5475313e6b744d1267cb1386a7ea879e1a3295c4ebc48bcdca6d96aa375c9ac5",
-      "linux_sha256": "5475313e6b744d1267cb1386a7ea879e1a3295c4ebc48bcdca6d96aa375c9ac5"
-    },
-    "tests/test_linux_release_layout.py": {
-      "upstream_sha256": "9b9e69243799e48885c7a5e32d7066c439073093c81dee3cfbead40d6b05ce85",
-      "linux_sha256": "9b9e69243799e48885c7a5e32d7066c439073093c81dee3cfbead40d6b05ce85"
-    }
-  },
+  "reviewed_worktree": {},
   "source_inventory": {
     "path": "docs/debian12-source-inventory.json",
-    "sha256": "b4c7014e61f322325c5c1297a0edcfaf40207124ad6d21ec142f7d97b5fece88"
+    "sha256": "9c6608eb3aed1614acd3f1136e5f38dedff116d891ef818e30bb0ea25da70821"
   }
 }
