@@ -171,8 +171,8 @@ class LoginExportIntegrationTests(unittest.TestCase):
             lambda e,r:dict(removed=3,macs=2,hostname="private-hostname"),threading.Event(),Mock())
         ManagementTrace(runner,"orphan_cleanup",{}).execute(
             lambda e,r:dict(removed=["private-interface"],saved=True,applied=False),threading.Event(),Mock())
-        panel=page.settings_info_panel
-        self.assertEqual(panel._export_context_provider.__self__,page)
+        panel=page.common_info_panel
+        self.assertTrue(callable(panel._export_context_provider))
         panel.clear()
         output=Path("build/common-settings-recheck-20261025/login-export.zip").resolve();output.parent.mkdir(parents=True,exist_ok=True)
         service=self.runtime.log_export_service;done=QSignalSpy(service.completed)

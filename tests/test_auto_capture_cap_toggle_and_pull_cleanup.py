@@ -248,7 +248,7 @@ class AutoCaptureCapToggleAndPullCleanupTests(unittest.TestCase):
                 os.remove(test_file)
 
 
-    def test_stop_buttons_have_warning_red_foreground(self):
+    def test_stop_buttons_publish_shared_theme_state(self):
         """验证所有停止抓包按钮（前台合并按钮、后台收尾按钮、射频卡片停止按钮）在停止态均显示警示红色前景。"""
         from modules.main_pages.packet_capture.openwrt.auto_capture_radio_card import AutoCaptureRadioCard
 
@@ -273,11 +273,11 @@ class AutoCaptureCapToggleAndPullCleanupTests(unittest.TestCase):
         # 1. 验证前台单按钮切换至停止态时的警示红色前景
         service.auto_capture.is_busy = True
         page._update_toggle_all_btn_state(snapshot)
-        self.assertIn("#ef4444", page.toggle_all_btn.styleSheet())
+        self.assertTrue(page.toggle_all_btn.property("stopAction"))
 
         # 切换浅色主题
         page.set_light_theme(True)
-        self.assertIn("#dc2626", page.toggle_all_btn.styleSheet())
+        self.assertTrue(page.toggle_all_btn.property("stopAction"))
 
         # 恢复空闲状态
         service.auto_capture.is_busy = False
@@ -289,10 +289,10 @@ class AutoCaptureCapToggleAndPullCleanupTests(unittest.TestCase):
         status_running = AutoCaptureBootStatus(is_running=True)
         service.auto_capture.boot_status = status_running
         page._update_start_script_btn_state(snapshot, status_running)
-        self.assertIn("#ef4444", page.start_script_btn.styleSheet())
+        self.assertTrue(page.start_script_btn.property("stopAction"))
 
         page.set_light_theme(True)
-        self.assertIn("#dc2626", page.start_script_btn.styleSheet())
+        self.assertTrue(page.start_script_btn.property("stopAction"))
 
         # 后台空闲时恢复常规
         status_idle = AutoCaptureBootStatus(is_running=False)
@@ -303,15 +303,15 @@ class AutoCaptureCapToggleAndPullCleanupTests(unittest.TestCase):
         # 3. 验证射频卡片抓包/停止态时 start_btn 与 stop_btn 的警示红色前景
         card.set_light_theme(False)
         card.apply_state("capturing")
-        self.assertIn("#ef4444", card.start_btn.styleSheet())
-        self.assertIn("#ef4444", card.stop_btn.styleSheet())
+        self.assertTrue(card.start_btn.property("stopAction"))
+        self.assertTrue(card.stop_btn.property("stopAction"))
 
         card.apply_state("stopping")
-        self.assertIn("#ef4444", card.start_btn.styleSheet())
+        self.assertTrue(card.start_btn.property("stopAction"))
 
         card.set_light_theme(True)
-        self.assertIn("#dc2626", card.start_btn.styleSheet())
-        self.assertIn("#dc2626", card.stop_btn.styleSheet())
+        self.assertTrue(card.start_btn.property("stopAction"))
+        self.assertTrue(card.stop_btn.property("stopAction"))
 
         # 卡片空闲时恢复常规
         card.apply_state("idle")

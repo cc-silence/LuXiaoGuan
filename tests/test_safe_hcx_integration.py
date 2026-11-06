@@ -101,6 +101,7 @@ class SafeHcxIntegrationTests(unittest.TestCase):
             self.assertEqual(session.stats.state, "error")
             self.assertIn("Socket is closed", session.stats.error_message)
             self.assertEqual(list(Path(directory).iterdir()), [])
-        sftp.close.assert_called_once()
+        session.ssh_client.drop_sftp.assert_called_once()
+        sftp.close.assert_not_called()
         session.service.radioStateChanged.emit.assert_called_with("radio7", "error")
         self.assertFalse(any(call.args[1] == "success" for call in session.service.messageGenerated.emit.call_args_list))

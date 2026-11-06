@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import Mock,patch
 from modules.platform_services import linux_recovery_launcher as launcher,linux_update_install as install,update_dispatch as dispatch
 import main as application
+from modules.desktop_shell import application_start
 
 
 from tests.posix_shell import local_shell as shell
@@ -27,8 +28,9 @@ class RecoveryDispatchTests(unittest.TestCase):
 
     def test_gui_startup_smoke_does_not_reenter_recovery(self):
         bootstrap=NS(run=Mock(return_value=3))
-        with patch.object(application,'sys',NS(argv=['app','--smoke-test'],platform='linux',frozen=True)),patch.dict(sys.modules,{'router_app.bootstrap':bootstrap}),patch.object(install,'recover_at_startup') as recover:
+        with patch.object(application,'sys',NS(argv=['app','--smoke-test'],platform='linux',frozen=True)),patch.dict(sys.modules,{'router_app.bootstrap':bootstrap}),patch.object(install,'recover_at_startup') as recover,patch.object(application_start,'run_desktop',return_value=3) as desktop:
             self.assertEqual(application.main(),3);recover.assert_not_called()
+            desktop.assert_called_once_with(application.APP_VERSION)
 
     def test_normal_frozen_linux_startup_redirects_before_desktop(self):
         bootstrap=NS(run=Mock())
@@ -46,7 +48,7 @@ class RecoveryDispatchTests(unittest.TestCase):
 
     def test_windows_startup_keeps_its_existing_desktop_path(self):
         bootstrap=NS(run=Mock(return_value=4))
-        with patch.object(application,'sys',NS(argv=['app'],platform='win32',frozen=True,executable='C:/app/LuXiaoGuan.exe')),patch.dict(sys.modules,{'router_app.bootstrap':bootstrap}),patch.object(install,'recover_at_startup') as recover,patch.object(dispatch,'recover_before_gui',return_value=False) as selected,patch('modules.desktop_shell.application_start.run_desktop',return_value=4) as desktop:
+        with patch.object(application,'sys',NS(argv=['app'],platform='win32',frozen=True,executable='C:/app/LuXiaoGuan.exe')),patch.dict(sys.modules,{'router_app.bootstrap':bootstrap}),patch.object(install,'recover_at_startup') as recover,patch.object(dispatch,'recover_before_gui',return_value=False) as selected,patch.object(application_start,'run_desktop',return_value=4) as desktop:
             self.assertEqual(application.main(),4);recover.assert_not_called()
             selected.assert_called_once_with(Path('C:/app'))
             desktop.assert_called_once_with(application.APP_VERSION)

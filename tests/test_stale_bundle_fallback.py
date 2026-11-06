@@ -12,9 +12,15 @@ from modules.capture_services.openwrt.signal_manager import SignalError
 
 class StaleBundleFallbackTests(unittest.TestCase):
     def catalog(self):
-        spec = bundle_spec('common')
-        return dict(schema_version=1, purpose=spec.catalog_purpose, complete=True,
-                    roots=sorted(spec.roots - {'curl'}))
+        import copy, tempfile
+        from tests.test_common_offline_bundle import fixture
+        with tempfile.TemporaryDirectory() as folder:
+            catalog = copy.deepcopy(fixture(folder).catalog)
+        catalog['roots'].remove('curl')
+        for profile in catalog['profiles']:
+            profile['roots'].remove('curl')
+            profile['packages'] = [row for row in profile['packages'] if row['name'] != 'curl']
+        return catalog
 
     def local(self, wanted, builtin, tell):
         repo = Mock(kind='common')
@@ -83,6 +89,9 @@ class StaleBundleFallbackTests(unittest.TestCase):
                 catalog = copy.deepcopy(f.catalog)
                 if rejection in ('old_coverage', 'tampered_old_coverage'):
                     catalog['roots'].remove('curl')
+                    for profile in catalog['profiles']:
+                        profile['roots'].remove('curl')
+                        profile['packages'] = [row for row in profile['packages'] if row['name'] != 'curl']
                 else:
                     catalog['profiles'][0]['target'] = 123
                 raw = json.dumps(catalog).encode('utf-8')

@@ -13,7 +13,7 @@ class ReviewEdgeTests(unittest.TestCase):
     def test_offline_worker_start_failure_releases_ui_state(self):
         owner=feedback.Owner();owner._start_openwrt_worker=Mock(side_effect=RuntimeError("launch failure"))
         service=CommonBundleDownloadService(owner);messages=[]
-        owner.settingsMessageGenerated.connect(lambda text,level:messages.append(text))
+        owner.dependencyMessageGenerated.connect(lambda text,level:messages.append(text))
         self.assertFalse(service.refresh_local())
         self.assertFalse(service.active);self.assertEqual(service.phase,"idle")
         self.assertTrue(messages)

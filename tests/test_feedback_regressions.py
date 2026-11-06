@@ -38,6 +38,7 @@ APP = QApplication.instance() or QApplication([])
 class Owner(QObject):
     openwrtSnapshotChanged = Signal(object)
     settingsMessageGenerated = Signal(str, str)
+    dependencyMessageGenerated = Signal(str, str)
     activityChanged = Signal()
 
     def __init__(self):
@@ -137,7 +138,7 @@ class RejectionTests(unittest.TestCase):
                 owner = Owner()
                 service = OpenWrtDependencyService(owner)
                 messages, rejections = [], []
-                owner.settingsMessageGenerated.connect(lambda text, level: messages.append((text,level)))
+                owner.dependencyMessageGenerated.connect(lambda text, level: messages.append((text,level)))
                 service.requestRejected.connect(rejections.append)
                 if reason == "busy":owner.task_controller.begin("wireless_inspect", "inspect")
                 elif reason == "shutdown":owner._shutting_down=True

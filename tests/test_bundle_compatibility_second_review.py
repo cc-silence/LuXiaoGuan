@@ -106,7 +106,7 @@ class CompatibilityMessageTests(unittest.TestCase):
                         def operation(cancel):return validate_catalog(catalog,kind)
                         expected='\u66f4\u65b0\u79bb\u7ebf'
                     messages=[];done=[];offers=[];worker_done=[]
-                    owner.settingsMessageGenerated.connect(lambda *args:messages.append(args))
+                    owner.dependencyMessageGenerated.connect(lambda *args:messages.append(args))
                     service.finished.connect(lambda *args:done.append(args))
                     service.offerReady.connect(offers.append)
                     worker=CaptureTaskWorker(operation,service.cancel_event)
