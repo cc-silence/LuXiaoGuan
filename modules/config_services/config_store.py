@@ -4,7 +4,7 @@
 部分用户 C 盘启用冰点还原，软件目录或 AppData 中单一存放的配置也可能被还原。
 因此 Windows 设置类配置同时写入两处：
 
-- 主副本 primary：%LOCALAPPDATA%\RouterManager\config\文件名，升级或冰点还原后仍在。
+- 主副本 primary：%LOCALAPPDATA%\LuXiaoGuan\config\文件名，升级或冰点还原后仍在。
 - 镜像 mirror：软件目录 config\文件名，随软件目录一起被替换或迁移。
 
 Linux 的主副本和镜像指向同一个用户配置文件，仅读写一次，不写安装目录。

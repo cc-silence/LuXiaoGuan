@@ -1,0 +1,37 @@
+{
+  "date": "2026-11-06",
+  "scope": "Host user-data naming only; no router commands or firmware behavior changed",
+  "canonical_windows_directory": "%LOCALAPPDATA%/LuXiaoGuan",
+  "canonical_linux_directories": [
+    "$XDG_CONFIG_HOME/LuXiaoGuan",
+    "$XDG_STATE_HOME/LuXiaoGuan",
+    "$XDG_DATA_HOME/LuXiaoGuan"
+  ],
+  "migration": [
+    "Acquire the existing stable desktop single-instance ownership before migrating or importing configuration",
+    "Rename legacy sibling RouterManager directory in constant time when new directory is absent",
+    "When both exist, move missing entries and preserve conflicting old entries under legacy-RouterManager-conflicts in the new directory",
+    "Do not overwrite existing data or follow linked roots; bounded traversal and exclusive migration lock",
+    "On interruption retain unmoved entries for the next attempt",
+    "Honor explicit configuration overrides without migrating default user directories"
+  ],
+  "compatibility": [
+    "Retain stable update signatures/product IDs, credential vault keys and single-instance IDs",
+    "Retain Windows portable config mirror and RouterManagerData working-directory contract",
+    "Existing mirror timestamp arbitration remains unchanged"
+  ],
+  "validation": {
+    "tests_run": 55,
+    "passed": 51,
+    "skipped": 4,
+    "syntax_utf8_files": 12,
+    "local_migration_receipt": "build/user-data-directory-review-20261106/local-migration.json",
+    "native_windows_migration": "completed; old AppData directory absent, new directory present, zero conflicts",
+    "native_debian": "not available; XDG routing and migration tested using isolated directories only"
+  },
+  "references": [
+    "https://docs.python.org/3.10/library/pathlib.html#pathlib.Path.rename",
+    "https://specifications.freedesktop.org/basedir/latest/"
+  ],
+  "delivery": "Source and local AppData directory updated; no build or publication"
+}

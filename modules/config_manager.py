@@ -127,16 +127,20 @@ def _resolve_legacy_app_absolute_path(path):
     candidate = BASE_DIR.joinpath(*relative_parts)
     return candidate if candidate.exists() else None
 
-def make_portable_path(value):
+def portable_path_roots():
+    """Resolve shared roots once per conversion batch, without a persistent cache."""
+    return (BASE_DIR.resolve(strict=False), user_downloads_dir().resolve(strict=False),
+            Path.home().resolve(strict=False))
+
+
+def make_portable_path(value, *, roots=None):
     # 保存配置时尽量反向转成可移植路径。
     path = Path(str(value or "").strip()).expanduser()
     if not str(path):
         return ""
 
     resolved = path.resolve(strict=False)
-    base_dir = BASE_DIR.resolve(strict=False)
-    downloads_dir = user_downloads_dir().resolve(strict=False)
-    home_dir = Path.home().resolve(strict=False)
+    base_dir, downloads_dir, home_dir = portable_path_roots() if roots is None else roots
 
     app_relative = _relative_to(resolved, base_dir)
     if app_relative is not None:

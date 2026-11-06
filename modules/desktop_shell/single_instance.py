@@ -36,6 +36,11 @@ class SingleInstanceController(QObject):
         user_token = str(Path.home()).casefold().encode("utf-8", errors="replace")
         return f"RouterManager.SingleInstance.{hashlib.sha256(user_token).hexdigest()[:16]}"
 
+    def set_activation_callback(self, callback):
+        if not callable(callback):
+            raise TypeError("Activation callback must be callable")
+        self._activate_callback = callback
+
     def acquire(self) -> bool:
         """尝试取得单实例所有权，已有实例存在时请求其恢复窗口。
 
@@ -45,7 +50,7 @@ class SingleInstanceController(QObject):
         if is_linux():
             if self._linux is None:
                 from modules.platform_services.linux_single_instance import LinuxSingleInstance
-                self._linux = LinuxSingleInstance(self._activate_callback, self)
+                self._linux = LinuxSingleInstance(lambda: self._activate_callback(), self)
             return self._linux.acquire()
         if self._notify_existing_instance():
             return False
