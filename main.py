@@ -1,6 +1,6 @@
 """\u8def\u7531\u5668\u7ba1\u7406\u72ec\u7acb\u5165\u53e3\uff1b\u5148\u5206\u6d41\u5de5\u4f5c\u8fdb\u7a0b\uff0c\u518d\u542f\u52a8\u754c\u9762\u3002"""
 import sys
-APP_VERSION = "1.0.44_alpha"
+APP_VERSION = "1.0.49_alpha"
 
 
 def main():
@@ -49,8 +49,8 @@ def main():
         from pathlib import Path
         from modules.platform_services.update_dispatch import recover_before_gui
         if recover_before_gui(Path(sys.executable).parent):return 0
-    from router_app.bootstrap import run
-    return run(APP_VERSION)
+    from modules.desktop_shell.application_start import run_desktop
+    return run_desktop(APP_VERSION)
 
 
 if __name__ == "__main__":
