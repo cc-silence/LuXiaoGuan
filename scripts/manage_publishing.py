@@ -23,6 +23,7 @@ def main():
     offline.add_argument("--kind", choices=("common", "capture"), required=True)
     offline.add_argument("--archive", type=Path, required=True)
     offline.add_argument("--coverage", type=Path, required=True)
+    offline.add_argument("--min-app-version", help="Minimum compatible application version; signed into the offline manifest")
     app = actions.add_parser("publish-app")
     app.add_argument("--channel", choices=("stable", "alpha"), default="stable")
     app.add_argument("--archive", type=Path, required=True)
@@ -51,8 +52,8 @@ def main():
         output.write_text(json.dumps(result, indent=2)+"\n", encoding="utf-8")
         print(json.dumps(result), flush=True)
     elif args.action == "publish-offline":
-        from scripts.publishing.offline import publish
-        print(json.dumps(publish(args.kind, args.archive, args.coverage)), flush=True)
+        from scripts.publishing.mirrored import publish_offline as publish
+        print(json.dumps(publish(args.kind, args.archive, args.coverage, min_app_version=args.min_app_version)), flush=True)
     elif args.action == "retire-incremental":
         from scripts.publishing.storage import publication_lock
         from scripts.publishing.manual_delivery import retire_incremental
@@ -64,10 +65,9 @@ def main():
         result = publication_lock(cleanup_retention)(report_path=args.report, apply=args.apply)
         print(json.dumps(result), flush=True)
     elif args.action == "publish-app":
-        from scripts.publishing.application import publish, publish_alpha
-        publish = publish_alpha if args.channel == "alpha" else publish
+        from scripts.publishing.mirrored import publish_app as publish
         notes = args.notes_file.read_text(encoding="utf-8")
-        print(json.dumps(publish(args.archive, notes, args.previous_manifest, args.previous_catalog,legacy_bridge=args.legacy_bridge)), flush=True)
+        print(json.dumps(publish(args.archive, notes, args.previous_manifest, args.previous_catalog,channel=args.channel,legacy_bridge=args.legacy_bridge)), flush=True)
 
 
 if __name__ == "__main__":

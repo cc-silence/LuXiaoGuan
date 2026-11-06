@@ -1,3 +1,5 @@
+> Current hosting and preservation rules: [publishing.md](publishing.md). Cloudflare offline bundles are preserved; new bundles go to GitHub only. This overrides historical offline cleanup descriptions below.
+
 # Release delivery files
 
 The dist root contains application ZIPs and the offline package directories.

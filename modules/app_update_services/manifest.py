@@ -54,6 +54,7 @@ class Release:
     resource_revision: int = 0
     platform: str = "win-x64"
     channel: str = ""
+    mirrors: tuple = ()
 
 
 def parse_payload(payload: dict, *, expected_platform=None) -> Release:
@@ -92,8 +93,10 @@ def parse_payload(payload: dict, *, expected_platform=None) -> Release:
     revision = payload.get("resource_revision", 0)
     if type(revision) is not int or not 0 <= revision <= 1000000000:
         raise ValueError("Invalid resource revision")
+    from .sources import validate_mirrors
+    mirrors = validate_mirrors(payload)
     return Release(payload["version"], notes, https_url(payload.get("url")),
-                   digest, size, published, catalog_url, catalog_sha, catalog_size, None, revision, expected_platform, channel)
+                   digest, size, published, catalog_url, catalog_sha, catalog_size, None, revision, expected_platform, channel, mirrors)
 
 
 def verify_manifest(data: bytes, public_key: str, *, expected_platform=None) -> Release:

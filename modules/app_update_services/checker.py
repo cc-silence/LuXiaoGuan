@@ -87,7 +87,13 @@ class UpdateChecker(QObject):
             mode = config.get("network_mode", "auto")
             if mode not in {"auto", "proxy", "direct"}:
                 raise ValueError("Invalid update network mode")
-            self._channels = list(allowed_channels(None, "proxy" if mode != "direct" else "direct"))
+            from .channel import GATEWAY
+            self._dual_source = config.get("github_mirror", self._url.split('?')[0] == GATEWAY + '/manifest') is True
+            if self._dual_source:
+                from .sources import app_manifest, manifest_routes
+                self._channels = manifest_routes(self._url, app_manifest(package_platform, bool(self.test_code)), mode)
+            else:
+                self._channels = list(allowed_channels(None, "proxy" if mode != "direct" else "direct"))
             if not self._channels:
                 raise ValueError("\u672a\u914d\u7f6e\u53ef\u7528\u7684\u4ee3\u7406\u3002")
         except (OSError, ValueError, TypeError, AttributeError) as exc:
@@ -122,6 +128,9 @@ class UpdateChecker(QObject):
                     continue
             else:
                 proxy = QNetworkProxy(QNetworkProxy.NoProxy)
+            self._source = getattr(channel, 'source', 'legacy')
+            self._url = getattr(channel, 'url', self._url)
+            self._redirects = 0
             self._route_name = channel.name
             self._route_proxy_url = channel.proxy_url
             self._manager.setProxy(proxy)
@@ -136,8 +145,9 @@ class UpdateChecker(QObject):
         request = QNetworkRequest(QUrl(self._url))
         request.setRawHeader(b"User-Agent", ("RouterManager/" + self.current_version).encode("ascii"))
         request.setRawHeader(b"Accept", b"application/json")
+        request.setRawHeader(b"Cache-Control", b"no-cache")
         request.setRawHeader(b"X-RouterManager-Update-Mode", b"full-package")
-        if self._stage == "manifest" and self.test_code:
+        if self._stage == "manifest" and self.test_code and getattr(self, "_source", "legacy") != "github":
             request.setRawHeader(b"X-RouterManager-Test-Code", self.test_code.encode("ascii"))
         request.setAttribute(QNetworkRequest.RedirectPolicyAttribute, QNetworkRequest.ManualRedirectPolicy)
         request.setMaximumRedirectsAllowed(3)
@@ -173,6 +183,7 @@ class UpdateChecker(QObject):
         status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
         error = reply.error()
         publishing = bytes(reply.rawHeader(b"X-RouterManager-Release-State")) == b"publishing"
+        location = bytes(reply.rawHeader(b"Location")).decode('latin-1') if status in {301,302,303,307,308} else ''
         record("request_finished", stage=self._stage, route=getattr(self,"_route_name","unknown"),
                host=endpoint_host(getattr(self,"_url","")), status=status, qt_error=str(error),
                cf_ray=response_trace(reply.rawHeader(b"CF-Ray")),
@@ -181,11 +192,25 @@ class UpdateChecker(QObject):
         reply.deleteLater()
         if self._stopped:
             return
+        if status in {301,302,303,307,308} and getattr(self, '_source', '') == 'github' and not self._error:
+            try:
+                from .sources import redirect_url
+                if self._redirects >= 3: raise ValueError('Redirect limit exceeded')
+                self._url = redirect_url(self._url, location)
+                self._redirects += 1
+                self._request()
+            except ValueError:
+                self._finish(error='Untrusted update redirect')
+            return
         if self._error:
             self._finish(error=self._error)
         elif status == 204 and self._stage == "manifest":
             self.latest = None
             self.manifest_data = b""
+            self._finish()
+        elif status == 404 and self._stage == "manifest" and getattr(self, '_source', '') == 'github' and not self.test_code:
+            self.latest = None
+            self.manifest_data = b''
             self._finish()
         elif status == 403 and self._stage == "manifest":
             record("testing_access_failed", status=403)
@@ -203,7 +228,7 @@ class UpdateChecker(QObject):
             failures.append(route_failure(getattr(self, "_url", ""), getattr(self, "_route_proxy_url", ""),
                                           qt_failure_reason(error), status))
             self._route_failures = failures[-4:]
-            if (status is None or retryable_route_status(status)) and self._channels:
+            if (status is None or retryable_route_status(status) or (status == 404 and getattr(self, "_dual_source", False))) and self._channels:
                 self._next_channel()
             else:
                 self._finish(error="\u65e0\u6cd5\u8fde\u63a5\u66f4\u65b0\u670d\u52a1\u3002" + " ".join(self._route_failures))
@@ -215,6 +240,15 @@ class UpdateChecker(QObject):
                 else:
                     self.manifest_data = bytes(self._data)
                     release = verify_manifest(self.manifest_data, self.public_key)
+                    if getattr(self, '_source', '') == 'github':
+                        payload = json.loads(self.manifest_data)['payload']
+                        if self.test_code:
+                            from .sources import validate_testing
+                            validate_testing(payload, self.test_code)
+                            if version_key(release.version)[1] != 1:
+                                raise ValueError('Wrong GitHub testing channel')
+                        elif version_key(release.version)[1] != 4:
+                            raise ValueError('Wrong GitHub stable channel')
                     if version_key(release.version)[1] in {0,1,2,3} and not self.test_code:
                         self.latest = None
                         self.manifest_data = b""

@@ -74,6 +74,8 @@ def _receive(worker,release,staged,check):
         from modules.platform_services.update_dispatch import channel_config
         config=json.loads(channel_config(worker.root).read_text(encoding='utf-8'))
         channels=allowed_channels(None,'direct' if config.get('network_mode')=='direct' else 'proxy')
+    from .sources import package_routes, release_response
+    channels=package_routes(release.url,release.mirrors,channels)
     def cancelled():
         check();return False
     partial=PartialDownload('package.zip',release.size,release.sha256,cancelled,
@@ -89,9 +91,9 @@ def _receive(worker,release,staged,check):
                 try:proxy=bridges.http_proxy(channel.proxy_url)
                 except (OSError,ValueError,RuntimeError) as exc:raise requests.ConnectionError('Proxy setup failed') from exc
                 proxies={'http':proxy,'https':proxy} if proxy else {}
-                with session.get(release.url,proxies=proxies,timeout=(5,5),stream=True,
-                                 allow_redirects=False,headers=partial.headers()) as response:
-                    if retryable_route_status(response.status_code):raise requests.ConnectionError('Update route unavailable')
+                with release_response(session,channel.url,proxies=proxies,timeout=(5,5),stream=True,
+                                      headers=partial.headers()) as response:
+                    if retryable_route_status(response.status_code) or (response.status_code==404 and channel.source=='cloudflare' and index+1<len(channels)):raise requests.ConnectionError('Update route unavailable')
                     def progress(n):
                         now=time.monotonic()
                         if now-getattr(worker,'_last_progress',0)>=0.1 or n==release.size:

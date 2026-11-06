@@ -24,7 +24,7 @@ from modules.app_update_services.release_targets import channel_key, manifest_en
 from .alpha_space import reserve_alpha_space, resume_alpha_space, prepared_alpha, assert_alpha_channel, complete_alpha_space
 
 
-def prepare(archive, notes, previous_manifest=None, previous_catalog=None, *, legacy_bridge=False):
+def prepare(archive, notes, previous_manifest=None, previous_catalog=None, *, legacy_bridge=False, mirror=False):
     archive = Path(archive).resolve()
     descriptor = json.loads(metadata_path(archive,".release.json",existing=True).read_text(encoding="utf-8"))
     platform=validate_platform(descriptor.get("platform"))
@@ -59,6 +59,15 @@ def prepare(archive, notes, previous_manifest=None, previous_catalog=None, *, le
         url=gateway()+"/"+archive_key(platform,digest,archive.name), size=archive.stat().st_size,
         sha256=digest, published_at=datetime.now(timezone(timedelta(hours=8))).isoformat(timespec="seconds"))
     payload["delivery_mode"] = "full-package"
+    if mirror:
+        from modules.app_update_services.sources import asset_url
+        payload['mirrors'] = [asset_url('app-'+platform+'-'+payload['version'],archive.name)]
+        if version_key(payload['version'])[1] == 1:
+            from modules.platform_services.app_update_access import read_code
+            import hashlib
+            code=read_code(publisher=True) or read_code()
+            if not code: raise ValueError('Testing credential is required for signed GitHub eligibility')
+            payload['testing_code_sha256']=hashlib.sha256(code.encode('ascii')).hexdigest()
     objects = {}
     if legacy_bridge:
         from scripts.app_update_catalog import artifacts
@@ -66,6 +75,11 @@ def prepare(archive, notes, previous_manifest=None, previous_catalog=None, *, le
         payload.update(fields)
         payload['legacy_bridge']=True
     manifest = folder/"manifest.json"
+    if mirror and manifest.exists():
+        old=json.loads(manifest.read_bytes())['payload']
+        verify_manifest(manifest.read_bytes(), PUBLIC_KEY, expected_platform=platform)
+        if {k:v for k,v in old.items() if k!='published_at'} == {k:v for k,v in payload.items() if k!='published_at'}:
+            payload=old
     manifest.write_bytes(sign(payload))
     release = verify_manifest(manifest.read_bytes(), PUBLIC_KEY, expected_platform=platform)
     if release.catalog_url:parse_catalog(canonical(catalog),release)
@@ -84,11 +98,11 @@ def _require_empty_bridge(platform,channel):
 
 
 @publication_lock
-def publish(archive, notes, previous_manifest=None, previous_catalog=None, *, legacy_bridge=False):
+def publish(archive, notes, previous_manifest=None, previous_catalog=None, *, legacy_bridge=False, mirror=False):
     platform=_publication_platform(archive)
     if legacy_bridge and platform!="win-x64":raise ValueError("Linux has no legacy bridge")
     if legacy_bridge:_require_empty_bridge(platform,"stable")
-    archive, manifest, payload, objects = prepare(archive, notes, previous_manifest, previous_catalog,legacy_bridge=legacy_bridge)
+    archive, manifest, payload, objects = prepare(archive, notes, previous_manifest, previous_catalog,legacy_bridge=legacy_bridge,mirror=mirror)
     if version_key(payload["version"])[1] != 4:
         raise ValueError("Preview releases require a separately configured tester channel; stable channel was not changed")
     platform=payload["platform"]
@@ -144,7 +158,7 @@ def _publication_platform(archive):
 
 
 @publication_lock
-def publish_alpha(archive, notes='', previous_manifest=None, previous_catalog=None, *, legacy_bridge=False):
+def publish_alpha(archive, notes='', previous_manifest=None, previous_catalog=None, *, legacy_bridge=False, mirror=False):
     """Use the existing protected tester channel and verify public bytes before switching."""
     import tempfile
     import base64
@@ -176,7 +190,7 @@ def publish_alpha(archive, notes='', previous_manifest=None, previous_catalog=No
         previous_manifest = folder/'manifest.json'
         previous_catalog = None
         previous_manifest.write_bytes(current_raw)
-    archive, manifest, payload, objects = prepared_alpha(replacement) if replacement else prepare(archive, notes, previous_manifest, previous_catalog,legacy_bridge=legacy_bridge)
+    archive, manifest, payload, objects = prepared_alpha(replacement) if replacement else prepare(archive, notes, previous_manifest, previous_catalog,legacy_bridge=legacy_bridge,mirror=mirror)
     if version_key(payload['version'])[1] != 1:
         raise ValueError('Only alpha versions may use publish_alpha')
     if replacement is None:

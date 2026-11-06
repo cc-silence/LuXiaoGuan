@@ -41,12 +41,14 @@ class RetentionTests(unittest.TestCase):
                     self.api.channels[channel]=raw
         return patch.object(retention,'verify_bundle_manifest',side_effect=lambda raw,**_:json.loads(raw))
 
-    def test_one_bundle_per_kind_and_one_app_per_slot(self):
+    def test_cloudflare_bundles_are_preserved_and_apps_retained_per_slot(self):
         with self.bundles(), patch.object(storage,'verify_bundle_manifest',side_effect=lambda raw,**_:json.loads(raw)):report=self.clean()
         for kind in ['common','capture']:
             keys=[k for k in self.api.rows if k.startswith('offline/openwrt-'+kind+'/files/')]
-            self.assertEqual(len(keys),1);self.assertIn('/'+'b'*64+'/',keys[0])
-        self.assertEqual(len(report['deleted']),9)
+            self.assertEqual(len(keys),2)
+            self.assertTrue(any('/'+'a'*64+'/' in k for k in keys))
+            self.assertTrue(any('/'+'b'*64+'/' in k for k in keys))
+        self.assertEqual(len(report['deleted']),5)
 
     def test_failed_offline_signature_blocks_all_cleanup(self):
         self.bundles()

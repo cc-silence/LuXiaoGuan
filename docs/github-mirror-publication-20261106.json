@@ -1,0 +1,219 @@
+{
+  "status": "published-and-verified-with-direct-network-limitations",
+  "version": "1.0.48_alpha",
+  "scope": "PC-side hosting, publishing and update transport; no router command changes",
+  "rules": "docs/publishing.md",
+  "changes": {
+    "software": "same full ZIP on Cloudflare and GitHub",
+    "offline": "latest common/capture on GitHub only",
+    "cloudflare_old_offline": "preserve all six existing resources and their ETags",
+    "eligibility": "no code: stable only; verified code: alpha",
+    "software_network": "CF configured proxies first, then GitHub direct",
+    "offline_network": "preserve user-selected proxy/direct routes",
+    "source_repository": "unchanged; public repository holds release binaries only"
+  },
+  "tests": {
+    "run": 131,
+    "skipped": 1,
+    "failures": 0,
+    "log": "build/publishing/final-1.0.48-regression.log"
+  },
+  "platform_validation": {
+    "windows": "1.0.48 full ZIP CRC, version consistency, private-data exclusion, 696 main and 699 update-worker source modules verified; all five frozen smoke checks passed",
+    "debian12": "shared logic tested on Windows; no native Debian acceptance and no Linux publication"
+  },
+  "direct_network_limitations": "GitHub metadata was reachable, but direct release-assets.githubusercontent.com connections timed out in this environment; offline selected proxy route verified for both manifests",
+  "official_sources": [
+    "https://cli.github.com/manual/gh_auth_login",
+    "https://cli.github.com/manual/gh_release_create",
+    "https://cli.github.com/manual/gh_release_upload",
+    "https://docs.github.com/en/rest/releases/assets"
+  ],
+  "github_cli": {
+    "version": "2.103.3",
+    "zip_sha256": "98d0cfa794721665d7973dd728c78aff7bd836d58f10f6d7a03568eccb0a22e0"
+  },
+  "source_sha256": {
+    "modules/app_update_services/sources.py": "a7c2ab961e51f31ce7119a5e59a66913a7a44becbfb2cc9ab4c3809a91f430cb",
+    "modules/app_update_services/checker.py": "a1a868b8711b0ec40a7953af9aa358cba077c45135f115a55448f6fdc0db5a16",
+    "modules/app_update_services/manifest.py": "b05d96fa99aecb6d266f0461c327468222667c2a56406ee75b48539ed543d9a4",
+    "modules/app_update_services/full_package_transfer.py": "0d584b3d2c9830a414d0315baf9a1009bfcd03f6a447388f39310f217ba95125",
+    "modules/app_update_services/linux_full_package_transfer.py": "2b2600ddc6145e93cd9c32d6a9cc7d98594479ff5d7a579e0dc8b0b5d87e2b8f",
+    "modules/capture_services/openwrt/common_bundle_download.py": "8a98dc957453219464ca7aabd9eecbb343e6dd4cf0cf471638814313d8062e1d",
+    "modules/capture_services/openwrt/common_bundle_manifest.py": "fcb3861352a67a030356dac3845f0e98991b9a79aa5a88fe2ecb1ab193de284b",
+    "scripts/publishing/github_auth.py": "a431594f892c380b541fda2388e28c8afefc8ea098a9e465e9ad7c7de6dca932",
+    "scripts/publishing/github_release.py": "7d56ff56ed7975c1a76d3f8b7b57a513f19a0f77aa7c7b044a8913a178ccfef0",
+    "scripts/publishing/mirrored.py": "e5504f50777b65c60418f549e30f7c74869a4faebdfa49e27c225c3490b925cb",
+    "scripts/publishing/storage_api.py": "1f6f59a11539e2f17bc726b67ef1d88d51eb3b9bf9bbe0a5ac2f5c1e0268fc11",
+    "scripts/publishing/offline.py": "c9c030ce4d3813f6b0d0d43e5a625e650285eb993815f4edc0b9e39ba6444c3d",
+    "scripts/publishing/retention.py": "4973c5c22d0473f3c1429e3115ddbdc8be4fd154f1e22b9ccdf2a1ac61bb7c37",
+    "scripts/publishing/application.py": "18f7b8ce2cd0db3d9b6d62002bf07638d88f3f2f3bf52e0975c52fca441cca53",
+    "scripts/manage_publishing.py": "28906d7d1336af86b4501bb290e8256f9ee7d8c5abcf2a40ceed503acf3f2b1b",
+    "scripts/linux_release_layout.py": "f3ac18ab46f6e0ec6e9904332aa3473807ded9061423e6da75dc65b49ce60735",
+    "AGENTS.md": "cb921232eab657850dde8f7b8093fea5f93d10130df935c7056a626c186b929a",
+    "docs/publishing.md": "80169ad240dfa0f9ee293d031cb5790e0e0ac7483e359abd346d0ad8b39acc4e"
+  },
+  "previous_client_acceptance": {
+    "client_executable": "build\\publishing\\previous-client\\v1.0.47\\LuXiaoGuan.exe",
+    "current_version": "1.0.47_alpha",
+    "target_version": "1.0.48_alpha",
+    "manual_package_verified": true,
+    "download_bytes": 82139641
+  },
+  "software": {
+    "version": "1.0.48_alpha",
+    "size": 82139641,
+    "sha256": "cbdf571ff88d96168e1105bc28be2005392ca840f47311829be1c724ce2cfa4f",
+    "archive": "dist/LuXiaoGuan_v1.0.48_alpha_20261106_091430.zip"
+  },
+  "offline_publications": [
+    {
+      "kind": "common",
+      "status": "published-and-client-verified",
+      "manifest_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/update-channels/offline-common.json",
+      "archive_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/offline-common-f5d468bbebb7852eba2e9c28075ca68a07f2e567abb07586bf803202b670395b/RouterManager_OpenWrt_Common_Offline_20261105_222139.zip",
+      "sha256": "f5d468bbebb7852eba2e9c28075ca68a07f2e567abb07586bf803202b670395b",
+      "profiles": 1672,
+      "size": 281725977,
+      "cloudflare_offline_preserved": true
+    },
+    {
+      "kind": "capture",
+      "status": "published-and-client-verified",
+      "manifest_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/update-channels/offline-capture.json",
+      "archive_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/offline-capture-e71b3248df65df6f499d8d209bfc81c95802dfa2d9cb5280cc57602a8e608389/RouterManager_OpenWrt_Capture_Offline_20261105_220825.zip",
+      "sha256": "e71b3248df65df6f499d8d209bfc81c95802dfa2d9cb5280cc57602a8e608389",
+      "profiles": 1930,
+      "size": 241562783,
+      "cloudflare_offline_preserved": true
+    }
+  ],
+  "offline_existing_reminders": "manual Check package updates offers newer content; missing required dependencies advise updating; no automatic startup remote prompt",
+  "software_publication": {
+    "status": "published-and-client-verified",
+    "channel": "alpha",
+    "version": "1.0.48_alpha",
+    "archive_url": "https://routermanager-updates.routermanager-update-gateway.workers.dev/files/cbdf571ff88d96168e1105bc28be2005392ca840f47311829be1c724ce2cfa4f/LuXiaoGuan_v1.0.48_alpha_20261106_091430.zip",
+    "sha256": "cbdf571ff88d96168e1105bc28be2005392ca840f47311829be1c724ce2cfa4f",
+    "size": 82139641,
+    "manifest_url": "https://routermanager-updates.routermanager-update-gateway.workers.dev/manifest",
+    "uploaded_objects": 0,
+    "reused_objects": 0,
+    "github_manifest_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/update-channels/win-x64-alpha.json",
+    "github_archive_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/app-win-x64-1.0.48_alpha/LuXiaoGuan_v1.0.48_alpha_20261106_091430.zip",
+    "cloudflare_offline_preserved": true
+  },
+  "final_public_readback": {
+    "version": "1.0.48_alpha",
+    "sha256": "cbdf571ff88d96168e1105bc28be2005392ca840f47311829be1c724ce2cfa4f",
+    "size": 82139641,
+    "signed_notices_identical": true,
+    "github_alpha_valid_code_verified": true,
+    "github_alpha_invalid_code_rejected": true,
+    "github_testing_code_header_sent": false,
+    "old_cloudflare_offline_objects_preserved": 6,
+    "old_cloudflare_offline_bytes_preserved": 393155657
+  },
+  "live_client_checks": [
+    {
+      "ok": true,
+      "offered": null,
+      "name": "cf-no-code",
+      "routes": [
+        {
+          "source": "cloudflare",
+          "host": "routermanager-updates.routermanager-update-gateway.workers.dev",
+          "path": "/manifest",
+          "testing_header": false
+        }
+      ],
+      "eligibility_ok": true
+    },
+    {
+      "ok": false,
+      "error": "\u5185\u6d4b\u7801\u65e0\u6548\u6216\u5df2\u5931\u6548\uff0c\u8bf7\u66f4\u65b0\u5185\u6d4b\u7801\u6216\u9000\u51fa\u5185\u6d4b\u3002",
+      "name": "cf-invalid",
+      "routes": [
+        {
+          "source": "cloudflare",
+          "host": "routermanager-updates.routermanager-update-gateway.workers.dev",
+          "path": "/manifest",
+          "testing_header": true
+        }
+      ],
+      "eligibility_ok": true
+    },
+    {
+      "ok": true,
+      "offered": "1.0.48_alpha",
+      "name": "cf-valid",
+      "routes": [
+        {
+          "source": "cloudflare",
+          "host": "routermanager-updates.routermanager-update-gateway.workers.dev",
+          "path": "/manifest",
+          "testing_header": true
+        }
+      ],
+      "eligibility_ok": true
+    },
+    {
+      "ok": false,
+      "error": "\u65e0\u6cd5\u8fde\u63a5\u66f4\u65b0\u670d\u52a1\u3002\u76f4\u8fde github.com\uff1a\u8fde\u63a5\u6216\u8bfb\u53d6\u8d85\u65f6\u3002",
+      "name": "github-no-code",
+      "routes": [
+        {
+          "source": "github",
+          "host": "github.com",
+          "path": "/luxiaoguan-ui/luxiaoguan-publish/releases/download/update-channels/win-x64-stable.json",
+          "testing_header": false
+        }
+      ],
+      "eligibility_ok": true
+    },
+    {
+      "ok": false,
+      "error": "\u65e0\u6cd5\u8fde\u63a5\u66f4\u65b0\u670d\u52a1\u3002\u76f4\u8fde github.com\uff1a\u7f51\u7edc\u8fde\u63a5\u5931\u8d25\u6216\u88ab\u4e2d\u65ad\u3002",
+      "name": "github-valid",
+      "routes": [
+        {
+          "source": "github",
+          "host": "github.com",
+          "path": "/luxiaoguan-ui/luxiaoguan-publish/releases/download/update-channels/win-x64-alpha.json",
+          "testing_header": false
+        }
+      ],
+      "eligibility_ok": false
+    }
+  ],
+  "offline_selected_proxy_checks": [
+    {
+      "kind": "common",
+      "ok": true,
+      "sha256": "f5d468bbebb7852eba2e9c28075ca68a07f2e567abb07586bf803202b670395b",
+      "size": 281725977
+    },
+    {
+      "kind": "capture",
+      "ok": true,
+      "sha256": "e71b3248df65df6f499d8d209bfc81c95802dfa2d9cb5280cc57602a8e608389",
+      "size": 241562783
+    }
+  ],
+  "github_retention": {
+    "verified": true,
+    "tags": [
+      "update-channels",
+      "offline-common-f5d468bbebb7852eba2e9c28075ca68a07f2e567abb07586bf803202b670395b",
+      "offline-capture-e71b3248df65df6f499d8d209bfc81c95802dfa2d9cb5280cc57602a8e608389",
+      "app-win-x64-1.0.48_alpha"
+    ],
+    "superseded_software_removed": "1.0.47_alpha"
+  },
+  "additional_publisher_tests": {
+    "run": 21,
+    "failures": 0,
+    "log": "build/publishing/github-retention-regression.log",
+    "note": "Includes two new regressions for shared GitHub commit timestamps; overlaps earlier source-policy tests"
+  }
+}
