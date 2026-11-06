@@ -184,3 +184,29 @@ class RecoveryBoundaryTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class RecoveryPathGuardTests(unittest.TestCase):
+    def test_short_path_expansion_is_not_a_link(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from modules.capture_services.openwrt.password_recovery_store import RecoveryStore
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)/"recovery"
+            with patch.object(type(root),"resolve",return_value=Path(folder)/"long-name"):
+                RecoveryStore(root)._guard()
+
+    def test_parent_reparse_point_is_rejected(self):
+        import tempfile,stat
+        from pathlib import Path
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from modules.capture_services.openwrt.password_recovery_store import RecoveryStore
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)/"recovery";original=type(root).lstat
+            def inspect(path,*args,**kwargs):
+                if path==root.parent:return SimpleNamespace(st_mode=stat.S_IFDIR,st_file_attributes=0x400)
+                return original(path,*args,**kwargs)
+            with patch.object(type(root),"lstat",inspect):
+                with self.assertRaises(ValueError):RecoveryStore(root)._guard()

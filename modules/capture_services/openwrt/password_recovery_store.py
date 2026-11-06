@@ -65,8 +65,13 @@ class RecoveryStore:
         return self.root/(hashlib.sha256(fingerprint.encode()).hexdigest()+'-'+session+'.json')
 
     def _guard(self):
-        if self.root.is_symlink() or self.root.resolve()!=self.root.absolute():
-            raise ValueError('Linked recovery directory')
+        for path in (self.root.absolute(), *self.root.absolute().parents):
+            try:
+                attributes = getattr(path.lstat(), 'st_file_attributes', 0)
+            except FileNotFoundError:
+                attributes = 0
+            if path.is_symlink() or attributes & 0x400:
+                raise ValueError('Linked recovery directory')
 
     def save(self,data):
         validate(data);self._guard();self.root.mkdir(parents=True,exist_ok=True)
