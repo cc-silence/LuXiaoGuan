@@ -1,0 +1,115 @@
+{
+  "date": "2026-11-05",
+  "scope": "WPS resource preflight/consent and post-task wireless recovery, no candidate algorithm or driver changes.",
+  "findings": [
+    "Prior run configuration readback passed but runtime recovery remained unconfirmed.",
+    "phy1-sta0 existed before the recorded password verification; the archive does not prove its historical origin.",
+    "WPS frontend omitted takeover preflight/consent required by execution."
+  ],
+  "changes": [
+    "Reuse asynchronous read-only radio probe and existing confirmation; reject stale results, changed device/targets, and strict-idle conflicts. Per-task authority is not persisted.",
+    "Scoped restore/reload now uses existing bounded recovery observation policy. No new UI timers, custom retry loops or repeated reloads.",
+    "Read errors/deadline expiry remain unconfirmed; already active Wi-Fi is restored rather than forcibly disabled."
+  ],
+  "sources_read": [
+    {
+      "path": "build\\password-platform-compatibility-20261105\\netifd-35facc8306f590a7330789ab6d5785c0d43073ef-wireless.c.txt",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/35facc8306f590a7330789ab6d5785c0d43073ef/wireless.c",
+      "sha256": "daaee1d8f19b7b50cbca2f2a4f6985ffe0c12fe5b8915f01cc5063c77f8121f5",
+      "read_and_hash_verified": true
+    },
+    {
+      "path": "build\\password-platform-compatibility-20261105\\netifd-440eb0647708274cc8d7d9e7c2bb0cfdfba90023-wireless.c.txt",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/440eb0647708274cc8d7d9e7c2bb0cfdfba90023/wireless.c",
+      "sha256": "eeb972b4617676189be3b006d245e534dcd210b29247100353842f23fddbc376",
+      "read_and_hash_verified": true
+    },
+    {
+      "path": "build\\password-platform-compatibility-20261105\\netifd-5e02f94411b06f192fb2a7d9be9abde3549153a8-wireless.c.txt",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/5e02f94411b06f192fb2a7d9be9abde3549153a8/wireless.c",
+      "sha256": "add80662ea6203102392cbf1816abac2e84cfd0c217c6f51b549adeec8732302",
+      "read_and_hash_verified": true
+    },
+    {
+      "path": "build\\password-platform-compatibility-20261105\\netifd-753c351bc729967a691d99e27693be5aec334028-wireless.c.txt",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/753c351bc729967a691d99e27693be5aec334028/wireless.c",
+      "sha256": "add80662ea6203102392cbf1816abac2e84cfd0c217c6f51b549adeec8732302",
+      "read_and_hash_verified": true
+    },
+    {
+      "path": "build\\password-platform-compatibility-20261105\\netifd-76d2d41b7355e02f95fbfa79affbd232fb090595-wireless.c.txt",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/76d2d41b7355e02f95fbfa79affbd232fb090595/wireless.c",
+      "sha256": "07f82ff6dd085dc4561f3a8f1fc821fcc671e5057d7e707d4e455d2ecbe8fe3d",
+      "read_and_hash_verified": true
+    },
+    {
+      "path": "build\\password-platform-compatibility-20261105\\netifd-7901e66c5f273bceee8981bc8a0c8b0e60945f60-wireless.c.txt",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/7901e66c5f273bceee8981bc8a0c8b0e60945f60/wireless.c",
+      "sha256": "7c88f0fc26dfee3c872156acfbe9a8bd1098c042c30496fe3d4b0636b90587d4",
+      "read_and_hash_verified": true
+    },
+    {
+      "path": "build\\password-platform-compatibility-20261105\\netifd-7a58b995fdbecd9beed57e4d66d42cb3cf66aee2-wireless.c.txt",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/7a58b995fdbecd9beed57e4d66d42cb3cf66aee2/wireless.c",
+      "sha256": "fffeb242135fbce41dfd03017b5453520c0a1414006b78bd5b818e595a4cc5e6",
+      "read_and_hash_verified": true
+    },
+    {
+      "path": "build\\password-platform-compatibility-20261105\\netifd-8f82742ca4f47f459284f3a07323d04da72ea5f6-wireless.c.txt",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/8f82742ca4f47f459284f3a07323d04da72ea5f6/wireless.c",
+      "sha256": "07f82ff6dd085dc4561f3a8f1fc821fcc671e5057d7e707d4e455d2ecbe8fe3d",
+      "read_and_hash_verified": true
+    },
+    {
+      "path": "build\\password-platform-compatibility-20261105\\netifd-c18cc79d50002ab8529c21184aceb016c61ac61c-wireless.c.txt",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/c18cc79d50002ab8529c21184aceb016c61ac61c/wireless.c",
+      "sha256": "ef15c152c334f8288b62be2e094542989d8f86aca5e0ce6b8144a7f28a6744e2",
+      "read_and_hash_verified": true
+    },
+    {
+      "path": "build\\password-platform-compatibility-20261105\\netifd-ea01ed41f3212ecbe000422f3c122a01b93fe874-wireless.c.txt",
+      "url": "https://raw.githubusercontent.com/openwrt/netifd/ea01ed41f3212ecbe000422f3c122a01b93fe874/wireless.c",
+      "sha256": "7c88f0fc26dfee3c872156acfbe9a8bd1098c042c30496fe3d4b0636b90587d4",
+      "read_and_hash_verified": true
+    },
+    {
+      "path": "build\\password-platform-compatibility-20261105\\deployed-wireless.uc.txt",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.0/package/network/config/wifi-scripts/files/lib/netifd/wireless.uc",
+      "sha256": "e369670e9b92d0cdef5b116570be21d952b4f58fa462fc95e58a4f717b662738",
+      "read_and_hash_verified": true
+    },
+    {
+      "path": "build\\password-platform-compatibility-20261105\\deployed-wireless-device.uc.txt",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.0/package/network/config/wifi-scripts/files/lib/netifd/wireless-device.uc",
+      "sha256": "b8b4e0979adfcd264408175f10deb5c308832962538edc73add8f90b13551f3a",
+      "read_and_hash_verified": true
+    }
+  ],
+  "compatibility": {
+    "exact_release_mapping": "build/password-restore-three-pass-20261105/source-review.json",
+    "contract": "Existing common iw/ubus probing and netifd pending/up state; 25.12 uses deployed wifi-scripts sources. No new model or radio-number mapping.",
+    "desktop": "Common Python/Qt code; tested on Windows only. Debian runtime and router hardware remain unverified.",
+    "limit": "Bounded status observation does not prove original association or Internet connectivity; DFS or driver failure can still return unconfirmed."
+  },
+  "validation": {
+    "tests": 165,
+    "passed": 164,
+    "skipped": 1,
+    "skip_reason": "Existing POSIX regression requires Debian environment.",
+    "syntax": "passed",
+    "encoding": "passed",
+    "git_diff_check": "passed"
+  },
+  "files": {
+    "modules/main_pages/packet_capture_page.py": "631328a858afedd5f57d395effdba286fa1ffe857e46364571195c89f909e923",
+    "modules/main_pages/packet_capture/wps_start_controller.py": "6476688ed47821428ad5e73d8ec26e9e9546238528d553c62db8017d9cb53d83",
+    "modules/capture_services/openwrt/password_restore.py": "6248bb3873f98880a41d2128915ca5222a40ac5d2918ec089434ac04a8f05069",
+    "modules/capture_services/openwrt/password_verification.py": "3addca4f19e399858b61b2b281027c07d33af1f8e6713475a7284041e2dda79c",
+    "modules/capture_services/openwrt/signal_recovery.py": "a4195500d8416437970ee21d7ef9679966c285407e9a515a832ed4a220666109",
+    "tests/test_wps_start_controller.py": "ac02a5fc318505824b6fff133b527d0f069ba4a7528ce74e2b3e2ae2f5f2c302",
+    "tests/test_password_restore_settle.py": "62eca48d4b6fb10177090d45b5b8e08e2faf99c4953075e935e32aa3c7fce8ee",
+    "tests/test_password_restore.py": "93af1cf7ee2e43602cc978bd0084180ad0b16ce708135206c95e020cdcb785ce",
+    "tests/test_wps_random_mac.py": "f4036ba419f2cba96467098336cddc266976b868350fe1b641eed02349c0de29"
+  },
+  "deployment": "Source only; app not restarted, no router command executed."
+}

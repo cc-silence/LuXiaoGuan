@@ -15,6 +15,10 @@ from tests.posix_shell import local_shell as shell
 
 
 class RecoveryDispatchTests(unittest.TestCase):
+    def setUp(self):
+        migration=patch("modules.platform_services.user_data_migration.prepare_user_directories")
+        migration.start();self.addCleanup(migration.stop)
+
     def test_worker_flags_dispatch_before_loading_desktop(self):
         for flag,recover in [('--linux-update-worker',False),('--linux-update-recover',True)]:
             with patch.object(application,'sys',NS(argv=['app',flag,'job.json'])),patch('modules.app_update_services.linux_update_worker.main',return_value=7) as worker:
@@ -42,10 +46,11 @@ class RecoveryDispatchTests(unittest.TestCase):
 
     def test_windows_startup_keeps_its_existing_desktop_path(self):
         bootstrap=NS(run=Mock(return_value=4))
-        with patch.object(application,'sys',NS(argv=['app'],platform='win32',frozen=True,executable='C:/app/LuXiaoGuan.exe')),patch.dict(sys.modules,{'router_app.bootstrap':bootstrap}),patch.object(install,'recover_at_startup') as recover,patch.object(dispatch,'recover_before_gui',return_value=False) as selected:
+        with patch.object(application,'sys',NS(argv=['app'],platform='win32',frozen=True,executable='C:/app/LuXiaoGuan.exe')),patch.dict(sys.modules,{'router_app.bootstrap':bootstrap}),patch.object(install,'recover_at_startup') as recover,patch.object(dispatch,'recover_before_gui',return_value=False) as selected,patch('modules.desktop_shell.application_start.run_desktop',return_value=4) as desktop:
             self.assertEqual(application.main(),4);recover.assert_not_called()
             selected.assert_called_once_with(Path('C:/app'))
-            bootstrap.run.assert_called_once_with(application.APP_VERSION)
+            desktop.assert_called_once_with(application.APP_VERSION)
+            bootstrap.run.assert_not_called()
 
     def test_windows_recovery_uses_only_the_windows_backend(self):
         backend=NS(recover_interrupted_update=Mock(return_value=False))

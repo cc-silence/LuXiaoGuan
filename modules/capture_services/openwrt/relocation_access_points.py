@@ -5,6 +5,10 @@ from .ap_batch_identity import build_access_point_identities
 def access_point_snapshot(review):
     wireless = {row['section']:dict(row, **{'.type':'wifi-iface'})
                 for row in review['access_points']}
+    for row in review['access_points']:
+        radio = row.get('radio_config')
+        if isinstance(radio, dict) and isinstance(row.get('device'), str):
+            wireless[row['device']] = dict(radio, **{'.type':'wifi-device'})
     addresses = list(review['addresses']) + list(review.get('plan', {}).get('macs', ()))
     return dict(configs=dict(wireless=wireless, network={}),
                 devices={str(i):dict(macaddr=mac) for i,mac in enumerate(addresses)})

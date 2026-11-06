@@ -119,10 +119,16 @@ MISSING_SOURCE_ERROR = "软件源地址不存在或已失效（HTTP 404/410）�
 SERVER_SOURCE_ERROR = "软件源下载失败（wget 返回 8），请核对源地址和服务器响应"
 
 
+REQUEST_SOURCE_ERROR = "路由器下载请求被拒绝"
+_REQUEST_DENIED_LINE = re.compile(
+    r"(?m)^[ \t]*failed to send request:[ \t]*(?:operation not permitted|permission denied)[ \t]*\r?$"
+)
+
+
 def retryable_package_source_failure(message):
     """Allow another approved source without masking signature or ABI failures."""
     return any(reason in str(message) for reason in (
-        NETWORK_SOURCE_ERROR, MISSING_SOURCE_ERROR, SERVER_SOURCE_ERROR))
+        NETWORK_SOURCE_ERROR, MISSING_SOURCE_ERROR, SERVER_SOURCE_ERROR, REQUEST_SOURCE_ERROR))
 
 
 def package_error_reason(output):
@@ -131,9 +137,12 @@ def package_error_reason(output):
     # captured output so a genuine failure in an earlier feed is not discarded.
     text = str(output or '').lower()
     text = re.sub(r'(?m)^[ \t]*signature check passed\.?[ \t]*\r?$', '', text)
-    if any(reason in text for reason in ('permission denied', 'operation not permitted')):
+    # Only the downloader's complete request-error line is transport evidence.
+    # Keep every other line so genuine permission/signature/write errors win.
+    text, denied_requests = _REQUEST_DENIED_LINE.subn('failed to send request', text)
+    if any(reason in text for reason in ('permission denied', 'operation not permitted', 'not root')):
         return '\u5f53\u524d\u7528\u6237\u6743\u9650\u4e0d\u8db3'
-    if 'input/output error' in text:
+    if any(reason in text for reason in ('input/output error', 'read-only file system')):
         return '\u8def\u7531\u5668\u6587\u4ef6\u7cfb\u7edf\u8bfb\u5199\u5f02\u5e38'
     if any(x in text for x in ('could not lock', 'unable to lock', 'database is locked')):
         return '包管理器正被其他任务占用，稍后重试'
@@ -145,6 +154,8 @@ def package_error_reason(output):
         return '软件源中没有该软件包，请核对固件源'
     if any(x in text for x in ('unsatisfiable', 'unable to select packages', 'cannot satisfy', 'incompatible with the architectures')):
         return '依赖版本、架构或内核不匹配，未强制安装'
+    if denied_requests:
+        return REQUEST_SOURCE_ERROR
     if re.search(r"\b(?:404\s+not found|410\s+gone|http(?:/\d(?:\.\d)?)?(?: error)?[:\s]+(?:404|410))\b", text):
         return MISSING_SOURCE_ERROR
     if re.search(r"\bwget returned 8(?:\D|$)", text):

@@ -212,10 +212,16 @@ class OpenWrtWifiScanner:
                 privacy = row[5].strip()
                 cipher = row[6].strip()
                 auth = row[7].strip()
-                ssid = row[13].strip() or "__hidden__"
+                raw_ssid = row[13].strip()
+                ssid_length = _int(row[12])
+                hidden = (ssid_length == 0 or bool(raw_ssid and not raw_ssid.strip("\x00")))
+                if ssid_length is None:
+                    hidden = not raw_ssid.strip("\x00")
+                ssid = raw_ssid or "__hidden__"
                 points[bssid] = AccessPointInfo(
                     bssid=bssid,
                     ssid=ssid,
+                    ssid_hidden=hidden,
                     power=power,
                     channel=channel or 0,
                     band=band,

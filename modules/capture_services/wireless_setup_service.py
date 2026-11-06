@@ -122,6 +122,18 @@ class WirelessSetupService(QObject):
         approved, names = deepcopy(review), tuple(selected)
         return self._start("orphan_cleanup", lambda cancel, message: OrphanInterfaceManager(self.manager).cleanup(approved, names, cancel, message))
 
+    def capture_monitor_preview(self):
+        if self.owner.is_busy:return False
+        from .openwrt.monitor_cleanup import inspect
+        return self._start("capture_monitor_preview", lambda cancel,message: inspect(self.owner.openwrt_backend,cancel))
+
+    def cleanup_capture_monitors(self, review, selected, *, force=False):
+        from copy import deepcopy
+        from .openwrt.monitor_cleanup import cleanup
+        approved,names=deepcopy(review),tuple(selected)
+        if self.owner.is_busy:return False
+        return self._start("capture_monitor_cleanup", lambda cancel,message: cleanup(self.owner.openwrt_backend,approved,names,cancel,force=force))
+
     def review_pending(self):
         return self._start("pending_review", lambda cancel, message: self.manager.review_pending(cancel))
 
@@ -185,7 +197,7 @@ class WirelessSetupService(QObject):
             if deferred is not None:
                 return deferred
         from .management_diagnostics import ManagementTrace
-        diagnostic_action = action if action in {"move_preview","relocate","orphan_preview","orphan_cleanup"} else "wireless_"+action
+        diagnostic_action = action if action in {"move_preview","relocate","orphan_preview","orphan_cleanup","capture_monitor_preview","capture_monitor_cleanup"} else "wireless_"+action
         runner=getattr(getattr(self.owner,"openwrt_backend",None),"command_runner",None)
         trace=ManagementTrace(runner,diagnostic_action,{})
         original_operation=operation
@@ -198,7 +210,7 @@ class WirelessSetupService(QObject):
         identity = self._connection_identity()
         self._identity = identity
         session = uuid4().hex
-        read_only = {"password", "move_preview", "orphan_preview", "pending_review"}
+        read_only = {"password", "move_preview", "orphan_preview", "pending_review", "capture_monitor_preview"}
         kind = ("wireless_inspect" if action == "inspect" else
                 "router_inspect" if action in read_only else "wireless_apply_check" if action == "apply_check" else "wireless_setup")
         event = self.owner.task_controller.begin(kind, session)

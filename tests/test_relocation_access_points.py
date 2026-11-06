@@ -149,6 +149,26 @@ end
                 self.assertEqual(self.device.config,self.device.original)
                 self.assertFalse(self.device.sessions)
 
+    def test_relocation_preview_carries_actual_radio_band_into_editor(self):
+        from modules.capture_services.openwrt.relocation_access_points import access_point_snapshot
+        from modules.capture_services.openwrt.ap_batch_identity import access_point_band
+        for band,hwmode,label in (("2g","","2.4G"),("5g","","5G"),("6g","","6G"),
+                                  ("","11g","2.4G"),("","11a","5G")):
+            with self.subTest(band=band,hwmode=hwmode):
+                self.device.config['wireless']['radio7'].update(band=band,hwmode=hwmode)
+                self.device.config['wireless']['home']['ssid']='Misleading_5G'
+                before=copy.deepcopy(self.device.config)
+                review=self.manager.preview(self.cancel)
+                row=next(row for row in review['access_points'] if row['section']=='home')
+                self.assertEqual(row['radio_config'],dict(band=band,hwmode=hwmode))
+                snapshot=access_point_snapshot(review)
+                self.assertEqual(access_point_band(snapshot,'home'),{'2.4G':'2g','5G':'5g','6G':'6g'}[label])
+                dialog=relocation_identity_editor(review,None)
+                self.addCleanup(dialog.deleteLater)
+                title=next(item.text() for item in dialog.findChildren(QLabel) if 'Misleading_5G' in item.text())
+                self.assertTrue(title.endswith(label),title)
+                self.assertEqual(self.device.config,before)
+
     def test_real_dialog_has_old_names_editable_random_names_and_hidden_generated_macs(self):
         self.add_guest()
         review=self.manager.preview(self.cancel)

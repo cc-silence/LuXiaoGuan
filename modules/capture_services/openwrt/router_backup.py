@@ -156,7 +156,6 @@ class RouterBackupManager:
             raise RuntimeError("设备或配置已变化，请重新预览后确认。")
         if operation == "reset" and (current["reset_command"] == "none" or current["reset_command"] != review.get("reset_command")):
             raise RuntimeError("设备重置能力已变化，请重新预览。")
-        if operation=="reset" and not backup_path:raise ValueError("Factory reset requires a backup destination")
         if backup_path is None and backup_expected is not None:raise ValueError("Unexpected backup file identity")
         if operation == "restore" and backup_path is not None and Path(backup_path).resolve() == Path(review["source"]).resolve():
             raise ValueError("操作前备份不能覆盖即将恢复的源文件。")

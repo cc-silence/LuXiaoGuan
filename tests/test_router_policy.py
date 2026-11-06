@@ -5,6 +5,8 @@ import json
 import re
 import shlex
 import threading
+import tempfile
+import weakref
 import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock,patch
@@ -42,6 +44,10 @@ class PolicyDevice(CommonDevice):
         self.board=dict(model="Fixture",release=dict(distribution="OpenWrt",version="19.07" if legacy else "25.12"))
         self.ssh=SimpleNamespace(_client=object(),host_fingerprint="pinned",connected=True,_host="192.168.8.1",_port=22,_user="root")
         self.manager=SimpleNamespace(ssh=self.ssh,runner=self)
+        from modules.capture_services.openwrt.policy_backup_recovery import PolicyRecoveryStore
+        self.recovery_temp=tempfile.TemporaryDirectory()
+        weakref.finalize(self,self.recovery_temp.cleanup)
+        self.manager._policy_recovery_store=PolicyRecoveryStore(self.recovery_temp.name)
         self.policy=RouterPolicyManager(self.manager)
         self.policy._apply_channel_factory=lambda *args,**kwargs:PolicyChannel(self)
         self.cancel=threading.Event()
@@ -91,6 +97,11 @@ os.rename=function(a,b) return file_rename(a,b) end
             children={path for path in (*self.files,*self.policy_directories)
                       if path.startswith(directory+'/') and '/' not in path[len(directory)+1:]}
             return str(1+len(children))
+        if command.startswith("find /root -maxdepth 1 -name 'luxiaoguan-policy.*'"):
+            listing="\n".join(sorted(self.policy_directories))
+            return listing+"\nLXG_POLICY_INVENTORY_OK\n" if "LXG_POLICY_INVENTORY_OK" in command else listing
+        if command.startswith("(test ! -L /root && test -d /root)"):
+            return "" if '/root' in self.symlinks else "ok"
         if command.startswith("find /root"):return str(len(self.policy_directories))
         if command.startswith("umask 077; mktemp -d /root/"):
             self.policy_serial+=1

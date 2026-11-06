@@ -66,3 +66,12 @@ def build_access_point_identities(snapshot, requested=None):
         sections.add(section);addresses.add(mac)
         result.append(dict(section=section,old=targets[section].get("ssid",section),name=name,mac=mac))
     return result
+
+
+def access_point_band(snapshot, section):
+    """Resolve only the AP's configured device; never guess from its section name."""
+    from .wireless_radio_modes import radio_band
+    wireless = snapshot.get("configs", {}).get("wireless", {})
+    ap = wireless.get(section, {})
+    radio = wireless.get(ap.get("device"), {})
+    return radio_band(radio) if radio.get(".type") == "wifi-device" else None

@@ -37,6 +37,26 @@ local function policy_file_cleanup(dir,token,state)
  if type(dir)~="string" or not dir:match("^/root/luxiaoguan%-policy%.%w+$") or
     type(token)~="string" or not token:match("^%x+$") or #token~=16 or
     (state~="applied" and state~="restored") then fail("file_cleanup") end
+ if req.reconcile then
+  if type(req.hashes)~="table" then fail("file_cleanup") end
+  -- A fresh session cannot own another task's pending rollback.
+  local probe=rpc("session","create",{timeout=30}).ubus_rpc_session
+  if type(probe)~="string" or #probe~=32 or not probe:match("^%x+$") then fail("file_cleanup") end
+  local _,active=bus:call("uci","confirm",{ubus_rpc_session=probe})
+  optional("session","destroy",{ubus_rpc_session=probe})
+  if active~=5 then fail("pending") end
+  local cursor=uci.cursor()
+  if cursor:get_confdir()~="/etc/config" or cursor:get_savedir()~="/tmp/.uci" then fail("pending_unsupported") end
+  for _,config in ipairs(configs) do
+   local digest=pending_hash("/etc/config/"..config)
+   if digest~=req.hashes[config] then fail("changed") end
+   if digest~="absent" then
+    if not cursor:load(config) then fail("read") end
+    local dirty=cursor:changes(config)
+    if type(dirty)~="table" or next(dirty) then fail("pending") end
+   end
+  end
+ end
  if read("test -d "..q(dir).." && test ! -L "..q(dir).." && test ! -L /root && printf ok")~="ok" then fail("file_cleanup") end
  if pending_hash(dir.."/.owner")=="absent" or pending_hash(dir.."/journal.json")=="absent" then fail("file_cleanup") end
  local owner=io.open(dir.."/.owner","r");if not owner then fail("file_cleanup") end
@@ -121,3 +141,6 @@ local function policy_file_apply()
  return {written=true,backup_dir=dir}
 end
 '''
+
+from .policy_backup_inventory import INVENTORY_LUA
+FILES_LUA += INVENTORY_LUA

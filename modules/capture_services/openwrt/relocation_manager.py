@@ -89,6 +89,10 @@ class RelocationManager:
                      and row['section'] not in sections
                      and type(row.get('disabled')) is bool and type(row.get('radio_disabled')) is bool)
             if not valid:break
+            radio_config=row.get('radio_config')
+            if radio_config is not None:
+                valid=isinstance(radio_config,dict) and set(radio_config)<= {'band','hwmode'} and all(text(value,32) for value in radio_config.values())
+                if not valid:break
             sections.add(row['section'])
         valid = valid and all(isinstance(mac,str) and re.fullmatch(r'(?:[a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}',mac) for mac in review['addresses'])
         for target in review["targets"]:
