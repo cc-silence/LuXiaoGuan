@@ -1,6 +1,7 @@
 """猜密码字典列表，参照 WiKey 的三列结构，复用 \u8def\u5c0f\u7ba1 公共按钮和委托。"""
 from pathlib import Path
 from PySide6.QtCore import Qt, Signal
+from modules.main_pages.packet_capture.ui_helpers import VerticalResizeHandle
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTreeWidget, QTreeWidgetItem, QHeaderView, QAbstractItemView, QFileDialog
 from PySide6.QtGui import QShortcut, QKeySequence
 from modules.common_widgets.spaced_item_delegate import SpacedItemDelegate
@@ -8,6 +9,29 @@ from modules.main_pages.page_action_buttons import create_page_text_button
 from modules.dialog_theme import detect_light_theme
 from modules.ui_scale_manager import UiScaleManager
 from modules.config_services.capture_settings_manager import CaptureSettingsManager
+
+
+class DictionaryFileTree(QTreeWidget):
+    filesDropped = Signal(object)
+
+    def _local_files(self, event, *, validate=False):
+        if not self.isEnabled() or not event.mimeData().hasUrls():return ()
+        return tuple(url.toLocalFile() for url in event.mimeData().urls()
+                     if url.isLocalFile() and (not validate or Path(url.toLocalFile()).is_file()))
+
+    def dragEnterEvent(self, event):
+        if self._local_files(event):event.acceptProposedAction()
+        else:event.ignore()
+
+    def dragMoveEvent(self, event):
+        self.dragEnterEvent(event)
+
+    def dropEvent(self, event):
+        paths=self._local_files(event, validate=True)
+        if paths:
+            self.filesDropped.emit(paths)
+            event.acceptProposedAction()
+        else:event.ignore()
 
 
 class PasswordDictionaryEditor(QWidget):
@@ -20,7 +44,10 @@ class PasswordDictionaryEditor(QWidget):
         layout=QVBoxLayout(self)
         layout.setContentsMargins(0,0,0,0)
         layout.setSpacing(6)
-        self.tree=QTreeWidget(self)
+        self.tree=DictionaryFileTree(self)
+        self.tree.setAcceptDrops(True)
+        self.tree.setDropIndicatorShown(True)
+        self.tree.filesDropped.connect(self.append_paths)
         self.tree.setObjectName("captureDictionaryList")
         self.tree.setHeaderLabels(["字典名称","大小","所在位置"])
         self.tree.setRootIsDecorated(False)
@@ -32,10 +59,13 @@ class PasswordDictionaryEditor(QWidget):
         self.tree.header().setSectionResizeMode(0,QHeaderView.Interactive)
         self.tree.header().setSectionResizeMode(1,QHeaderView.ResizeToContents)
         self.tree.header().setStretchLastSection(True)
-        self.tree.setToolTip("按列表顺序使用字典。Ctrl/Shift 多选；Delete 只从列表移除，不删除原文件。")
+        self.tree.setToolTip("可拖入多个字典文件，拖动底部手柄调整高度。按列表顺序使用字典。Ctrl/Shift 多选；Delete 只从列表移除，不删除原文件。")
         UiScaleManager.for_widget(self).bind_metrics(self.tree,fixed_height=160)
         self.tree.setColumnWidth(0,UiScaleManager.for_widget(self).px(240))
         layout.addWidget(self.tree)
+        scale=UiScaleManager.for_widget(self)
+        self.resize_handle=VerticalResizeHandle(self.tree,scale.px(80),scale.px(600),self)
+        layout.addWidget(self.resize_handle)
         row=QHBoxLayout()
         self.add_button=self._button(row,"添加文件","一次选择多个文本字典，自动追加并去重。",self.choose_files)
         self.remove_button=self._button(row,"移除选中","只从列表移除，不删除字典原文件。",self.remove_selected)

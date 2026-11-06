@@ -4,12 +4,14 @@ import json
 import re
 import secrets
 import time
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from contextlib import contextmanager
 from pathlib import Path
 
 from modules.capture_services.openwrt.command_builder import normalize_bssid, quote_argument
 from .verification_diagnostics import verification_phase
+from .signal_recovery import SIGNAL_READY_SECONDS
+from .password_environment import interface_snapshot, restore_disabled, isolated_network, RELOAD_CHANGED_CONFIG
 from modules.capture_services.openwrt.result_converter import final_results_dir, safe_result_stem
 
 
@@ -17,14 +19,14 @@ from modules.capture_services.openwrt.result_converter import final_results_dir,
 _MAX_CANDIDATES = 100000
 
 # 远端备份与临时配置统一放在会话独立目录，不用固定 .bak 覆盖用户旧备份。
-_REMOTE_BACKUP_FILES = ("wireless", "network", "firewall")
+_REMOTE_BACKUP_FILES = ("wireless", "network")
 
 
 @dataclass(frozen=True)
 class PasswordTargetResult:
     """单个目标的验证结局：found 为真时 password_file 是写有密码的结果文件。
 
-    候选密码本身只进结果文件，绝不出现在 note、消息或快照中。
+    结果模型不携带密码；已找到的密码只经临时通知显示，不写入日志和快照。
     """
 
     bssid: str
@@ -36,6 +38,9 @@ class PasswordTargetResult:
     note: str = ""
     skipped: int = 0
     final: bool = True
+    error: bool = False
+    unconfirmed: int = 0
+    outcome: str = ""
 
 
 @dataclass(frozen=True)
@@ -47,10 +52,26 @@ class PasswordVerifyUpdate:
     target_label: str = ""
     target_index: int = 0
     target_total: int = 0
+    engine: str = ""
+    target_bssid: str = ""
+    candidate: str = field(default="", repr=False)
+    history_skipped: int = 0
+    speed_text: str = ""
+    speed_only: bool = False
+    attempt_started: float = 0.0
+    attempt_elapsed: float = -1.0
+    phase: str = ""
 
 
 class PasswordVerifyCancelled(RuntimeError):
     """用户取消或 SSH 中断时的内部控制流，已试部分保留计数。"""
+
+
+class PasswordTargetTimeout(TimeoutError):
+    """A submitted target timed out; counts only, never candidate contents."""
+    def __init__(self, tried, total, skipped):
+        self.tried,self.total,self.skipped=tried,total,skipped
+        super().__init__('Target authentication timed out')
 
 
 def dictionary_paths(settings):
@@ -76,11 +97,15 @@ class OpenWrtPasswordVerifier:
     """隔离高副作用密码验证，不与普通抓包或 WPS 实现混合。
 
     流程：读本地字典→选 radio→唯一备份→建临时 STA→逐密码试连（ubus 判成功）→
-    手术恢复（失败回退整文件覆盖）。任何退出路径都尝试恢复路由器配置。
+    局部恢复并读回核验。任何退出路径都尝试恢复路由器配置。
     """
 
     def __init__(self, command_runner):
         self.command_runner = command_runner
+        self._original_disabled = {}
+        self._original_devices = {}
+        self._modified_ifaces = set()
+        self._restore_check = None
 
     @staticmethod
     def load_candidates(local_path, cancel_event=None):
@@ -114,7 +139,7 @@ class OpenWrtPasswordVerifier:
         cancel_event 取消；progress_callback 接收 PasswordVerifyUpdate；
         target_callback(index, entry) 只报告开始（entry 为 None）与实际结局。
         pause_control 只在目标/候选边界等待，当前候选完成后暂停，恢复阶段不等待。
-        副作用：修改路由器 wireless/network/firewall（先唯一备份，finally 恢复）。
+        副作用：仅修改所选网卡和本任务网络配置（先独立备份，finally 恢复）。
         """
 
         local_output_dir = Path(local_output_dir)
@@ -126,6 +151,8 @@ class OpenWrtPasswordVerifier:
         setup_done = False
         self.last_restore_errors = ""
         self._configuration_touched = False
+        self._modified_ifaces = set()
+        self._restore_check = None
         primary_error = None
         self._attempt_history = attempt_history
         try:
@@ -151,6 +178,8 @@ class OpenWrtPasswordVerifier:
                 self.last_restore_errors = "路由器配置恢复异常，请重新连接后核实无线配置和网络状态。"
                 if primary_error is None:
                     raise
+            finally:
+                self._restore_check = None
             if finish_error is not None and primary_error is None:
                 raise RuntimeError("任务控制收尾异常，已尝试恢复路由器配置，请检查任务状态。") from None
         if self.last_restore_errors and results:
@@ -194,7 +223,7 @@ class OpenWrtPasswordVerifier:
             }
         ssid = str(target.ssid or "").strip()
         encryption = str(getattr(target, "encryption", "") or "").upper()
-        if not ssid or ssid == "__hidden__":
+        if not ssid or getattr(target, "ssid_hidden", False):
             return {
                 "entry": PasswordTargetResult(
                     bssid=bssid,
@@ -218,7 +247,9 @@ class OpenWrtPasswordVerifier:
                 ),
                 "setup_done": setup_done,
             }
-        if "SAE" in encryption and "PSK" not in encryption and "WPA" not in encryption:
+        from .password_security import unsupported_security_note
+        security_note = unsupported_security_note(encryption)
+        if security_note:
             return {
                 "entry": PasswordTargetResult(
                     bssid=bssid,
@@ -226,35 +257,40 @@ class OpenWrtPasswordVerifier:
                     found=False,
                     tried=0,
                     total=len(candidates),
-                    note="纯 SAE 加密暂不支持在线试连，跳过。",
+                    note=security_note,
                 ),
                 "setup_done": setup_done,
             }
         history = getattr(self, "_attempt_history", None)
         skipped = 0
         if history is not None:
-            pending = []
-            for candidate in candidates:
-                self._check_cancel(cancel_event)
-                if history.contains(target, candidate):skipped += 1
-                else:pending.append(candidate)
-            candidates = tuple(pending)
+            pending = history.filter_pending(target, candidates, cancel_event)
+            skipped = len(candidates) - len(pending)
+            candidates = pending
         if not candidates:
             return {"entry": PasswordTargetResult(bssid,ssid,False,0,skipped,
                 note="本轮没有新候选，已跳过已尝试记录。",skipped=skipped),"setup_done":setup_done}
         label = ssid or bssid
+        def phase(text):
+            if progress_callback is not None:
+                progress_callback(PasswordVerifyUpdate(0,len(candidates),target_label=label,
+                    target_index=index,target_total=total_targets,target_bssid=bssid,phase=text))
         radio = self._pick_radio(str(getattr(target, "band", "2.4G") or "2.4G"), cancel_event)
         if not setup_done or getattr(self, "_verification_radio", None) != radio:
+            phase("\u6b63\u5728\u51c6\u5907\u9a8c\u8bc1\u73af\u5883")
             self._setup_environment(sta_section, net_name, radio, cancel_event)
             self._verification_radio = radio
             setup_done = True
-        with self._control_session(sta_section, cancel_event) as control:
+        phase("\u6b63\u5728\u68c0\u6d4b\u5feb\u901f\u6a21\u5f0f\uff08\u7b49\u5f85\u63a7\u5236\u670d\u52a1\u54cd\u5e94\uff09")
+        with self._control_session(sta_section, cancel_event, phase) as control:
             tried = 0
+            unconfirmed = 0
             for password in candidates:
                 if pause_control is not None:
                     pause_control.checkpoint()
                 self._check_cancel(cancel_event)
                 tried += 1
+                attempt_started = time.monotonic()
                 if progress_callback is not None:
                     progress_callback(
                         PasswordVerifyUpdate(
@@ -263,17 +299,33 @@ class OpenWrtPasswordVerifier:
                             target_label=label,
                             target_index=index,
                             target_total=total_targets,
+                            engine="native" if control is not None else "compatibility",
+                            target_bssid=bssid,
+                            candidate=password,
+                            attempt_started=attempt_started,
+                            history_skipped=skipped,
                         )
                     )
                 if control is None:
                     self._set_credentials(sta_section, ssid, bssid, password, cancel_event)
                     connected = self._verify_connection(net_name, cancel_event)
                 else:
-                    connected = control.attempt(ssid, bssid, password)
-                if history is not None and not connected:
+                    try:
+                        connected = control.attempt(ssid, bssid, password)
+                    except TimeoutError as exc:
+                        self._check_cancel(cancel_event)
+                        if not self.command_runner.ssh_client.connected:
+                            raise
+                        raise PasswordTargetTimeout(tried, len(candidates), skipped) from exc
+                if progress_callback is not None:
+                    from .password_speed import PasswordAttemptElapsed
+                    progress_callback(PasswordAttemptElapsed(time.monotonic() - attempt_started))
+                if connected is None:
+                    unconfirmed += 1
+                if history is not None and connected is False:
                     history.mark(target, password)
                 if connected:
-                    stem = safe_result_stem(ssid, bssid)
+                    stem = safe_result_stem(ssid, bssid) + "-" + bssid.replace(":", "")
                     out_path = final_results_dir(local_output_dir) / f"{stem}-password.txt"
                     # 密码只写结果文件，不进日志、消息和快照。
                     fields = [
@@ -282,7 +334,10 @@ class OpenWrtPasswordVerifier:
                     ]
                     out_path.write_text("Wi-Fi名称\tMAC\t密码\n" + "\t".join(fields) + "\n", encoding="utf-8")
                     if history is not None:
-                        history.mark(target, password)
+                        history.mark_success(target, password, out_path)
+                    if progress_callback is not None:
+                        from .password_events import PasswordFoundNotice
+                        progress_callback(PasswordFoundNotice(ssid, bssid, str(out_path), password))
                     return {
                         "entry": PasswordTargetResult(
                             bssid=bssid,
@@ -302,20 +357,28 @@ class OpenWrtPasswordVerifier:
                 found=False,
                 tried=tried,
                 total=len(candidates),
-                note=f"字典 {len(candidates)} 个候选全部试过，未连上。",
+                note=(f"本轮有 {unconfirmed} 个候选的连接结果未确认，未判定为密码错误，也未写入永久跳过记录。"
+                      if unconfirmed else f"字典 {len(candidates)} 个候选全部试过，未连上。"),
                 skipped=skipped,
+                unconfirmed=unconfirmed,
             ),
             "setup_done": setup_done,
         }
 
     @contextmanager
-    def _control_session(self, section, cancel_event):
+    def _control_session(self, section, cancel_event, phase_callback=None):
         from .password_control import open_control, ControlUnavailable
         control = None
         try:
             try:
                 control = open_control(self.command_runner, section, cancel_event)
-            except ControlUnavailable:
+                if control is None and phase_callback is not None:
+                    from .password_control_diagnostics import unavailable_message
+                    phase_callback(unavailable_message("native_tool_missing"))
+            except ControlUnavailable as error:
+                if phase_callback is not None:
+                    from .password_control_diagnostics import unavailable_message
+                    phase_callback(unavailable_message(getattr(error, "native_reason", "native_initialization_failed")))
                 # Capability fallback is allowed only before submitting a candidate.
                 control = None
             journal = getattr(self.command_runner, "operation_diagnostics", None)
@@ -352,7 +415,7 @@ class OpenWrtPasswordVerifier:
 
     @verification_phase("configure")
     def _setup_environment(self, sta_section, net_name, radio, cancel_event):
-        """建临时 STA 与 DHCP 网络，禁用其他无线接口（状态已备份，按名恢复）。"""
+        """Configure the selected radio only; isolate the temporary DHCP route and DNS."""
 
         commands = [
             f"uci set wireless.{sta_section}=wifi-iface",
@@ -365,27 +428,32 @@ class OpenWrtPasswordVerifier:
             f"uci set wireless.{sta_section}.disabled='0'",
             f"uci set network.{net_name}=interface",
             f"uci set network.{net_name}.proto='dhcp'",
-            "uci commit wireless",
-            "uci commit network",
         ]
-        # wan zone 在备份阶段已查好，这里直接复用，不重复探测。
-        zone = getattr(self, "_wan_zone", None)
-        if zone is not None:
-            commands.append(
-                f"uci add_list firewall.{zone}.network={quote_argument(net_name)}"
-            )
-            commands.append("uci commit firewall")
-        # 禁用其他 wifi-iface，保证试连不受本机 AP 干扰；原 disabled 值已备份。
-        others = self._other_ifaces(sta_section, cancel_event)
+        commands.extend(isolated_network(net_name))
+        # Restore the previous task radio before moving the temporary STA to another.
+        for iface in sorted(self._modified_ifaces):
+            if self._original_devices.get(iface) != radio:
+                commands.append(restore_disabled(iface, self._original_disabled[iface]))
+        others = self._other_ifaces(sta_section, cancel_event, radio)
+        self._modified_ifaces.update(others)
         for iface in others:
-            commands.append(f"uci set wireless.{iface}.disabled='1'")
-        if others:
-            commands.append("uci commit wireless")
+            commands.append("uci set " + quote_argument(f"wireless.{iface}.disabled=1"))
+        commands.extend(["uci commit wireless", "uci commit network"])
+        if self._restore_check is not None:
+            self._restore_check.affected_radios.add(radio)
+        recovery = getattr(self, 'recovery_journal', None)
+        if recovery is not None:
+            recovery.arm(self._modified_ifaces, self._restore_check.affected_radios)
+            from .password_pending_changes import snapshot_guards
+            pending_guards = snapshot_guards(self.command_runner, sta_section, net_name,
+                                            self._modified_ifaces, cancel_event,
+                                            allow_owned=getattr(self, '_configuration_touched', False))
+            commands = pending_guards + recovery.guarded_setup(commands)
         self._run_batch("password_setup_env", commands, cancel_event)
-        self._run("password_reload", "wifi reload >/dev/null 2>&1", 60, cancel_event)
+        self._run("password_reload", RELOAD_CHANGED_CONFIG, 60, cancel_event)
         self._sleep(5, cancel_event)
-        self._run("password_ifup", f"ifup {quote_argument(net_name)}", 30, cancel_event)
-        self._sleep(3, cancel_event)
+        # netifd auto-starts this enabled network on reload. OpenWrt ifup
+        # reloads again and forces down/up, disrupting the just-created STA.
 
     def _set_credentials(self, sta_section, ssid, bssid, password, cancel_event):
         """写入本次试连的 SSID/BSSID/密码并重载无线。"""
@@ -396,8 +464,9 @@ class OpenWrtPasswordVerifier:
             f"uci set wireless.{sta_section}.key={quote_argument(password)}",
             "uci commit wireless",
         ]
-        self._run("password_set_cred", " && ".join(commands), 30, cancel_event)
-        self._run("password_reload", "wifi reload >/dev/null 2>&1", 60, cancel_event)
+        # Apply only after all settings have succeeded, in one owned SSH request.
+        commands.append(RELOAD_CHANGED_CONFIG)
+        self._run("password_set_cred", " && ".join(commands), 60, cancel_event)
         self._sleep(5, cancel_event)
 
     def _verify_connection(self, net_name, cancel_event):
@@ -412,11 +481,13 @@ class OpenWrtPasswordVerifier:
                 # 密码错误有时短暂关联后即断，连续 3 轮都在才算。
                 if stable >= 3:
                     return True
-                self._sleep(2, cancel_event)
             else:
                 stable = 0
+            # There is no next observation after the final sample.
+            if _round < 13:
                 self._sleep(2, cancel_event)
-        return False
+        # No IPv4 confirmation is not a cryptographic wrong-key verdict.
+        return None
 
     def _interface_up(self, net_name, cancel_event):
         """读 ubus 看接口是否 up 且有 IPv4；解析失败按未连上处理。"""
@@ -444,7 +515,7 @@ class OpenWrtPasswordVerifier:
 
     @verification_phase("backup")
     def _backup_configs(self, backup_dir, cancel_event):
-        """把 wireless/network/firewall 拷到会话独立远端目录，不覆盖用户旧备份。"""
+        """把 wireless/network 拷到会话独立远端目录，不覆盖用户旧备份。"""
 
         self._check_cancel(cancel_event)
         commands = [f"mkdir -p {quote_argument(backup_dir)}"]
@@ -455,110 +526,81 @@ class OpenWrtPasswordVerifier:
         # 记下其他 wifi-iface 的 disabled 原值，恢复时按名写回。
         self._run_batch("password_backup", commands, cancel_event)
         self._original_disabled = self._read_disabled_map(cancel_event)
-        self._wan_zone = self._find_wan_zone(cancel_event)
+        from .password_restore import PasswordRestoreCheck
+        self._restore_check = PasswordRestoreCheck.capture(self.command_runner, cancel_event)
+        recovery = getattr(self, 'recovery_journal', None)
+        if recovery is not None:
+            recovery.capture(self._original_disabled, self._original_devices, self._restore_check.baseline)
+        self._wan_zone = None
 
     def _read_disabled_map(self, cancel_event):
-        """读取所有 wifi-iface 的 disabled 原值，失败返回空（恢复时跳过）。"""
+        """读取接口的稳定名称和 disabled 原值；读取失败时停止修改。"""
 
-        try:
-            result = self.command_runner.run(
-                "password_read_ifaces", "uci show wireless", timeout=20, cancel_event=cancel_event
-            )
-        except Exception:
-            return {}
-        if result.cancelled or result.exit_code != 0:
-            return {}
-        disabled = {}
-        current = ""
-        for line in (result.stdout or "").splitlines():
-            match = re.match(r"wireless\.([A-Za-z0-9_]+)=(\S+)", line.strip())
-            if match and match.group(2) == "wifi-iface":
-                current = match.group(1)
-                continue
-            match = re.match(r"wireless\.([A-Za-z0-9_]+)\.disabled='([01])'$", line.strip())
-            if match and match.group(1) == current and current:
-                disabled[current] = match.group(2)
+        result = self.command_runner.run("password_read_ifaces", "uci -X show wireless", timeout=20, cancel_event=cancel_event)
+        self._raise_if_cancelled(result, "\u5728\u7ebf\u5bc6\u7801\u9a8c\u8bc1\u5df2\u53d6\u6d88\u3002")
+        if result.exit_code != 0 or result.timed_out:
+            raise RuntimeError("\u65e0\u6cd5\u8bfb\u53d6\u65e0\u7ebf\u63a5\u53e3\u5f52\u5c5e\uff0c\u5df2\u505c\u6b62\u9a8c\u8bc1\u4ee5\u907f\u514d\u5f71\u54cd\u4e0a\u7f51\u3002")
+        disabled, self._original_devices = interface_snapshot(result.stdout)
         return disabled
 
-    def _other_ifaces(self, sta_section, cancel_event):
-        """列出除临时 STA 外的 wifi-iface 名，失败返回空（不阻断主流程）。"""
-
-        return [
-            name
-            for name in (getattr(self, "_original_disabled", {}) or {})
-            if name != sta_section
-        ]
-
-    def _find_wan_zone(self, cancel_event):
-        """找 name='wan' 的 firewall zone 索引（如 @zone[1]），找不到返回 None。"""
-
-        try:
-            result = self.command_runner.run(
-                "password_find_zone", "uci show firewall", timeout=20, cancel_event=cancel_event
-            )
-        except Exception:
-            return None
-        if result.cancelled or result.exit_code != 0:
-            return None
-        current = ""
-        for line in (result.stdout or "").splitlines():
-            match = re.match(r"firewall\.(@zone\[\d+\])=zone", line.strip())
-            if match:
-                current = match.group(1)
-                continue
-            if current and line.strip() == f"firewall.{current}.name='wan'":
-                return current
-        return None
+    def _other_ifaces(self, sta_section, cancel_event, radio):
+        return [name for name in self._original_disabled
+                if name != sta_section and self._original_devices.get(name) == radio]
 
     @verification_phase("restore")
     def _restore(self, sta_section, net_name, backup_dir, cancel_event):
-        """手术恢复：删临时配置、写回 disabled、摘防火墙；失败回退整文件覆盖。
+        """Restore only owned configuration and selected-radio flags; never restart the network.
 
         返回值：空串表示干净恢复，否则是给用户看的恢复异常说明（不含密码）。
         """
 
+        recovery = getattr(self, 'recovery_journal', None)
+        if recovery is not None:
+            if not getattr(self, '_configuration_touched', False):
+                recovery.discard()
+                return ''
+            try:
+                recovery.recover(self.command_runner, self.command_runner.ssh_client.host_fingerprint)
+            except Exception:
+                return "\u914d\u7f6e\u6062\u590d\u672a\u786e\u8ba4\uff0c\u6062\u590d\u8bb0\u5f55\u5df2\u4fdd\u7559\uff1b\u91cd\u65b0\u767b\u5f55\u540c\u4e00\u8def\u7531\u5668\u540e\u81ea\u52a8\u6062\u590d\u3002"
+            return ''
         if not getattr(self, "_configuration_touched", True):
             return ""
         errors = []
-        zone = getattr(self, "_wan_zone", None)
         commands = [
-            f"uci delete wireless.{sta_section} 2>/dev/null || true",
-            f"uci delete network.{net_name} 2>/dev/null || true",
+            f"uci -q delete wireless.{sta_section} || true",
+            f"uci -q delete network.{net_name} || true",
         ]
-        for iface, value in (getattr(self, "_original_disabled", {}) or {}).items():
-            if iface == sta_section:
-                continue
-            commands.append(f"uci set wireless.{iface}.disabled='{value}'")
-        if zone is not None:
-            commands.append(
-                f"uci del_list firewall.{zone}.network={quote_argument(net_name)} 2>/dev/null || true"
-            )
-        commands.extend(["uci commit wireless", "uci commit network", "uci commit firewall"])
-        try:
-            self._run_batch("password_restore", commands, None)
-        except Exception as exc:
-            errors.append(f"手术恢复失败：{exc}")
-        if errors:
-            # 回退：会话独立备份整文件覆盖回来（不碰用户自己的 .bak）。
-            fallback = " ; ".join(
-                f"cp {quote_argument(backup_dir)}/{name} /etc/config/{name} 2>/dev/null || true"
-                for name in _REMOTE_BACKUP_FILES
-            )
+        for iface in sorted(self._modified_ifaces):
+            commands.append(restore_disabled(iface,self._original_disabled[iface]))
+        commands.extend(["uci commit wireless", "uci commit network"])
+        for command in commands:
             try:
-                self._run_batch("password_restore_fallback", [fallback, "uci commit", "wifi reload >/dev/null 2>&1"], None)
+                self._run("password_restore",command,30,None)
             except Exception as exc:
-                errors.append(f"备份回退也失败，现场在远端 {backup_dir}：{exc}")
+                errors.append(f"\u5c40\u90e8\u914d\u7f6e\u6062\u590d\u5931\u8d25\uff1a{exc}")
         try:
-            self._run("password_net_restart", "/etc/init.d/network restart >/dev/null 2>&1", 60, None)
+            self._run("password_reload",RELOAD_CHANGED_CONFIG,60,None)
         except Exception as exc:
-            errors.append(f"网络重启失败，请检查路由器：{exc}")
-        return "；".join(errors)
+            errors.append(f"\u53d8\u66f4\u914d\u7f6e\u91cd\u8f7d\u5931\u8d25\uff1a{exc}")
+        if self._restore_check is None:
+            errors.append("\u914d\u7f6e\u5df2\u5c1d\u8bd5\u6062\u590d\uff0c\u7f3a\u5c11\u539f\u59cb\u8fd0\u884c\u72b6\u6001\uff0c\u6062\u590d\u7ed3\u679c\u5c1a\u672a\u786e\u8ba4\u3002")
+        else:
+            checked = self._restore_check.verify(sta_section, net_name, self._original_disabled,
+                                                  self._original_devices, self._modified_ifaces,
+                                                  wait_seconds=SIGNAL_READY_SECONDS)
+            if checked:
+                errors.append(checked)
+        return "\uff1b".join(errors)
 
     def _run_batch(self, name, commands, cancel_event):
         """按序执行一批短命令；失败抛错，错误信息仅保留操作名和退出码。"""
 
-        for command in commands:
-            self._run(name, command, 30, cancel_event)
+        # Group each command so local "|| true" guards cannot hide an earlier
+        # failure. One request avoids a new SSH channel for every UCI option.
+        if commands:
+            self._run(name, " && ".join("( " + command + " )" for command in commands),
+                      30, cancel_event)
 
     def _run(self, name, command, timeout, cancel_event):
         """执行单条远端命令；取消、超时、非零退出一律抛错。"""
