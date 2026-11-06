@@ -42,3 +42,6 @@ Thumbs.db
 /tests/review-*.json
 /tests/window-firewall-verification.json
 /.agents/
+
+# Local compiler toolchain downloads
+/zig-linux-x86_64-*/
