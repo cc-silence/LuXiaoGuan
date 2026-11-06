@@ -24,7 +24,8 @@ def seed_assets(target):
     settings.remove_section("winbox_meta")
     settings.set("ui", "scale", "100")
     with (config/"settings.ini").open("w",encoding="utf-8") as out:settings.write(out)
-    shutil.copy2(ROOT/"config/app_update.json",config/"app_update.json")
+    from scripts.update_channel_assets import default_update_config
+    (config/"app_update.json").write_text(json.dumps(default_update_config("win-x64"),indent=2)+"\n",encoding="utf-8")
     from modules.config_services.proxy_config_manager import DEFAULT_PROXY_DATA
     (config/"proxy_config.json").write_text(json.dumps(DEFAULT_PROXY_DATA,indent=2)+"\n",encoding="utf-8")
     from modules.config_services.capture_settings_manager import CaptureSettingsManager

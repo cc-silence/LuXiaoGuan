@@ -228,7 +228,7 @@ def verify_builtin_base(path):
 def seed_assets(root, package):
     root = _directory(root); package = _directory(package)
     raw = subprocess.check_output(['git', '-C', str(root), 'ls-files', '-z', '--',
-                                   'images', 'themes', 'bin/openwrt_compatible', 'bin/hcx_compat', 'tools'], timeout=15)
+                                   'images', 'themes', 'bin/openwrt_compatible', 'bin/hcx_compat', 'bin/third_party_licenses', 'tools'], timeout=15)
     names = [name.decode('utf-8') for name in raw.split(b'\0') if name]
     names = [name for name in names if 'hc_offline_pack' not in Path(name).parts]
     required_tools={'tools/scripts/hcx_autocap.sh','tools/openwrt_base/base.zip'}
@@ -260,10 +260,10 @@ def seed_assets(root, package):
     (package/LAUNCHER).chmod(0o755)
     from modules.app_update_services.channel import GATEWAY
     from modules.app_update_services.manifest import canonical
-    from modules.app_update_services.release_targets import manifest_endpoint
+    from scripts.update_channel_assets import default_update_config
     channel=package/'resources/app-update-channel.json';channel.parent.mkdir(parents=True,exist_ok=True)
     with channel.open('xb') as output:
-        output.write(canonical(dict(schema=1,enabled=True,manifest_url=GATEWAY+manifest_endpoint('linux-x64'),network_mode='auto',github_mirror=True)))
+        output.write(canonical(default_update_config('linux-x64')))
     channel.chmod(0o644)
     verify_builtin_base(package/'bin/tools/openwrt_base/base.zip')
     return len(names)+2
