@@ -86,6 +86,19 @@ class RadioEditorTests(unittest.TestCase):
         self.assertEqual([dialog.bandwidth_combo.itemText(i) for i in range(dialog.bandwidth_combo.count())],["20 MHz","40 MHz"])
         self.assertEqual(dialog.standard_combo.findData("VHT"),-1)
 
+    def test_160mhz_warning_keeps_preserved_and_explicit_values(self):
+        for row in (None, SimpleNamespace(section="home",ssid="Home")):
+            dialog=self.dialog(band="5g",current="VHT160",row=row)
+            self.assertIn("不建议选择",dialog.bandwidth_combo.currentText())
+            self.assertNotIn("htmode",ap_request(dialog).options)
+            dialog.standard_combo.setCurrentIndex(dialog.standard_combo.findData("VHT"))
+            index=dialog.bandwidth_combo.findData("VHT160")
+            dialog.bandwidth_combo.setCurrentIndex(index)
+            self.assertIn("不建议选择",dialog.bandwidth_combo.currentText())
+            self.assertEqual(ap_request(dialog).options["htmode"],"VHT160")
+            dialog.bandwidth_combo.setCurrentIndex(dialog.bandwidth_combo.findData("VHT80"))
+            self.assertEqual(dialog.bandwidth_combo.currentText(),"80 MHz")
+
     def test_change_standard_retains_width_and_updates_encoded_mode(self):
         dialog=self.dialog(current="HE40")
         dialog.standard_combo.setCurrentIndex(dialog.standard_combo.findData("HT"))

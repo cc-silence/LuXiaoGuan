@@ -6,6 +6,21 @@ import re
 import time
 from .command_builder import quote_argument
 from .ssh_client import _close_resource
+from .password_control_diagnostics import ControlEvidence, REQUESTS
+
+
+_REQUESTS = REQUESTS
+
+
+class AuthenticationTimeout(TimeoutError):
+    """No conclusive authentication result; this is not a wrong-key verdict."""
+
+
+class ControlRequestTimeout(TimeoutError):
+    """Safe request metadata only, never credentials or remote output."""
+    def __init__(self, operation):
+        self.operation = operation if operation in _REQUESTS else 'unknown'
+        super().__init__('Supplicant control request timed out: ' + self.operation)
 
 
 class ControlUnavailable(RuntimeError):
@@ -23,26 +38,74 @@ def _line(text):
     return re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", text).strip().lstrip('> ').strip()
 
 
+def _reply_line(line, command):
+    """Separate native input redraws from exact reply/event grammar.
+
+    edit_redraw() can print a partially typed command without a newline.
+    The following daemon reply is then appended directly to that prefix.
+    """
+    operation = command.split(" ", 1)[0]
+    def payload(value):
+        if value == "PONG" or re.match(r"^(?:<\d+>)?CTRL-EVENT-", value):
+            return True
+        if operation == "status":
+            return re.fullmatch(r"(?:wpa_state|id|bssid)=.*", value) is not None
+        if operation == "add_network":
+            return value.isdigit() or value == "FAIL"
+        if operation in _REQUESTS - {"ping", "help", "status"}:
+            return value in {"OK", "FAIL", "UNKNOWN COMMAND"}
+        return False
+    if payload(line):
+        return line
+    for typed in (command, "ping"):
+        for length in range(len(typed), 0, -1):
+            prefix = typed[:length]
+            if line.startswith(prefix) and payload(line[length:]):
+                return line[length:]
+    return line
+
+
 class PasswordControl:
     """One SSH channel; runtime-only profiles; native events tied to fresh IDs."""
-    def __init__(self, ssh_client, interface, cancel, *, clock=time.monotonic, journal=None):
+    def __init__(self, ssh_client, interface, cancel, *, clock=time.monotonic, journal=None, transport="pipe"):
         self.cancel=cancel
         self.journal=journal
         self.clock=clock
         self.buffer=''
         self.events=deque(maxlen=128)
         self.network=None
+        self._redraw_reported=False
         self.streams=()
         self.channel=None
+        self._evidence=ControlEvidence(journal,transport,clock)
+        self._evidence.begin('control_open')
         try:
             command='HOME=/dev/null; export HOME; exec wpa_cli -i '+quote_argument(interface)
-            *self.streams,self.channel=ssh_client.exec_command(command,timeout=8,cancel_event=cancel)
+            if transport == "pty":
+                # The SSH owner negotiates no-echo, noncanonical terminal modes
+                # before exec; OpenWrt need not provide an external stty applet.
+                self.channel=ssh_client.open_control_stream(command,cancel_event=cancel,timeout=8)
+            else:
+                *self.streams,self.channel=ssh_client.exec_command(command,timeout=8,cancel_event=cancel)
+            self._evidence.emit('completed')
+            self._evidence.begin('control_ping')
             self.request('ping')
-            if not any(row.split(' ',1)[0]=='pmksa_flush' for row in self.request('help')):
+            self._evidence.emit('completed')
+            self._evidence.begin('control_help')
+            help_rows=self.request('help')
+            self._evidence.cache_supported=any(row.split(' ',1)[0]=='pmksa_flush' for row in help_rows)
+            if not self._evidence.cache_supported:
                 raise ControlUnavailable('Native authentication cache control unavailable')
+            self._evidence.emit('completed')
+            self._evidence.begin('control_cache')
             if self.request('pmksa_flush')!=['OK']:
                 raise ControlUnavailable('Supplicant cache control unavailable')
-        except Exception:
+            self._evidence.emit('completed')
+            self._evidence.begin('control_disconnect')
+            self.ok('disconnect')
+            self._evidence.emit('completed')
+        except Exception as error:
+            error.native_reason = self._evidence.failed(error,self.channel)
             self.close()
             raise
 
@@ -55,7 +118,9 @@ class PasswordControl:
             self.check_cancel()
             if '\n' in self.buffer:
                 line,self.buffer=self.buffer.split('\n',1)
-                return _line(line)
+                line=_line(line)
+                self._evidence.observe(line)
+                return line
             if self.clock()>=deadline:raise TimeoutError('Supplicant control response timed out')
             if self.channel.recv_ready():
                 data=self.channel.recv(4096)
@@ -65,11 +130,36 @@ class PasswordControl:
             elif self.channel.closed or self.channel.exit_status_ready():
                 raise ConnectionError('Supplicant control ended')
             else:
-                if self.channel.recv_stderr_ready():self.channel.recv_stderr(4096)
+                if self.channel.recv_stderr_ready():
+                    stderr=self.channel.recv_stderr(4096).decode('utf-8',errors='replace')
+                    for row in stderr.splitlines():self._evidence.observe(row)
                 if self.cancel is not None:self.cancel.wait(.025)
                 else:time.sleep(.025)
 
     def request(self, command, timeout=5):
+        operation=command.split(' ',1)[0]
+        if operation not in _REQUESTS:operation='unknown'
+        started=self.clock()
+        self._evidence.requested(command)
+        try:
+            rows=self._request(command,timeout)
+            self._evidence.response(rows)
+            return rows
+        except TimeoutError as exc:
+            if self.journal is not None:
+                self.journal.record('workflow',operation='password_auth',stage='verify',
+                    status='timeout',reason='native_rpc_'+operation+'_timeout',
+                    elapsed_seconds=self.clock()-started,**self._evidence.fields())
+            raise ControlRequestTimeout(operation) from exc
+        except Exception as error:
+            if self.journal is not None:
+                self.journal.record('workflow',operation='password_auth',stage='verify',
+                    status='failed',reason='native_control_request_failed',
+                    elapsed_seconds=self.clock()-started,exception_type=type(error).__name__,
+                    **self._evidence.fields())
+            raise
+
+    def _request(self, command, timeout=5):
         self.check_cancel()
         if '\n' in command or '\r' in command or '\0' in command:
             raise ValueError('Invalid supplicant control command')
@@ -78,7 +168,13 @@ class PasswordControl:
         rows=[]
         size=0
         while True:
-            line=self._readline(deadline)
+            raw = self._readline(deadline)
+            line = _reply_line(raw, command)
+            if line != raw and not self._redraw_reported:
+                self._redraw_reported = True
+                if self.journal is not None:
+                    self.journal.record("workflow",operation="password_auth",stage="capabilities",
+                        status="completed",reason="native_redraw_reply_recovered")
             if line=='PONG':return rows
             if line.startswith('<') or line.startswith('CTRL-EVENT-'):
                 event=_event(line)
@@ -91,6 +187,7 @@ class PasswordControl:
                 size+=len(line)
                 if size>65536:raise RuntimeError('Supplicant control reply exceeds limit')
                 rows.append(line)
+                self._evidence.partial(line)
 
     def ok(self, command):
         rows=self.request(command)
@@ -152,13 +249,16 @@ class PasswordControl:
             self.journal.record('workflow',operation='password_auth',stage='verify',
                 status='timeout' if reason=='authentication_unconfirmed' else 'completed',
                 reason=reason,elapsed_seconds=self.clock()-started)
+        if reason == "authentication_unconfirmed":
+            raise AuthenticationTimeout("Authentication result was not confirmed before the deadline")
         return found
 
     def close(self):
         if self.channel is not None:
             try:
-                if self.network is not None and not self.channel.closed:
-                    self.channel.sendall(f'disconnect\nremove_network {self.network}\nquit\n'.encode('ascii'))
+                if not self.channel.closed:
+                    commands = f'disconnect\nremove_network {self.network}\n' if self.network is not None else ''
+                    self.channel.sendall((commands+'quit\n').encode('ascii'))
             except Exception:
                 pass
             _close_resource(self.channel)
@@ -169,23 +269,55 @@ class PasswordControl:
 
 def open_control(runner, section, cancel):
     """Resolve runtime ownership from netifd; never infer wlan names from radio IDs."""
+    journal=getattr(runner,'operation_diagnostics',None)
     result=runner.run('password_control_probe',
         'command -v wpa_cli >/dev/null 2>&1 || exit 127; ubus call network.wireless status',
         timeout=10,cancel_event=cancel)
     if result.cancelled:raise InterruptedError('Password verification cancelled')
     if result.timed_out:raise TimeoutError('Password control capability check timed out')
-    if result.exit_code==127:return None
+    if result.exit_code==127:
+        if journal is not None:
+            journal.record('workflow',operation='password_auth',stage='control_identity',
+                           status='failed',reason='native_tool_missing',runtime_match_count=0)
+        return None
     if result.exit_code!=0:raise RuntimeError('Cannot inspect wireless runtime ownership')
     try:data=json.loads(result.stdout)
     except (ValueError,TypeError):raise RuntimeError('Invalid wireless runtime ownership') from None
     if not isinstance(data,dict):raise RuntimeError('Invalid wireless runtime ownership')
     matches=[]
+    runtime={}
     for radio in data.values():
         if not isinstance(radio,dict):continue
         for interface in radio.get('interfaces',[]):
             if isinstance(interface,dict) and interface.get('section')==section:
                 name=interface.get('ifname','')
-                if isinstance(name,str) and re.fullmatch(r'[A-Za-z0-9_.:-]{1,15}',name):matches.append(name)
+                if isinstance(name,str) and re.fullmatch(r'[A-Za-z0-9_.:-]{1,15}',name):
+                    matches.append(name)
+                    runtime=dict(runtime_radio_up=radio.get('up'),runtime_radio_pending=radio.get('pending'),
+                                 runtime_radio_disabled=radio.get('disabled'))
+    if journal is not None:
+        journal.record('workflow',operation='password_auth',stage='control_identity',
+                       status='completed' if len(matches)==1 else 'failed',
+                       reason='native_identity_available' if len(matches)==1 else 'native_interface_ambiguous',
+                       runtime_match_count=len(matches),**runtime)
     if len(matches)!=1:raise RuntimeError('Cannot uniquely resolve verification interface')
-    try:return PasswordControl(runner.ssh_client,matches[0],cancel,journal=getattr(runner,'operation_diagnostics',None))
-    except TimeoutError as exc:raise ControlUnavailable('Native control handshake unavailable') from exc
+    # Negotiate before any candidate. A rejected or incompatible terminal never
+    # triggers a retry of an already submitted password.
+    from .command_runner import _transport_errors
+    last_reason = 'native_initialization_failed'
+    for mode in ('pipe','pty'):
+        try:
+            control=PasswordControl(runner.ssh_client,matches[0],cancel,journal=journal,transport=mode)
+        except (TimeoutError,ControlUnavailable,ConnectionError)+_transport_errors() as exc:
+            last_reason = getattr(exc, "native_reason", "native_initialization_failed")
+            if cancel is not None and cancel.is_set():raise InterruptedError('Password verification cancelled') from exc
+            if not runner.ssh_client.connected:raise
+            if journal is not None:
+                journal.record('workflow',operation='password_auth',stage='capabilities',status='failed',reason='native_'+mode+'_unavailable')
+        else:
+            if journal is not None:
+                journal.record('workflow',operation='password_auth',stage='capabilities',status='completed',reason='native_'+mode+'_ready')
+            return control
+    error = ControlUnavailable('Native interactive control unavailable in terminal and pipe modes')
+    error.native_reason = last_reason
+    raise error

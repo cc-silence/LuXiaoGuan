@@ -1,7 +1,7 @@
 """Final human confirmation for configuration restore and factory reset."""
-from PySide6.QtWidgets import QVBoxLayout, QWidget, QLineEdit, QTextEdit
+from PySide6.QtWidgets import QVBoxLayout, QWidget, QCheckBox, QTextEdit
 from modules.common_widgets.frameless_dialog import FramelessDialog
-from modules.common_widgets.common_dialogs import apply_common_dialog_theme
+from modules.common_widgets.common_dialogs import apply_common_dialog_theme, _create_dialog_button
 from modules.settings_pages.settings_widgets import create_dialog_ok_cancel_buttons
 from .signal_setup_forms import hint, add_field
 from .settings_impacts import DISCONNECT_WARNING
@@ -22,18 +22,16 @@ class MaintenanceReviewDialog(FramelessDialog):
         self.warning_text.setObjectName("settingsMessageText")
         self.warning_text.setProperty("connectionWarning", True)
         self.warning_text.setReadOnly(True)
-        backup_note=("开始前会先生成当前配置备份并保存到电脑："+str(backup_path)+"。保存或校验失败就不会继续。" if backup_path else "本次不生成当前配置的备份，将直接恢复你选择的备份。")
-        warning=(DISCONNECT_WARNING+"\n\n"+message+"\n\n"+backup_note+
-            "配置备份不能找回被重置删除的软件或全部自建文件。")
-        if not backup_path:warning=backup_note+"\n\n"+DISCONNECT_WARNING+"\n\n"+message
+        backup_note = "选择“备份后执行”会先将当前配置保存到电脑，保存或校验失败就不会继续。选择“直接执行”将不生成当前配置备份。"
+        warning = DISCONNECT_WARNING + "\n\n" + message + "\n\n" + backup_note
+        warning += "配置备份不能找回被重置删除的软件或全部自建文件。"
         self.warning_text.setPlainText(warning)
         self.content_layout.addWidget(self.warning_text, 2)
         if reset:
-            self.input = QLineEdit(self)
-            self.input.setPlaceholderText("输入：恢复出厂")
+            self.confirm_reset = QCheckBox("我已了解上述风险，确认恢复出厂设置", self)
             body = QWidget(self)
             layout = QVBoxLayout(body)
-            add_field(layout, body, "再次确认", self.input, "输入“恢复出厂”后才能执行。")
+            add_field(layout, body, "再次确认", self.confirm_reset, "勾选后才能执行恢复出厂设置。")
             self.content_layout.addWidget(body)
         else:
             self.content_layout.addWidget(hint("归档包含 %d 项，大小 %.1f KiB。以下仅显示前 80 项：" %
@@ -43,12 +41,27 @@ class MaintenanceReviewDialog(FramelessDialog):
             listing.setReadOnly(True)
             listing.setPlainText("\n".join(review["files"]))
             self.content_layout.addWidget(listing, 1)
-        self.go, cancel = create_dialog_ok_cancel_buttons(self, "备份后执行重置" if reset else ("备份后恢复并重启" if backup_path else "恢复并重启"), "取消")
-        self.go.setEnabled(not reset)
-        self.go.setProperty("dangerAction", True)
-        self.button_layout.addWidget(self.go)
+        self.backup_requested = False
+        self.go, cancel = create_dialog_ok_cancel_buttons(self, "备份后执行重置" if reset else "备份后恢复并重启", "取消")
+        self.direct_button = _create_dialog_button("直接执行重置" if reset else "直接恢复并重启", self, "settingsSecondaryButton")
+        for button in (self.direct_button, self.go):
+            button.setEnabled(not reset)
+            button.setProperty("dangerAction", True)
+            self.button_layout.addWidget(button)
         self.button_layout.addWidget(cancel)
         if reset:
-            self.input.textChanged.connect(lambda text: self.go.setEnabled(text.strip() == "恢复出厂"))
-        self.go.clicked.connect(self.accept)
+            self.confirm_reset.toggled.connect(self.go.setEnabled)
+            self.confirm_reset.toggled.connect(self.direct_button.setEnabled)
+        self.go.clicked.connect(lambda: self._choose(True))
+        self.direct_button.clicked.connect(lambda: self._choose(False))
         cancel.clicked.connect(self.reject)
+
+    def _choose(self, backup):
+        self.backup_requested = backup
+        self.accept()
+
+    def accept(self):
+        confirmation = getattr(self, "confirm_reset", None)
+        if confirmation is not None and not confirmation.isChecked():
+            return
+        super().accept()

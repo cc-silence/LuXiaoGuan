@@ -212,6 +212,7 @@ class OpenWrtSshClient:
         timeout=15,
         auth_method="password",
         private_key_path="",
+        cancel_event=None,
     ):
         """建立 SSH 连接并校验主机指纹。
 
@@ -271,8 +272,15 @@ class OpenWrtSshClient:
                 self.login_diagnostics.update(stage="configuration")
                 connect_kwargs["pkey"] = load_selected_private_key(connect_kwargs.pop("key_filename"))
                 self.login_diagnostics.update(stage="tcp_connect")
-            client.connect(**connect_kwargs)
+            from .ssh_connect_control import login_socket
+            with login_socket(connect_kwargs["hostname"], connect_kwargs["port"], timeout, cancel_event) as sock:
+                if sock is not None:
+                    connect_kwargs["sock"] = sock
+                client.connect(**connect_kwargs)
         except Exception as exc:
+            if cancel_event is not None and cancel_event.is_set():
+                client.close()
+                raise InterruptedError("SSH login cancelled") from exc
             self.login_diagnostics.transport(client.get_transport())
             client.close()
             message = connection_message(exc, self.login_diagnostics.current(), self._port)
@@ -314,6 +322,9 @@ class OpenWrtSshClient:
                 if self._connecting_client is client:
                     self._connecting_client = None
         with self._lock:
+            if cancel_event is not None and cancel_event.is_set():
+                client.close()
+                raise InterruptedError("SSH login cancelled")
             self._client = client
             self._authenticated_settings = dict(host=connect_kwargs["hostname"],port=connect_kwargs["port"],
                 user=connect_kwargs["username"],auth_method=method,
@@ -351,7 +362,9 @@ class OpenWrtSshClient:
             stale = None
             if self._sftp is not None:
                 channel = self._sftp.get_channel()
-                if channel.closed is not True and channel.active is not False:
+                if (channel.closed is not True and channel.active is not False
+                        and getattr(channel, "eof_received", False) is not True
+                        and getattr(channel, "eof_sent", False) is not True):
                     return self._sftp
                 stale, self._sftp = self._sftp, None
             client = self._client
@@ -393,6 +406,13 @@ class OpenWrtSshClient:
         return self._open_pty_stream(connection, cancel_event, timeout, command=command,
                                      kind="terminal", term="xterm-256color", width=80, height=24)
 
+    def open_control_stream(self, command, cancel_event=None, timeout=8):
+        """Owned terminal channel for an interactive protocol, never a user console."""
+        with self._lock:
+            connection = self._client
+        return self._open_pty_stream(connection, cancel_event, timeout, command=command,
+                                     kind="control", term="dumb", width=240, height=24)
+
     def open_capture_stream(self, connection, command, cancel_event, timeout=10):
         """Open a capture channel; retry only before any command submission."""
         return self._open_pty_stream(connection, cancel_event, timeout, command=command,
@@ -414,7 +434,11 @@ class OpenWrtSshClient:
                 channel = connection.get_transport().open_session(timeout=remaining)
                 register(channel, "pty_request")
                 channel.settimeout(remaining)
-                channel.get_pty(term=term, width=width, height=height)
+                if kind == "control":
+                    from .ssh_terminal import request_control_pty
+                    request_control_pty(channel, term=term, width=width, height=height)
+                else:
+                    channel.get_pty(term=term, width=width, height=height)
                 register(channel, "exec_request")
                 if command is None:
                     channel.invoke_shell()

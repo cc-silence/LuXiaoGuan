@@ -8,7 +8,7 @@ from types import SimpleNamespace as NS
 from unittest.mock import Mock,patch
 import hashlib
 import unittest
-from modules.capture_services.openwrt.password_control import PasswordControl,ControlUnavailable,open_control,_event
+from modules.capture_services.openwrt.password_control import PasswordControl,ControlUnavailable,AuthenticationTimeout,open_control,_event
 from modules.capture_services.openwrt.password_verification import OpenWrtPasswordVerifier,PasswordVerifyCancelled
 from modules.capture_services.openwrt.command_runner import RemoteCommandResult
 from modules.capture_services.openwrt.operation_diagnostics import OperationDiagnostics
@@ -16,7 +16,7 @@ from modules.capture_services.openwrt.operation_diagnostics import OperationDiag
 BSSID='02:11:22:33:44:55'
 class Protocol:
     def __init__(self,modes=('wrong','good')):
-        self.closed=False;self.commands=[];self.output=bytearray();self.number=0
+        self.closed=False;self.commands=[];self.output=bytearray(b'Interactive mode\n\n> ');self.number=0
         self.modes=deque(modes);self.mode='wrong';self.active=None
     def sendall(self,data):
         for command in data.decode().splitlines():
@@ -53,6 +53,18 @@ class PasswordControlTests(unittest.TestCase):
         self.addCleanup(control.close)
         return control,channel,journal
 
+    def test_request_timeout_diagnostic_identifies_verb_without_credentials(self):
+        from modules.capture_services.openwrt.password_control import ControlRequestTimeout
+        control,channel,journal=self.control()
+        with patch.object(control,'_readline',side_effect=TimeoutError('controlled')):
+            with self.assertRaises(ControlRequestTimeout) as failure:
+                control.request('set_network 1 psk secret-fixture')
+        self.assertEqual(failure.exception.operation,'set_network')
+        evidence=str(journal.snapshot())
+        self.assertIn('native_rpc_set_network_timeout',evidence)
+        self.assertNotIn('secret-fixture',evidence)
+        self.assertNotIn('secret-fixture',str(failure.exception))
+
     def test_wrong_key_advances_to_fresh_id_and_authenticated_needs_no_dhcp(self):
         control,channel,journal=self.control()
         self.assertFalse(control.attempt('fixture',BSSID,'wrong-password'))
@@ -73,7 +85,8 @@ class PasswordControlTests(unittest.TestCase):
         for mode in ('wrong_bssid','old_id'):
             with self.subTest(mode=mode):
                 control,channel,_=self.control((mode,))
-                self.assertFalse(control.attempt('fixture',BSSID,'candidate',timeout=0))
+                with self.assertRaises(AuthenticationTimeout):
+                    control.attempt('fixture',BSSID,'candidate',timeout=0)
 
     def test_passphrase_derivation_and_raw_psk_do_not_depend_on_shell_quoting(self):
         control,channel,_=self.control(('good','good'))
@@ -146,7 +159,8 @@ class PasswordControlTests(unittest.TestCase):
 
     def test_unknown_failure_waits_for_deadline_without_claiming_wrong_key(self):
         control,channel,journal=self.control(('unknown',))
-        self.assertFalse(control.attempt('fixture',BSSID,'candidate',timeout=.02))
+        with self.assertRaises(AuthenticationTimeout):
+            control.attempt('fixture',BSSID,'candidate',timeout=.02)
         evidence=str(journal.snapshot())
         self.assertIn('authentication_unconfirmed',evidence)
         self.assertNotIn('wrong_key',evidence)

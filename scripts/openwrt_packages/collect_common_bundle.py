@@ -289,7 +289,15 @@ class Collector:
                        note="Firmware base libraries are device-provided; runtime must verify versions and installation plan.")
         if variants:
             catalog["hcx_variants"] = variants
-        (self.root / "bundle" / "catalog.json").write_bytes(json_bytes(catalog))
+        catalog_raw = json_bytes(catalog)
+        if len(catalog_raw) > 32 * 1024 * 1024:
+            # Expanded catalogs retain schema 1 but need the larger bounded reader.
+            catalog["min_app_version"] = "1.0.46_alpha"
+            catalog_raw = json_bytes(catalog)
+        from modules.capture_services.openwrt.common_bundle_manifest import MAX_CATALOG
+        if len(catalog_raw) > MAX_CATALOG:
+            raise ValueError("Offline catalog exceeds the supported reader limit")
+        (self.root / "bundle" / "catalog.json").write_bytes(catalog_raw)
         self.status("verifying", objects=len(self.objects))
         for sha, obj in self.objects.items():
             path = self.root / "bundle" / obj["blob"]

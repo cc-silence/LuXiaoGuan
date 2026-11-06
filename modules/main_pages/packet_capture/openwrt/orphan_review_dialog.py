@@ -22,19 +22,19 @@ REASONS = {
 }
 
 class OrphanReviewDialog(FramelessDialog):
-    def __init__(self, review, parent=None):
-        super().__init__("\u9057\u7559\u63a5\u53e3\u68c0\u67e5",parent,inherit_parent_stylesheet=False)
+    def __init__(self, review, parent=None, *, title=None, description=None, footer_text=None, source_labels=None, reasons=None, result_text=None, header_labels=None):
+        super().__init__(title or "\u9057\u7559\u63a5\u53e3\u68c0\u67e5",parent,inherit_parent_stylesheet=False)
         scale=UiScaleManager.for_widget(self)
         self.setStyleSheet(build_base_stylesheet(ConfigManager(),light_theme=detect_light_theme(parent),scale_manager=scale))
         self.set_scaled_size((620,340),(850,620))
-        label=QLabel("确认无配置引用、未绑定设备且未运行的遗留接口可勾选。不要求必须由本软件创建；仅在防火墙区域中登记不影响清理。",self)
+        label=QLabel(description if description is not None else "确认无配置引用、未绑定设备且未运行的遗留接口可勾选。不要求必须由本软件创建；仅在防火墙区域中登记不影响清理。",self)
         label.setObjectName("settingsHint")
         label.setWordWrap(True)
         self.content_layout.addWidget(label)
         self.tree=QTreeWidget(self)
         self.tree.setObjectName("softwareItemsTree")
         self.tree.setStyleSheet(scale.software_tree_stylesheet(100)[0])
-        self.tree.setHeaderLabels(("\u63a5\u53e3","\u6240\u5c5e\u4e0e\u533a\u57df","\u68c0\u67e5\u7ed3\u679c"))
+        self.tree.setHeaderLabels(header_labels or ("\u63a5\u53e3","\u6240\u5c5e\u4e0e\u533a\u57df","\u68c0\u67e5\u7ed3\u679c"))
         self.tree.setRootIsDecorated(False)
         self.tree.setUniformRowHeights(True)
         self.tree.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -42,11 +42,12 @@ class OrphanReviewDialog(FramelessDialog):
         self.tree.header().setStretchLastSection(True)
         self.tree.header().setSectionResizeMode(0,QHeaderView.ResizeToContents)
         self.tree.header().setSectionResizeMode(1,QHeaderView.ResizeToContents)
+        reason_labels = reasons or REASONS
         for row in review["rows"]:
-            owner="\u672c\u8f6f\u4ef6" if row["source"]=="owned" else "来源未登记"
+            owner=source_labels[row["source"]] if source_labels is not None else ("\u672c\u8f6f\u4ef6" if row["source"]=="owned" else "\u6765\u6e90\u672a\u767b\u8bb0")
             if row["zones"]:owner+=" / "+", ".join(row["zones"])
-            reasons="\uff1b".join(REASONS.get(r,"\u5b58\u5728\u672a\u786e\u8ba4\u7684\u5f15\u7528") for r in row["reasons"])
-            result="可清理：无配置引用、未绑定设备、未运行" if row["eligible"] else reasons
+            reasons="\uff1b".join(reason_labels.get(r,"\u5b58\u5728\u672a\u786e\u8ba4\u7684\u5f15\u7528") for r in row["reasons"])
+            result=result_text or "可清理：无配置引用、未绑定设备、未运行" if row["eligible"] else reasons
             item=QTreeWidgetItem(self.tree,(row["section"],owner,result))
             item.setFlags(Qt.ItemIsEnabled|Qt.ItemIsSelectable)
             item.setData(0,Qt.UserRole,row["section"])
@@ -63,7 +64,7 @@ class OrphanReviewDialog(FramelessDialog):
         self.tree.currentItemChanged.connect(self._show_details)
         if self.tree.topLevelItemCount():self.tree.setCurrentItem(self.tree.topLevelItem(0))
 
-        footer=QLabel("\u6e05\u7406\u524d\u4f1a\u518d\u6b21\u6838\u5bf9\u5e76\u5907\u4efd\u3002\u4ec5\u79fb\u9664\u52fe\u9009\u7684\u9057\u7559\u914d\u7f6e\u53ca\u5bf9\u5e94\u533a\u57df\u6210\u5458\uff0c\u4e0d\u91cd\u8f7d\u7f51\u7edc\u3002",self)
+        footer=QLabel(footer_text if footer_text is not None else "\u6e05\u7406\u524d\u4f1a\u518d\u6b21\u6838\u5bf9\u5e76\u5907\u4efd\u3002\u4ec5\u79fb\u9664\u52fe\u9009\u7684\u9057\u7559\u914d\u7f6e\u53ca\u5bf9\u5e94\u533a\u57df\u6210\u5458\uff0c\u4e0d\u91cd\u8f7d\u7f51\u7edc\u3002",self)
         footer.setObjectName("settingsHint");footer.setWordWrap(True)
         self.content_layout.addWidget(footer)
         self.clean_button=_create_dialog_button("\u6e05\u7406\u6240\u9009",self,"settingsPrimaryButton")

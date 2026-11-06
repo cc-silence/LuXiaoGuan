@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-05",
+  "scope": "Online verification radio isolation, Pin task lifecycle, unlimited handshake rounds",
+  "confirmed_fixes": [
+    "Limit temporary wireless changes and restoration to the selected radio",
+    "Prevent temporary network from claiming default route or DNS",
+    "Replace whole-network restart with netifd configuration reload",
+    "Only the originating Pin entry becomes the Stop button",
+    "Map quick Pin to existing Pixie Dust path",
+    "Publish per-target WPS preflight and completion immediately",
+    "Unlimited rounds no longer stop on repeated content; fixed mode unchanged"
+  ],
+  "transport_evidence": {
+    "observed": "Feedback showed native ping and disconnect RPC timeouts before authentication",
+    "change": "Negotiate PTY then pipe before candidates and verify disconnect readiness",
+    "local": "Official wpa_cli 2.10 edited and simple builds passed pipe and PTY contracts",
+    "limitation": "Router-specific cause not independently reproduced; live retest required"
+  },
+  "checks": {
+    "previous_windows_related": 134,
+    "after_control_cleanup": 36,
+    "current_rounds_settings_artifacts": 12,
+    "debian_backend_previous": 10,
+    "final_password_wps_ssh": 44
+  },
+  "remaining_boundaries": [
+    "Execution, cancellation, SSH loss, cleanup failure and uncheckable artifacts still have explicit terminal handling",
+    "No live router acceptance of these changes",
+    "No restart of the running app or packaging performed",
+    "Latest unlimited-round change not rerun on Debian 12"
+  ]
+}

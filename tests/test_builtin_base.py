@@ -44,7 +44,6 @@ class BuiltinBaseTests(unittest.TestCase):
             (root/"tools/openwrt_base").mkdir(parents=True)
             (root/"config").mkdir()
             shutil.copy2(resource_path(),root/"tools/openwrt_base/base.zip")
-            shutil.copy2(release_layout.ROOT/"config/app_update.json",root/"config/app_update.json")
             target=Path(directory)/"package"
             with patch.object(release_layout,"ROOT",root):
                 release_layout.seed_assets(target)

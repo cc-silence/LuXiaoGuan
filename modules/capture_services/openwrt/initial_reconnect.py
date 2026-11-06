@@ -74,6 +74,8 @@ def apply_initial(owner,review,snapshot,cancel,report,backup_note='',store=None)
             token=secrets.token_hex(8)
             file_backup=owner._call('files_apply',cancel,files=review['files'],token=token)['backup_dir']
             receipt.update(file_backup=file_backup,file_token=token);store.write(receipt)
+            from .policy_backup_recovery import remember
+            remember(owner,file_backup,token,current,review['files'])
         sid=owner._call('session',cancel)['sid']
         owner._call('stage',cancel,sid=sid,hashes=current['hashes'],operations=operations,timeout=20)
         if migration:
@@ -165,6 +167,11 @@ def verify_pending(owner,cancel,store=None):
         owner._run('upgrade_disable','/etc/init.d/attendedsysupgrade stop && /etc/init.d/attendedsysupgrade disable && ! /etc/init.d/attendedsysupgrade enabled',cancel,15)
     _complete_static(receipt.get('migration_plan'))
     _cleanup_backup(owner,receipt,cancel,'applied')
+    from .policy_backup_recovery import after_verified
+    recovery=after_verified(owner,dict(hashes=snapshot['hashes'],files=snapshot['files']))
     owner._current()
     store.remove(owner.fingerprint)
-    return dict(verified=True,note='\u521d\u59cb\u5316\u5df2\u5b8c\u6210\uff1a\u5df2\u6838\u5bf9\u539f\u8def\u7531\u5668\u8eab\u4efd\u3001\u914d\u7f6e\u548c\u65b0 Wi-Fi \u8fd0\u884c\u72b6\u6001\u3002')
+    result=dict(verified=True,note='\u521d\u59cb\u5316\u5df2\u5b8c\u6210\uff1a\u5df2\u6838\u5bf9\u539f\u8def\u7531\u5668\u8eab\u4efd\u3001\u914d\u7f6e\u548c\u65b0 Wi-Fi \u8fd0\u884c\u72b6\u6001\u3002')
+
+    if recovery:result['note']+='\n'+recovery['note']
+    return result

@@ -8,6 +8,7 @@ def connect_capture_errors(service):
     for signal, source in (
         (service.messageGenerated, "capture"),
         (service.settingsMessageGenerated, "router_login"),
+        (service.dependencyMessageGenerated, "router_dependencies"),
         (service.windowsMessageGenerated, "windows_capture"),
         (service.router_signals.messageGenerated, "router_signals"),
     ):

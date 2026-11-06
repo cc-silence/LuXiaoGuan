@@ -45,6 +45,7 @@ local function move_preview()
     local disabled=netifd_bool(s.disabled,false);local radio_disabled=netifd_bool(radio.disabled,false)
     if disabled==nil or radio_disabled==nil then fail("move_ap_support") end
     aps[#aps+1]={section=s[".name"],ssid=s.ssid or "",mode="ap",device=s.device,
+      radio_config={band=radio.band or "",hwmode=radio.hwmode or ""},
       macaddr=s.macaddr or "",runtime_mac=runtime[s[".name"]] or "",
       disabled=disabled,radio_disabled=radio_disabled}
    end

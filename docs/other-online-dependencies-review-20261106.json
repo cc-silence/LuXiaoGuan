@@ -1,0 +1,106 @@
+{
+  "date": "2026-11-06",
+  "scope": "Optional online dependency group; router installation paths affected",
+  "features": [
+    {
+      "key": "other_mounts",
+      "packages": [
+        "block-mount"
+      ]
+    },
+    {
+      "key": "other_terminal",
+      "packages": [
+        "ttyd",
+        "luci-app-ttyd"
+      ]
+    },
+    {
+      "key": "other_files",
+      "packages": [
+        "luci-app-filebrowser"
+      ]
+    },
+    {
+      "key": "other_uhttpd",
+      "packages": [
+        "luci-app-uhttpd"
+      ]
+    },
+    {
+      "key": "other_upnp",
+      "packages": [
+        "luci-app-upnp"
+      ]
+    },
+    {
+      "key": "other_dnscrypt",
+      "packages": [
+        "dnscrypt-proxy2"
+      ]
+    },
+    {
+      "key": "other_dnscrypt_ui",
+      "packages": [
+        "luci-app-dnscrypt-proxy"
+      ]
+    },
+    {
+      "key": "other_zerotier",
+      "packages": [
+        "zerotier"
+      ]
+    },
+    {
+      "key": "other_zerotier_ui",
+      "packages": [
+        "luci-app-zerotier"
+      ]
+    }
+  ],
+  "title": "Other - requires network installation",
+  "reuse": [
+    "Existing common dependency section and row components",
+    "Existing resident connection-bound task service, cancellation and post-check",
+    "Existing native opkg/apk preflight, source/mirror policy, plan verification and space checks",
+    "Existing PC network download, hashes, transfer and exact-firmware dependency resolution"
+  ],
+  "differences": [
+    "No prebuilt offline bundle controls or lookup",
+    "Optional features excluded from mandatory common/login install selection",
+    "Group button only checks; each optional feature installs after its normal confirmation"
+  ],
+  "not_included": [
+    "Memory-release button",
+    "Moved kernel-log, hostname and routing menus",
+    "Legacy switch menu on DSA",
+    "Unknown third-party NAS assistant implementation"
+  ],
+  "source_checks": {
+    "series": [
+      "openwrt-19.07",
+      "openwrt-21.02",
+      "openwrt-22.03",
+      "openwrt-23.05",
+      "openwrt-24.10",
+      "openwrt-25.12"
+    ],
+    "requests": 54,
+    "available": 42,
+    "absent": 12,
+    "manifest": "build\\other-dependencies-review-20261106\\sources\\manifest.json"
+  },
+  "validation": {
+    "tests_passed": 107,
+    "syntax_and_utf8_files": 11,
+    "windows_offscreen_visual": "Light and dark previews inspected",
+    "page_construction_seconds": 0.122
+  },
+  "limitations": [
+    "No live router install/uninstall performed",
+    "No native Debian desktop acceptance performed",
+    "Package availability depends on current exact firmware/architecture and its configured sources; branch recipe checks are not exact-release device acceptance",
+    "DNSCrypt and ZeroTier programs do not imply matching LuCI UI availability; unavailable UI packages are not fetched from another firmware",
+    "No build or publication requested"
+  ]
+}

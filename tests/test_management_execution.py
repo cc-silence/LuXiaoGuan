@@ -12,9 +12,15 @@ from modules.capture_services.openwrt.radio_takeover import OpenWrtRadioTakeover
 from modules.capture_services.backends.openwrt_backend import OpenWrtCaptureBackend
 from modules.capture_services.scan_management_service import ScanManagementService
 from modules.capture_services.openwrt.models import OpenWrtConnectionState
+from modules.capture_services.openwrt.wifi_scanner import WifiScanResult
 
 
 class ManagementExecutionTests(unittest.TestCase):
+    def setUp(self):
+        history = patch('modules.capture_services.password_scan_history.load_found_states', return_value={})
+        history.start()
+        self.addCleanup(history.stop)
+
     def test_takeover_checks_before_creating_any_configuration_transaction(self):
         for port, blocked in (("eth0.1",False),("phy0-ap0",True),("phy1-ap0",False)):
             with self.subTest(port=port):
@@ -43,12 +49,12 @@ class ManagementExecutionTests(unittest.TestCase):
                 backend.reconnect_cleanup.require_ready = Mock()
                 backend.workspace_manager.create = Mock()
                 backend.radio_session.create = Mock(return_value=NS(interface="wbmonfixture"))
-                backend.wifi_scanner.scan = Mock(return_value="scanned")
+                backend.wifi_scanner.scan = Mock(return_value=WifiScanResult((), "scanned"))
                 backend._finish_capture_task = Mock()
                 options = dict(band="2.4G",management_scan_allowed_phy="phy0",management_scan_phy="phy0",
                                management_scan_fingerprint="fingerprint")
                 if allowed:
-                    self.assertEqual(backend.scan_wifi("session",options),"scanned")
+                    self.assertEqual(backend.scan_wifi("session",options).csv_path,"scanned")
                     backend.radio_session.create.assert_called_once()
                 else:
                     with self.assertRaises(RuntimeError):
@@ -75,7 +81,7 @@ class ManagementExecutionTests(unittest.TestCase):
                 backend.reconnect_cleanup.require_ready = Mock()
                 backend.workspace_manager.create = Mock()
                 backend.radio_session.create = Mock(return_value=NS(interface="wbmonfixture"))
-                backend.wifi_scanner.scan = Mock(return_value="scanned")
+                backend.wifi_scanner.scan = Mock(return_value=WifiScanResult((), "scanned"))
                 backend._finish_capture_task = Mock()
                 settings = dict(band=band, management_scan_phy=target,
                                 management_scan_fingerprint="fingerprint")
@@ -84,7 +90,7 @@ class ManagementExecutionTests(unittest.TestCase):
                         backend.scan_wifi("session", settings)
                     backend.radio_session.create.assert_not_called()
                 else:
-                    self.assertEqual(backend.scan_wifi("session", settings), "scanned")
+                    self.assertEqual(backend.scan_wifi("session", settings).csv_path, "scanned")
                     backend.radio_session.create.assert_called_once()
                 self.assertEqual([call.args[0] for call in backend.command_runner.run.call_args_list],
                                  ["management_link_probe", "management_link_probe"])

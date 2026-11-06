@@ -2,13 +2,16 @@
 
 def install_with_sources(local, online, computer, tell):
     from .signal_manager import SignalError
-    tell("安装路线 1/3：正在匹配本机已下载的离线依赖包。", "info")
-    local_source = local()
-    if local_source:
-        if isinstance(local_source, str):
-            return local_source
-        return "本机已下载的离线包"
-    tell("未找到适配本次安装的本地离线包；安装路线 2/3：尝试由路由器联网更新软件源并安装。", "info")
+    if local is not None:
+        tell("安装路线 1/3：正在匹配本机已下载的离线依赖包。", "info")
+        local_source = local()
+        if local_source:
+            if isinstance(local_source, str):
+                return local_source
+            return "本机已下载的离线包"
+        tell("未找到适配本次安装的本地离线包；安装路线 2/3：尝试由路由器联网更新软件源并安装。", "info")
+    else:
+        tell("本组仅支持联网安装：尝试由路由器联网更新软件源并安装。", "info")
     online_error = None
     try:
         online()
@@ -19,7 +22,7 @@ def install_with_sources(local, online, computer, tell):
             raise
         online_error = exc
         tell("路由器联网路线失败：" + str(exc), "warning")
-    tell("安装路线 3/3：改由当前电脑下载和校验缺少的依赖，再传到路由器安装。", "warning")
+    tell(("安装路线 3/3：" if local is not None else "联网路线 2/2：") + "改由当前电脑下载和校验缺少的依赖，再传到路由器安装。", "warning")
     try:
         computer()
     except Exception as exc:

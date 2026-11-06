@@ -1,0 +1,67 @@
+{
+  "date": "2026-11-06",
+  "scope": "Idle owned wbmon collection at login and verified normal deletion. No capture engine changes.",
+  "root_cause": "Existing in-memory reconnect recovery had no idle-monitor fallback after loss of local task state. Normal owned deletion did not verify kernel absence.",
+  "behavior": [
+    "Pending same-device recovery still stops recorded processes before interfaces and workspace.",
+    "Authenticated login then checks only wbmon interfaces with exact routermanager ownership tokens and monitor type.",
+    "Retain current session, active packet socket, interface argv, bridge member, unknown owner or incomplete process inspection.",
+    "Recheck alias, phy and index immediately before deletion; verify absence after deletion.",
+    "Unknown or active resources remain blocked for new capture and reported during login."
+  ],
+  "limitations": [
+    "A name alone is not ownership. Older interfaces without an ownership marker are retained.",
+    "Live orphan processes without in-memory task records are retained, not killed.",
+    "Debian full application tests cannot import because PySide6 is missing. Exact non-Qt recovery source and POSIX script are tested separately in Debian 12.",
+    "No live router acceptance yet; no claim of all firmware/model validation.",
+    "Generic Linux ABI capability checks apply across supported architectures; unsupported/missing proc or tools fail closed."
+  ],
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/torvalds/linux/v4.14/net/packet/af_packet.c",
+      "sha256": "dc9c536de19d27ad98d651d7df722aba97396a50f60a1764ecc36daebadf43b8",
+      "file": "build\\monitor-recovery-sources\\v4.14-net-packet-af_packet.c",
+      "date": "2026-11-06"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/torvalds/linux/v5.15/net/packet/af_packet.c",
+      "sha256": "71cb3e364441ede217d13185a0a5a35d252a3b13ffb8cae05ff2664569758d80",
+      "file": "build\\monitor-recovery-sources\\v5.15-net-packet-af_packet.c",
+      "date": "2026-11-06"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/torvalds/linux/v4.14/Documentation/ABI/testing/sysfs-class-net",
+      "sha256": "3e1e4cae145162a71b4f2b413be4fe352407a238190f7e104391d0b8e2556f7e",
+      "file": "build\\monitor-recovery-sources\\v4.14-Documentation-ABI-testing-sysfs-class-net",
+      "date": "2026-11-06"
+    }
+  ],
+  "validation": [
+    "Windows 51 tests: manual/shell recovery, monitor transaction, reconnect cleanup, common settings regressions passed.",
+    "Windows 52 tests: manual cleanup, maintenance cards, auto capture and export passed.",
+    "Windows 12 final UI/diagnostic tests passed, including cleanup-vs-capture admission.",
+    "Debian 12: 16 exact non-Qt source/POSIX tests passed (isolated from unavailable PySide6 app initialization).",
+    "Final UI grouping moved to first common-settings group; Qt light/dark renders reviewed.",
+    "Additional 42-test review passed, including invalidation on same-device reconnect during preview; final broader review is recorded separately."
+  ],
+  "logs": [
+    "build/monitor-residuals-windows-tests.log",
+    "build/monitor-residuals-final-windows.log",
+    "build/monitor-residuals-debian-tests.log",
+    "build/monitor-manual-final-tests.log",
+    "build/monitor-ui-integration-tests.log",
+    "build/monitor-final-ui-tests.log",
+    "build/monitor-manual-debian-tests.log"
+  ],
+  "manual_cleanup": {
+    "location": "Common settings / first group",
+    "interfaces": [
+      "wbmon: scan and directed capture",
+      "hcxmon: automatic capture"
+    ],
+    "force": "User-selected force option bypasses socket/process occupancy checks only. Exact device/connection, interface index, phy, monitor type and owner checks remain mandatory. Legacy hcxmon without alias requires explicit selection and confirmation.",
+    "concurrency": "Read-only preview can open during ordinary/foreground automatic capture using the management read-only queue. Actual cleanup is refused while application capture is active; all three automatic-start entries respect the shared controller.",
+    "ui": "Asynchronous open/finished lifecycle releases completed inspection workers; active capture can view the dialog. Force cannot enable actual cleanup during a running application task."
+  },
+  "continued_review": "docs/cold-idle-capture-three-pass-review-20261106.json"
+}

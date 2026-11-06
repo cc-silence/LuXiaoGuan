@@ -55,7 +55,7 @@ from modules.capture_services.openwrt.ssh_client import HostKeyChangedError
 from modules.capture_services.openwrt.ssh_client import HostKeyConfirmationRequired
 from modules.capture_services.openwrt.wifi_scanner import OpenWrtWifiScanner
 from modules.capture_services.openwrt.wps_capture import OpenWrtWpsCapture
-from modules.capture_services.openwrt.wps_capture import WpsTargetResult
+from modules.capture_services.openwrt.wps_capture import WpsTargetResult, WpsUpdate
 from modules.capture_services.openwrt.workspace import CaptureWorkspace, CaptureWorkspaceFactory, CaptureWorkspaceManager
 from modules.capture_services.openwrt.workspace import local_session_root
 
@@ -264,14 +264,10 @@ def _emit_wps_message(message_callback, entry, mask_ssid=False, mask_bssid=False
     if message_callback is None:
         return
     name = str(entry.ssid or entry.bssid or "")
-    if entry.psk_ok:
-        message_callback(f"{name}：已 Pin 出密码并写入：{entry.result_file}。", "success")
-    elif entry.pin_ok:
-        message_callback(f"{name}：仅拿到 PIN，已写入：{entry.result_file}。", "success")
-    elif entry.tried_seconds:
-        message_callback(f"{name}：跑了 {entry.tried_seconds} 秒，未拿到 PIN。" + (entry.note or ""), "warning")
-    else:
-        message_callback(f"{name}：{entry.note or '未能 Pin。'}", "warning")
+    from modules.capture_services.openwrt.wps_result_text import result_message, record_detail
+    record_detail(entry.note)
+    text, level = result_message(entry)
+    message_callback(f"{name}：{text}", level)
 
 
 def _fail_with_site(exc, workspace):
@@ -356,6 +352,8 @@ class OpenWrtCaptureBackend(CaptureBackend):
         # 陌生新鲜记录仍跳过（可能是同机另一实例的活会话）。重启后清空，回到保守规则。
         self._finished_sessions = set()
         self.reconnect_cleanup = ReconnectCleanup(self)
+        from ..openwrt.password_recovery_store import RecoveryStore
+        self.password_recovery_store = RecoveryStore()
         # 信号清单推送回调，由常驻服务装配（抓包 worker 在接管/恢复后顺手刷新
         # 信号页）。默认 None 即关闭，不影响任何抓包流程。
         self.signal_refresh_callback = None
@@ -460,6 +458,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 timeout=15,
                 auth_method=settings.get("auth_method", "password"),
                 private_key_path=settings.get("private_key_path", ""),
+                cancel_event=cancel_event,
             )
         except HostKeyConfirmationRequired as exc:
             return OpenWrtConnectionResult(
@@ -484,7 +483,14 @@ class OpenWrtCaptureBackend(CaptureBackend):
             except Exception:
                 pass
         try:
+            from ..openwrt.password_recovery import recover_pending
+            password_recovered = recover_pending(self.password_recovery_store, self.command_runner,
+                                                 key_info.fingerprint, cancel_event, progress_callback=progress_callback)
             recovery_note = self.reconnect_cleanup.recover(key_info.fingerprint, cancel_event)
+            from ..openwrt.monitor_residuals import login_monitor_cleanup
+            recovery_note += login_monitor_cleanup(self, cancel_event)
+            if password_recovered:
+                recovery_note += "\u4e0a\u6b21\u5bc6\u7801\u9a8c\u8bc1\u7684\u4e34\u65f6\u914d\u7f6e\u5df2\u81ea\u52a8\u6062\u590d\u5e76\u6838\u5b9e\u6e05\u7406\u3002"
             device = self.device_probe.probe(cancel_event)
             sftp=self.dependency_manager.check_sftp(cancel_event)
             sftp_available=True if sftp.state.value=="ready" else False if sftp.state.value=="missing" else None
@@ -492,7 +498,8 @@ class OpenWrtCaptureBackend(CaptureBackend):
             dependencies = self.dependency_manager.check(
                 dict(settings.get("enabled_features", {})),
                 sftp_available, cancel_event, device=device)
-            from modules.capture_services.openwrt.common_tool_dependencies import TOOL_KEYS, check_tools
+            from modules.capture_services.openwrt.tool_catalog import TOOL_KEYS, check_tools
+            from modules.capture_services.openwrt.other_tool_dependencies import OTHER_KEYS
             dependencies=tuple(sftp if item.key=="sftp" else item for item in dependencies)
             checked_keys = {item.key for item in dependencies}
             unchecked_tools = tuple(key for key in TOOL_KEYS if key not in checked_keys)
@@ -501,7 +508,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 dependencies += (self.dependency_manager.check_terminal(cancel_event),)
             dependencies = tuple(
                 replace(item, detail=item.detail + "\uff1b\u5b89\u88c5\u65f6\u4f18\u5148\u68c0\u67e5\u5df2\u4e0b\u8f7d\u7684\u672c\u5730\u79bb\u7ebf\u5305\uff0c\u5e76\u6838\u5bf9\u5b9e\u9645\u4f9d\u8d56\u662f\u5426\u5339\u914d\u3002")
-                if item.state.value == "missing" and item.missing_packages else item
+                if item.state.value == "missing" and item.missing_packages and item.key not in OTHER_KEYS else item
                 for item in dependencies
             )
             detail = "OpenWrt SSH 登录和设备探测完成."
@@ -517,6 +524,8 @@ class OpenWrtCaptureBackend(CaptureBackend):
             recover_note = self._recover_crashed_takeovers(cancel_event)
             if recover_note:
                 detail += recover_note
+            if cancel_event is not None and cancel_event.is_set():
+                raise InterruptedError("SSH login cancelled")
             return OpenWrtConnectionResult(
                 status="connected",
                 detail=detail,
@@ -823,7 +832,9 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 session_id, radio, band, cancel_event=cancel_event,
                 idle_radio_only=bool(settings.get("idle_radio_only", False)),
             )
-            return self.wifi_scanner.scan(
+            from ..password_scan_history import scan_with_password_history
+            return scan_with_password_history(
+                self.wifi_scanner.scan,
                 workspace,
                 record.interface,
                 session_id,
@@ -831,8 +842,9 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 settings.get("scan_seconds", 24),
                 settings.get("refresh_seconds", 10),
                 self.workspace_manager,
-                cancel_event,
-                progress_callback,
+                cancel_event=cancel_event,
+                progress_callback=progress_callback,
+                message_callback=message_callback,
             )
         except Exception as exc:
             primary_error = _ssh_lost_error(self.ssh_client, exc)
@@ -1139,6 +1151,9 @@ class OpenWrtCaptureBackend(CaptureBackend):
                     f"字典载入 {len(candidates)} 个候选{skip_note}，开始逐个试连。",
                     "info",
                 )
+            from ..openwrt.password_recovery import PasswordRecoveryJournal
+            self.password_verifier.recovery_journal = PasswordRecoveryJournal(
+                self.password_recovery_store, session_id, self.ssh_client.host_fingerprint)
             results = verify_with_history(
                 self.password_verifier,
                 targets,
@@ -1157,10 +1172,11 @@ class OpenWrtCaptureBackend(CaptureBackend):
             if cancel_event is not None and cancel_event.is_set():
                 raise PasswordVerifyCancelled("在线密码验证已取消。")
             if restore_errors:
-                restore_errors = "路由器配置恢复未完成，请检查无线配置和网络状态后重新连接。"
+                restore_errors = "\u914d\u7f6e\u6062\u590d\u672a\u786e\u8ba4\uff0c\u6062\u590d\u8bb0\u5f55\u5df2\u4fdd\u7559\uff1b\u91cd\u65b0\u767b\u5f55\u540c\u4e00\u8def\u7531\u5668\u540e\u5c06\u81ea\u52a8\u6062\u590d\u5e76\u6838\u5b9e\u3002"
         except Exception as exc:
             reporter.interrupted(isinstance(exc, PasswordVerifyCancelled))
             primary_error = _ssh_lost_error(self.ssh_client, exc)
+            from modules.capture_services.openwrt.password_control import ControlRequestTimeout
             # 验证期间的异常可能回显含 key 的命令，禁止转发到 worker 消息/诊断。
             if candidates:
                 if isinstance(exc, PasswordVerifyCancelled):
@@ -1169,6 +1185,8 @@ class OpenWrtCaptureBackend(CaptureBackend):
                         primary_error = RuntimeError(
                             "在线密码验证已取消；路由器配置恢复未完成，请重新连接并检查无线配置和网络状态。"
                         )
+                elif isinstance(exc, ControlRequestTimeout):
+                    primary_error = RuntimeError(f"路由器无线认证控制请求超时（{exc.operation}），已停止验证并尝试恢复配置；当前候选未被记为错误密码。" + ("配置恢复未确认，请重新连接后检查。" if self.password_verifier.last_restore_errors else ""))
                 elif primary_error is not exc:
                     primary_error = RuntimeError("OpenWrt SSH 连接已断开，请重新登录后检查配置恢复情况。")
                 else:
@@ -1211,6 +1229,8 @@ class OpenWrtCaptureBackend(CaptureBackend):
         中断才整体中断（已完成部分保留）。确认必须由页面层在主线程提前完成。
         """
 
+        from modules.capture_services.openwrt.wps_options import prepare_wps_options
+        settings = dict(settings, wps_defaults=prepare_wps_options(settings.get("wps_defaults"), mode=mode))
         targets = tuple(targets or ())
         if not targets:
             raise ValueError("WPS 任务至少需要一个已扫描目标。")
@@ -1228,7 +1248,23 @@ class OpenWrtCaptureBackend(CaptureBackend):
         primary_error = None
         options = dict(settings.get("wps_defaults", {}) or {})
         results = []
+
+        def report_target(target, index, phase):
+            if progress_callback is not None:
+                progress_callback(WpsUpdate(
+                    elapsed=0, total=0, target_label=_mask_name(settings, target.ssid, target.bssid),
+                    target_index=index, target_total=len(targets), phase=phase,
+                    target_bssid=target.bssid,
+                ))
+
         try:
+            if mode == "normal" and message_callback is not None:
+                seconds = max(0, min(int(options.get("attack_seconds", 0) or 0), 3600))
+                rounds = max(1, min(int(options.get("attack_rounds", 1) or 1), 20))
+                if seconds == 0:
+                    message_callback("\u5e38\u89c4 Pin \u4e0d\u9650\u5236\u603b\u65f6\u957f\uff1b\u6210\u529f\u3001\u5de5\u5177\u7ed3\u675f\u6216\u624b\u52a8\u505c\u6b62\u65f6\u7ed3\u675f\u3002", "info")
+                else:
+                    message_callback(f"\u5e38\u89c4 Pin \u6bcf\u4e2a\u76ee\u6807\u7684\u8fd0\u884c\u4e0a\u9650\u4e3a {seconds} \u79d2 \u00d7 {rounds} \u8f6e\uff1b\u5230\u65f6\u7531\u8f6f\u4ef6\u505c\u6b62\uff0c\u4e0d\u8868\u793a\u5df2\u8bd5\u5b8c\u5168\u90e8 PIN\u3002", "info")
             self.workspace_manager.create(workspace, cancel_event)
             for index, target in enumerate(targets):
                 if cancel_event is not None and cancel_event.is_set():
@@ -1243,27 +1279,62 @@ class OpenWrtCaptureBackend(CaptureBackend):
                         f"正在 Pin 第 {index + 1}/{len(targets)} 个：{label}。",
                         "info",
                     )
+                from modules.capture_services.openwrt.wps_diagnostics import WpsDiagnosticTrace
+                trace = WpsDiagnosticTrace(session_id, index, len(targets), target, mode, options)
+                skipped = self.wps_capture.skipped_result(target, mode, options)
+                if skipped is not None:
+                    trace.skipped(target)
+                    trace.finish(skipped)
+                    results.append(skipped)
+                    _emit_wps_message(message_callback, skipped, mask_ssid=_mask_on(settings,"ssid"), mask_bssid=_mask_on(settings,"bssid"))
+                    continue
+                report_target(target, index, "准备")
                 takeover_record = None
                 errors = []
+                preparation_stage = "radio_selection"
                 try:
+                    trace.event("preparation_stage", stage=preparation_stage)
                     phy = self._find_scan_radio(
                         target.band, cancel_event, idle_radio_only=bool(settings.get("idle_radio_only", False)),
                         message_callback=message_callback,
                     )
+                    preparation_stage = "takeover"
+                    trace.event("preparation_stage", stage=preparation_stage)
                     takeover_record = self._maybe_takeover(
                         workspace, session_id, phy, settings, cancel_event,
                         f"w{index}", task_type="wps",
                         expected_band=target.band,
                         message_callback=message_callback,
                     )
+                    preparation_stage = "monitor_creation"
+                    trace.event("preparation_stage", stage=preparation_stage)
                     record = self.radio_session.create(
                         session_id, phy, target.band, cancel_event=cancel_event,
                         idle_radio_only=bool(settings.get("idle_radio_only", False)),
                     )
+                    from modules.capture_services.openwrt.wps_source import ensure_wps_source
+                    preparation_stage = "source_verification"
+                    trace.event("preparation_stage", stage=preparation_stage)
+                    target_options = options
+                    if options.get("rotate_mac_each_pin"):
+                        from modules.capture_services.openwrt.wps_options import random_source_mac
+                        target_options = dict(options, spoof_mac=random_source_mac())
+                    source_verified = ensure_wps_source(self.command_runner, record, target_options, cancel_event)
+                    if message_callback is not None and source_verified:
+                        message_callback("Pin \u4f2a\u88c5 MAC \u5df2\u8bbe\u7f6e\u5230\u4e34\u65f6\u63a5\u53e3\u5e76\u8bfb\u56de\u6838\u5b9e\u3002", "info")
+                    from modules.capture_services.openwrt.wps_radio import ensure_wps_channel
+                    preparation_stage = "channel_verification"
+                    trace.event("preparation_stage", stage=preparation_stage)
+                    ensure_wps_channel(self.command_runner, record, target, cancel_event)
+                    if message_callback is not None:
+                        message_callback(f"Pin 监听接口已核实在目标信道 {target.channel}。", "info")
                 except Exception as exc:
+                    trace.event("preparation_failed", stage=preparation_stage)
+                    trace.finish(error=exc, cancelled=bool(cancel_event is not None and cancel_event.is_set()))
                     # 接管完成后 M 接口准备失败也必须恢复 radio，不能让后续手动
                     # 启停看到“配置已启用、运行接口未回来”的半恢复状态。
                     errors.extend(self._restore_task_wireless(workspace, takeover_record, message_callback))
+                    trace.event("wireless_cleanup", confirmed=not bool(errors))
                     if cancel_event is not None and cancel_event.is_set():
                         detail = "；".join(errors)
                         if detail:
@@ -1282,8 +1353,15 @@ class OpenWrtCaptureBackend(CaptureBackend):
                             filter(None, [f"准备 monitor 失败：{exc}"] + errors)
                         ),
                     ))
+                    _emit_wps_message(message_callback, results[-1], mask_ssid=_mask_on(settings,"ssid"), mask_bssid=_mask_on(settings,"bssid"))
+                    report_target(target, index, "结束")
                     continue
                 try:
+                    source_rotation = None
+                    if options.get("rotate_mac_each_pin"):
+                        from modules.capture_services.openwrt.wps_rotation import WpsSourceRotation
+                        source_rotation = WpsSourceRotation(self.command_runner, record, target, target_options["spoof_mac"])
+                    trace.event("interface_verified", channel=int(target.channel), source_verified=bool(source_verified))
                     outcome = self.wps_capture.run_targets(
                         workspace,
                         record.interface,
@@ -1294,11 +1372,13 @@ class OpenWrtCaptureBackend(CaptureBackend):
                         Path(local_root),
                         self.workspace_manager,
                         cancel_event,
-                        progress_callback,
+                        (lambda update: progress_callback(replace(update, target_index=index, target_total=len(targets), target_label=label, target_bssid=target.bssid))) if progress_callback is not None else None,
+                        diagnostic_index=index, diagnostic_total=len(targets), diagnostic_trace=trace,
+                        source_rotation=source_rotation,
                     )[0]
                 except Exception as exc:
                     if cancel_event is not None and cancel_event.is_set():
-                        raise _BatchInterrupted("任务已取消。") from exc
+                        raise _BatchInterrupted(str(exc)) from exc
                     if not self.ssh_client.connected:
                         raise _BatchInterrupted(
                             f"OpenWrt SSH 连接已断开，任务被迫中断（原错误：{exc}）。"
@@ -1309,15 +1389,16 @@ class OpenWrtCaptureBackend(CaptureBackend):
                     )
                 finally:
                     errors.extend(self._restore_task_wireless(workspace, takeover_record, message_callback))
+                    trace.event("wireless_cleanup", confirmed=not bool(errors))
                 if errors:
                     outcome = replace(
                         outcome,
                         note="；".join(filter(None, [outcome.note] + errors)),
                     )
                 results.append(outcome)
-            for outcome in results:
                 _emit_wps_message(message_callback, outcome, mask_ssid=_mask_on(settings, "ssid"),
                       mask_bssid=_mask_on(settings, "bssid"))
+                report_target(target, index, "结束")
             return tuple(results)
         except Exception as exc:
             primary_error = _ssh_lost_error(self.ssh_client, exc)
@@ -1391,7 +1472,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                     retry = False
                 elif entry.error or entry.error_code or entry.result is None:
                     retry = False
-                elif (previous is not None and previous.result is not None
+                elif (max_rounds is not None and previous is not None and previous.result is not None
                       and entry.result.content_fingerprint
                       and entry.result.content_fingerprint == previous.result.content_fingerprint):
                     entry = replace(entry, stop_reason="no_progress", result=replace(

@@ -114,6 +114,10 @@ class AutoCaptureRadioSession:
         self._channel = None
         self._pmkid_set = set()
         self._eapol_set = set()
+        from .live_capture_details import LiveCaptureDetails
+        self._live_details = LiveCaptureDetails()
+        import codecs
+        self._stream_decoder = codecs.getincrementaldecoder("utf-8")("replace")
         self._created_stubs: list[str] = []
         self._monitor_creation_attempted = False
         self._initialization_failed = False
@@ -164,6 +168,9 @@ class AutoCaptureRadioSession:
         self._stop_event.clear()
         self._pmkid_set.clear()
         self._eapol_set.clear()
+        from .live_capture_details import LiveCaptureDetails
+        self._live_details = LiveCaptureDetails()
+        self._stream_decoder.reset()
 
         self._coordinator = coordinator
         # 启动后台工作线程
@@ -247,7 +254,12 @@ class AutoCaptureRadioSession:
             found_bin = (bin_res.stdout or "").strip()
             if not found_bin:
                 raise RuntimeError("路由器尚未安装抓包工具 hcxdumptool！\n请先在页面部署自启脚本，或在【工具管理】页面安装兼容的 hcxdumptool。")
-            self._hcx_bin = found_bin
+            from .hcx_compat_runtime import ensure_compatible_engine
+            device = getattr(self.service.owner.openwrt_backend.snapshot, "device", None)
+            compatible = ensure_compatible_engine(self.runner, self.ssh_client, device,
+                                                   self._stop_event, source_bin=found_bin)
+            self._hcx_bin = compatible or found_bin
+            found_bin = self._hcx_bin
             self.service.radioStreamOutput.emit(
                 self.radio_name,
                 f"🔍 [工具就绪] 定位抓包工具路径: {found_bin}\n",
@@ -767,7 +779,7 @@ class AutoCaptureRadioSession:
                     if self._stop_event.is_set():
                         break
                     raise RuntimeError("\u6293\u5305\u6570\u636e\u901a\u9053\u63d0\u524d\u7ed3\u675f\uff0c\u8fdb\u7a0b\u9000\u51fa\u72b6\u6001\u5c1a\u672a\u786e\u8ba4\u3002")
-                text = data.decode("utf-8", errors="replace")
+                text = self._stream_decoder.decode(data)
                 self.service.radioStreamOutput.emit(self.radio_name, text)
                 self._parse_stream_stats(text)
             except socket.timeout:
@@ -783,6 +795,7 @@ class AutoCaptureRadioSession:
 
     def _parse_stream_stats(self, text: str):
         """从流式文本解析信道、PMKID 和 EAPOL。"""
+        text = self._live_details.feed(text)
         hcx_ap_tbl_pat = re.compile(
             r"^\s*(\d+[a-zA-Z]?)\s+(\d{2}:\d{2}:\d{2})\s+([+ ]{9})\s+([0-9a-fA-F]{12})\s*(.*)$"
         )
@@ -1005,6 +1018,7 @@ class AutoCaptureRadioSession:
         """将生成的 .pcapng 拉回本地。"""
         from .capture_products import cap_product_note
         from .result_converter import unique_result_path
+        from paramiko import SSHException
         dest_file = None
         stable = False
         try:
@@ -1023,8 +1037,12 @@ class AutoCaptureRadioSession:
                             stable = before.st_size == after.st_size == temp_dest.stat().st_size
                             stable = stable and getattr(before, "st_mtime", None) == getattr(after, "st_mtime", None)
                             temp_dest.rename(dest_file)
-                    finally:
-                        sftp.close()
+                    except (FileNotFoundError, PermissionError):
+                        raise
+                    except (OSError, EOFError, SSHException):
+                        # Only the connection owner disposes a failed shared session.
+                        self.ssh_client.drop_sftp()
+                        raise
             finally:
                 temp_dest.unlink(missing_ok=True)
             if dest_file.exists():
@@ -1061,6 +1079,8 @@ class AutoCaptureRadioSession:
             "error_message": self.stats.error_message,
             "recovery_report": self.stats.recovery_report,
             "recovery_message": self.stats.recovery_message,
+            "capture_details": self._live_details.snapshot(),
+            "output_dir": str(self.output_dir),
         }
 
 
@@ -1089,7 +1109,8 @@ class AutoCaptureService(QObject):
         self.runner = backend.command_runner
         self.ssh = backend.ssh_client
 
-        self.boot_manager = AutoCaptureBootManager(self.runner, self.ssh)
+        self.boot_manager = AutoCaptureBootManager(self.runner, self.ssh,
+            device_provider=lambda: self.owner.openwrt_backend.snapshot.device)
         self.sessions: Dict[str, AutoCaptureRadioSession] = {}
 
         # 资源守卫轮询定时器
@@ -1112,6 +1133,8 @@ class AutoCaptureService(QObject):
         self._boot_log_stop_event = threading.Event()
         self._boot_log_lock = threading.Lock()
 
+        from .auto_capture_idle_refresh import RadioIdleRefresh
+        self._idle_refresh = RadioIdleRefresh(self)
         owner.openwrtSnapshotChanged.connect(self._on_snapshot_changed)
         from modules.capture_services.local_capture_diagnostics import AutoCaptureDiagnostics
         self.diagnostics = AutoCaptureDiagnostics(self)
@@ -1211,8 +1234,16 @@ class AutoCaptureService(QObject):
             self.sessions[radio_info.name] = session
         return self.sessions[radio_info.name]
 
+    def _other_router_task_active(self):
+        controller = getattr(self.owner, "task_controller", None)
+        if getattr(controller, "busy", False) is True:
+            self.messageGenerated.emit("\u8bf7\u7b49\u5f85\u5f53\u524d\u8def\u7531\u5668\u4efb\u52a1\u7ed3\u675f\u540e\u518d\u542f\u52a8\u6293\u5305\u3002", "warning")
+            return True
+        return False
+
     def start_radio_capture(self, radio_info: OpenWrtRadioInfo, channels: str = "", allow_takeover: bool = False, coordinator: Optional[CaptureStartupCoordinator] = None):
         """启动单路射频抓包。"""
+        if self._other_router_task_active():return
         if bool(self.boot_status and self.boot_status.is_running):
             self.messageGenerated.emit("后台抓包正在运行中，前后台抓包互斥，无法启动前台抓包。", "warning")
             return
@@ -1478,6 +1509,7 @@ class AutoCaptureService(QObject):
 
     def start_boot_script(self):
         """异步手动启动后台抓包脚本。"""
+        if self._other_router_task_active():return
         if self.is_busy:
             self.messageGenerated.emit("前台抓包正在运行中，前后台抓包互斥，无法启动后台抓包。", "warning")
             return
@@ -1504,6 +1536,7 @@ class AutoCaptureService(QObject):
 
     def install_and_start_boot_script(self):
         """异步安装部署自启脚本与服务，并在部署完成后立即启动抓包脚本。"""
+        if self._other_router_task_active():return
         if self.is_busy:
             self.messageGenerated.emit("前台抓包正在运行中，前后台抓包互斥，无法启动后台抓包。", "warning")
             return
@@ -1702,46 +1735,8 @@ class AutoCaptureService(QObject):
         self.poll_resources(force=False)
 
     def refresh_radio_idle_status(self):
-        """异步读取远端最新无线配置与运行状态，更新各射频业务空闲/使用中状态。"""
-        if (self._disposed or getattr(self, "_is_probing_idle", False)
-                or getattr(getattr(self.owner, "task_controller", None), "busy", False) is True):
-            return
-        connection = getattr(self.ssh, "_client", None)
-        snapshot = getattr(self.owner, "openwrt_snapshot", None)
-        conn_state = getattr(snapshot, "connection_state", None)
-        if getattr(conn_state, "value", conn_state) != "connected":
-            return
-
-        self._is_probing_idle = True
-        cancel = threading.Event()
-        self._idle_probe_cancel = cancel
-
-        def _task():
-            radios = getattr(getattr(snapshot, "device", None), "radios", ())
-            free_map = {r.name: None for r in radios}
-            owned = set()
-            for r in radios:
-                idx_m = re.search(r"\d+", r.name)
-                if idx_m:
-                    owned.add(f"hcxmon{idx_m.group(0)}")
-                    owned.add(f"hcxstub{idx_m.group(0)}")
-            try:
-                usages = read_radio_usage(self.runner, cancel, owned_interface=owned)
-                free_map = usages
-            except Exception as exc:
-                LOGGER.debug("Probe radio idle status failed: %s", exc)
-            finally:
-                try:
-                    if (free_map and not cancel.is_set() and not self._disposed
-                            and getattr(self.ssh, "_client", None) is connection and self.ssh.connected):
-                        if hasattr(self.owner, "update_openwrt_radio_idle_status"):
-                            self.owner.update_openwrt_radio_idle_status(free_map)
-                        self.radioIdleStatusUpdated.emit(free_map)
-                finally:
-                    self._is_probing_idle = False
-
-        t = threading.Thread(target=_task, name="ProbeRadioIdle", daemon=True)
-        t.start()
+        """Request one fresh read; overlapping requests are coalesced after cleanup."""
+        return self._idle_refresh.request()
 
     def _on_snapshot_changed(self, snapshot):
         """连接状态变化时同步自启状态。"""

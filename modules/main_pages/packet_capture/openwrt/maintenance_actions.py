@@ -1,5 +1,5 @@
 """File pickers and connection-bound maintenance confirmations, with no remote work on UI."""
-from datetime import datetime
+from .backup_filenames import backup_filename
 from pathlib import Path
 from PySide6.QtWidgets import QFileDialog
 from .maintenance_review_dialog import MaintenanceReviewDialog
@@ -29,7 +29,7 @@ class MaintenanceActions:
         return self.page.manager.manager.ssh.connected and identity == self._identity()
 
     def _destination(self, before=False):
-        default = ("before-change-" if before else "openwrt-backup-") + datetime.now().strftime("%Y%m%d-%H%M%S") + ".tar.gz"
+        default = backup_filename("操作" if before is True else before)
         path, _ = QFileDialog.getSaveFileName(self.page, "保存操作前备份" if before else "保存配置备份", default,
                                              "OpenWrt 配置备份 (*.tar.gz)")
         if not path:
@@ -113,23 +113,26 @@ class MaintenanceActions:
             if not self._current(identity):
                 page._message("连接已变化，请重新打开操作。")
                 return True
-            picked = self._destination(before=True) if result["operation"] == "reset" else None
-            if not self._current(identity) or picked is None and result["operation"]!="restore":
-                return True
-            backup_path, expected = picked if picked is not None else (None,None)
-            dialog = MaintenanceReviewDialog(result, backup_path, page)
+            backup_path, expected = None, None
+            dialog = MaintenanceReviewDialog(result, None, page)
             try:
                 if dialog.exec() != dialog.Accepted:
                     return True
                 if not self._current(identity):
                     page._message("连接已变化，未执行恢复或重置。")
                     return True
+                if dialog.backup_requested:
+                    operation = "恢复出厂设置" if result["operation"] == "reset" else "恢复配置"
+                    picked = self._destination(before=operation)
+                    if picked is None or not self._current(identity):
+                        return True
+                    backup_path, expected = picked
                 new_key = page.manager.submit("maintenance_apply", review=result,
                                              backup_path=backup_path, backup_expected=expected)
                 if result["operation"]=="reset":self.reset_inventories[new_key]=result.get("client_network",{})
                 self.pending[new_key] = ("done", identity)
                 self._show_progress(new_key)
-                page._message("正在备份当前配置；校验通过后执行所确认的操作，请保持供电。" if backup_path else "本次不生成当前配置备份，正在恢复所选备份，请保持供电。")
+                page._message("正在备份当前配置；校验通过后执行所确认的操作，请保持供电。" if backup_path else "本次不生成当前配置备份，正在执行所确认的操作，请保持供电。")
             finally:
                 dialog.deleteLater()
         except Exception as exc:

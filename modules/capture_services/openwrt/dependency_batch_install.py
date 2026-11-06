@@ -18,13 +18,13 @@ def must_stop(error, runner, cancel, connection):
                '\u8d85\u65f6', 'timed out', 'channel closed')
     return any(marker in text for marker in markers)
 
-def install_packages(manager, checked, device, cache_dir, sftp_available, cancel, tell, uploader=None):
+def install_packages(manager, checked, device, cache_dir, sftp_available, cancel, tell, uploader=None, *, allow_local_bundle=True):
     from .signal_package_feed import download_session
     with download_session(tell):
-        return _install_packages(manager, checked, device, cache_dir, sftp_available, cancel, tell, uploader)
+        return _install_packages(manager, checked, device, cache_dir, sftp_available, cancel, tell, uploader, allow_local_bundle=allow_local_bundle)
 
 
-def _install_packages(manager, checked, device, cache_dir, sftp_available, cancel, tell, uploader=None):
+def _install_packages(manager, checked, device, cache_dir, sftp_available, cancel, tell, uploader=None, *, allow_local_bundle=True):
     from .common_bundle_installer import install_from_local
     from .installation_sources import install_with_sources, report_verified
     runner = manager.command_runner
@@ -61,7 +61,7 @@ def _install_packages(manager, checked, device, cache_dir, sftp_available, cance
         batch = (package,)
         try:
             source = install_with_sources(
-                lambda: install_from_local(manager,batch,device,cache_dir,sftp_available,cancel,tell,uploader),
+                (lambda: install_from_local(manager,batch,device,cache_dir,sftp_available,cancel,tell,uploader)) if allow_local_bundle else None,
                 lambda: manager._install_online(batch,cancel,tell),
                 lambda: manager._install_offline(batch,device,cache_dir,sftp_available,cancel,tell,uploader), tell)
             if source not in sources:

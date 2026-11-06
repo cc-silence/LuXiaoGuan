@@ -6,14 +6,11 @@ import shutil
 from pathlib import Path
 from .common_bundle_manifest import MAX_CATALOG, verify_bundle_manifest, sha256_file
 from .bundle_specs import bundle_spec
+from .bundle_compatibility import BundleCoverageUnavailable, require_schema, require_client_version
 
 _SAFE_SEGMENT = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]*")
 _SAFE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9+_.-]*")
 _SAFE_PACKAGE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.+~\-]*\.(ipk|apk)")
-
-
-class BundleCoverageUnavailable(ValueError):
-    """A verified older catalog cannot cover this application's current roots."""
 
 
 def bundle_root(kind="common"):
@@ -46,16 +43,18 @@ def validate_catalog(data, kind="common"):
 
 def _validate_catalog(data, kind="common"):
     """\u6821\u9a8c\u9002\u914d\u7ec4\u5408\u548c\u6240\u6709\u5bf9\u8c61\u8fb9\u754c\uff0c\u8fd4\u56de\u53bb\u91cd\u5bf9\u8c61\u8868\u3002"""
-    roots = bundle_spec(kind).roots
-    if (isinstance(data, dict) and data.get("schema_version") == 1
-            and data.get("purpose") == bundle_spec(kind).catalog_purpose
-            and data.get("complete") is True
-            and isinstance(data.get("roots"), list)
-            and data["roots"] and all(isinstance(key, str) for key in data["roots"])
-            and set(data["roots"]) < roots):
-        raise BundleCoverageUnavailable("\u79bb\u7ebf\u4f9d\u8d56\u5305\u7248\u672c\u8fc7\u65e7\uff0c\u7f3a\u5c11\u5f53\u524d\u8f6f\u4ef6\u6240\u9700\u4f9d\u8d56\uff0c\u8bf7\u66f4\u65b0\u79bb\u7ebf\u4f9d\u8d56\u5305\u540e\u91cd\u8bd5\u3002")
-    if (not isinstance(data, dict) or data.get("schema_version") != 1
-            or data.get("purpose") != bundle_spec(kind).catalog_purpose or set(data.get("roots", [])) != roots or data.get("complete") is not True
+    required = bundle_spec(kind).roots
+    if not isinstance(data, dict):
+        raise ValueError("Invalid offline catalog")
+    require_schema(data.get("schema_version"))
+    require_client_version(data)
+    declared = data.get("roots")
+    if (not isinstance(declared, list) or not 1 <= len(declared) <= 256
+            or any(not isinstance(name, str) or not _SAFE_NAME.fullmatch(name) for name in declared)
+            or len(set(declared)) != len(declared)):
+        raise ValueError("Invalid offline catalog roots")
+    roots = frozenset(declared)
+    if (data.get("purpose") != bundle_spec(kind).catalog_purpose or data.get("complete") is not True
             or data.get("index_errors") or data.get("download_errors") or data.get("unsupported")):
         raise ValueError("\u79bb\u7ebf\u5305\u6e05\u5355\u4e0d\u5b8c\u6574\u3002")
     profiles = data.get("profiles")
@@ -101,6 +100,9 @@ def _validate_catalog(data, kind="common"):
             previous = objects.setdefault(sha, row)
             if previous["size"] != row["size"]:
                 raise ValueError("Conflicting shared hcx object size")
+    if not required.issubset(roots):
+        raise BundleCoverageUnavailable(
+            "\u79bb\u7ebf\u4f9d\u8d56\u5305\u7248\u672c\u8fc7\u65e7\uff0c\u7f3a\u5c11\u5f53\u524d\u8f6f\u4ef6\u6240\u9700\u7ec4\u4ef6\uff0c\u8bf7\u66f4\u65b0\u79bb\u7ebf\u4f9d\u8d56\u5305\u540e\u91cd\u8bd5\u3002")
     return objects
 
 

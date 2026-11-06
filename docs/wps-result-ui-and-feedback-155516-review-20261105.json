@@ -1,0 +1,23 @@
+{
+  "feedback_sha256": "562f35fcfde1c12fb3891f358169fa70c5f74802780d5ee1aa23910d68e0a3a0",
+  "findings": [
+    "Quick mode skipped 11 targets with no matching default PIN profile.",
+    "Normal mode has a configured 60 second per-target total budget.",
+    "First normal target received identity, M1, M3 and NACK, then rate limiting or lock indication.",
+    "Other attempted targets lacked WPS replies; later targets were cancelled before batch completion.",
+    "No successful PIN result established."
+  ],
+  "presentation_changes": [
+    "MAC master switch is at bottom; address and rotation row appears below it only when enabled.",
+    "Short user results retain full diagnostic detail in exported history.",
+    "Rate limit or WPS lock warning uses theme-specific red.",
+    "Time budget completion is not presented as disabling the rotation preference."
+  ],
+  "validation": {
+    "targeted_tests_passed": 48,
+    "syntax_utf8_check_passed": true,
+    "live_router_test": false,
+    "app_restarted": false
+  },
+  "scope": "Local presentation and diagnostic classification; no new router command or dependency."
+}

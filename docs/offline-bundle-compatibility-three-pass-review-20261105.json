@@ -1,0 +1,67 @@
+{
+  "date": "2026-11-05",
+  "scope": "Three sequential reviews of the completed software/offline-bundle compatibility changes. No hosting migration or platform collection changes.",
+  "rounds": [
+    {
+      "round": 1,
+      "focus": "Version source, strict schema types, numeric and prerelease boundaries, signature contract",
+      "tests": 13,
+      "result": "passed"
+    },
+    {
+      "round": 2,
+      "focus": "Signed incompatible manifests/catalogs and corrupt unused additional objects cannot replace the previous working resource receipt; archive and storage regressions",
+      "tests": 53,
+      "result": "passed"
+    },
+    {
+      "round": 3,
+      "focus": "Publication preparation storage failure, cleanup and retry; publishing identity",
+      "finding": "Interrupted direct manifest write leaves a partial manifest that blocks retry. Reproduced with a failing regression before the fix.",
+      "fix": "Reuse write_metadata: write to a same-directory temporary file, flush/fsync, close, replace destination, and clean temporary file on failure. Signed bytes are verified before committing.",
+      "focused_regression": 1,
+      "publishing_identity_tests": 5,
+      "result": "passed"
+    }
+  ],
+  "sources": [
+    "https://docs.python.org/3.10/library/sys.html",
+    "https://pyinstaller.org/en/stable/runtime-information.html",
+    "https://raw.githubusercontent.com/pyca/cryptography/49.0.0/docs/hazmat/primitives/asymmetric/ed25519.rst",
+    "https://docs.python.org/3.10/library/os.html#os.replace",
+    "https://docs.python.org/3.10/library/tempfile.html#tempfile.NamedTemporaryFile",
+    "https://docs.python.org/3.10/library/zipfile.html#zipfile.ZipFile.testzip"
+  ],
+  "runtime": {
+    "python": "3.10.11",
+    "cryptography": "49.0.0",
+    "platform": "Windows"
+  },
+  "checks": {
+    "syntax_utf8_and_diff": "passed for 8 relevant source/test files",
+    "final_combined_regression": {
+      "tests": 132,
+      "passed": 132,
+      "seconds": 230.068,
+      "extra_publishing_identity_tests": 5,
+      "extra_publishing_identity_passed": 5
+    }
+  },
+  "limits": [
+    "No actual frozen executable build; embedded version selection simulated with __main__.",
+    "No Debian run or physical router installation. opkg/apk archives use signed offline fixtures.",
+    "Windows injected file-operation failures were checked; sudden power-loss durability not tested.",
+    "No online publication, offline package replacement, application restart, or platform-size result asserted."
+  ],
+  "sha256": {
+    "modules/capture_services/openwrt/bundle_compatibility.py": "f5cf7f49a34649f2d9fd62be99ae0cd3a5974c64d4b4a05da4294aa5ce958921",
+    "modules/capture_services/openwrt/common_bundle_repository.py": "f49510e9051076e70ff55fe3ec173540b95c80ea08d24c8e35d82ccadd69a625",
+    "modules/capture_services/openwrt/common_bundle_manifest.py": "866b12101053df0ca2d374722fdb5c1a754aec49a2fcf58d8c5d12011e2c80ca",
+    "modules/capture_services/openwrt/common_bundle_installer.py": "91a9a577f1550bbe89405845e497da28a95f24ed83373f7211121f50cc3b044d",
+    "scripts/publishing/offline.py": "256d70d30ecde84dd40c28abeaa2d4f6d207582f490904789718ded8fecf7a29",
+    "scripts/manage_publishing.py": "400125401f9c6b19ba1b33712017e58a107a0560996e6179254a885a01f7ecdc",
+    "tests/test_bundle_client_compatibility.py": "0a76dda5f30ef088cefc0ba9df8f1887ee66e1f7674a7790e8536730139bc5e1",
+    "tests/test_bundle_compatibility_review.py": "3898b62920bce0688885056504a71fef5c49de71f852d340e1d6dda9efaab43d"
+  },
+  "conclusion": "One reproducible publication-preparation storage failure fixed; no other reproducible issue found in reviewed scope. Round totals overlap and must not be added as unique tests."
+}

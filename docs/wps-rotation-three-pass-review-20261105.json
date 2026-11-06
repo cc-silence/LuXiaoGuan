@@ -1,0 +1,123 @@
+{
+  "date": "2026-11-05",
+  "scope": "Three sequential reviews of the opt-in per-candidate MAC rotation and affected shared timing/session paths. No subagents, live router changes, builds or deployment.",
+  "reviews": [
+    {
+      "round": 1,
+      "focus": "Exact upstream native candidate boundary, stage transition and session-save contract.",
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.5/src/cracker.c",
+          "version": "v1.6.5",
+          "path": "build\\wps-rotation-audit\\v1.6.5-cracker.c",
+          "sha256": "346a22224c1b427628950ae8f1cf0e2c834142269a2b6cccf5fc4676434afe5c",
+          "verified": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.5/src/session.c",
+          "version": "v1.6.5",
+          "path": "build\\wps-rotation-audit\\v1.6.5-session.c",
+          "sha256": "2a208d10170bc7be651221ad76e8226a4980e3b302a8d53445dd7974707c97ea",
+          "verified": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.5/src/wpscrack.c",
+          "version": "v1.6.5",
+          "path": "build\\wps-rotation-audit\\v1.6.5-wpscrack.c",
+          "sha256": "ff72ee57d0cfc1f72db4db3c2e7533f50ddc9e683b8820d3bc9a811e0e6f58c1",
+          "verified": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.6/src/cracker.c",
+          "version": "v1.6.6",
+          "path": "build\\wps-rotation-audit\\v1.6.6-cracker.c",
+          "sha256": "366382f6d97129bddc134f0d06e10f77b9fb15225d29de82fa972bf5a4a13e4f",
+          "verified": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.6/src/session.c",
+          "version": "v1.6.6",
+          "path": "build\\wps-rotation-audit\\v1.6.6-session.c",
+          "sha256": "9b87aab6f70ddc71f3d8183d4551eda6462cdb4b2c554fcfc8fe43655442254e",
+          "verified": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.6/src/wpscrack.c",
+          "version": "v1.6.6",
+          "path": "build\\wps-rotation-audit\\v1.6.6-wpscrack.c",
+          "sha256": "cf1026a3766d85e9225d101e07ad786e2fbf5bd417e564ba00eb1f0def9a61af",
+          "verified": true
+        }
+      ],
+      "confirmed": "-g 1 counts a rejected candidate, not each transmitted packet. advance_pin_count changes exactly one active index, and main saves the session after crack returns.",
+      "finding": "Lexicographic progress comparison incorrectly admitted impossible index jumps or second-stage regressions.",
+      "fix": "native_step mirrors exact +1 updates with allowed stage transition. Saved exhausted sessions do not launch; a last rejection reports range end without relaunch."
+    },
+    {
+      "round": 2,
+      "focus": "Owned-interface source/channel sequence, cancellation, timing and resource cleanup.",
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/mirror/busybox/1_30_1/networking/libiproute/iplink.c",
+          "version": "1_30_1",
+          "sha256": "73e07ddaa3c0c3ebc5aa4a8f75e0863496d2ff9d178a02e2bb3b02fa1cf5161c",
+          "finding": "Source-address setter and up/down flags inspected; actual driver readback remains required."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mirror/busybox/1_36_1/networking/libiproute/iplink.c",
+          "version": "1_36_1",
+          "sha256": "2fe2605a5150c8ee707a1be78671f647a6e502491c252d91b87b28789f043ed4",
+          "finding": "Source-address setter and up/down flags inspected; actual driver readback remains required."
+        }
+      ],
+      "findings": [
+        "Cancellation after MAC preparation could reach the phase callback without a fresh cancellation check.",
+        "A new native phase inherited the previous receive-idle deadline and could prematurely stop while waiting for its first candidate."
+      ],
+      "fixes": [
+        "Check cancellation after command preparation and before phase launch in normal and quick paths.",
+        "Clear receive liveness at phase boundary and initialize it from the new reported candidate, while retaining candidate change statistics.",
+        "Each random draw is checked within a finite eight-draw budget.",
+        "Read and validate native progress in one bounded snapshot rather than validate then reopen."
+      ]
+    },
+    {
+      "round": 3,
+      "focus": "UI/configuration lifecycle and full affected call chain; default-off, first candidate/restart, quick candidate isolation, timeout, cancellation, failure cleanup and durable sessions.",
+      "sources": [
+        {
+          "url": "https://doc.qt.io/qtforpython-6/PySide6/QtWidgets/QWidget.html",
+          "finding": "Disabled state propagates to children; existing master/mode linkage and get_settings behavior checked by Qt tests."
+        }
+      ],
+      "result": "No additional execution-flow defect found after repairs. Existing default-off path and stored manual address preservation passed directed tests."
+    }
+  ],
+  "before_fix": {
+    "three_reproductions_failed": true,
+    "tests": [
+      "test_review_rejects_impossible_native_index_jumps",
+      "test_review_cancel_during_mac_preparation_never_launches_native",
+      "test_review_new_process_does_not_inherit_previous_receive_deadline"
+    ]
+  },
+  "after_fix": {
+    "directed_tests_passed": 98,
+    "syntax_and_utf8": true,
+    "diff_check": true,
+    "additional_regressions": [
+      "Normal exhausted-session/end-of-range behavior",
+      "Eighth valid random draw accepted without further generation",
+      "Quick cancellation after source preparation never launches",
+      "Validated progress snapshot opens only once"
+    ]
+  },
+  "limitations": [
+    "No live radio/driver validation or complete WPS exchange was performed. Interface readback is not proof of over-air packet exchange.",
+    "No Debian 12 runtime verification; shared Python logic passed tests on this Windows host.",
+    "Three reviews and passing tests do not prove absence of every bug.",
+    "The already running application must be restarted to load these source fixes."
+  ],
+  "ui_changes": false,
+  "release_built": false
+}

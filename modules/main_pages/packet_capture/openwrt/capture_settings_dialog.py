@@ -1,6 +1,6 @@
 """Capture settings in the shared, resizable dialog shell."""
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 
 from modules.common_widgets.frameless_dialog import FramelessDialog
 from modules.config_manager import ConfigManager
@@ -11,6 +11,8 @@ from .capture_settings_page import CaptureSettingsPage
 
 class CaptureSettingsDialog(FramelessDialog):
     """Keep one lazily created editor and the existing immediate-save behavior."""
+
+    settingsChanged = Signal()
 
     def __init__(self, service, settings, parent):
         super().__init__("\u6293\u5305\u8bbe\u7f6e", parent, inherit_parent_stylesheet=False)
@@ -23,6 +25,19 @@ class CaptureSettingsDialog(FramelessDialog):
         self.close_button.clicked.connect(self.reject)
         self.button_layout.addStretch(1)
         self.button_layout.addWidget(self.close_button)
+        self._last_form = self.page.collect_settings()
+        self.page.settingsChanged.connect(self._form_changed)
+        self.finished.connect(self._flush_pending_edits)
+
+    def _form_changed(self):
+        self._last_form = self.page.collect_settings()
+        self.settingsChanged.emit()
+
+    def _flush_pending_edits(self, _result):
+        current = self.page.collect_settings()
+        if current != self._last_form:
+            self._last_form = current
+            self.settingsChanged.emit()
 
     def sync_appearance(self, style_manager):
         host = style_manager.page

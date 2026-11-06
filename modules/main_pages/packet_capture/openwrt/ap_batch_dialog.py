@@ -5,7 +5,7 @@ from modules.common_widgets.frameless_dialog import FramelessDialog
 from modules.common_widgets.common_dialogs import apply_common_dialog_theme
 from modules.common_widgets.bounce_scroll_area import BounceScrollArea
 from modules.settings_pages.settings_widgets import create_dialog_ok_cancel_buttons,create_settings_button
-from modules.capture_services.openwrt.ap_batch_identity import build_access_point_identities,random_identity
+from modules.capture_services.openwrt.ap_batch_identity import build_access_point_identities,random_identity,access_point_band
 from .signal_setup_forms import text_input,add_field,hint
 
 
@@ -26,6 +26,10 @@ class AccessPointBatchDialog(FramelessDialog):
             panel=QWidget(body);fields=QVBoxLayout(panel)
             title=QHBoxLayout()
             old_name = row["old"]+" ["+section+"]" if mac_editable else "旧 Wi-Fi 名称："+row["old"]
+            band = access_point_band(snapshot, section)
+            band_label = {"2g": "2.4G", "5g": "5G", "6g": "6G"}.get(band)
+            if band_label:
+                old_name += " \u00b7 " + band_label
             label=hint(old_name,panel);label.setTextFormat(Qt.PlainText)
             title.addWidget(label,1)
             button=create_settings_button("随机",panel,"secondary");title.addWidget(button);fields.addLayout(title)

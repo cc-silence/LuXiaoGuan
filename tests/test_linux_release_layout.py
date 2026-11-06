@@ -86,19 +86,25 @@ class LinuxReleaseLayoutTests(unittest.TestCase):
         (self.package/'resources/libpython3.10.so.1.0').unlink();self.baseline()
         with modes(),self.assertRaises(ValueError):layout.verify_files(self.package,self.version)
 
-    def test_only_tracked_assets_and_explicit_terminal_files_are_seeded(self):
+    def test_tracked_assets_and_explicit_runtime_components_are_seeded(self):
         source=self.root/'source';source.mkdir();target=self.root/'assets';target.mkdir()
-        files={'images/default.png':b'default','images/custom-secret.png':b'custom',
+        files={'bin/third_party_licenses/wpspin-MIT.txt':b'fixture MIT license','images/default.png':b'default','images/custom-secret.png':b'custom',
                'config/settings.ini':b'private','bin/update_launcher/Windows.exe':b'MZ',
                'bin/router_terminal/libroutermanager_terminal.so':elf_bytes(),
                'bin/router_terminal/libvterm-LICENSE.txt':b'license',
                'bin/router_terminal/kodoterm-LICENSE.txt':b'license',
                'tools/openwrt_base/base.zip':(Path(__file__).resolve().parents[1]/'tools/openwrt_base/base.zip').read_bytes(),
                'tools/scripts/hcx_autocap.sh':b'#!/bin/sh\n','tools/hc_offline_pack/SHA256SUMS.txt':b'fixture hashes'}
+        compatibility={f'bin/hcx_compat/{arch}/hcxdumptool':elf_bytes() for arch in ('x86_64','aarch64','arm','mips','mipsel')}
+        compatibility.update({'bin/hcx_compat/'+name:b'fixture' for name in ('manifest.json','hcxdumptool-LICENSE.txt','Zig-LICENSE.txt','musl-COPYRIGHT.txt')})
+        files.update(compatibility)
         for name,data in files.items():
             path=source/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(data)
-        with patch.object(layout.subprocess,'check_output',return_value=b'images/default.png\0tools/scripts/hcx_autocap.sh\0tools/openwrt_base/base.zip\0tools/hc_offline_pack/SHA256SUMS.txt\0'):
+        with patch.object(layout.subprocess,'check_output',return_value=b'bin/third_party_licenses/wpspin-MIT.txt\0images/default.png\0tools/scripts/hcx_autocap.sh\0tools/openwrt_base/base.zip\0tools/hc_offline_pack/SHA256SUMS.txt\0'):
             layout.seed_assets(source,target)
+        for name,data in compatibility.items():
+            self.assertEqual((target/name).read_bytes(),data)
+        self.assertEqual((target/'bin/third_party_licenses/wpspin-MIT.txt').read_bytes(),b'fixture MIT license')
         self.assertTrue((target/'images/default.png').is_file())
         self.assertEqual((target/'bin/tools/scripts/hcx_autocap.sh').read_bytes(),b'#!/bin/sh\n')
         self.assertFalse((target/'bin/tools/hc_offline_pack').exists())

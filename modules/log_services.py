@@ -361,7 +361,8 @@ def export_logs(destination, category, entries, masker=None, references=(), omit
 
 
 def log_category_label(category):
-    return '\u81ea\u52a8\u6293\u5305' if category == 'auto-capture' else str(category)
+    labels = {'auto-capture': '\u81ea\u52a8\u6293\u5305', 'router-login': '\u8def\u7531\u5668\u767b\u5f55', 'router-dependencies': '\u4f9d\u8d56\u7ba1\u7406'}
+    return labels.get(category, str(category))
 
 
 def build_export_filename(category):

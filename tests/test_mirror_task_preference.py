@@ -67,7 +67,8 @@ class TaskSessionTests(unittest.TestCase):
 
     def test_batch_install_owns_one_session_for_all_packages_and_restores_it(self):
         from modules.capture_services.openwrt.dependency_batch_install import install_packages
-        def run(*args):
+        def run(*args, allow_local_bundle=True):
+            self.assertTrue(allow_local_bundle)
             state=feed._download_state.get()
             self.assertIsNotNone(state)
             with feed.download_session():self.assertIs(feed._download_state.get(),state)

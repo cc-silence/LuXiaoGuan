@@ -59,11 +59,11 @@ class DownloadMessageTests(unittest.TestCase):
 
     def test_diagnostic_message_does_not_replace_task_progress(self):
         task=DependencyTask('session','terminal',('tmux',),'install','visible')
-        service=SimpleNamespace(owner=SimpleNamespace(settingsMessageGenerated=Mock()),task=task,taskChanged=Mock())
-        OpenWrtDependencyService._emit_settings_message(service,'technical detail','diagnostic')
-        service.owner.settingsMessageGenerated.emit.assert_called_once_with('technical detail','diagnostic')
+        service=SimpleNamespace(owner=SimpleNamespace(dependencyMessageGenerated=Mock()),task=task,taskChanged=Mock())
+        OpenWrtDependencyService._emit_dependency_message(service,'technical detail','diagnostic')
+        service.owner.dependencyMessageGenerated.emit.assert_called_once_with('technical detail','diagnostic')
         self.assertIs(service.task,task);service.taskChanged.emit.assert_not_called()
-        OpenWrtDependencyService._emit_settings_message(service,'visible update','info')
+        OpenWrtDependencyService._emit_dependency_message(service,'visible update','info')
         self.assertEqual(service.task.message,'visible update')
 
     def test_final_installation_route_does_not_repeat_previous_failure(self):

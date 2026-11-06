@@ -67,9 +67,10 @@ class LoginIntegrationTests(unittest.TestCase):
         service.network_prepare.assert_not_called();service.openwrt_backend.connect.assert_not_called()
     def test_cancelled_login_does_not_prepare_policy(self):
         from modules.capture_services.capture_service import CaptureService
-        service,operations,event=self.service();event.set()
+        service,operations,event=self.service();service.openwrt_backend.disconnect=Mock();event.set()
         CaptureService.connect_openwrt_async(service,dict(host=PLAN.address,port=22,user='root'))
-        with self.assertRaises(InterruptedError):operations[-1](event)
+        self.assertEqual(operations[-1](event).status, 'cancelled')
+        service.openwrt_backend.disconnect.assert_called_once()
         service.network_prepare.assert_not_called();service.openwrt_backend.connect.assert_not_called()
     def test_diagnostic_enum_type_does_not_break_export(self):
         from modules.platform_services.network_policy import sanitized_policy_rows

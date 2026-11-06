@@ -28,4 +28,4 @@ def remove_command(record):
     missing='exit 82' if record.creation_pending else 'exit 0'
     return ('test -d /sys/class/net || exit 81; '
             + 'if [ ! -e '+path+' ]; then '+missing+'; fi; '
-            + owner_guard(record)+'iw dev '+q(record.interface)+' del')
+            + owner_guard(record)+'iw dev '+q(record.interface)+' del && test ! -e '+path)

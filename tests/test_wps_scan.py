@@ -63,7 +63,7 @@ class PassiveWpsTests(unittest.TestCase):
         result = reader.apply([point])[0]
         self.assertTrue(result.wps_supported)
         self.assertFalse(result.wps_locked)
-        self.assertEqual(wps_status_text(point), "\u672a\u68c0\u6d4b\u5230")
+        self.assertEqual(wps_status_text(point), "\u4e0d\u652f\u6301")
         self.assertEqual(wps_status_text(result), "\u652f\u6301")
 
     def test_complete_hostap_wps_omission_clears_lock_but_absent_wps_does_not(self):

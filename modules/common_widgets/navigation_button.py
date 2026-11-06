@@ -5,8 +5,9 @@ from PySide6.QtWidgets import QPushButton, QStyle, QStyleOptionButton, QStylePai
 
 
 class NavigationButton(QPushButton):
-    """仅隐藏焦点框；当同时有图标和文字时，图标在上、文字在下，左右居中。"""
+    """Keep keyboard focus; stack main navigation, use native rows for settings."""
 
+    stack_icon_text = True
     ICON_TEXT_SPACING = 4
 
     def paintEvent(self, event):
@@ -17,7 +18,7 @@ class NavigationButton(QPushButton):
 
         text = self.text()
         icon = self.icon()
-        if text and not icon.isNull():
+        if self.stack_icon_text and text and not icon.isNull():
             # 1. 临时去掉文字和图标，让 QStyle 绘制纯净的按钮背景、边框和状态色（hover/pressed/selected）
             option.text = ""
             option.icon = QIcon()

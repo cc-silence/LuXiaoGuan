@@ -97,6 +97,9 @@ class AccessPointInfo:
     selected: bool = False
     capture_state: AccessPointCaptureState = AccessPointCaptureState.PENDING
     result_availability: str = ""
+    password_state: str = ""
+    password_note: str = ""
+    ssid_hidden: bool = False
 
     def with_selected(self, selected):
         """返回仅改变选择状态的新对象，避免页面直接修改后端模型。"""
@@ -167,6 +170,7 @@ class CaptureProgress:
     total: int = 0
     detail: str = ""
     indeterminate: bool = False
+    warning_text: str = ""
 
 
 @dataclass(frozen=True)
@@ -212,6 +216,7 @@ class OpenWrtSessionSnapshot:
     task_type: CaptureTaskType = CaptureTaskType.NONE
     task_state: str = "idle"
     pause_state: str = ""
+    wps_entry: str = "quick"
     session_id: str = ""
     progress: CaptureProgress = field(default_factory=CaptureProgress)
     artifacts: Tuple[CaptureArtifact, ...] = field(default_factory=tuple)

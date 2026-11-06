@@ -1,7 +1,7 @@
 """Finite non-secret protocol labels shared by capture and export."""
 ACTIONS=frozenset({"initial_verify","policy_status","policy_read","policy_preview","policy_apply","common_read","common_save",
     "maintenance_preview","maintenance_backup","maintenance_apply","maintenance_reboot","password_change",
-    "move_preview","relocate","orphan_preview","orphan_cleanup","policy_validation","common_validation","maintenance_validation"})
+    "move_preview","relocate","orphan_preview","orphan_cleanup","capture_monitor_preview","capture_monitor_cleanup","policy_validation","common_validation","maintenance_validation"})
 KINDS=frozenset({"initial","station","ap","boot","network","system","restore","reset","backup","reboot","relocation","orphan","status","read","password"})
 CODES=frozenset({"pending","changed","official","common_values","common_section","common_legacy","common_protocol",
     "read","response","transport","timeout","disconnected","dependencies","cancelled","save_commit","save_backup",
@@ -12,7 +12,7 @@ CODES=frozenset({"pending","changed","official","common_values","common_section"
 
 SITE_MODULES=frozenset({"initial_reconnect","initial_reconnect_store","router_policy_plan","upstream_firewall_zones","common_settings","router_backup",
     "backup_archive","router_password","router_reboot","router_policy","orphan_interface_manager",
-    "relocation_manager","wireless_setup_manager","command_runner","signal_manager","router_management_service",
+    "relocation_manager","wireless_setup_manager","monitor_cleanup","command_runner","signal_manager","router_management_service",
     "common_config_actions","router_policy_actions","maintenance_actions","wireless_setup_service",
     "router_config_dialog","ap_batch_dialog"})
 

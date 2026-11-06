@@ -317,6 +317,7 @@ __CHECKED_ACTIONS__
  if req.action=="policy_applied" then return policy_applied() end
  if req.action=="discard_session" then rpc("session","destroy",{ubus_rpc_session=sid()});return {discarded=true} end
  if req.action=="ap_ready" then return policy_ap_ready() end
+ if req.action=="files_inventory" then return policy_file_inventory() end
  if req.action=="files_apply" then return policy_file_apply() end
  if req.action=="files_restore" then return policy_file_restore(req.backup_dir,policy_file_journal(req.backup_dir)) end
  if req.action=="files_cleanup" then return policy_file_cleanup(req.backup_dir,req.token,req.state) end

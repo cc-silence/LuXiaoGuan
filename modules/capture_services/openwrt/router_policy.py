@@ -15,6 +15,7 @@ from .router_backup import RouterBackupManager
 from ..configuration_progress import phase
 
 MESSAGES={
+ "file_inventory":"恢复目录读取未完成，恢复记录已保留，请重新登录核对。",
  "identity_changed":"\u5f53\u524d\u4e0a\u7ea7\u8eab\u4efd\u4e0e\u5386\u53f2\u6062\u590d\u8bb0\u5f55\u4e0d\u4e00\u81f4\uff0c\u672a\u8986\u76d6\u3002\u8bf7\u91cd\u65b0\u6253\u5f00\u66f4\u6362\u4e0a\u7ea7\u8eab\u4efd\uff0c\u6838\u5bf9\u5f53\u524d\u914d\u7f6e\u540e\u786e\u8ba4\u3002",
  "file_cleanup":"恢复副本自动清理未完成，请核对残留目录。",
  "pending":"\u8def\u7531\u5668\u6709\u5c1a\u672a\u63d0\u4ea4\u7684\u8bbe\u7f6e\uff0c\u8bf7\u5148\u5904\u7406\u540e\u91cd\u65b0\u9884\u89c8\u3002",
@@ -203,6 +204,8 @@ class RouterPolicyManager:
         try:
             result=self._call("files_cleanup",Event(),timeout=10,backup_dir=directory,token=token,state=state)
             if result.get("cleaned") is not True:raise RuntimeError("Incomplete cleanup result")
+            from .policy_backup_recovery import forget
+            forget(self,directory)
         except Exception:
             return "未能确认恢复副本已自动清理，请核对："+directory
         return ""
@@ -242,6 +245,9 @@ class RouterPolicyManager:
                 phase("\u6b63\u5728\u5199\u5165\u5e76\u6838\u5bf9\u9009\u4e2d\u7684\u6587\u4ef6",seconds=30)
                 file_token=secrets.token_hex(8)
                 file_backup=self._call("files_apply",cancel,files=review["files"],token=file_token)["backup_dir"]
+                if review.get("kind")=="initial":
+                    from .policy_backup_recovery import remember
+                    remember(self,file_backup,file_token,current,review["files"])
             if operations and review.get("kind")!="boot":
                 from .policy_apply_transaction import apply_operations
                 applied,current=apply_operations(self,current,operations,cancel,report)
@@ -290,6 +296,12 @@ class RouterPolicyManager:
         if file_backup:
             cleanup_note=self._cleanup_file_backup(file_backup,file_token,"applied")
             if cleanup_note:notes.append(cleanup_note)
+        if review.get("kind")=="initial":
+            from .policy_backup_recovery import after_verified
+            expected_files=dict(current['files'])
+            expected_files.update({op['path']:hashlib.sha256(op['content'].encode('utf-8')).hexdigest() for op in review['files']})
+            recovery=after_verified(self,dict(hashes=current['hashes'],files=expected_files),exclude=(file_backup,) if file_backup else ())
+            if recovery:notes.append(recovery['note'])
         if review.get("new_address"):notes.append("\u4ee5\u540e\u5fc5\u987b\u4f7f\u7528 "+review["new_address"]+" \u767b\u5f55\u8def\u7531\u5668\uff0c\u539f\u5730\u5740\u5c06\u5931\u6548\u3002")
         for row in review.get("identities",[]):notes.append(row["old"]+" \u2192 "+row["name"]+"\uff1b\u65b0\u5730\u5740 "+row["mac"])
         if review.get("new_ap"):

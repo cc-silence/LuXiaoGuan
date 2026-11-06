@@ -162,7 +162,7 @@ class RouterPolicyActions:
                 if not self._current(identity):return True
                 path,expected=None,None
                 if backup_requested:
-                    picked=page.maintenance_actions._destination(before=True)
+                    picked=page.maintenance_actions._destination(before=TITLES[kind])
                     if picked is None or not self._current(identity):return True
                     path,expected=picked
                 key=page.manager.submit("policy_apply",review=result,backup_path=path,backup_expected=expected,connection_settings=dict(page.connection_settings()))

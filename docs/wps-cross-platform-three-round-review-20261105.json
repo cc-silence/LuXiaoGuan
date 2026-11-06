@@ -1,0 +1,66 @@
+{
+  "date": "2026-11-05",
+  "scope": "Cross official OpenWrt releases and router models for the recently changed PIN-related path; read-only compatibility audit, not full-product or radio certification.",
+  "definition": "Compatibility includes exact release, installed components, target/subtarget, package architecture, network structure, radio capability, and actual firmware identity.",
+  "rounds": [
+    {
+      "round": 1,
+      "focus": "Exact system release and dependency source",
+      "supported_releases": 50,
+      "official_feeds_and_pinned_package_files_downloaded": 100,
+      "versions": {
+        "Reaver 1.6.5": 11,
+        "Reaver 1.6.6": 39
+      },
+      "evidence": "build/wps-platform-compatibility-20261105/round-one-sources.json",
+      "correction": "Previous series-branch HEAD sources alone did not prove all minor releases. These records pin each release packages feed commit."
+    },
+    {
+      "round": 2,
+      "focus": "Model and release boundary checks",
+      "models": [
+        "Xiaomi AX3600",
+        "ASUS RT-ACRH17",
+        "Redmi AX6S",
+        "JCG Q30 Pro",
+        "TP-Link TL-XDR6088"
+      ],
+      "model_release_checks": 60,
+      "model_present": 33,
+      "profile_downloaded_model_absent": 7,
+      "profile_source_unavailable": 20,
+      "evidence": "build/wps-platform-compatibility-20261105/round-two-models.json",
+      "findings": [
+        "AX3600 changes target from ipq807x/generic in reviewed 23.05 to qualcommax/ipq807x in reviewed 24.10 and 25.12.",
+        "CPU architecture agreement alone does not identify a model or certify wireless features.",
+        "JCG Q30 actual firmware remains unconfirmed; Q30 Pro evidence must not be applied to Q30."
+      ],
+      "limitation": "Boundary versions only, not every model/minor-release combination. Missing profiles.json is not itself proof the firmware does not exist."
+    },
+    {
+      "round": 3,
+      "focus": "Inventory and shared capability/selection implementation",
+      "inventory_records_checked": 634,
+      "target_subtargets": 15,
+      "inventory_identity_issues": 0,
+      "pinned_radio_identity_source_hashes_matched": 6,
+      "existing_offline_tests_passed": 91,
+      "evidence": "build/wps-platform-compatibility-20261105/round-three-review.json",
+      "finding": "No new deterministic code compatibility defect established in the reviewed shared identity/package selection paths. Dependency command availability does not certify wireless operation."
+    }
+  ],
+  "unresolved": [
+    "The supplied feedback does not establish the cause of all missing replies.",
+    "No cross-model live PIN acceptance or full driver/firmware certification performed.",
+    "No Debian 12 runtime validation.",
+    "Other supported models beyond the five and intermediate model versions were not re-fetched in round two.",
+    "Not all native driver combinations were inspected or tested."
+  ],
+  "changes": {
+    "product_source_modified": false,
+    "router_modified": false,
+    "driver_replaced": false,
+    "release_built": false
+  },
+  "result": "Three documentation/code review rounds completed with the stated coverage. This does not establish that PIN failures are fixed or that every supported combination works."
+}

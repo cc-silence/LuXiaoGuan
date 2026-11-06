@@ -16,26 +16,26 @@ ROOT = Path(__file__).resolve().parents[1]
 class ApplicationPathsTests(unittest.TestCase):
     def test_linux_defaults_and_valid_xdg_overrides(self):
         self.assertEqual(paths.linux_user_directory('config', {}, '/home/test'),
-                         PurePosixPath('/home/test/.config/RouterManager'))
+                         PurePosixPath('/home/test/.config/LuXiaoGuan'))
         for kind, variable, default in (
                 ('config', 'XDG_CONFIG_HOME', '.config'),
                 ('state', 'XDG_STATE_HOME', '.local/state'),
                 ('data', 'XDG_DATA_HOME', '.local/share')):
             with self.subTest(kind=kind):
                 self.assertEqual(paths.linux_user_directory(kind, {variable: '/custom'}, '/home/test'),
-                                 PurePosixPath('/custom/RouterManager'))
+                                 PurePosixPath('/custom/LuXiaoGuan'))
                 for value in ('', 'relative', '~/not-expanded', 'C:/not-posix-absolute'):
                     self.assertEqual(paths.linux_user_directory(kind, {variable: value}, '/home/test'),
-                                     PurePosixPath('/home/test') / default / 'RouterManager')
+                                     PurePosixPath('/home/test') / default / 'LuXiaoGuan')
 
     def test_windows_locations_stay_compatible(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(paths, 'is_linux', return_value=False), \
                 patch.dict(os.environ, {'LOCALAPPDATA': folder}, clear=True):
             root = Path(folder)
             app = root / 'application'
-            self.assertEqual(paths.user_config_dir(), root / 'RouterManager/config')
+            self.assertEqual(paths.user_config_dir(), root / 'LuXiaoGuan/config')
             self.assertEqual(paths.configuration_dir(app), app / 'config')
-            self.assertEqual(paths.user_state_dir(), root / 'RouterManager')
+            self.assertEqual(paths.user_state_dir(), root / 'LuXiaoGuan')
             self.assertEqual(paths.work_data_dir(app), app / 'RouterManagerData')
             self.assertEqual(paths.error_log_dir(app), app / 'RouterManagerData/error-logs')
 

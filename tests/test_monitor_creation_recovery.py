@@ -134,3 +134,17 @@ class MonitorCreationTests(unittest.TestCase):
 
     def test_replaced_phy_before_initial_activation_is_not_used_or_deleted(self):
         self._assert_replacement_refused("phy80211/name","phy9")
+
+    def test_delete_ack_without_removal_keeps_recovery_record(self):
+        record=self.create()
+        run=self.device.run
+        def noop_delete(name,command,**kwargs):
+            if name=="remove_monitor":
+                command=command.replace("iw dev "+record.interface+" del", "true")
+            return run(name,command,**kwargs)
+        self.device.run=noop_delete
+        with self.assertRaises(RuntimeError):self.session.restore()
+        self.assertIs(self.session.record,record)
+        self.assertTrue((self.device.root/record.interface).exists())
+        self.device.run=run
+        self.assertTrue(self.session.restore())

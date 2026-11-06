@@ -132,7 +132,7 @@ class PolicyUiTests(unittest.TestCase):
         for light in (False, True):
             page,_=self.create_page(light)
             groups=page.card_groups.groups
-            self.assertEqual([len(cards) for title,cards in groups],[4,6,4])
+            self.assertEqual([len(cards) for title,cards in groups],[5,6,4])
             self.assertEqual({id(c) for title,cards in groups for c in cards},{id(c) for c in page.cards})
             identity=tuple(id(c) for c in page.cards)
             for scale in (100,150):

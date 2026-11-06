@@ -75,6 +75,15 @@ class RouterCommonSettingsPage(QWidget):
         self.orphan_container.setObjectName("captureActionContainer")
         QVBoxLayout(self.orphan_container).setContentsMargins(0, 0, 0, 0)
         _layout.addWidget(self.orphan_container)
+        from .capture_monitor_actions import CaptureMonitorActions, TITLE
+        self.monitor_card, monitor_layout = create_capture_card(body, TITLE,
+            "\u6e05\u7406\u626b\u63cf\u3001\u6293\u5305\u548c\u81ea\u52a8\u6293\u5305\u9057\u7559\u7684\u4e34\u65f6\u76d1\u542c\u63a5\u53e3\uff0c\u652f\u6301\u5f3a\u5236\u6e05\u7406\u3002",
+            icon_path=icon_root / "System Broom.png", actions_at_bottom=True)
+        self.monitor_container = QWidget(self.monitor_card)
+        self.monitor_container.setObjectName("captureActionContainer")
+        QVBoxLayout(self.monitor_container).setContentsMargins(0,0,0,0)
+        monitor_layout.addWidget(self.monitor_container)
+        self.monitor_actions = CaptureMonitorActions(self,self.monitor_container)
         self.backup_card, layout = create_capture_card(body, "生成配置备份",
             "导出当前配置到电脑；备份含密码，请妥善保管。",
             icon_path=icon_root / "System Backup.png", actions_at_bottom=True)
@@ -99,11 +108,11 @@ class RouterCommonSettingsPage(QWidget):
         policy_cards = self.policy_actions.create_cards(body, icon_root)
         self.cards_layout = cards
         self.cards = (self.password_card, self.lan_card, self.system_card, self.relocation_card,
-                      self.backup_card, self.restore_card, self.reset_card, self.reboot_card, *policy_cards, self.orphan_card)
+                      self.backup_card, self.restore_card, self.reset_card, self.reboot_card, *policy_cards, self.orphan_card, self.monitor_card)
         from .common_settings_groups import SettingsCardGroups
         policy = dict(zip(("initial", "boot", "station", "ap", "homepage"), policy_cards))
         self.card_groups = SettingsCardGroups(body, cards, (
-            ("\u5e38\u7528\u8bbe\u7f6e", (self.password_card, self.lan_card, self.system_card, policy['homepage'])),
+            ("\u5e38\u7528\u8bbe\u7f6e", (self.password_card, self.lan_card, self.system_card, policy['homepage'], self.monitor_card)),
             ("\u5b89\u5168\u8bbe\u7f6e", (policy['initial'], self.relocation_card, policy['boot'],
                                policy['station'], policy['ap'], self.orphan_card)),
             ("\u7ef4\u62a4\u4e0e\u5907\u4efd\u6062\u590d", (self.reboot_card, self.reset_card, self.backup_card, self.restore_card)),
@@ -191,6 +200,7 @@ class RouterCommonSettingsPage(QWidget):
         self.policy_actions.sync(configuration_available)
         self.relocation_actions._sync()
         self.orphan_actions._sync()
+        self.monitor_actions.sync()
         if self.dependency_banner.blocked or self.capture_service.is_busy or self.config_actions.active or self.maintenance_actions.active or self.policy_actions.active or self._password_key:
             set_page_action_enabled(self.relocation_actions.button, False)
             set_page_action_enabled(self.orphan_actions.button, False)
@@ -266,6 +276,7 @@ class RouterCommonSettingsPage(QWidget):
             self.manager.cancel(self._password_key)
         self.relocation_actions.dispose()
         self.orphan_actions.dispose()
+        self.monitor_actions.dispose()
         for signal, slot in ((self.manager.completed, self._completed), (self.manager.failed, self._failed),
             (self.capture_service.activityChanged, self._sync), (self.capture_service.openwrtSnapshotChanged, self._sync),
             (self.service.snapshotChanged, self._sync), (self.service.messageGenerated, self._message)):

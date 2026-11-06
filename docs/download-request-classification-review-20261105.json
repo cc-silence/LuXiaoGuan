@@ -1,0 +1,56 @@
+{
+  "checked_at": "2026-11-05",
+  "scope": "Shared package failure classification; applies to capture and signal installation, without new router commands or platform branches.",
+  "feedback": "XRJ_LuXiaoGuan_20261103_201612",
+  "cause": "Exact downloader request denial was misclassified as local account permissions and stopped PC fallback.",
+  "fix": "Remove only an exact standalone downloader denied-request line from permission classification. Remaining permission/write/lock/signature/ABI errors still take priority. Emit a distinct retryable request-denied reason.",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.5/package/libs/uclient/Makefile",
+      "version": "OpenWrt v22.03.5",
+      "sha256": "09e7dbf1e5791e2d21ed30d67d997b920ec2575f7d836f600b6115a4ef6e81e5",
+      "bytes": 1226
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/uclient/007d945467499f43656b141171d31f5643b83a6c/uclient-fetch.c",
+      "commit": "007d945467499f43656b141171d31f5643b83a6c",
+      "sha256": "f5b76ee154b5d6dd671c8f4de6b43b47aa649a73ac3e817ba9546fb74ee03af4",
+      "bytes": 16577
+    }
+  ],
+  "validation": {
+    "original_feedback": "now retryable",
+    "tests": 48,
+    "live_router": false,
+    "debian_runtime": false,
+    "result": "passed",
+    "syntax": "passed",
+    "encoding": "no replacement or mojibake markers",
+    "diff_check": "passed"
+  },
+  "compatibility": "Text classification is shared across supported OpenWrt versions and hardware. Only the exact observed downloader wording is reclassified; unknown forms retain prior behavior. No broad firmware or hardware certification claimed.",
+  "limits": [
+    "Does not repair router networking itself or guarantee PC connectivity.",
+    "Cancellation remains a stop condition.",
+    "No signature bypass or existing package replacement introduced.",
+    "Current running application must reload source to use this change."
+  ],
+  "followup_review": {
+    "checked_at": "2026-11-05",
+    "finding": "No new production defect found in the scoped change.",
+    "new_tests": [
+      "Downloader request refusal on stderr reaches PC download in both production entrypoints",
+      "Fatal signature, permission, filesystem and lock errors in the other output stream block PC fallback in either stream order"
+    ],
+    "validation": {
+      "tests": 61,
+      "result": "passed",
+      "syntax": "passed",
+      "encoding": "passed",
+      "official_source_cache_sha256": "verified",
+      "live_customer_router": false
+    },
+    "production_changes": false,
+    "limits": "Customer AC2100 and Debian desktop runtime are not revalidated; tests use production service methods with controlled command results."
+  }
+}

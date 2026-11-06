@@ -202,7 +202,7 @@ class LoginInstallPipelineTests(unittest.TestCase):
                 return
             self.assertEqual(service.task.group,'login_all')
             operation,event = owner.pending
-            result = operation(event,service._emit_settings_message)
+            result = operation(event,service._emit_dependency_message)
             service._complete(service.task.session_id,result)
             APP.processEvents()
             self.assertFalse(service.active)

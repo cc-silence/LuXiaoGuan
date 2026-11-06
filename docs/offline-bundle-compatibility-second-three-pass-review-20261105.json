@@ -1,0 +1,55 @@
+{
+  "date": "2026-11-05",
+  "scope": "Second requested three-pass review of software/offline resource compatibility and publication preparation. No router execution or hosting changes.",
+  "rounds": [
+    {
+      "round": 1,
+      "focus": "Common/capture and opkg/apk fixtures: accepted minimum, rejected older application, wrong-purpose rejection, tampering rejected before compatibility hints, catalog minimum enforcement",
+      "tests": 2,
+      "passed": 2,
+      "source": "https://raw.githubusercontent.com/pyca/cryptography/49.0.0/docs/hazmat/primitives/asymmetric/ed25519.rst"
+    },
+    {
+      "round": 2,
+      "focus": "Publication retry identity and ZIP entry consistency; prior compatibility/storage-failure and publishing identity regressions",
+      "tests": 23,
+      "passed": 23,
+      "pre_fix_failures": 2,
+      "findings": [
+        {
+          "problem": "Renaming an unchanged archive keeps its content hash and reused a manifest with the old asset filename; uploading would use the new filename but public verification would request the old URL.",
+          "fix": "Reject retry when the archive filename differs from the existing verified signed manifest. Preserve the immutable original signed manifest."
+        },
+        {
+          "problem": "Converting archive names to a set discarded duplicate entries; publishing preparation accepted ZIP files that the client rejects.",
+          "fix": "Reject duplicate entries and the same excessive entry count as the client before creating a signed preparation manifest."
+        }
+      ],
+      "source": "https://docs.python.org/3.10/library/zipfile.html#zipfile.ZipFile.open"
+    },
+    {
+      "round": 3,
+      "focus": "Actual Qt worker/service signals carry both application-update and bundle-update errors, clear stale offers, finish once and retain installed local status. Existing update and feedback-edge regressions.",
+      "tests": 19,
+      "passed": 19,
+      "source": "https://doc.qt.io/qtforpython-6/PySide6/QtCore/Signal.html"
+    }
+  ],
+  "verification": {
+    "distinct_tests_across_three_disjoint_suites": 44,
+    "passed": 44,
+    "syntax_utf8_mojibake_diff": "passed",
+    "new_regression_methods": 5,
+    "runtime": "Windows Python 3.10.11; cryptography 49.0.0"
+  },
+  "limits": [
+    "No Debian runtime, frozen executable rebuild or physical router installation performed.",
+    "Qt signal delivery checked synchronously through actual QObject signals; no new threaded event-loop or visual acceptance claim.",
+    "No online publishing, resource archive replacement, app restart, or platform-size audit changes.",
+    "No repeat of the entire previous 132-test suite: current production changes are confined to publication preparation and passed the relevant 23-test suite."
+  ],
+  "sha256": {
+    "scripts/publishing/offline.py": "8d0f7b2a59b568c877a528722f0f8df0b86a6557e59bb86cb24cfd381feb61b7",
+    "tests/test_bundle_compatibility_second_review.py": "a35f0de56d0b8c0fde25324bc0adf092a1b860dfb7b9921d9c931bacc9eecfa4"
+  }
+}

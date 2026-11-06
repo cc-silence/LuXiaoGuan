@@ -145,7 +145,7 @@ class ConfirmationTests(unittest.TestCase):
     def page(self, rows):
         service=Mock(task=None);service.ensure_available.return_value=True
         snapshot=OpenWrtSessionSnapshot(connection_state=OpenWrtConnectionState.CONNECTED,dependencies=tuple(rows))
-        page=NS(capture_service=NS(dependency_service=service,openwrt_snapshot=snapshot),
+        page=NS(capture_service=NS(dependency_service=service,openwrt_snapshot=snapshot,dependencyMessageGenerated=Mock()),
                 openwrt_tab=NS(connection_settings=lambda:{"enabled_features":{"scan":True,"handshake":False}}),
                 settings_info_panel=Mock())
         return page,service

@@ -1379,6 +1379,18 @@ Initialize main scan loop... CHA   LAST   R 1 3 P S    MAC-AP    ESSID (last see
         self.assertTrue(card.radio_info.free)
         self.assertIn("空闲", card.status_badge.text())
         self.assertTrue(card.takeover_check.isHidden())
+        from types import SimpleNamespace as NS
+        session = NS(stats=NS(state="error"))
+        auto_cap_service.sessions["radio0"] = session
+        card.apply_state("error", "Actual capture failure")
+        before = card.status_badge.text()
+        auto_cap_service.radioIdleStatusUpdated.emit({"radio0": True})
+        self.assertEqual(card.status_badge.text(), before)
+        session.stats.state = "stopping"
+        card.apply_state("stopping")
+        before = card.status_badge.text()
+        auto_cap_service.radioIdleStatusUpdated.emit({"radio0": True})
+        self.assertEqual(card.status_badge.text(), before)
 
     def test_radio_card_and_session_stop_message_output(self):
         """验证前台抓包停止时，控制台终端能够正确收到并输出停止与清理提示信息。"""

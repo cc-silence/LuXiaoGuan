@@ -213,7 +213,8 @@ class CaptureDownloadTests(unittest.TestCase):
                 AutoCaptureRadioSession._pull_capture_result(owner)
                 self.assertEqual(len(list(Path(folder).glob("*.pcapng"))),1)
                 self.assertEqual(len(list(Path(folder).glob("*.cap"))), 0 if unstable else 1)
-                sftp.close.assert_called_once()
+                sftp.close.assert_not_called()
+                ssh.drop_sftp.assert_not_called()
                 self.assertFalse(list(Path(folder).glob("*.part")))
 
     def test_offline_download_and_conversion_share_stability_policy(self):
@@ -230,7 +231,8 @@ class CaptureDownloadTests(unittest.TestCase):
                 result = AutoCaptureService.pull_offline_artifacts(service,folder)
                 self.assertEqual(len(result),1 if unstable else 2)
                 self.assertEqual(len(list(Path(folder).glob("*.cap"))),0 if unstable else 1)
-                sftp.close.assert_called_once()
+                sftp.close.assert_not_called()
+                ssh.drop_sftp.assert_not_called()
 
 if __name__ == "__main__":
     unittest.main()

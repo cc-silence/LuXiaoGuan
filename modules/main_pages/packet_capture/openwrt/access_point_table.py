@@ -87,6 +87,7 @@ class AccessPointTable(QTableWidget):
         header = self.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
         header.setStretchLastSection(True)
+        header.moveSection(header.visualIndex(self.BSSID_COLUMN), header.visualIndex(7))
         # 标题字号与留白统一交给主题，不能再用构造时的字体锁死表头高度。
         self._column_scale = 100
         # 序号是普通列，左侧特殊行号栏不再使用，直接隐藏。
@@ -111,6 +112,7 @@ class AccessPointTable(QTableWidget):
         self._restoring_column_widths = False
         self._light_theme = False
         self._capturing = set()
+        self._row_activity = "handshake"
         self._fit_height_to_content()
         self.itemChanged.connect(self._on_item_changed)
         self.customContextMenuRequested.connect(self._open_context_menu)
@@ -119,6 +121,8 @@ class AccessPointTable(QTableWidget):
             self, self.STATUS_COLUMN, can_edit=self._can_paint, on_finished=self._paint_finished)
         self._refresh_display_privacy()
         self._ensure_status_width()
+        from .signal_table_filter import SignalTableFilter
+        self.signal_filter = SignalTableFilter(self)
 
     def _can_paint(self, index):
         point = next((entry for entry in self._points if entry.bssid == index.data(Qt.UserRole)), None)
@@ -129,7 +133,7 @@ class AccessPointTable(QTableWidget):
     def _selection_blocked(point):
         """已知名称的开放网络仍禁选；扫描器标记的隐藏信号允许勾选。"""
         return (str(point.encryption or "").strip().upper() == "OPN"
-                and point.ssid != "__hidden__")
+                and not point.ssid_hidden)
 
     def _paint_finished(self):
         """一次涂选结束后统一通知服务，避免每行快照回放打断排序冻结。"""
@@ -227,25 +231,32 @@ class AccessPointTable(QTableWidget):
 
         return QColor("#574817" if not self._light_theme else "#fff0b3")
 
-    def set_capturing_bssids(self, bssids):
+    def set_capturing_bssids(self, bssids, *, activity="handshake"):
         """按 BSSID 集合刷新正在抓包行的整行黄背景；空集合恢复全部行。"""
 
         wanted = {str(bssid).upper() for bssid in (bssids or ()) if str(bssid).strip()}
-        if wanted == self._capturing:
+        if wanted == self._capturing and activity == self._row_activity:
             return
+        affected = self._capturing | wanted
+        self._row_activity = activity
         self._capturing = wanted
-        self._refresh_capturing_rows()
+        self._refresh_capturing_rows(affected)
+        from .password_status_display import follow_active_target
+        follow_active_target(self)
 
-    def _refresh_capturing_rows(self):
-        """重算所有行的抓包背景；排序勾选不受影响，只动背景角色。"""
+    def _refresh_capturing_rows(self, affected=None):
+        """Refresh changed active rows, or all rows after a table rebuild."""
 
+        points = {point.bssid: point for point in self._points}
         with QSignalBlocker(self):
             for row in range(self.rowCount()):
                 status_item = self.item(row, self.STATUS_COLUMN)
                 if status_item is None:
                     continue
                 bssid = str(status_item.data(Qt.UserRole))
-                point = next((entry for entry in self._points if entry.bssid == bssid), None)
+                if affected is not None and bssid.upper() not in affected:
+                    continue
+                point = points.get(bssid)
                 if point is not None:
                     self._refresh_status_cell(row, point)
                 self._apply_capturing_row(row, bssid)
@@ -371,6 +382,8 @@ class AccessPointTable(QTableWidget):
         """
 
         points = tuple(access_points)
+        if points == self._points:
+            return
         if self._privacy is not None:
             self._privacy.register_values(value for point in points for value in (point.ssid, point.bssid))
         for point in points:
@@ -389,6 +402,7 @@ class AccessPointTable(QTableWidget):
         else:
             self._checkbox_paint.cancel()
             self._rebuild_rows(points)
+        self.signal_filter.refresh()
 
     @contextmanager
     def _stable_update(self, restore_indicator):
@@ -424,6 +438,7 @@ class AccessPointTable(QTableWidget):
         任务刷新只求冻结，指示器由用户下次点表头重建。
         """
 
+        previous = {point.bssid: point for point in self._points}
         rows_by_bssid = {}
         for row in range(self.rowCount()):
             item = self.item(row, self.STATUS_COLUMN)
@@ -432,6 +447,8 @@ class AccessPointTable(QTableWidget):
         with self._stable_update(False):
             self._points = tuple(points)
             for point in points:
+                if previous.get(point.bssid) == point:
+                    continue
                 row = rows_by_bssid.get(point.bssid)
                 if row is None:
                     continue
@@ -483,44 +500,51 @@ class AccessPointTable(QTableWidget):
     def _rebuild_rows(self, points):
         """目标集合变化时全量重建；会按当前排序指示器重排。"""
 
+        updates = self.updatesEnabled()
+        sorting = self.isSortingEnabled()
         self._updating = True
+        self.setUpdatesEnabled(False)
         self.setSortingEnabled(False)
-        self.setRowCount(0)
-        self._points = tuple(points)
-        for position, point in enumerate(self._points, start=1):
-            row = self.rowCount()
-            self.insertRow(row)
-            number_item = _NumberItem(str(position))
-            number_item.setData(Qt.UserRole, position)
-            number_item.setTextAlignment(Qt.AlignCenter)
-            status_item = QTableWidgetItem()
-            status_item.setData(Qt.UserRole, point.bssid)
-            status_item.setFlags(status_item.flags() | Qt.ItemIsUserCheckable)
-            status_item.setCheckState(Qt.Checked if point.selected else Qt.Unchecked)
-            status_item.setTextAlignment(Qt.AlignCenter)
-            bssid_item = self._item(self._display_bssid(point))
-            ssid_item = self._item(self._display_ssid(point))
-            client_item = self._item(str(len(point.clients)), center=True)
-            values = (
-                number_item,
-                status_item,
-                bssid_item,
-                ssid_item,
-                self._item("未知" if point.power is None else str(point.power), center=True),
-                client_item,
-                self._item(self._wps_text(point), center=True),
-                self._item(str(point.channel or ""), center=True),
-                self._item(point.encryption),
-            )
-            for column, item in enumerate(values):
-                self.setItem(row, column, item)
-            self._refresh_status_cell(row, point)
-            self._apply_row_highlight((bssid_item, ssid_item, client_item), point)
-        self._refresh_capturing_rows()
-        self.setSortingEnabled(True)
-        self._renumber_rows()
-        self._updating = False
-        self._fit_height_to_content()
+        try:
+            self.setRowCount(0)
+            self.setRowCount(len(points))
+            self._points = tuple(points)
+            for position, point in enumerate(self._points, start=1):
+                row = position - 1
+                number_item = _NumberItem(str(position))
+                number_item.setData(Qt.UserRole, position)
+                number_item.setTextAlignment(Qt.AlignCenter)
+                status_item = QTableWidgetItem()
+                status_item.setData(Qt.UserRole, point.bssid)
+                status_item.setFlags(status_item.flags() | Qt.ItemIsUserCheckable)
+                status_item.setCheckState(Qt.Checked if point.selected else Qt.Unchecked)
+                status_item.setTextAlignment(Qt.AlignCenter)
+                bssid_item = self._item(self._display_bssid(point))
+                ssid_item = self._item(self._display_ssid(point))
+                client_item = self._item(str(len(point.clients)), center=True)
+                values = (
+                    number_item,
+                    status_item,
+                    bssid_item,
+                    ssid_item,
+                    self._item("未知" if point.power is None else str(point.power), center=True),
+                    client_item,
+                    self._item(self._wps_text(point), center=True),
+                    self._item(str(point.channel or ""), center=True),
+                    self._item(point.encryption),
+                )
+                for column, item in enumerate(values):
+                    self.setItem(row, column, item)
+                self._refresh_status_cell(row, point)
+                self._apply_row_highlight((bssid_item, ssid_item, client_item), point)
+            self._refresh_capturing_rows()
+            self.setSortingEnabled(sorting)
+            self._renumber_rows()
+            self._fit_height_to_content()
+        finally:
+            self.setSortingEnabled(sorting)
+            self._updating = False
+            self.setUpdatesEnabled(updates)
 
     def _fit_height_to_content(self, max_rows=15):
         """表格随分隔条分配伸展，不再限制为 15 行高度。"""
@@ -589,10 +613,26 @@ class AccessPointTable(QTableWidget):
             status_item.setToolTip("以前抓到过可用包，现在暂时无法访问或确认文件位置，所以保留完成记录。请检查保存位置；需要重抓时右键清除状态。")
         elif point.result_availability == "missing":
             status_item.setToolTip("以前保存的可用包都已找不到，现可重新抓取。软件没有删除这些文件，请检查是否被移动或手动删除。")
-        if point.bssid.upper() in self._capturing:
-            status_item.setText("抓包中")
-            status_item.setToolTip("正在采集此信号，后台自动检查是否已抓到可用包。")
-        if point.capture_state == AccessPointCaptureState.CAPTURED and point.bssid.upper() not in self._capturing:
+        from .password_status_display import apply_password_label
+        password_status_visible = not (point.bssid.upper() in self._capturing
+                                       and self._row_activity != "password_verify")
+        if password_status_visible:
+            apply_password_label(status_item, point)
+        if point.bssid.upper() in self._capturing and not (
+                self._row_activity == "password_verify" and point.password_state == "found"):
+            if self._row_activity == "wps":
+                status_item.setText("Pin 中")
+                status_item.setToolTip("正在对此信号执行 Pin 任务。")
+            elif self._row_activity == "password_verify":
+                status_item.setText("验证中")
+                status_item.setToolTip("正在对此信号验证字典密码。")
+            else:
+                status_item.setText("抓包中")
+                status_item.setToolTip("正在采集此信号，后台自动检查是否已抓到可用包。")
+        from .password_status_display import apply_password_color
+        if password_status_visible and apply_password_color(status_item, point, self):
+            pass
+        elif point.capture_state == AccessPointCaptureState.CAPTURED and point.bssid.upper() not in self._capturing:
             status_item.setForeground(self._highlight_green())
         else:
             status_item.setData(Qt.ForegroundRole, None)
@@ -703,7 +743,7 @@ class AccessPointTable(QTableWidget):
     def select_all(self):
         """勾选全部可选目标，开放无密码网络除外。"""
 
-        self._select_matching(lambda point: bool(point.ssid.strip()) and point.ssid != "__hidden__")
+        self._select_matching(lambda point: bool(point.ssid.strip()) and not point.ssid_hidden)
 
     def deselect_all(self):
         """取消全部目标选择。"""
@@ -731,7 +771,7 @@ class AccessPointTable(QTableWidget):
 
     def _select_wps(self):
         self._select_matching(
-            lambda point: bool(point.ssid) and point.ssid != "__hidden__"
+            lambda point: bool(point.ssid) and not point.ssid_hidden
             and point.wps_supported and not point.wps_locked
         )
 

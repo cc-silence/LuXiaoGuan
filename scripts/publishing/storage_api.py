@@ -101,9 +101,10 @@ class StorageAPI:
     def delete(self, row):
         key = row["key"]
         from .storage import archive_version
-        from .retention import _OFFLINE_MANIFEST, _OFFLINE_ARCHIVE
-        if archive_version(key) is None and not _OFFLINE_MANIFEST.fullmatch(key) and not _OFFLINE_ARCHIVE.fullmatch(key):
-            raise ValueError("Only verified old release archives/manifests may be removed")
+        if key.startswith('offline/'):
+            raise ValueError('Cloudflare offline resources are preserved by owner policy')
+        if archive_version(key) is None:
+            raise ValueError("Only verified old application archives may be removed")
         etag = row.get("etag")
         if not isinstance(etag, str) or not re.fullmatch(r'[A-Za-z0-9._-]+', etag.strip('"')):
             raise ValueError("Old release has no usable immutable ETag; cleanup stopped")

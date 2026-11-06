@@ -149,6 +149,7 @@ class WeakNetworkTests(unittest.TestCase):
 
     def test_cancel_during_final_body_after_skipped_redirect_body(self):
         received = Event()
+        final_response_started = Event()
         blocked_read = Event()
         release = Event()
         cancel = Event()
@@ -164,6 +165,7 @@ class WeakNetworkTests(unittest.TestCase):
                     self.end_headers()
                     release.wait(3)
                     return
+                final_response_started.set()
                 self.send_response(200)
                 self.send_header("Content-Length", "2")
                 self.end_headers()
@@ -177,7 +179,7 @@ class WeakNetworkTests(unittest.TestCase):
         def readinto(reader, buffer):
             if reader not in readers:
                 readers.append(reader)
-            if reader.streaming and received.is_set():
+            if reader.streaming and final_response_started.is_set():
                 blocked_read.set()
             return original_readinto(reader, buffer)
         with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:

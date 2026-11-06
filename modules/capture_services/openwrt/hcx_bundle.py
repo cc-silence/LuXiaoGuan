@@ -52,7 +52,7 @@ def primary_package(device, cancel, tell=None):
     from .common_bundle_repository import CommonBundleRepository
     from .signal_manager import SignalError
     repo = CommonBundleRepository(kind="capture")
-    with bundle_lock(repo.root):
+    with bundle_lock(repo.root, shared=True):
         if cancel is not None and cancel.is_set():
             raise SignalError("cancelled", "Installation cancelled")
         if repo._load():

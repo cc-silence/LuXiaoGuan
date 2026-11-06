@@ -3,7 +3,7 @@ import gzip
 import hashlib
 import json
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from .firmware_metadata import firmware_metadata
 
@@ -73,3 +73,30 @@ class FirmwareMetadataTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             firmware_metadata(http, "19.07.10", "x86/64")
         http.official.assert_called_once()
+
+
+class AdditionalEvidenceTests(unittest.TestCase):
+    legacy_http = FirmwareMetadataTests.legacy_http
+    def test_target_manifest_without_trailing_image_separator_is_valid(self):
+        http,responses=self.legacy_http()
+        responses['sha256sums']=responses['sha256sums'].replace(b'openwrt-19.07.10-x86-64-rootfs.img',b'openwrt-19.07.10-x86-64.manifest')
+        data,_=firmware_metadata(http,'19.07.10','x86/64')
+        self.assertEqual(data['arch_packages'],'x86_64')
+
+    def test_apk_platform_without_legacy_manifest_uses_checked_binary_index(self):
+        config=b'CONFIG_TARGET_malta=y\nCONFIG_TARGET_malta_be=y\n'
+        index=b'test binary index'
+        responses={'config.buildinfo':config,'packages/packages.adb':index}
+        responses['sha256sums']=('f'*64+' *openwrt-25.12.6-malta-be-default.manifest\n'+''.join(hashlib.sha256(raw).hexdigest()+' *'+name+'\n' for name,raw in responses.items())).encode()
+        def fetch(url):
+            for name in sorted(responses,key=len,reverse=True):
+                if url.endswith('/'+name):return responses[name]
+            raise FileNotFoundError(url)
+        http=Mock(official=Mock(side_effect=fetch))
+        with patch('scripts.openwrt_packages.apk_index_reader.read_apk_index',return_value=[dict(name='base-files',architecture='mips_24kc')]) as parse:
+            data,evidence=firmware_metadata(http,'25.12.6','malta/be')
+            self.assertEqual(data['arch_packages'],'mips_24kc');parse.assert_called_once_with(index)
+            self.assertTrue(any(row['url'].endswith('/packages/packages.adb') for row in evidence))
+            responses['packages/packages.adb']=b'tampered'
+            with self.assertRaisesRegex(ValueError,'checksum'):
+                firmware_metadata(http,'25.12.6','malta/be')

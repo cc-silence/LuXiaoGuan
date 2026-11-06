@@ -1,0 +1,57 @@
+{
+  "date": "2026-11-06",
+  "scope": "hcx installed-library detection across official OpenWrt 19.07,21.02,22.03,23.05,24.10,25.12 precise supported releases; common offline thread-runtime supplementation",
+  "rounds": [
+    {
+      "number": 1,
+      "topic": "APK query semantics",
+      "evidence": "Fixed APK app_info.c and apk-info.8.scd for original-image versions 3.0.2 and 3.0.5, plus current 25.12 feed versions",
+      "result": "info -v -e reads installed providers only, no repositories, name-version output. info -v NAME was descriptive and reproduced the false-missing bug.",
+      "sources": "build/hcx-library-fix-20261106/three-pass-sources/apk-fixed-sources.json"
+    },
+    {
+      "number": 2,
+      "topic": "Every exact firmware version and legacy query",
+      "evidence": "50 exact OpenWrt source recipes, 7 fixed opkg commits with status handler and Version/Status serializers",
+      "result": "50/50 source recipes read; 14/14 fixed opkg source files read; legacy installed status/version output contract unchanged; early APK 3.0.2 also supported.",
+      "sources": "build/hcx-library-fix-20261106/three-pass-sources/release-recipes.json"
+    },
+    {
+      "number": 3,
+      "topic": "End-to-end installation and delivery guards",
+      "evidence": "68 hcx/collector tests, 45 client/download/runtime tests including all-50 release query subcases, 2 support inventory tests",
+      "result": "All passed. Existing library pins, no unrelated upgrades, real missing libraries, post-install re-probe, hash checks, cancellation, timeout, cleanup and client floor preserved."
+    }
+  ],
+  "bundle": {
+    "archive": "RouterManager_OpenWrt_Common_Offline_20261106_101557.zip",
+    "size": 285026116,
+    "increase": 3300139,
+    "sha256": "8a00895b0687c96564c06f9f9724ba38154d9e72ab5db32677c2a80bbbd63532",
+    "profiles": 1672,
+    "objects": 4466,
+    "source_of_record": "dist/openwrt_common/RouterManager_OpenWrt_Common_Offline_20261106_101557.coverage.json",
+    "all_previous_packages_and_platforms_preserved": true,
+    "exact_customer_missing_version_included": "libpthread 1.2.5-r5"
+  },
+  "limitations": [
+    "Read-only official-source review and offline shell/runtime regressions; no all-router hardware certification",
+    "Native Debian 12 run not available; desktop-independent Python and remote POSIX query only",
+    "hcx application code fix is not shipped by a dependency-only ZIP; no application publication requested",
+    "Existing official unavailable combinations preserved and not marked newly supported"
+  ],
+  "source_sha256": {
+    "modules/capture_services/openwrt/hcx_primary_installer.py": "370677aa7e268de8e6d461e26fc1ad3690ccb19d4b2ebe822b56487980f12afd",
+    "modules/capture_services/openwrt/bundle_dependencies.py": "51c1a9b0fc3f517088a0fd34a2c5a31f66470d7fb6d6bc467b947956cf7fe1a4",
+    "scripts/openwrt_packages/extend_common_bundle.py": "87a93dd73fd228d50de459577d856dfecd7f1011530dfd77030b0d1b319bfb74",
+    "scripts/openwrt_packages/supplement_common_runtime.py": "ab066e9938556b110ec9068cb5e478412d7e766eeb37897c790147d0da44ce2e",
+    "scripts/openwrt_packages/support_inventory.py": "6c83ee2e4f6989d4ebf00e8df7d6fcc8df1655c576037aceb1331b994469221e",
+    "scripts/openwrt_packages/test_common_bundle.py": "ed823da61405f2d22a2da683d14365b1ec885c17af0e3368eb468e4cd74011bc",
+    "tests/test_common_runtime_supplement.py": "1d52de44ddf427b854006403933dd2bbf5526d0a3ccd488f13a4b4e6f57363b4",
+    "tests/test_hcx_library_probe.py": "28571f77b07fbc43cbf90f8805ee627d6e3f27a74283083ad6eece56b19b6219",
+    "tests/test_hcx_primary_installer.py": "0932dfb984dbe3545470d930bddfaa103cf398540a1479878c509accc502e48b",
+    "tests/test_support_inventory.py": "eedfd029028377cf49df0eaa0c09e4f35c05e20c31f09af2d44c46da17203f68"
+  },
+  "followup_review": "docs/hcx-installed-library-detection-second-three-pass-review-20261106.json",
+  "historical_snapshot": true
+}

@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-05",
+  "scope": "Owner-requested optional current-configuration backup for both restore and factory reset; shared Chinese filename defaults.",
+  "authorization": "The owner explicitly chose to replace mandatory reset backup with two user-selected execution buttons. This overrides the previous software-only mandatory-backup restriction; all native commands and capability/identity checks are retained.",
+  "behavior": [
+    "Both operations offer direct execution and execution after backup.",
+    "Factory reset still requires its risk checkbox for either button.",
+    "Backup destination is requested only after the backup choice; cancelling that picker stops the action.",
+    "Archive identity/hash validation, source-file protection, configuration-token rechecks and backup-failure stop conditions remain in place.",
+    "Default local names are configuration backup or execution-before-operation backup in Chinese, with date/time and .tar.gz. Policy actions use the same filename helper.",
+    "Unicode local archive names are copied into a bounded ASCII temporary archive before restore upload; local names do not enter sysupgrade command arguments."
+  ],
+  "validation": {
+    "tests_passed": 32,
+    "modules": [
+      "tests.test_maintenance_choices",
+      "tests.test_maintenance_ui",
+      "tests.test_optional_restore_backup",
+      "tests.test_router_backup"
+    ],
+    "new_cases": [
+      "Both operations, both choices",
+      "Cancelled backup destination does not execute",
+      "Chinese default filenames",
+      "Unicode export-inspect-restore round trip with ASCII remote path"
+    ],
+    "themes": [
+      "dark",
+      "light"
+    ],
+    "scales": [
+      100,
+      150
+    ],
+    "syntax_and_utf8": "passed",
+    "live_router": false,
+    "debian_desktop": false
+  },
+  "platform_boundary": "Same Python/Qt flow on Windows and Debian; native file dialog behavior and Unicode filesystem paths still need Debian desktop acceptance. No new remote command or package/driver rule was introduced.",
+  "pending_separate_task": "Package-cancellation lifecycle patch remains review-only after automatic approval rejection; it has not been applied or executed.",
+  "packaged": false,
+  "followup_review": {
+    "finding": "Reproduced: Return on the focused Direct button activated the backup primary button instead. Space and mouse clicks used the correct direct branch.",
+    "fix": "Shared FramelessDialog Enter handler now activates the focused QPushButton in that dialog, including cancel; editor fallback and multiline behavior remain.",
+    "regressions": "Both Enter keys across reset/restore and direct/backup/cancel; single-line default and multiline newline; device switch while selecting backup; backup failure blocks reset.",
+    "platforms": "Windows local Qt and simulated device; no real destructive router operation, Debian desktop not available.",
+    "cancellation_patch": "Review-only, not applied; not counted as a fixed or tested production feature.",
+    "focused_tests_passed": 50,
+    "force_apply_dialog_tests_passed": 5
+  }
+}

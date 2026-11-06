@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-05",
+  "feedback_sha256": "d7aa0b7dbfd7c42b58ffab266ddd38200013da154376fa17894117f005aafcf3",
+  "feedback_findings": [
+    "Thirteen quick-mode targets skipped for missing default profile. No candidate verification started in quick mode.",
+    "Normal mode started only target 1 of 13, on 5GHz channel 161 using Reaver 1.6.6. Source address and channel readbacks passed.",
+    "Observed timeline before the final repeated sample: three association records, 26 EAPOL start records, two start failures and two transaction failures with native code 2. No identity request or M1/M3/M5/M7 was recorded. These are sampled log observations, not exact packet counts.",
+    "Normal mode was manually cancelled after approximately two minutes of candidate observation. Process stop and wireless cleanup were confirmed.",
+    "This identifies a failure before WPS credential validation, but does not distinguish target-side PIN availability from over-air/driver interaction. Kernel interface readback alone does not certify packet exchange."
+  ],
+  "changes": [
+    "Shared monotonic candidate clock resets only on candidate change; same-candidate retries retain elapsed time. Fresh tracker per target.",
+    "Mean speed is observed candidate transitions per minute since the first observed candidate, including current waits. Before the first transition show collecting rather than a fabricated speed.",
+    "Receive-idle deadline starts on a reported candidate and resets on new identity/M1/M3/M5/M7/NACK/EAP failure observations. Replayed tails, beacons, association and outgoing EAPOL do not extend the deadline.",
+    "After 60 seconds of receive idle, stop and checkpoint the owned process, finish that target and continue the batch. Additional rounds or combo phases are not started for a timed-out target. Quick mode retains its shorter 15-second target budget.",
+    "Progress uses existing worker updates and immutable snapshots; no UI timer or new remote command/argument. Existing themes/layout retained with additional requested status text."
+  ],
+  "compatibility": {
+    "shared_logic": "Windows and Debian use the same pure Python monotonic timing and snapshot formatting. All native commands, tuning and owned-resource cleanup paths are unchanged.",
+    "sources": "Verified cached Reaver v1.6.5 and v1.6.6 defs.h from build/wps-runtime-audit and its sources.json; numeric code 2 is RX_TIMEOUT, distinct from KEY_REJECTED.",
+    "runtime_limit": "The cutoff is enforced on the existing bounded worker polling path. In-flight transport/checkpoint calls can delay the next check.",
+    "debian12_runtime_verified": false,
+    "live_new_behavior_verified": false
+  },
+  "validation": {
+    "syntax_and_utf8": true,
+    "light_and_dark_render_inspected": true,
+    "initial_directed_tests_passed": 50,
+    "final_directed_tests_passed": 58
+  },
+  "activation": "Restart the source app before using the new timing and no-reply policy. No release package was built."
+}

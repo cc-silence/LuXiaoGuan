@@ -1,0 +1,39 @@
+{
+  "checked_at": "2026-11-05",
+  "scope": "Offline IPK plan fallback only; no router command, APK or snapshot candidate policy changes.",
+  "customer": "tmux stopped before transfer on OpenWrt 24.10.8 ramips/mt7621 mipsel_24kc, because local dependency selection could not satisfy librt.",
+  "findings": [
+    "Official exact-release toolchain defines librt. A missing installed-package record alone does not establish a missing shared object.",
+    "Exact-release opkg definition describes recursive dependency resolution and pins opkg source 38eccbb1fd694d4798ac1baf88f9ba83d1eac616.",
+    "New UnsatisfiedDependency remains a ValueError for existing callers. Only exact local selection catches it to permit the existing network routes.",
+    "Malformed metadata, integrity errors, cancellation and post-selection failures still stop. Online simulation still rejects replacement of installed packages.",
+    "The change is hardware-independent and shared by Windows and Debian. Existing firmware profile, architecture and candidate guards remain in place."
+  ],
+  "sources": [
+    {
+      "release": "24.10.8",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.8/package/system/opkg/Makefile",
+      "sha256": "5ed471d4e57084731b568be4e6e30efb9d02590ba6087e96bce6a82ebc7d705f",
+      "bytes": 2609
+    },
+    {
+      "release": "24.10.8",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.8/package/libs/toolchain/Makefile",
+      "sha256": "af13b7718ab2d1995f0463ce4e00073eab2526b4a7fc0a935e2033ca8fe602ef",
+      "bytes": 20006
+    }
+  ],
+  "supplemental_source": {
+    "url": "https://lxr.openwrt.org/source/opkg-lede/src/opkg-cl.c",
+    "read_via": "web tool",
+    "observation": "noaction option is supported; current index, not exact-release proof"
+  },
+  "source_limitations": "Pinned opkg implementation download failed TLS certificate verification; validation was not disabled.",
+  "validation": {
+    "targeted_tests": 82,
+    "new_regressions": 9,
+    "windows": "passed",
+    "user_router": "not tested",
+    "debian": "not tested"
+  }
+}

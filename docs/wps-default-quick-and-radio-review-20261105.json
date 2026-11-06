@@ -1,0 +1,110 @@
+{
+  "date": "2026-11-05",
+  "user_request": "Switch second/quick Pin to vendor/default-PIN quick validation; retain Pixie Dust in offline mode. Also address all normal Pin tasks waiting for beacons.",
+  "architecture": [
+    "wps_defaults provides prefix-matched local candidates, bounded to eight, with a single cached small generator and no per-target cache or network access.",
+    "A fixed MIT-licensed upstream implementation is vendored unchanged after the license header; source and SHA256 are recorded. License is also included in bin/third_party_licenses so release assets retain it.",
+    "wps_quick validates only complete fixed candidates with Reaver -p, which sets max attempts to one in both supported Reaver versions. Native confirmation is required before writing a success artifact.",
+    "An unmatched target is skipped before radio/interface preparation. There is no fallback to brute-force, common-guess batches or Pixie Dust.",
+    "The 15-second quick validation budget is independent of normal brute-force settings. Preparation/transport/cleanup time is additional. Incomplete responses are not labelled rejected.",
+    "Quick disposable per-candidate sessions never read, import, overwrite or checkpoint normal sessions. Normal state remains in RouterManagerData/wps-sessions, with no legacy-result auto-import.",
+    "Shared WPS results, progress and credential-file writer are separated from the execution strategies."
+  ],
+  "beacon_findings": [
+    "Newest feedback reports normal Pin, with configured 60-second budget. Last observed native status is waiting for beacon; this is not evidence that the first PIN was rejected.",
+    "The two newest native session checkpoints were inspected read-only and have initial P1/P2/state values 0/0/0. They do not demonstrate completed attempts.",
+    "Radio-session creation intentionally does not tune channels. The prior WPS path delegated tuning to Reaver without checking actual kernel channel state.",
+    "Upstream Reaver 1.6.5/1.6.6 uses the legacy SIOCSIWFREQ WEXT call, and argsparser does not abort when that channel switch fails. A wrong/unset channel can therefore coexist with Waiting for beacon.",
+    "WPS now reads owned iw interface state, tunes once through iw/nl80211 only if needed, and verifies actual channel and frequency band before Reaver. Ownership guard checks phy and task token on every operation.",
+    "Unconfirmed or mismatched tuning fails before Reaver and follows the existing cleanup path. Normal WPS task budgets are unchanged; no polling/timer workaround or driver change was introduced.",
+    "The exact device-side RF failure is not proven by the sanitized archive alone. The tuning gap is code/source verified; real-device acceptance remains pending."
+  ],
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/nathan-lalli/wpspin/2b6b7b89f05178be85087cd243c38530f954fc7d/wpspin/wpspin.py",
+      "commit": "2b6b7b89f05178be85087cd243c38530f954fc7d",
+      "sha256": "727f8c8fa2dc6d72f62fa9107f67368f12911ae9e23eff4c75c925a97b03dc71"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nathan-lalli/wpspin/2b6b7b89f05178be85087cd243c38530f954fc7d/LICENSE",
+      "commit": "2b6b7b89f05178be85087cd243c38530f954fc7d",
+      "sha256": "69a43adf84283f84f558b9b170ab4711741b4c9bc86aa80bebde367ba19b73ea"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nathan-lalli/wpspin/2b6b7b89f05178be85087cd243c38530f954fc7d/README.md",
+      "commit": "2b6b7b89f05178be85087cd243c38530f954fc7d",
+      "sha256": "2789d6d1339e5c684dc2c92a67b6bdd97fed976c199ed4347968d1827332f064"
+    }
+  ],
+  "radio_sources": {
+    "checked": "2026-11-05",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/packages/openwrt-19.07/net/reaver/Makefile",
+        "version": "1.6.5",
+        "sha256": "a77a94f4b1b53a5ab8d93c962598cf515eed6365815c1ed2eb4abcd9f51abb6d"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/packages/openwrt-21.02/net/reaver/Makefile",
+        "version": "1.6.6",
+        "sha256": "8120a565c8c395f644d283066029b5c7deae5864723ef78be046fd9aa16d1df4"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/packages/openwrt-22.03/net/reaver/Makefile",
+        "version": "1.6.6",
+        "sha256": "8120a565c8c395f644d283066029b5c7deae5864723ef78be046fd9aa16d1df4"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/packages/openwrt-23.05/net/reaver/Makefile",
+        "version": "1.6.6",
+        "sha256": "8bd4c648a7389a7d09333da3dac828dfbb76098843171a12ef80129f4eb24d89"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/packages/openwrt-24.10/net/reaver/Makefile",
+        "version": "1.6.6",
+        "sha256": "8bd4c648a7389a7d09333da3dac828dfbb76098843171a12ef80129f4eb24d89"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/packages/openwrt-25.12/net/reaver/Makefile",
+        "version": "1.6.6",
+        "sha256": "8bd4c648a7389a7d09333da3dac828dfbb76098843171a12ef80129f4eb24d89"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.5/src/iface.c",
+        "version": "v1.6.5",
+        "sha256": "9fa5a141ff767643ea4e03940534e5c6a562fe31ec73fddb424d11cfd5b1529e"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.5/src/argsparser.c",
+        "version": "v1.6.5",
+        "sha256": "f3b0725dcd4dd4d345ce71bcbbc4e1cc94faa165e07ab335dbca1b157ed61d25"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.6/src/iface.c",
+        "version": "v1.6.6",
+        "sha256": "9fa5a141ff767643ea4e03940534e5c6a562fe31ec73fddb424d11cfd5b1529e"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.6/src/argsparser.c",
+        "version": "v1.6.6",
+        "sha256": "3c74abbdd6aff8a7535c67fcf369f96011c35b0309813153c63f8c6735387ada"
+      }
+    ]
+  },
+  "iw_reference": "https://wireless.docs.kernel.org/en/latest/en/users/documentation/iw.html",
+  "verification": {
+    "directed_tests_passed": 55,
+    "syntax_utf8": "passed",
+    "ui_render": "Quick dialog visually inspected; existing light/dark active-row tests passed.",
+    "live_router": false,
+    "debian12_runtime": false,
+    "release_built": false
+  },
+  "acceptance": [
+    "Exit the old process normally and reopen the source app.",
+    "Select one authorized known-WPS target. Normal Pin must log successful kernel channel verification before running. If tuning fails, capture the precise error; it must not spend 60 seconds waiting for a beacon.",
+    "If the tool reports Trying pin, progress must display that exact candidate and highlight only that target. No reported candidate means no submitted-PIN claim.",
+    "Quick Pin skips unknown profiles; confirmed native rejection advances candidates, while connection failures remain incomplete."
+  ],
+  "restart_state": "Old pythonw processes were still present at last check; normal exit requested from user. No forced termination or live router operation was performed."
+}

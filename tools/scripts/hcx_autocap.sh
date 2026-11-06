@@ -53,7 +53,7 @@ SCRIPT_FILE=$(basename "$0" 2>/dev/null)
 SCRIPT_BASE="${SCRIPT_FILE%.*}"
 [ -z "${SCRIPT_BASE}" ] && SCRIPT_BASE="hcx_autocap"
 SCRIPT_NAME="${SCRIPT_FILE}"
-SCRIPT_VER="v26.11.4.1"
+SCRIPT_VER="v26.11.4.2"
 
 case "$1" in
     -v|--version)
@@ -162,11 +162,11 @@ log() {
 
 # hcxdumptool 版本首行: 6.3.x 有 --version, 老版本可能只有 -v, 两个都试
 hcx_version_line() {
-    _v=$(hcxdumptool --version 2>&1 | head -n 1)
+    _v=$("${HCX_BIN:-hcxdumptool}" --version 2>&1 | head -n 1)
     case "${_v}" in
         *[0-9].[0-9]*) printf '%s' "${_v}"; return 0 ;;
     esac
-    _v=$(hcxdumptool -v 2>&1 | head -n 1)
+    _v=$("${HCX_BIN:-hcxdumptool}" -v 2>&1 | head -n 1)
     printf '%s' "${_v}"
 }
 
@@ -232,6 +232,16 @@ hcx_probe_help() {
 }
 
 # 按帮助文本 / 版本号定方言; 只写 HCX_MODE / HCX_PRIMARY, 不改 HCX_DIALECT(用户设置要留着)
+hcx_compat_kernel_supported() {
+    _compat_kernel=$(uname -r 2>/dev/null)
+    _compat_major=${_compat_kernel%%.*}
+    _compat_tail=${_compat_kernel#*.}
+    [ "$_compat_tail" != "$_compat_kernel" ] || return 1
+    _compat_minor=${_compat_tail%%.*}
+    case "$_compat_major:$_compat_minor" in *[!0-9:]*|:*|*:) return 1;; esac
+    [ "$_compat_major" -gt 5 ] || { [ "$_compat_major" -eq 5 ] && [ "$_compat_minor" -ge 15 ]; }
+}
+
 detect_hcx_dialect() {
     HCX_BIN=""
     if [ -x /root/.winbox-tools/bin/hcxdumptool ] && /root/.winbox-tools/bin/hcxdumptool -h 2>&1 | grep -q -- '-w'; then
@@ -243,6 +253,11 @@ detect_hcx_dialect() {
     fi
     [ -z "${HCX_BIN}" ] && HCX_BIN="hcxdumptool"
     HCX_VER=$(hcx_version_line)
+    if hcx_compat_kernel_supported && printf '%s\n' "$HCX_VER" | grep -Eq '(^|[^0-9])6\.3\.4([^0-9]|$)' &&
+       [ -x /root/.luxiaoguan-tools/hcx-ifindex1 ] && /root/.luxiaoguan-tools/hcx-ifindex1 -h 2>&1 | grep -q '6.3.4-rm-ifindex1'; then
+        HCX_BIN="/root/.luxiaoguan-tools/hcx-ifindex1"
+        HCX_VER=$(hcx_version_line)
+    fi
     hcx_probe_help
     # [借鉴 hcx_capabilities.py] 精准正则提取选项: 允许前置空白/Tab 缩进, 严格匹配选项定界符
     _has_w=0

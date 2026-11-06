@@ -25,6 +25,13 @@ def power_current_label(radio):
     return "\u6cbf\u7528\u5f53\u524d\u7cfb\u7edf\u8bbe\u7f6e\uff08" + value + "\uff09"
 
 
+def bandwidth_label(width):
+    label = width + " MHz" if width else "—"
+    if width == "160":
+        label += "（不建议选择，可能搜不到热点）"
+    return label
+
+
 def configure_radio_fields(dialog, radio, features):
     clear_editor_update(dialog, "bandwidth")
     modes = supported_htmodes(radio, features)
@@ -57,9 +64,9 @@ def configure_radio_fields(dialog, radio, features):
         selected = [mode for mode in modes if split_mode(mode)[0] == family]
         bandwidth.clear()
         if preserve and current not in selected:
-            bandwidth.addItem(current_width + " MHz" if current_width else "—", None)
+            bandwidth.addItem(bandwidth_label(current_width), None)
         for mode in selected:
-            bandwidth.addItem(split_mode(mode)[1] + " MHz", None if preserve and mode == current else mode)
+            bandwidth.addItem(bandwidth_label(split_mode(mode)[1]), None if preserve and mode == current else mode)
         if preserve:
             bandwidth.setCurrentIndex(max(0, bandwidth.findData(None)))
         if not preserve and selected:

@@ -48,6 +48,7 @@ QTableWidget#captureAccessPointTable::indicator:checked { background: #8fc5ee; b
 QTableWidget#captureAccessPointTable::item { padding: 5px; border: none; }
 QTableWidget#captureAccessPointTable QTableCornerButton::section { background: #edf2f8; border: none; }
 QLabel#captureProgressTitle { color: #172033; font: __BODY_PT__pt "__FONT_FAMILY__"; }
+QLabel#captureProgressWarning { color: #c62828; font: __BODY_PT__pt "__FONT_FAMILY__"; }
 QProgressBar#captureProgressBar { min-height: 8px; max-height: 8px; background: #dce5ef; border: none; border-radius: 4px; }
 QProgressBar#captureProgressBar::chunk { background: #3f91d1; border-radius: 4px; }
 
@@ -91,8 +92,8 @@ QWidget#captureToolPanel QPushButton#downloadActionButton[riskAction="true"] { c
 QWidget#captureToolPanel QPushButton#downloadActionButton[riskAction="true"]:hover { background: #ffefbf; border-color: #b8902e; }
 QPushButton#captureSecondaryButton[riskAction="true"] { color: #c62828; border-color: #e5a3a3; background: #fdecea; }
 QPushButton#captureSecondaryButton[riskAction="true"]:hover { background: #f9d8d8; border-color: #b23a3a; }
-QWidget#captureToolPanel QPushButton#downloadActionButton[hasCaptureResult="true"] { color: #0f7a3d; border-color: #7cc79b; background: #e9f7ef; }
-QWidget#captureToolPanel QPushButton#downloadActionButton[hasCaptureResult="true"]:hover { background: #d7efdf; border-color: #4da975; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="open_output_dir"] { color: #0f7a3d; border-color: #7cc79b; background: #e9f7ef; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="open_output_dir"]:hover { background: #d7efdf; border-color: #4da975; }
 QWidget#openwrtSignalPage QPushButton#downloadActionButton[needsDependencyInstall="true"], QWidget#routerCommonSettingsPage QPushButton#downloadActionButton[needsDependencyInstall="true"] { color: #0f7a3d; border-color: #7cc79b; background: #e9f7ef; }
 QWidget#openwrtSignalPage QPushButton#downloadActionButton[needsDependencyInstall="true"]:hover, QWidget#routerCommonSettingsPage QPushButton#downloadActionButton[needsDependencyInstall="true"]:hover { background: #d7efdf; border-color: #4da975; }
 QFrame#captureDependencyRow { background: transparent; }
@@ -185,3 +186,30 @@ QPushButton#captureSecondaryButton[dependencyInstallPrimary="true"]:hover:enable
 
 QFrame#captureSettingsGroup { background: transparent; border: none; }
 QLabel#captureSettingsGroupTitle { color: #172033; font: __HEADER_PT__pt "__FONT_FAMILY__"; font-weight: bold; background: #e3edf8; border: 1px solid #b6cbe3; border-radius: 5px; padding: 10px 12px; }
+
+/* Viewport search panel, shared by signal tables. */
+QFrame#tableFilterPanel { background: #f5f8fc; border: 1px solid #b9c8d9; border-radius: 5px; }
+QToolButton#tableFilterToggle { color: #315e4d; background: #e1eee7; border: 1px solid #9bb9a8; border-radius: 5px; padding: 2px 4px; font-size: 10pt; }
+QToolButton#tableFilterToggle:hover { background: #d4e6dc; }
+QToolButton#tableFilterToggle:checked { background: #cbded3; }
+
+/* Shared compact toolbar action, preserving existing colors. */
+QPushButton#downloadActionButton[compactAction="true"] { min-height: 24px; padding: 2px 8px; }
+
+/* Records tables align directly below their navigation, without base table padding. */
+QTableWidget#captureAccessPointTable[passwordRecords="true"] { padding: 0px; }
+
+/* Compact result headers; keep the shared header colors and typography. */
+QTableWidget#captureAccessPointTable[passwordRecords="true"] QHeaderView::section:horizontal { padding: 3px 8px; }
+
+/* Shared task actions: yellow password pause/resume and solid red stop. */
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="pause_password"], QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="resume_password"] { color: #644400; background: #ffe08a; border-color: #d9ac35; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="pause_password"]:hover:enabled, QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="resume_password"]:hover:enabled { background: #ffd465; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="pause_password"]:disabled, QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="resume_password"]:disabled { color: #9c8d69; background: #eee5cb; border-color: #eee5cb; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="stop"], QPushButton#downloadActionButton[stopAction="true"] { color: #ffffff; background: #c43b43; border-color: #b52c35; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="stop"]:hover:enabled, QPushButton#downloadActionButton[stopAction="true"]:hover:enabled { background: #d84a53; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="stop"]:pressed, QPushButton#downloadActionButton[stopAction="true"]:pressed { background: #aa2932; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="stop"]:disabled, QPushButton#downloadActionButton[stopAction="true"]:disabled { color: #a77b80; background: #f1dadd; border-color: #f1dadd; }
+
+QFrame#captureDependencyRow[installed="true"] { background: #dcefe1; }
+QFrame#captureDependencyRow[installed="true"][selected="true"] { background: #bce1c7; }

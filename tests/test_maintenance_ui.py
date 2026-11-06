@@ -16,9 +16,9 @@ REVIEW = dict(operation="reset", model="Router A", version="25.12", reset_comman
 class MaintenanceUiTests(unittest.TestCase):
     create_page = create_page
 
-    def test_all_fourteen_cards_have_reference_icons_in_responsive_groups(self):
+    def test_all_fifteen_cards_have_reference_icons_in_responsive_groups(self):
         page, _ = self.create_page()
-        self.assertEqual(len(page.cards), 14)
+        self.assertEqual(len(page.cards), 15)
         grouped = [card for _title, cards in page.card_groups.groups for card in cards]
         self.assertEqual(len(grouped), len(set(grouped)))
         self.assertEqual(set(grouped), set(page.cards))
@@ -78,7 +78,7 @@ class MaintenanceUiTests(unittest.TestCase):
             page.restore_button.click()
         page.manager.submit.assert_not_called()
 
-    def test_reset_preview_requires_final_typed_confirmation_and_connection(self):
+    def test_reset_preview_requires_final_confirmation_and_connection(self):
         page,_=self.create_page()
         page.reset_button.click()
         page.manager.submit.assert_called_once_with("maintenance_preview",kind="reset",source="")
@@ -121,8 +121,39 @@ class MaintenanceUiTests(unittest.TestCase):
                         self.assertGreaterEqual(dialog.warning_text.font().pointSize(),round(10*percent/100))
                         dialog.grab().save(str(output/(kind+"-"+str(light)+"-"+str(percent)+".png")))
                         if kind=="reset":
-                            dialog.input.setText("wrong")
+                            self.assertFalse(dialog.confirm_reset.isChecked())
+                            self.assertFalse(hasattr(dialog, "input"))
+                            dialog.confirm_reset.click()
+                            self.assertTrue(dialog.go.isEnabled())
+                            dialog.confirm_reset.click()
                             self.assertFalse(dialog.go.isEnabled())
-                            dialog.input.setText("\u6062\u590d\u51fa\u5382")
+                            dialog.confirm_reset.click()
                         self.assertTrue(dialog.go.isEnabled())
                         dialog.reject()
+
+    def test_reset_checkbox_guards_keyboard_accept_and_reopen(self):
+        page, _ = self.create_page()
+        for _ in range(2):
+            dialog = MaintenanceReviewDialog(REVIEW, "C:/before.tar.gz", page)
+            self.addCleanup(dialog.deleteLater)
+            accepted = Mock()
+            dialog.accepted.connect(accepted)
+            dialog.show()
+            APP.processEvents()
+            self.assertFalse(dialog.confirm_reset.isChecked())
+            dialog.confirm_reset.setFocus()
+            QTest.keyClick(dialog.confirm_reset, Qt.Key_Return)
+            dialog.accept()
+            dialog.go.click()
+            accepted.assert_not_called()
+            # QDialog may treat Return with no enabled accept button as Cancel.
+            # Either outcome must not accept the reset; show it again to test consent.
+            dialog.show()
+            APP.processEvents()
+            dialog.confirm_reset.setFocus()
+            QTest.keyClick(dialog.confirm_reset, Qt.Key_Space)
+            self.assertTrue(dialog.go.isEnabled())
+            QTest.keyClick(dialog.confirm_reset, Qt.Key_Return)
+            accepted.assert_called_once()
+            self.assertEqual(dialog.result(), dialog.Accepted)
+        page.manager.submit.assert_not_called()

@@ -36,7 +36,7 @@ class UsageFeedbackTests(unittest.TestCase):
         self.assertIn("\u76d1\u542c\u63a5\u53e3\u51b2\u7a81",card.status_badge.text())
         card.apply_state("idle")
         self.assertNotIn("\u4e1a\u52a1",card.status_badge.text())
-        page=NS(radio_cards={"radio7":card})
+        page=NS(radio_cards={"radio7":card},auto_capture_service=NS(sessions={}))
         AutoCapturePage._on_radio_idle_status_updated(page,{"radio7":None})
         self.assertIn("\u72b6\u6001\u5f85\u786e\u8ba4",card.status_badge.text())
         AutoCapturePage._on_radio_idle_status_updated(page,{"radio7":usage})

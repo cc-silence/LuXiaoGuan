@@ -44,6 +44,17 @@ class LoginCredentialTests(unittest.TestCase):
         self.operations[-1](None)
         return self.service.openwrt_backend.connect.call_args
 
+    def test_cancel_finishes_as_disconnected_and_allows_retry(self):
+        from threading import Event
+        self.service.connect_openwrt_async(self.settings)
+        event = Event(); event.set()
+        result = self.operations[-1](event)
+        self.service._on_openwrt_connect_succeeded(result)
+        self.assertEqual(self.service.openwrt_snapshot.connection_state, OpenWrtConnectionState.DISCONNECTED)
+        self.assertEqual(self.service.openwrt_snapshot.last_error, "")
+        self.assertFalse(self.service.task_controller.busy)
+        self.assertTrue(self.service.connect_openwrt_async(self.settings))
+
     def test_password_without_remember_survives_start_notifications(self):
         self.page.connection.password.setText(self.secret)
         sent = self.start_login()

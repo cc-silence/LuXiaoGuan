@@ -1,4 +1,5 @@
 import re
+from functools import lru_cache
 
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QFont
@@ -138,12 +139,22 @@ class UiScaleManager:
         调用方必须传入未缩放的主题文本，不能把控件当前样式再次送入。
         零值保持零；负边距保留符号，颜色及百分比不参与转换。
         """
+        prepared = self.apply_font_family_to_qss(stylesheet)
+        transform = self._scaled_qss
+        if len(stylesheet) > 524288 or len(prepared) > 524288:
+            transform = self._scaled_qss.__wrapped__
+        return transform(stylesheet, prepared, self.global_scale)
+
+    @staticmethod
+    @lru_cache(maxsize=16)
+    def _scaled_qss(stylesheet, prepared, global_scale):
+        """Bounded immutable text cache; never retain widgets or scale managers."""
         token = re.compile(r'/\*.*?\*/|url\([^)]*\)|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|(?P<number>-?\d+(?:\.\d+)?)(?P<unit>px|pt)\b', re.DOTALL)
 
         def replace(match):
             if match.group("number") is None:
                 return match.group(0)
-            value = float(match.group("number")) * self.global_scale / 100
+            value = float(match.group("number")) * global_scale / 100
             prefix = stylesheet[max(0, match.start() - 48):match.start()]
             rule_start = stylesheet.rfind("{", 0, match.start())
             selector = stylesheet[stylesheet.rfind("}", 0, rule_start) + 1:rule_start]
@@ -154,7 +165,7 @@ class UiScaleManager:
                 value = round(value)
             return f'{value:g}{match.group("unit")}'
 
-        return token.sub(replace, self.apply_font_family_to_qss(stylesheet))
+        return token.sub(replace, prepared)
 
     def _resolved_font(self):
         # 把 font_family 代码解析成实际字体名，供 QSS 生成器使用。

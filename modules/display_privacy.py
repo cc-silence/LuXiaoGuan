@@ -30,14 +30,16 @@ class Masker:
     overflow: bool = False
     mask_mac: bool = True
 
-    def text(self, value):
+    def text(self, value, *, extra_spans=()):
         text = str(value or "")
         if not text:
             return text
         if self.overflow:
             return MASKED_TEXT
         # Match once against original text, so replacements cannot be replaced again.
-        spans = [match.span() for match in _MAC.finditer(text)] if self.mask_mac else []
+        spans = list(extra_spans)
+        if self.mask_mac:
+            spans.extend(match.span() for match in _MAC.finditer(text))
         if self.pattern is not None:
             spans.extend(match.span() for match in self.pattern.finditer(text))
         if not spans:

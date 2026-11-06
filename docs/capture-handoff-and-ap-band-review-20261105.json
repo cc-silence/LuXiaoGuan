@@ -1,0 +1,223 @@
+{
+  "checked_at": "2026-11-05",
+  "changes": [
+    "Terminal capture-state events request a coalesced read after all active cleanup has ended. No timer added.",
+    "In-flight results that predate cleanup or a connection change are discarded; busy foreground tasks defer reads until snapshot completion.",
+    "Results publish on the Qt owner thread. Remaining monitor interfaces are not assumed owned by their names.",
+    "Refresh preserves real error and stopping badges; failed reads publish unknown rather than idle.",
+    "Successful capture-result pulls retain the shared SFTP session; network IO failures dispose it through its connection owner.",
+    "Batch AP rename titles display the configured owning radio band; unresolved bands are labelled unknown.",
+    "Visible file panes also refresh after capture cleanup. Requests wait for ongoing file operations or hidden-page reentry, coalesce, and discard old-device requests; subscriptions detach on disposal."
+  ],
+  "sources": [
+    "https://docs.paramiko.org/en/stable/api/sftp.html#paramiko.sftp_client.SFTPClient.close",
+    "https://doc.qt.io/qtforpython-6/tutorials/basictutorial/signals_and_slots.html"
+  ],
+  "five_ghz": {
+    "existing_fix": "ap_startup_wait + ap_dfs_observation are already shared by save/apply, direct toggle and recovery. No DFS implementation changed in this turn.",
+    "evidence": [
+      {
+        "archive": "XRJ_LuXiaoGuan_\u4fe1\u53f7\u7ba1\u7406_20261102_152157.zip",
+        "radio_configs": [],
+        "cac_60_evidence": false,
+        "ap_enabled_evidence": false
+      },
+      {
+        "archive": "XRJ_LuXiaoGuan_\u4fe1\u53f7\u7ba1\u7406_20261102_170226.zip",
+        "radio_configs": [],
+        "cac_60_evidence": false,
+        "ap_enabled_evidence": false
+      },
+      {
+        "archive": "XRJ_LuXiaoGuan_\u4fe1\u53f7\u7ba1\u7406_20261102_180003.zip",
+        "radio_configs": [],
+        "cac_60_evidence": false,
+        "ap_enabled_evidence": false
+      },
+      {
+        "archive": "XRJ_LuXiaoGuan_\u4fe1\u53f7\u7ba1\u7406_20261102_215349.zip",
+        "radio_configs": [],
+        "cac_60_evidence": false,
+        "ap_enabled_evidence": false
+      },
+      {
+        "archive": "XRJ_LuXiaoGuan_\u4fe1\u53f7\u7ba1\u7406_20261103_112322.zip",
+        "radio_configs": [],
+        "cac_60_evidence": false,
+        "ap_enabled_evidence": false
+      },
+      {
+        "archive": "XRJ_LuXiaoGuan_\u4fe1\u53f7\u7ba1\u7406_20261103_132519.zip",
+        "radio_configs": [
+          {
+            "band": "5g",
+            "country": "TW",
+            "htmode": "HE160",
+            "channel": 48,
+            "disabled": false
+          },
+          {
+            "band": "5g",
+            "country": "TW",
+            "htmode": "HE160",
+            "channel": 48,
+            "disabled": false
+          }
+        ],
+        "cac_60_evidence": true,
+        "ap_enabled_evidence": true
+      }
+    ],
+    "limits": "60-second CAC can exceed the old 45-second wait. Existing native rollback bounds remain enforced; log recognition and live AP-ready proof are required."
+  },
+  "validation": {
+    "related_tests": 149,
+    "result": "passed",
+    "windows_offscreen": "dark and light AP-title previews inspected",
+    "syntax": "passed",
+    "utf8": "passed",
+    "customer_router_live": false,
+    "debian_runtime": false,
+    "final_core_result": "149 passed after preserving actual capture failures and stopping badges",
+    "extra_management_fixture_note": "An additional run including test_management_execution printed Qt callback exceptions from an existing SSH SimpleNamespace without connected. That broader run is not treated as clean acceptance; the dedicated file-page suite is recorded separately.",
+    "file_page_suite": "See final dedicated unittest output; no production management-readiness code changed."
+  },
+  "files": {
+    "modules/capture_services/openwrt/auto_capture_idle_refresh.py": "80dc9a7a91f59d39cda4c914c48a260809dddc7177be4f63af171e3e01db34ea",
+    "modules/capture_services/openwrt/auto_capture_service.py": "802e1c677e0e428ba659d2cc18b2bb88e0017482d30c02ab112c6ce176b8f8fc",
+    "modules/capture_services/openwrt/ap_batch_identity.py": "a52be707b0f62c07386e5c4c8a3421c193a8f7b13f6813b87db27eb65f72c307",
+    "modules/main_pages/packet_capture/openwrt/ap_batch_dialog.py": "dd59f84d13708d52259f842d7942869292fd29b9d0fa43151d03e550f392ffcb",
+    "modules/main_pages/packet_capture/openwrt/auto_capture_page.py": "6833850975e9f417180331fca0844307cc34848363eafdaf5baf69a34338bba3",
+    "tests/test_auto_capture_idle_refresh.py": "53dd69a3445b442ef229bea3c55b8566e48de30e1547a834eb0cd4ab8b84cd4a",
+    "tests/test_idle_capture_feedback.py": "ddd04af1694aa13e87c499d195a73ebff950d8c7af7cb5188345a75f5e3a07f9",
+    "tests/test_radio_usage.py": "58a6654b734a4b921378e6a92886093d4e367846d69a7873b69b6b38da92dc8c",
+    "tests/test_auto_capture_feature.py": "5a0ebb57d9a4fddde2302eaf689a6bff21189db73ddcf827e4d2519f7c1654cd",
+    "tests/test_ap_batch_editor.py": "7ed6649c17c64103612f9d4cc3d671b28f89063fb264f0138810af326e597ff0",
+    "modules/main_pages/packet_capture/openwrt/router_files_page.py": "f6ab2e9d4436612dc0bc76056448b7656e0742898a9b2030d4b75aaa2b377f4c",
+    "modules/main_pages/packet_capture/openwrt/capture_file_refresh.py": "94df601da9326cdb8caf910b21aa8cd7121cce8c37128449cffc99c3adaf3345",
+    "tests/test_capture_file_refresh.py": "758e70a51bc395b87ca7b1d3d4b1c5d9618abc3185d0392f905f835dad6f1639",
+    "tests/test_radio_usage_feedback.py": "9370460507b8b7bf0a361bf59a46ae035f3be38d090ce1faf044ee4941fa43e3"
+  },
+  "previews": [
+    "build/previews/ap-batch-bands/dark.png",
+    "build/previews/ap-batch-bands/light.png"
+  ],
+  "release": "Source only; no application package built.",
+  "followup_review": {
+    "date": "2026-11-05",
+    "fixed": [
+      "Invalidate and requeue an inflight idle probe when a foreground task starts, even if it finishes before the probe returns.",
+      "Reject cached SFTP channels after received or sent EOF; handle Paramiko wrapped SSHException on result download while retaining main SSH and visible failures."
+    ],
+    "verified": [
+      "File page navigation makes the page current before enter; refresh waits for outstanding file operations and all capture lanes.",
+      "Normal shared SFTP completion remains reusable; missing files and permission errors do not dispose the cached session.",
+      "Real conflict, stopping and error states remain visible; unknown probe outcomes do not assert idle."
+    ],
+    "paramiko_version": "5.0.0",
+    "sources": [
+      "https://docs.paramiko.org/en/stable/api/sftp.html#paramiko.sftp_client.SFTPClient.close",
+      "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/channel.py",
+      "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/sftp_client.py",
+      "https://doc.qt.io/qtforpython-6/tutorials/basictutorial/signals_and_slots.html"
+    ],
+    "test_runs": [
+      {
+        "scope": "Capture cleanup, usage and UI feedback",
+        "passed": 106
+      },
+      {
+        "scope": "File refresh, selection, external drop and dependencies",
+        "passed": 32
+      },
+      {
+        "scope": "Idle refresh, SFTP feedback, file refresh and SSH channel isolation; overlaps other runs",
+        "passed": 36
+      }
+    ],
+    "live_device_test": false,
+    "source_sha256": {
+      "C:\\Users\\CC\\AppData\\Local\\Programs\\Python\\Python310\\lib\\site-packages\\paramiko\\channel.py": "3173be0b9762a72f10d12861f5c791f823cf88107eb2c4fff68220c3306143fa",
+      "C:\\Users\\CC\\AppData\\Local\\Programs\\Python\\Python310\\lib\\site-packages\\paramiko\\sftp_client.py": "7bfce2e95db7ded8f1dc31fd4c7eeb4432913be4c267fcf23a4070e2c491223a"
+    }
+  },
+  "three_round_review": {
+    "date": "2026-11-05",
+    "rounds": [
+      {
+        "focus": "Post-cleanup event timing, task transitions and Qt owner-thread delivery",
+        "source": "https://doc.qt.io/qtforpython-6/tutorials/basictutorial/signals_and_slots.html",
+        "result": "No additional production change; queued-result versus foreground-task and disposal regression cases pass."
+      },
+      {
+        "focus": "SFTP ownership across foreground capture, background pull, directory reads and regular download",
+        "source": "https://docs.paramiko.org/en/stable/api/sftp.html#paramiko.sftp_client.SFTPClient.close",
+        "result": "Found background pull still closing owner-cached shared SFTP. Removed that close; sequential shared-session handoff regression passes. Updated two obsolete close expectations while retaining file stability and conversion checks."
+      },
+      {
+        "focus": "Hidden pages, pending file operations, failure delivery, queued callbacks after disconnect and disposal",
+        "source": "https://doc.qt.io/qt-6.8/qobject.html#disconnect",
+        "result": "Disposed guard prevents queued refresh. Pending refresh coalesces and resumes after failed operations; other capture lanes and connection changes remain guarded."
+      }
+    ],
+    "validation": {
+      "capture_and_files_passed": 131,
+      "background_and_container_passed": 56,
+      "background_and_container_total": 57,
+      "standard_timeout_error": "Existing BackgroundLogsTests.test_byte_caps_keep_start_end_and_active_append_handle exceeds 5s Git Bash subprocess limit; unchanged log-trimming shell code.",
+      "timeout_diagnostic": "Same test, subprocess timeout temporarily 30s through unittest.mock, passed all assertions; measured shell execution 13.75s. Original test file and its 5s standard unchanged.",
+      "additional_lifecycle_and_isolation_run_passed": 40,
+      "additional_run_overlaps": true,
+      "syntax_and_encoding_files": 9,
+      "live_router_test": false
+    },
+    "sha256": {
+      "modules/capture_services/openwrt/auto_capture_idle_refresh.py": "70aa962cd3fa867935d4a779666fd279c79934507ae46503284139bd28a582d6",
+      "modules/capture_services/openwrt/auto_capture_boot_manager.py": "837c387cc0600eab87714765c7a00fcf542e45efced10a2b7f98deeae2e83b25",
+      "modules/capture_services/openwrt/ssh_client.py": "ec2dfc1d9a16130c581edec17a10fbc1e31add7fdd94ded74b2ebbd29317bb7d",
+      "modules/main_pages/packet_capture/openwrt/capture_file_refresh.py": "94df601da9326cdb8caf910b21aa8cd7121cce8c37128449cffc99c3adaf3345",
+      "tests/test_auto_capture_idle_refresh.py": "ce50577a2930f4ee46f5e3cbb61fbc5dda6f7a941e58e8cfc62d6c6138925a91",
+      "tests/test_capture_file_refresh.py": "12b862cc88f68e3bebbc61dd42d28c2d6213bb1a07a71eefb2272097e671ca13",
+      "tests/test_idle_capture_feedback.py": "6b13f8a23be213ee446090a5cb31ef3e540023cefa4d81ec5bd46b39277d9788",
+      "tests/test_cap_container.py": "93a715bed61353ef480bfcf25ce0dcf11be6277888ac176c63ae6d34b215b297"
+    }
+  },
+  "additional_three_round_review": {
+    "date": "2026-11-05",
+    "new_production_changes": false,
+    "new_confirmed_defects": [],
+    "rounds": [
+      {
+        "focus": "Cancellation, disconnect, concurrent cleanup, stale probe results, real conflict and cleanup error preservation",
+        "passed": 62,
+        "result": "OK",
+        "source": "https://docs.python.org/3.10/library/threading.html#lock-objects"
+      },
+      {
+        "focus": "Shared SFTP lifecycle, isolated SSH channels, foreground/background pulls, cancellation, atomic file publication and stable capture conversion",
+        "passed": 64,
+        "result": "OK",
+        "sources": [
+          "https://docs.paramiko.org/en/stable/api/sftp.html",
+          "https://docs.paramiko.org/en/stable/api/channel.html",
+          "https://raw.githubusercontent.com/paramiko/paramiko/5.0.0/paramiko/sftp_client.py"
+        ]
+      },
+      {
+        "focus": "Page navigation, outstanding file operations, queued callbacks after disposal, coalesced refresh and true error badges",
+        "passed": 69,
+        "result": "OK",
+        "source": "https://doc.qt.io/qt-6.8/qobject.html#disconnect"
+      }
+    ],
+    "test_total": 195,
+    "limits": "Targeted local regression and loopback SSH isolation only; no live router or firmware compatibility claim. Previous Git Bash log test timeout remains separately documented and was not rerun in these suites.",
+    "production_sha256": {
+      "modules/capture_services/openwrt/auto_capture_idle_refresh.py": "70aa962cd3fa867935d4a779666fd279c79934507ae46503284139bd28a582d6",
+      "modules/capture_services/openwrt/auto_capture_boot_manager.py": "837c387cc0600eab87714765c7a00fcf542e45efced10a2b7f98deeae2e83b25",
+      "modules/capture_services/openwrt/auto_capture_service.py": "bc81ab5e913470c9ea5f7fe57ac59ee0dd8644ef141045b1441b0d6a33c80bcf",
+      "modules/capture_services/openwrt/ssh_client.py": "ec2dfc1d9a16130c581edec17a10fbc1e31add7fdd94ded74b2ebbd29317bb7d",
+      "modules/main_pages/packet_capture/openwrt/capture_file_refresh.py": "94df601da9326cdb8caf910b21aa8cd7121cce8c37128449cffc99c3adaf3345"
+    }
+  }
+}

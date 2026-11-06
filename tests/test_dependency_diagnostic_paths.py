@@ -18,6 +18,7 @@ from modules.platform_services.owned_cache import checked_path
 class Owner(QObject):
     openwrtSnapshotChanged = Signal(object)
     settingsMessageGenerated = Signal(str, str)
+    dependencyMessageGenerated = Signal(str, str)
     activityChanged = Signal()
 
     def __init__(self):

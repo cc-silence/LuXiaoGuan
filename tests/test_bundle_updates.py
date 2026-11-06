@@ -64,6 +64,7 @@ class BundleServiceUpdateTests(unittest.TestCase):
         class Owner(QObject):
             activityChanged=Signal()
             settingsMessageGenerated=Signal(str,str)
+            dependencyMessageGenerated=Signal(str,str)
             _shutting_down=False
             is_busy=False
             def _start_openwrt_worker(self,*args):self.pending=args

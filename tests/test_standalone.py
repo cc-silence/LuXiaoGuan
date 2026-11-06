@@ -63,7 +63,7 @@ class StandaloneTests(unittest.TestCase):
         tabs = container.tabs
         self.assertEqual(tabs.count(), 2)
         self.assertEqual(tabs.tabText(0), "路由器登录")
-        self.assertEqual(tabs.tabText(1), "安装依赖")
+        self.assertEqual(tabs.tabText(1), "依赖管理")
         self.assertIs(tabs.widget(0), container.login_page)
         self.assertIs(tabs.widget(1), container.dependency_page)
         nav_buttons = self.window.navigation.page_buttons
@@ -119,11 +119,14 @@ class StandaloneTests(unittest.TestCase):
         reopened.reject();reopened.deleteLater();APP.processEvents()
 
     def test_05_update_uses_independent_published_channel(self):
-        config=json.loads((BASE_DIR/'config/app_update.json').read_text(encoding='utf-8'))
+        from scripts.update_channel_assets import default_update_config
+        from modules.platform_services.app_update_support import require_package_platform
+        from modules.app_update_services.release_targets import manifest_endpoint
+        config=default_update_config(require_package_platform())
         from modules.app_update_services.channel import GATEWAY
         from modules.app_update_services.manifest import https_url
         self.assertTrue(config['enabled'])
-        self.assertEqual(config['manifest_url'],https_url(GATEWAY+'/manifest'))
+        self.assertEqual(config['manifest_url'],https_url(GATEWAY+manifest_endpoint(require_package_platform())))
         self.assertTrue(GATEWAY.startswith('https://routermanager-updates.'))
         from modules.app_update_services.manifest import parse_payload
         with self.assertRaises(ValueError):parse_payload({'schema':1,'product':'WinBox','platform':'win-x64'})

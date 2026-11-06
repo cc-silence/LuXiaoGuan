@@ -1,0 +1,57 @@
+{
+  "date": "2026-11-05",
+  "supersedes": "The empty-enabled-address rejection policy in wps-preflight-review-20261105.json is superseded by explicit user authorization for automatic random source generation.",
+  "behavior": [
+    "Enabling spoofing in the advanced dialog fills an empty address immediately; old enabled-empty settings are filled on dialog load.",
+    "Clearing the enabled address and confirming generates another address. Explicit nonempty invalid addresses are still rejected before interface allocation.",
+    "The page, service, backend and direct executor share prepare_wps_options. A missing source is resolved once and passed forward; one batch keeps the same source across all targets and phases.",
+    "Disabled spoofing never generates or passes a source override. Valid manual addresses are preserved.",
+    "The dialog saves generated addresses through the existing save flow; reopening retains them. Quick-start fallback resolves only a task copy, without rewriting stored settings.",
+    "Generation uses six OS-random bytes with the multicast bit cleared and locally-administered bit set. No cache, timer, router MAC rotation, driver setting, or new package dependency is added."
+  ],
+  "compatibility": {
+    "applicability": "Applies because source-address input to the existing Reaver -m option changes. No new router command, radio ownership decision, or wireless configuration write is introduced.",
+    "version_evidence": "Inspected upstream Reaver v1.6.5 and v1.6.6 argsparser.c; these match the reaver version families listed in docs/offline-packages/support.json. Both parse -m through str2mac and set_mac.",
+    "hardware_scope": "MAC generation is local and independent of OpenWrt release, CPU architecture or target. Actual wireless transmission remains conditional on the existing Reaver/monitor/driver capabilities. Source inspection is not model-specific runtime acceptance.",
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.5/src/argsparser.c",
+        "version": "v1.6.5",
+        "sha256": "f3b0725dcd4dd4d345ce71bcbbc4e1cc94faa165e07ab335dbca1b157ed61d25",
+        "finding": "-m parses a source MAC with str2mac and set_mac."
+      },
+      {
+        "url": "https://raw.githubusercontent.com/t6x/reaver-wps-fork-t6x/v1.6.6/src/argsparser.c",
+        "version": "v1.6.6",
+        "sha256": "3c74abbdd6aff8a7535c67fcf369f96011c35b0309813153c63f8c6735387ada",
+        "finding": "-m parses a source MAC with str2mac and set_mac."
+      },
+      {
+        "url": "https://raw.githubusercontent.com/torvalds/linux/v6.6/include/linux/etherdevice.h",
+        "version": "v6.6",
+        "sha256": "5183ec51643edafe64c0d3800ec76c70602ed84bc1c9c5711860cd0c7e8a2b00",
+        "finding": "eth_random_addr clears the multicast bit and sets the locally administered bit."
+      }
+    ]
+  },
+  "verification": {
+    "directed_tests_passed": 32,
+    "syntax_and_utf8": "passed",
+    "rendered": [
+      "build/wps-mac-audit/dialog-light.png",
+      "build/wps-mac-audit/dialog-dark.png"
+    ],
+    "render_review": "Generated address readable in both themes; existing controls and layout retained."
+  },
+  "limits": [
+    "No live router or RF test.",
+    "No Debian 12 runtime test; standard-library generation and preparation are shared across operating systems.",
+    "No release package built."
+  ],
+  "preserved": [
+    "No changes to password task files.",
+    "No legacy .wpc auto-import.",
+    "RouterManagerData/wps-sessions retained.",
+    "Radio occupancy and interface allocation policy retained."
+  ]
+}

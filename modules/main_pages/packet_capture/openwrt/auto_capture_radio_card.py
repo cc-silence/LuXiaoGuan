@@ -29,6 +29,8 @@ from modules.capture_services.openwrt.models import OpenWrtRadioInfo
 from modules.main_pages.page_action_buttons import create_page_text_button
 from .auto_capture_button_styles import apply_stop_button_style
 from modules.ui_scale_manager import UiScaleManager
+from modules.common_widgets.privacy_log_view import PrivacyLogView
+from modules.capture_services.capture_log_privacy import project_capture_log
 
 
 class AutoCaptureRadioCard(QFrame):
@@ -37,7 +39,7 @@ class AutoCaptureRadioCard(QFrame):
     startRequested = Signal(object, str, bool)  # radio_info, channels, allow_takeover
     stopRequested = Signal(str)                 # radio_name
 
-    def __init__(self, radio_info: OpenWrtRadioInfo, parent=None):
+    def __init__(self, radio_info: OpenWrtRadioInfo, parent=None, *, output_dir=""):
         super().__init__(parent)
         self.radio_info = radio_info
         self.radio_name = radio_info.name
@@ -207,6 +209,11 @@ class AutoCaptureRadioCard(QFrame):
 
         # 弹性空白：将监看终端推至最右边右对齐
         actions_row.addStretch(1)
+        from .live_capture_details import LiveCaptureDetailsPresenter
+        self.capture_details = LiveCaptureDetailsPresenter(self, output_dir)
+        self.details_btn = create_page_text_button(self, "查看详细抓包结果", "查看此路已捕获的 Wi-Fi 与握手明细")
+        self.details_btn.clicked.connect(self.capture_details.show)
+        actions_row.addWidget(self.details_btn)
 
         self.toggle_console_btn = QPushButton("🖥 监看终端", self)
         self.toggle_console_btn.setObjectName("captureSecondaryButton")
@@ -267,7 +274,7 @@ class AutoCaptureRadioCard(QFrame):
 
         console_widget_layout.addLayout(console_bar)
 
-        self.console = QPlainTextEdit(self.console_widget)
+        self.console = PrivacyLogView(self.console_widget, projector=project_capture_log, context_blocks=34)
         self.console.setReadOnly(True)
         self.console.setMaximumBlockCount(1500)
         font = QFont("Consolas", 9)
@@ -310,6 +317,7 @@ class AutoCaptureRadioCard(QFrame):
         self._light_theme = bool(enabled)
         self.start_btn.set_light_theme(self._light_theme)
         self.stop_btn.set_light_theme(self._light_theme)
+        self.details_btn.set_light_theme(self._light_theme)
         is_stop = getattr(self, "_capturing", False) or getattr(self, "_stopping", False)
         apply_stop_button_style(self.start_btn, is_stop, self._light_theme)
         apply_stop_button_style(self.stop_btn, True, self._light_theme)
@@ -362,9 +370,7 @@ class AutoCaptureRadioCard(QFrame):
         if not cleaned:
             return
 
-        cursor = self.console.textCursor()
-        cursor.movePosition(QTextCursor.End)
-        cursor.insertText(cleaned)
+        self.console.insert_raw_text(cleaned)
 
         if self.autoscroll_check.isChecked():
             self.console.moveCursor(QTextCursor.End)
@@ -377,6 +383,7 @@ class AutoCaptureRadioCard(QFrame):
         s = secs % 60
         self.duration_label.setText(f"时长: {h:02d}:{m:02d}:{s:02d}")
 
+        self.capture_details.update(stats)
         pmkids = stats.get("pmkid_count", 0)
         self.pmkid_label.setText(f"PMKID: {pmkids} 个")
 
@@ -396,6 +403,7 @@ class AutoCaptureRadioCard(QFrame):
 
     def apply_state(self, state: str, error_message: str = ""):
         """更新抓包状态与按钮使能，使用高区分度色彩与大号字体。"""
+        self.capture_details.update_state(state)
         was_capturing = getattr(self, "_capturing", False)
         self._capturing = state in {"starting", "capturing"}
         self._stopping = state == "stopping"

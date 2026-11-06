@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-05",
+  "scope": "WPS source interface setup and finite diagnostics; no password module edits",
+  "changes": [
+    "Apply the prepared spoof source MAC only to the owned monitor. Guard each command with phy and ownership-token verification. Read back the address before Reaver starts.",
+    "Do source setup before channel verification because taking an interface down/up can affect tuning. Failures enter existing owned-resource restoration; no silent fallback or rotation.",
+    "Disabled spoofing allows empty addresses and issues no MAC-related commands.",
+    "Normal startup explicitly logs its existing per-target runtime budget. The configured 60-second default was not silently changed.",
+    "Normal and quick incomplete-result notes retain allowlisted protocol stages and the last native Trying pin candidate; recovered credentials are not added to diagnostics."
+  ],
+  "validation": {
+    "directed_tests_passed": 65,
+    "live_router": false,
+    "debian12_runtime": false,
+    "release_built": false
+  },
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/mirror/busybox/1_30_1/networking/libiproute/iplink.c",
+      "version": "1_30_1",
+      "sha256": "73e07ddaa3c0c3ebc5aa4a8f75e0863496d2ff9d178a02e2bb3b02fa1cf5161c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mirror/busybox/1_36_1/networking/libiproute/iplink.c",
+      "version": "1_36_1",
+      "sha256": "2fe2605a5150c8ee707a1be78671f647a6e502491c252d91b87b28789f043ed4"
+    }
+  ],
+  "compatibility": "BusyBox 1.30.1 and 1.36.1 iplink.c implement ip link set dev address/down/up. Reaver 1.6.5/1.6.6 source-address argument is an in-process address only. Existing official OpenWrt package source index covers 19.07 through 25.12. Runtime verification is mandatory; this is not certification of all drivers."
+}

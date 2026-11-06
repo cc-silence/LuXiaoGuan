@@ -11,7 +11,7 @@ from modules.platform_services.local_file_operations import recycle_local_entry,
 class RouterManagementService(QObject):
     """主线程持有队列，写操作占用公共任务槽。"""
     INSPECTIONS = frozenset({'policy_preview', 'maintenance_preview'})
-    READ_ONLY = frozenset({'local_list', 'local_upload_selection', 'list', 'common_read', 'policy_read', 'policy_status'})
+    READ_ONLY = frozenset({'capture_monitor_preview', 'local_list', 'local_upload_selection', 'list', 'common_read', 'policy_read', 'policy_status'})
     completed = Signal(str, object)
     failed = Signal(str, str)
     progress = Signal(str, object)
@@ -39,7 +39,7 @@ class RouterManagementService(QObject):
     def submit(self, operation, **arguments):
         """绑定连接实例和设备指纹，队列上限 32 项。"""
         action = operation
-        if action not in {'initial_verify','policy_status','policy_read','policy_preview','policy_apply','maintenance_reboot','maintenance_preview','maintenance_backup','maintenance_apply','common_read','common_save','password_change','upload_directory','download_directory','file_batch','local_list','local_upload_selection','local_delete','local_mkdir','list','upload','download','mkdir','delete','rename','chmod'}:
+        if action not in {'capture_monitor_preview','initial_verify','policy_status','policy_read','policy_preview','policy_apply','maintenance_reboot','maintenance_preview','maintenance_backup','maintenance_apply','common_read','common_save','password_change','upload_directory','download_directory','file_batch','local_list','local_upload_selection','local_delete','local_mkdir','list','upload','download','mkdir','delete','rename','chmod'}:
             raise ValueError('不支持这种管理操作。')
         if (action.startswith("maintenance_") or action in {"policy_preview","policy_apply"}) and (self.current or self.queue or (self.owner.is_busy and not self._publication_continuation())):
             raise RuntimeError("请等待当前路由器任务结束后再操作。")
@@ -131,6 +131,9 @@ class RouterManagementService(QObject):
             authenticated=getattr(ssh,"authenticated_settings",None)
             if isinstance(authenticated,dict) and authenticated:connection_settings=dict(authenticated)
         def operation(event, report):
+            if action == 'capture_monitor_preview':
+                from .openwrt.monitor_cleanup import inspect
+                return inspect(self.owner.openwrt_backend,event)
             if ssh._client is not connection or ssh.host_fingerprint != fingerprint:
                 raise RuntimeError('连接已变化，请重新登录并提交操作。')
             if action.startswith("policy_") or action=="initial_verify":
@@ -139,6 +142,11 @@ class RouterManagementService(QObject):
                 if action == 'initial_verify':
                     from .openwrt.initial_reconnect import verify_pending
                     initial=verify_pending(policies,event)
+                    from .openwrt.policy_backup_recovery import inspect_for_login
+                    cleanup=inspect_for_login(policies,event)
+                    if cleanup:
+                        if initial is None:initial=cleanup
+                        else:initial=dict(initial,note=initial['note']+'\n'+cleanup['note'])
                     value=dict(initial_verification=initial)
                     if initial is not None:value['verified']=initial['verified']
                 elif action == "policy_status":
@@ -147,6 +155,8 @@ class RouterManagementService(QObject):
                     from .openwrt.initial_reconnect_store import ReconnectStore
                     receipt=ReconnectStore().read(fingerprint)
                     value['initial_pending']=receipt is not None
+                    from .openwrt.policy_backup_recovery import needs_reconcile
+                    value['recovery_pending']=needs_reconcile(self.manager,fingerprint)
                 elif action == "policy_read": value = policies.read(event)
                 elif action == "policy_preview":
                     value = policies.preview(args["kind"], args["options"], event)
@@ -268,7 +278,7 @@ class RouterManagementService(QObject):
                 initial=dict(verified=False,note='\u8fde\u63a5\u5df2\u53d8\u5316\uff0c\u539f\u8def\u7531\u5668\u7684\u6838\u9a8c\u7ed3\u679c\u4e0d\u80fd\u7528\u4e8e\u5f53\u524d\u8bbe\u5907\u3002')
             self.initialVerificationCompleted.emit(initial)
             self.owner.settingsMessageGenerated.emit(initial['note'],'success' if initial.get('verified') else 'warning')
-        verify_next=self.current[1]=='policy_status' and value.get('initial_pending') and self.policy_status is not None
+        verify_next=self.current[1]=='policy_status' and (value.get('initial_pending') or value.get('recovery_pending')) and self.policy_status is not None
         if self.current[1] == 'password_change':
             from .router_password_actions import accept_password_result
             accept_password_result(self, value)

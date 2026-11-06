@@ -14,7 +14,7 @@ from .runtime import RouterRuntime
 from .window import RouterWindow
 
 
-def run(version):
+def run(version, *, instance=None):
     """\u542f\u52a8\u72ec\u7acb\u5e94\u7528\uff1b\u70df\u6d4b\u4e0d\u8fde\u8bbe\u5907\u3001\u4e0d\u4fee\u6539\u9632\u706b\u5899\u3002"""
     smoke = "--smoke-test" in sys.argv
     if not smoke:
@@ -24,13 +24,13 @@ def run(version):
             hooks.install_qt()
     from modules.platform_services.application_identity import set_app_id
     set_app_id()
-    app = QApplication(sys.argv)
+    app = QApplication.instance() or QApplication(sys.argv)
     from modules.common_widgets.button_focus_style import install_button_focus_style
     install_button_focus_style(app)
     app.setApplicationName(PRODUCT_NAME)
     app.setApplicationVersion(version)
     app.setApplicationDisplayName(DISPLAY_NAME)
-    app.setOrganizationName("RouterManager")
+    app.setOrganizationName(PRODUCT_NAME)
     app.setQuitOnLastWindowClosed(False)
     install_interaction_guards(app)
     install_path_drop_support(app)
@@ -60,10 +60,14 @@ def run(version):
             app.processEvents()
             time.sleep(0.01)
         return 0 if runtime._ready_to_close else 1
-    instance = SingleInstanceController(lambda: (window.showNormal(), window.raise_(), window.activateWindow()), app)
-    if not instance.acquire():
-        runtime.exit_application()
-        return app.exec() if not runtime._ready_to_close else 0
+    activate = lambda: (window.showNormal(), window.raise_(), window.activateWindow())
+    if instance is None:
+        instance = SingleInstanceController(activate, app)
+        if not instance.acquire():
+            runtime.exit_application()
+            return app.exec() if not runtime._ready_to_close else 0
+    else:
+        instance.set_activation_callback(activate)
     app.aboutToQuit.connect(instance.close)
     from modules.platform_services.desktop_startup import close_startup_sessions
     app.aboutToQuit.connect(close_startup_sessions)

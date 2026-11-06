@@ -202,39 +202,32 @@ class NativeUsageProbeTests(unittest.TestCase):
 
 class UsageRefreshTests(unittest.TestCase):
     def test_refresh_publishes_shared_verdict_and_invalidates_failed_read(self):
-        from types import SimpleNamespace as NS
+        from tests.test_auto_capture_idle_refresh import make_service, MODULE, APP
         from unittest.mock import patch
+        from types import SimpleNamespace as NS
         from modules.capture_services.openwrt.auto_capture_service import AutoCaptureService
-        from modules.capture_services.openwrt.models import OpenWrtRadioInfo
-        owner=NS(openwrt_snapshot=NS(connection_state='connected',device=NS(radios=(OpenWrtRadioInfo(name='radio7'),))),
-                 task_controller=NS(busy=False),update_openwrt_radio_idle_status=Mock())
-        page=NS(_disposed=False,owner=owner,ssh=NS(_client=object(),connected=True),runner=Mock(),radioIdleStatusUpdated=Mock())
-        def start(**kwargs):
-            return NS(start=kwargs['target'])
-        module='modules.capture_services.openwrt.auto_capture_service.'
+        service=make_service()
         usage=parse_radio_usage(snapshot(),runtime('I|phy2|wlan1|managed|0|0\n'))
-        with patch(module+'threading.Thread',side_effect=start),patch(module+'read_radio_usage',return_value=usage):
-            AutoCaptureService.refresh_radio_idle_status(page)
-        page.radioIdleStatusUpdated.emit.assert_called_with(usage)
-        owner.update_openwrt_radio_idle_status.assert_called_with(usage)
-        with patch(module+'threading.Thread',side_effect=start),patch(module+'read_radio_usage',side_effect=RuntimeError('incomplete')):
-            AutoCaptureService.refresh_radio_idle_status(page)
-        page.radioIdleStatusUpdated.emit.assert_called_with({'radio7':None})
-        self.assertFalse(page._is_probing_idle)
+        with patch(MODULE+'threading.Thread',side_effect=lambda **kw:NS(start=kw['target'])), patch(MODULE+'read_radio_usage',return_value=usage):
+            AutoCaptureService.refresh_radio_idle_status(service);APP.processEvents()
+        service.owner.update_openwrt_radio_idle_status.assert_called_with(usage)
+        with patch(MODULE+'threading.Thread',side_effect=lambda **kw:NS(start=kw['target'])), patch(MODULE+'read_radio_usage',side_effect=RuntimeError('incomplete')):
+            AutoCaptureService.refresh_radio_idle_status(service);APP.processEvents()
+        service.owner.update_openwrt_radio_idle_status.assert_called_with({'radio7':None})
+        self.assertFalse(service._is_probing_idle)
 
     def test_cancelled_refresh_never_publishes_a_result(self):
-        from types import SimpleNamespace as NS
+        from tests.test_auto_capture_idle_refresh import make_service, MODULE, APP
         from unittest.mock import patch
+        from types import SimpleNamespace as NS
         from modules.capture_services.openwrt.auto_capture_service import AutoCaptureService
-        page=NS(_disposed=False,owner=NS(openwrt_snapshot=NS(connection_state='connected'),task_controller=NS(busy=False)),
-                ssh=NS(_client=object(),connected=True),runner=Mock(),radioIdleStatusUpdated=Mock())
+        service=make_service()
         def read(*args):
             args[1].set()
             return parse_radio_usage(snapshot(),runtime())
-        module='modules.capture_services.openwrt.auto_capture_service.'
-        with patch(module+'threading.Thread',side_effect=lambda **kwargs:NS(start=kwargs['target'])),patch(module+'read_radio_usage',side_effect=read):
-            AutoCaptureService.refresh_radio_idle_status(page)
-        page.radioIdleStatusUpdated.emit.assert_not_called()
+        with patch(MODULE+'threading.Thread',side_effect=lambda **kw:NS(start=kw['target'])),patch(MODULE+'read_radio_usage',side_effect=read):
+            AutoCaptureService.refresh_radio_idle_status(service);APP.processEvents()
+        service.owner.update_openwrt_radio_idle_status.assert_not_called()
 
 
 class IdleDualRadioAcceptanceTests(unittest.TestCase):

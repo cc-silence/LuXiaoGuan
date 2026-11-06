@@ -13,9 +13,10 @@ def minimum_row_height(view):
 class SpacedItemDelegate(QStyledItemDelegate):
     """保留原生绘制和长内容尺寸，仅为普通单行补足最小行高。"""
 
-    def __init__(self, parent=None, *, show_focus_rect=True):
+    def __init__(self, parent=None, *, show_focus_rect=True, minimum_height=True):
         super().__init__(parent)
         self._show_focus_rect = show_focus_rect
+        self._minimum_height = minimum_height
 
     def paint(self, painter, option, index):
         if not self._show_focus_rect:
@@ -25,5 +26,6 @@ class SpacedItemDelegate(QStyledItemDelegate):
 
     def sizeHint(self, option, index):
         hint = super().sizeHint(option, index)
-        hint.setHeight(max(hint.height(), minimum_row_height(self.parent())))
+        if self._minimum_height:
+            hint.setHeight(max(hint.height(), minimum_row_height(self.parent())))
         return hint

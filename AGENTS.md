@@ -89,7 +89,7 @@
 
 ## 发布版本保留规则
 
-- 云端软件完整包最多四份：Windows 正式版、Windows alpha、Linux 正式版、Linux alpha 各只保留当前一版，超额旧包必须实际删除；离线依赖包按常用依赖、抓包依赖分别只保留当前一版。
+- 云端软件完整包最多四份：Windows 正式版、Windows alpha、Linux 正式版、Linux alpha 各只保留当前一版，超额旧包必须实际删除；GitHub 离线包按类型保留当前版；Cloudflare 旧离线包、签名和通道必须继续保留，不自动清理。
 - 正常发布先完整上传并校验公开下载文件和签名，再切换更新清单；确认客户端可读取后，自动删除超额旧包。正式版不得提前删除当前可用版。alpha 只有在存储上限不足时允许先删除同系统旧 alpha，再上传新版；不得删除正式版或另一系统当前包腾空间。
 - 上传前计算整个仓库和本次上传峰值，保持低于 1,000,000,000 字节。alpha 配额例外必须先保存可恢复的签名准备记录、将该 alpha 通道切为“正在发布”、复查并确认旧包删除，再上传；中断可用同一份已验证准备结果续传，未验收新版前不得宣称发布成功。即使删除旧 alpha 后仍不足则停止，不触碰其他有效包。
 - 应用采用完整 ZIP 自动更新：软件内下载完整包，下载验签和校验后准备文件，必须等待用户点击重启并安装更新且确认后，才能备份、替换并重启；不得在下载完成回调中自动安装或退出，保留用户配置，失败回滚。云端只上传完整包和签名版本通知，禁止生成或上传 blobs/catalog 增量文件。本地安装清单必须由已验证 ZIP 派生，安装前重新校验，不信任可被篡改的缓存清单。 仅允许用户已明确授权的一次性旧版过渡发布使用 --legacy-bridge 生成一套旧更新文件；普通后续发布仍仅上传完整包。过渡版独立通道、安装包和引用的增量文件必须保护，不得随下一版自动清理，待用户确认结束过渡后再删除。 过渡期间明确允许在四个常规发布槽之外临时额外保留一份受保护的过渡完整包，全局最多一套过渡入口。
@@ -110,6 +110,15 @@
 - 在独立分支修改，通过 PR 合入 main；提交前阅读 CONTRIBUTING.md。协作者的改动由 @cc-silence 审核，最终由负责人合并。
 - PR 必须通过 collaboration-gate，包括源码检查和 Windows 完整离线回归。CI 不持有路由器或发布凭证，不执行正式发布；真实屏幕绘制和路由器真机验证按交付范围另外记录。
 - main 禁止强制覆盖和删除。负责人自己的 PR 可免去自己审核自己的要求，但仍须通过全部自动检查。
+- 本地没有额外提交且工作区干净时，用 git pull --ff-only 或 git merge --ff-only 更新；快进只是移动分支指针，不创建合并提交。存在未提交修改时先检查并保护，不覆盖、不丢弃。
+- 双方都有独立提交时，通过普通合并（Create a merge commit）保留原提交及编号；不默认使用 Squash merge（压缩合并）或 Rebase merge（变基合并）。
+- 每条提交已对应一个明确功能或修复时保留原记录；只有提交过于零碎、需要整理时才考虑压缩，并先与提交者确认。不要重写协作者仍在使用的提交历史。
+- 主分支禁止强制推送、重置覆盖和删除；合并后提醒协作者更新 main，并从最新 main 开新任务分支，避免继续复用已压缩合并的旧分支。
+- 仓库配置必须允许普通合并，不启用 required_linear_history（强制直线历史）；本地配置修改不代表 GitHub 后台已同步，未同步时明确说明，不用压缩合并绕过。
+- 合并与功能修复分开：无冲突时使用 Git 原生快进或普通合并，不由 AI 手工复制、重建双方改动，不借合并顺手重写、重构或删除协作者实现。
+- 存在冲突时，只解决必要的冲突范围，核对共同祖先及双方改动意图；不得整份文件直接选用 ours/theirs（全部用我方或对方）来消除冲突。意图不明确时先确认，不凭猜测舍弃任何一方的功能。
+- 合并审查发现的独立问题，用单独修复提交处理并说明原因、影响及验证结果，便于协作者审查和撤回；不要把无关修复混入合并提交。确需随冲突解决调整的部分，逐项记录理由。
+- 合并完成后，核对原分支提交是否保留、最终差异是否完整、本地未提交修改是否受保护，并运行相关测试及项目要求的检查。Git 合并成功不等于功能验证通过，不得宣称绝对无遗漏或无风险。
 - GitHub 规则的版本化配置位于 .github/rulesets/；修改后由负责人核对并同步后台设置，不能只改文档宣称规则已生效。
 
 
@@ -120,3 +129,18 @@
 - The Python path must install only the hcx archive, verify its hash and execution, and retain existing shared-library versions; apk must pin those installed versions and reject plans that change another package. Do not treat permission for hcx as permission to replace arbitrary system components.
 - The owner accepts the existing automatic-capture hcxmon interface-name cleanup for this merge and does not require that concern to block it. This exception does not authorize broad process killing or unrelated interface cleanup elsewhere.
 - Unresolved or conflicting radio-to-phy ownership remains a blocker: do not guess the physical radio from its number.
+
+
+## Publication hosting policy (owner confirmed 2026-11-06)
+
+- When the owner asks to publish a new software version or offline bundle, follow docs/publishing.md and scripts/manage_publishing.py. A request to publish authorizes uploading and switching the requested channels after validation; do not stop after building.
+- Software: upload the SAME verified full ZIP to Cloudflare AND public GitHub luxiaoguan-ui/luxiaoguan-publish. Both signed notices must reference identical version, platform, channel, size and SHA256. Do not push application source to this binary-only repository. Keep existing source-account remotes and authentication untouched.
+- Offline bundles: publish NEW common/capture archives and signed notices only on that GitHub repository. Preserve ALL existing Cloudflare offline archives, immutable signatures and offline channel notices for old clients. No software release, quota reclamation or cleanup may delete them. This exception overrides earlier one-version offline retention on Cloudflare.
+- Client checks and full ZIP downloads: try Cloudflare through configured proxies, then GitHub directly. With no proxy, use GitHub directly. Keep TLS, signed product/platform/channel checks and exact file hashes mandatory; a mirror must never replace the selected version with another version.
+- Public alpha hosting is allowed. Inside the app, no testing code means stable checks only: never request alpha notices or show alpha download links. Verify testing-code eligibility before offering alpha. Never send testing codes or publisher credentials to GitHub/CDN. GitHub public browsing remains public; the code is app eligibility, not a private-download boundary.
+- Use only the isolated publisher credential for luxiaoguan-ui from the OS credential vault. Never alter the original source account, expose tokens, disable TLS, or ship publisher infrastructure/credentials in packages.
+- Build with the pinned project .venv and increment the product patch version once per new package. Check signed inputs, ZIP integrity, frozen source identity and actual prior-client compatibility before publishing. Publish Linux only after native Debian acceptance; Windows checks do not authorize claiming Linux validation.
+- Verify anonymous full public bytes on both hosts BEFORE switching signed update notices. Keep a resumable receipt. Partial upload or one-host success is not a completed publication. Verify no-code, invalid-code and valid-code behavior after switching. Refresh offline support inventories with real published endpoints.
+- Keep one current software release per platform/channel and one current offline bundle per kind on GitHub after verification; Cloudflare software retains its existing protected bridge and four-slot rules and total 1,000,000,000-byte peak limit. Preserve the old Cloudflare offline resources regardless of quota pressure.
+
+- Offline bundle download and manifest requests must retain the existing selected proxy/direct route policy; the software-only GitHub direct fallback must not override dependency download settings. Verify the real proxy route before release.

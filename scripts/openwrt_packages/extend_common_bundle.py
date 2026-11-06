@@ -26,7 +26,7 @@ def extend_profile(profile, rows):
             selected[row["name"]] = row
     result["packages"] = list(selected.values())
     result["roots"] = sorted(COMMON_ROOTS)
-    result["firmware_required"] = sorted(set(profile["firmware_required"]) | set(provided))
+    result["firmware_required"] = sorted((set(profile["firmware_required"]) | set(provided)) - set(selected))
     return result
 
 

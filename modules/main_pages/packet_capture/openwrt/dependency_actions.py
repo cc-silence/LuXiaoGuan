@@ -42,12 +42,12 @@ def install_capture(page, key=None):
     from .dependency_candidate_prompt import ensure_candidate_prompt
     ensure_candidate_prompt(page,service)
     if not keys:
-        page.settings_info_panel.append_info("请先勾选需要的抓包功能。", "info")
+        page.capture_service.dependencyMessageGenerated.emit("请先勾选需要的抓包功能。", "info")
         return
     missing = missing_packages(snapshot.dependencies, keys)
     rows = {item.key: item for item in snapshot.dependencies}
     if not missing and all(name in rows and rows[name].state.value == "ready" for name in keys):
-        page.settings_info_panel.append_info("选中的抓包依赖齐全，无需安装。", "success")
+        page.capture_service.dependencyMessageGenerated.emit("选中的抓包依赖齐全，无需安装。", "success")
         return
     upgrade = key == "pmkid" and rows.get(key) is not None and rows[key].state.value == "upgradable"
     preview = "、".join(missing) if missing else "先重新检查选中的抓包功能，再列出实际缺项"
@@ -78,7 +78,7 @@ def uninstall_capture(page, key=None):
     else:
         packages = list(CAPTURE_REMOVABLE_PACKAGES[key])
     if not packages:
-        page.settings_info_panel.append_info("没有可卸载的独立抓包软件包。", "info")
+        page.capture_service.dependencyMessageGenerated.emit("没有可卸载的独立抓包软件包。", "info")
         return
     purposes = {"aircrack-ng": "扫描、常规抓包等功能共用", "hcxdumptool": "PMKID 采集", "reaver": "WPS 功能"}
     dialog = PackageSelectDialog("卸载抓包依赖",

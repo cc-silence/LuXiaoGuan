@@ -28,7 +28,7 @@ class CaptureSettingsDialogTests(unittest.TestCase):
         host.tabs.setCurrentIndex(host._page_indices["capture"])
         button = host.capture_page.tools.settings_button
         self.assertTrue(button.text())
-        self.assertTrue(button.icon().isNull())
+        self.assertFalse(button.icon().isNull())
         manager = page.settings_manager
         page.settings_manager = CaptureSettingsManager(Path(standalone.StandaloneTests.temp.name) / "capture.json")
         output = Path("build/capture-settings-dialog-review")

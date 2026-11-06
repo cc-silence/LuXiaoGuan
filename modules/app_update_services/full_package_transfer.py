@@ -46,7 +46,7 @@ class FullPackageTransfer(QThread):
                 prepare_helper(self.root,stage)
                 from modules.capture_services.openwrt.common_bundle_download import _receive
                 def progress(value):self.progress.emit(value['completed'],release.size,'download')
-                _receive(release.url,stage/'package.zip',release.size,self.cancel_event,progress,time.monotonic()+900,channels=self.channels,expected_sha=release.sha256)
+                _receive(release.url,stage/'package.zip',release.size,self.cancel_event,progress,time.monotonic()+900,channels=self.channels,expected_sha=release.sha256,mirrors=release.mirrors,github_direct=True)
                 self.progress.emit(release.size,release.size,'extract')
                 catalog=prepare_package(stage/'package.zip',release,stage,self.root,cancel=self.cancel_event.is_set)
                 plan=make_plan(self.root,catalog,self.cancel_event.is_set)

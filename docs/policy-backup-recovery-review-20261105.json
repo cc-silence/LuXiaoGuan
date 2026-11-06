@@ -1,0 +1,217 @@
+{
+  "checked_at": "2026-11-05",
+  "applicable": "Router-side policy backup deletion; exact file/hash validation and native rollback ownership matter.",
+  "sources": [
+    {
+      "branch": "openwrt-19.07",
+      "commit": "67c8a3fda26e441d3ec4a19f50ac72eca8deb14b",
+      "url": "https://raw.githubusercontent.com/openwrt/rpcd/67c8a3fda26e441d3ec4a19f50ac72eca8deb14b/uci.c",
+      "sha256": "0fc96e74be35956bdb5b90f3a8e31f1609e31106d4173c3969fca44757495dbb",
+      "bytes": 42140,
+      "confirm_function": "rpc_uci_confirm(struct ubus_context *ctx, struct ubus_object *obj,\n                struct ubus_request_data *req, const char *method,\n                struct blob_attr *msg)\n{\n\tstruct blob_attr *tb[__RPC_B_MAX];\n\tchar *sid;\n\n\tblobmsg_parse(rpc_uci_rollback_policy, __RPC_B_MAX, tb,\n\t              blob_data(msg), blob_len(msg));\n\n\tif (!tb[RPC_B_SESSION])\n\t\treturn UBUS_STATUS_INVALID_ARGUMENT;\n\n\tsid = blobmsg_data(tb[RPC_B_SESSION]);\n\n\tif (!apply_sid[0])\n\t\treturn UBUS_STATUS_NO_DATA;\n\n\tif (strcmp(apply_sid, sid))\n\t\treturn UBUS_STATUS_PERMISSION_DENIED;\n\n\trpc_uci_purge_dir(RPC_SNAPSHOT_FILES);\n\trpc_uci_purge_dir(RPC_SNAPSHOT_DELTA);\n\n\tuloop_timeout_cancel(&apply_timer);\n\tmemset(apply_sid, 0, sizeof(apply_sid));\n\tapply_ctx = NULL;\n\n\treturn 0;\n}\n"
+    },
+    {
+      "branch": "openwrt-21.02",
+      "commit": "8d26a1ba3a175016b342cc5e25d340c08ae20eed",
+      "url": "https://raw.githubusercontent.com/openwrt/rpcd/8d26a1ba3a175016b342cc5e25d340c08ae20eed/uci.c",
+      "sha256": "84e8e3ecc502476dda227df4671473a64c22a78f34849c1987b5e064cdedfe6f",
+      "bytes": 42202,
+      "confirm_function": "rpc_uci_confirm(struct ubus_context *ctx, struct ubus_object *obj,\n                struct ubus_request_data *req, const char *method,\n                struct blob_attr *msg)\n{\n\tstruct blob_attr *tb[__RPC_B_MAX];\n\tchar *sid;\n\n\tblobmsg_parse(rpc_uci_rollback_policy, __RPC_B_MAX, tb,\n\t              blob_data(msg), blob_len(msg));\n\n\tif (!tb[RPC_B_SESSION])\n\t\treturn UBUS_STATUS_INVALID_ARGUMENT;\n\n\tsid = blobmsg_data(tb[RPC_B_SESSION]);\n\n\tif (!apply_sid[0])\n\t\treturn UBUS_STATUS_NO_DATA;\n\n\tif (strcmp(apply_sid, sid))\n\t\treturn UBUS_STATUS_PERMISSION_DENIED;\n\n\trpc_uci_purge_dir(RPC_SNAPSHOT_FILES);\n\trpc_uci_purge_dir(RPC_SNAPSHOT_DELTA);\n\n\tuloop_timeout_cancel(&apply_timer);\n\tmemset(apply_sid, 0, sizeof(apply_sid));\n\tapply_ctx = NULL;\n\n\treturn 0;\n}\n"
+    },
+    {
+      "branch": "openwrt-22.03",
+      "commit": "7de4820c87437033f6b7716018f3bfa60a3f7b12",
+      "url": "https://raw.githubusercontent.com/openwrt/rpcd/7de4820c87437033f6b7716018f3bfa60a3f7b12/uci.c",
+      "sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b",
+      "bytes": 42205,
+      "confirm_function": "rpc_uci_confirm(struct ubus_context *ctx, struct ubus_object *obj,\n                struct ubus_request_data *req, const char *method,\n                struct blob_attr *msg)\n{\n\tstruct blob_attr *tb[__RPC_B_MAX];\n\tchar *sid;\n\n\tblobmsg_parse(rpc_uci_rollback_policy, __RPC_B_MAX, tb,\n\t              blob_data(msg), blob_len(msg));\n\n\tif (!tb[RPC_B_SESSION])\n\t\treturn UBUS_STATUS_INVALID_ARGUMENT;\n\n\tsid = blobmsg_data(tb[RPC_B_SESSION]);\n\n\tif (!apply_sid[0])\n\t\treturn UBUS_STATUS_NO_DATA;\n\n\tif (strcmp(apply_sid, sid))\n\t\treturn UBUS_STATUS_PERMISSION_DENIED;\n\n\trpc_uci_purge_dir(RPC_SNAPSHOT_FILES);\n\trpc_uci_purge_dir(RPC_SNAPSHOT_DELTA);\n\n\tuloop_timeout_cancel(&apply_timer);\n\tmemset(apply_sid, 0, sizeof(apply_sid));\n\tapply_ctx = NULL;\n\n\treturn 0;\n}\n"
+    },
+    {
+      "branch": "openwrt-23.05",
+      "commit": "c07ab2f91061ad64209e9aaa1fb1b77061a1af25",
+      "url": "https://raw.githubusercontent.com/openwrt/rpcd/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/uci.c",
+      "sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b",
+      "bytes": 42205,
+      "confirm_function": "rpc_uci_confirm(struct ubus_context *ctx, struct ubus_object *obj,\n                struct ubus_request_data *req, const char *method,\n                struct blob_attr *msg)\n{\n\tstruct blob_attr *tb[__RPC_B_MAX];\n\tchar *sid;\n\n\tblobmsg_parse(rpc_uci_rollback_policy, __RPC_B_MAX, tb,\n\t              blob_data(msg), blob_len(msg));\n\n\tif (!tb[RPC_B_SESSION])\n\t\treturn UBUS_STATUS_INVALID_ARGUMENT;\n\n\tsid = blobmsg_data(tb[RPC_B_SESSION]);\n\n\tif (!apply_sid[0])\n\t\treturn UBUS_STATUS_NO_DATA;\n\n\tif (strcmp(apply_sid, sid))\n\t\treturn UBUS_STATUS_PERMISSION_DENIED;\n\n\trpc_uci_purge_dir(RPC_SNAPSHOT_FILES);\n\trpc_uci_purge_dir(RPC_SNAPSHOT_DELTA);\n\n\tuloop_timeout_cancel(&apply_timer);\n\tmemset(apply_sid, 0, sizeof(apply_sid));\n\tapply_ctx = NULL;\n\n\treturn 0;\n}\n"
+    },
+    {
+      "branch": "openwrt-24.10",
+      "commit": "bba95191ff2f22c9118a1ba1355b83afaa277ae3",
+      "url": "https://raw.githubusercontent.com/openwrt/rpcd/bba95191ff2f22c9118a1ba1355b83afaa277ae3/uci.c",
+      "sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b",
+      "bytes": 42205,
+      "confirm_function": "rpc_uci_confirm(struct ubus_context *ctx, struct ubus_object *obj,\n                struct ubus_request_data *req, const char *method,\n                struct blob_attr *msg)\n{\n\tstruct blob_attr *tb[__RPC_B_MAX];\n\tchar *sid;\n\n\tblobmsg_parse(rpc_uci_rollback_policy, __RPC_B_MAX, tb,\n\t              blob_data(msg), blob_len(msg));\n\n\tif (!tb[RPC_B_SESSION])\n\t\treturn UBUS_STATUS_INVALID_ARGUMENT;\n\n\tsid = blobmsg_data(tb[RPC_B_SESSION]);\n\n\tif (!apply_sid[0])\n\t\treturn UBUS_STATUS_NO_DATA;\n\n\tif (strcmp(apply_sid, sid))\n\t\treturn UBUS_STATUS_PERMISSION_DENIED;\n\n\trpc_uci_purge_dir(RPC_SNAPSHOT_FILES);\n\trpc_uci_purge_dir(RPC_SNAPSHOT_DELTA);\n\n\tuloop_timeout_cancel(&apply_timer);\n\tmemset(apply_sid, 0, sizeof(apply_sid));\n\tapply_ctx = NULL;\n\n\treturn 0;\n}\n"
+    },
+    {
+      "branch": "openwrt-25.12",
+      "commit": "d99f703e4035d03fbcfbada3cb697db346c2b984",
+      "url": "https://raw.githubusercontent.com/openwrt/rpcd/d99f703e4035d03fbcfbada3cb697db346c2b984/uci.c",
+      "sha256": "bc3ca56c0a190621f9b14fb930a132494d2d28c5e7b6ffe498604a4d59769f22",
+      "bytes": 43077,
+      "confirm_function": "rpc_uci_confirm(struct ubus_context *ctx, struct ubus_object *obj,\n                struct ubus_request_data *req, const char *method,\n                struct blob_attr *msg)\n{\n\tstruct blob_attr *tb[__RPC_B_MAX];\n\tchar *sid;\n\n\tblobmsg_parse(rpc_uci_rollback_policy, __RPC_B_MAX, tb,\n\t              blob_data(msg), blob_len(msg));\n\n\tif (!tb[RPC_B_SESSION])\n\t\treturn UBUS_STATUS_INVALID_ARGUMENT;\n\n\tsid = blobmsg_data(tb[RPC_B_SESSION]);\n\n\tif (!apply_sid[0])\n\t\treturn UBUS_STATUS_NO_DATA;\n\n\tif (strcmp(apply_sid, sid))\n\t\treturn UBUS_STATUS_PERMISSION_DENIED;\n\n\trpc_uci_purge_dir(RPC_SNAPSHOT_FILES);\n\trpc_uci_purge_dir(RPC_SNAPSHOT_DELTA);\n\n\tuloop_timeout_cancel(&apply_timer);\n\tmemset(apply_sid, 0, sizeof(apply_sid));\n\tapply_ctx = NULL;\n\n\treturn 0;\n}\n"
+    }
+  ],
+  "customer": {
+    "firmware": "OpenWrt 23.05.4",
+    "rpcd_commit": "c07ab2f91061ad64209e9aaa1fb1b77061a1af25",
+    "evidence": "First uncertain attempt retained /root/luxiaoguan-policy.FijfMe; second attempt verified; old task not reconciled."
+  },
+  "conclusions": [
+    "A freshly created distinct session receives NO_DATA when no native rollback is active, or permission denied for a foreign active rollback. It must never confirm the older task.",
+    "Cleanup retains the existing file/token/journal/hash/symlink/extra-child validations and only unlinks recognized files. No recursive deletion or settings replay.",
+    "Persistent receipts contain only pinned identity, bounded paths/tokens and file/config hashes; no passwords or file contents.",
+    "Previously owned untracked directories need a fresh successfully verified policy snapshot before automatic adoption. A login alone does not accept an uncertain configuration.",
+    "Receipt-based known restoration or a matching verified snapshot is rechecked on login. Unknown, changed and unowned directories remain retained with reason codes.",
+    "Common Python business logic is shared on Windows and Debian. No new GUI widget, OS-specific API, package dependency or recurring timer."
+  ],
+  "validation": {
+    "windows": "131 related tests passed, followed by affected regressions after limiting legacy adoption to verified initialization; final added unrelated-boot test is run separately.",
+    "debian": "WSL Debian 12 detected; system Python lacks lupa, so real-Lua regression not executed there",
+    "live_router": "not connected or modified",
+    "build": "not packaged"
+  },
+  "behavior_limits": [
+    "Existing directories without PC receipts are only adopted after a fresh fully verified initialization with matching file hashes. A login alone does not declare an uncertain legacy operation successful.",
+    "Dirty configurations, active native rollback, missing owner metadata, symlinks, unknown children and changed files stay retained. No recursive cleanup."
+  ],
+  "followup_review": {
+    "checked_at": "2026-11-05",
+    "official_sources_rechecked": "All six pinned rpcd source hashes match; NO_DATA and foreign SID permission checks were re-read.",
+    "additional_sources": [
+      {
+        "title": "Lua 5.1 os.remove: directory must be empty",
+        "url": "https://www.lua.org/manual/5.1/manual.html#pdf-os.remove",
+        "read_via": "web tool; direct Python TLS fetch failed; no verification bypass"
+      },
+      {
+        "title": "Python 3.10 replace and fsync",
+        "url": "https://docs.python.org/3.10/library/os.html#os.replace",
+        "read_via": "web tool"
+      }
+    ],
+    "fixes": [
+      "Recheck the default UCI cursor directory, savedir and uncommitted deltas for every known config immediately before deletion. Disk hashes alone cannot detect uncommitted edits.",
+      "Keep historical cleanup inspection errors separate from a successfully verified initialization. Cancellation and identity changes still stop the operation. Cleanup warnings include bounded error codes."
+    ],
+    "platform_limit": "Debian 12 system Python lacks PySide6 and lupa; normal package import fails at the existing Qt service import. Dependencies not installed; Debian runtime acceptance not claimed.",
+    "conservative_boundary": "Damaged or partially removed recovery metadata remains retained; ownership is not inferred and unknown residual contents are not forcibly deleted.",
+    "validation": {
+      "windows_tests": 134,
+      "result": "passed",
+      "syntax_encoding_diff_checks": "passed",
+      "live_router": "not performed",
+      "debian": "blocked by missing PySide6 and lupa; not accepted"
+    }
+  },
+  "second_followup_review": {
+    "checked_at": "2026-11-05",
+    "issue": "read() ignores pipe-close status; a failed find with empty or partial stdout could be interpreted as a successful inventory and discard local recovery receipts.",
+    "fix": "Require a final constant success marker printed only after find exits successfully. Reject missing markers before processing or changing persistent records. Preserve the existing ownership/deletion checks.",
+    "sources": [
+      {
+        "title": "GNU Bash official manual, AND list exit-status semantics",
+        "url": "https://www.gnu.org/s/bash/manual/html_node/Lists.html",
+        "read_via": "web search returned the official relevant section"
+      },
+      {
+        "title": "Official OpenWrt rpcd exact customer revision",
+        "url": "https://raw.githubusercontent.com/openwrt/rpcd/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/uci.c",
+        "read_via": "web tool"
+      }
+    ],
+    "new_tests": [
+      "Empty stdout without success proof retains recovery records",
+      "Partial stdout without success proof retains recovery records",
+      "A verified empty inventory clears already-completed receipts",
+      "Execute the actual Lua-generated shell command for successful and failed find"
+    ],
+    "windows_tests": 137,
+    "windows_result": "passed",
+    "scope": "No router connected; no application package built. Debian full runtime remains unverified because existing PySide6 and lupa dependencies are missing."
+  },
+  "third_followup_review": {
+    "checked_at": "2026-11-05",
+    "official_references": [
+      {
+        "url": "https://docs.python.org/3.10/library/json.html#json.JSONDecodeError",
+        "reason": "Malformed receipt JSON raises a ValueError subclass; it must not invalidate unrelated router status reads."
+      },
+      {
+        "url": "https://docs.python.org/3.10/library/os.html#os.replace",
+        "reason": "Atomic replacement can fail due to filesystem access; preserve the previous receipt."
+      },
+      {
+        "url": "https://docs.python.org/3.10/library/os.html#os.fsync",
+        "reason": "Flush and fsync precede replace. Sync failures must preserve the previous record."
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/rpcd/c07ab2f91061ad64209e9aaa1fb1b77061a1af25/uci.c",
+        "reason": "Native active rollback handling remains unchanged."
+      }
+    ],
+    "reproduced_issue": "Corrupt cleanup receipt raised from needs_reconcile inside policy_status and caused zero successful login status completions in the real Qt worker regression.",
+    "fixes": [
+      "Expected receipt data or filesystem errors now request the separate safe inspection. It reports the problem while leaving normal router status valid and preserving original receipt bytes.",
+      "forget removes an empty completed local receipt when no other tasks or pending cleanup exist; verified rollback no longer leaks receipt slots."
+    ],
+    "fault_injection": [
+      "Malformed JSON remains unchanged, no router mutation",
+      "Unreadable record remains unchanged",
+      "Failed fsync leaves previous receipt and no temporary file",
+      "Failed replace leaves previous receipt and no temporary file",
+      "Verified rollback cleanup removes empty record",
+      "Finishing one task preserves other outstanding recovery tasks"
+    ],
+    "scope": "No UI appearance changes, new platform-specific calls, packages or timers. Full Debian desktop and real-router acceptance remain unverified.",
+    "validation": {
+      "windows_related_tests": 144,
+      "result": "passed",
+      "syntax_encoding_diff_checks": "passed",
+      "live_router": "not tested",
+      "debian_full_runtime": "not verified; existing dependencies missing"
+    }
+  },
+  "authorized_live_validation": {
+    "checked_at": "2026-11-05",
+    "authorization": "User explicitly authorized unattended local software/router tests and direct bug fixes.",
+    "device": {
+      "model": "TP-Link TL-XDR6088",
+      "release": "OpenWrt 23.05.4",
+      "revision": "r24012-d8dd03c46f"
+    },
+    "transport": "Production SSH and policy services, saved trusted fingerprint and OS credential store; no trust bypass.",
+    "backup": {
+      "path": "build/live-policy-recovery-20261105/before-live-test.tar.gz",
+      "bytes": 28307,
+      "sha256": "3d4de9e39dd0f9d7f85f7df5e2597e0a519daccd28b753306204e1f93f27ccd3"
+    },
+    "passed": [
+      "Normal homepage-only initialization clears its backup",
+      "Interrupted file operation retains evidence after a real reconnect, then clears after verified initialization",
+      "Owned legacy backup adopted only after verified initialization",
+      "Unknown child blocks cleanup without deleting the recovery copy",
+      "After removal of the exact test-owned extra child, real reconnect automatically clears the accepted backup",
+      "Direct HTTP homepage access"
+    ],
+    "initial_run_anomaly": "After an earlier accepted write the homepage href changed from absolute to relative with a trailing slash. Origin undetermined. Hash verification correctly retained the backup. This first run is recorded as failed, not counted as passed. Original and observed bytes were preserved locally; exact generated-content variant was checked before controlled restoration.",
+    "isolated_retest": "Extra-child protection, reconnect cleanup and direct HTTP access passed without the anomalous change.",
+    "restoration": "Fresh SSH read verified all baseline UCI and fixed-file hashes; original homepage restored; router inventory empty; local recovery receipt absent.",
+    "related_regression": {
+      "command": "python -m unittest tests.test_policy_backup_recovery tests.test_policy_recovery_worker tests.test_policy_inventory_shell tests.test_router_policy -q",
+      "tests": 47,
+      "result": "passed"
+    },
+    "production_changes_this_live_pass": false,
+    "limitations": [
+      "GUI automation failed twice at sandbox helper startup; no real button-click acceptance claimed.",
+      "Debian 12 full desktop remains unverified.",
+      "No LAN/Wi-Fi/password/firewall changes or factory reset performed.",
+      "Unexplained href formatting change not attributed to firmware or another client without evidence."
+    ],
+    "evidence": [
+      "build/live-policy-recovery-20261105/live-results.json",
+      "build/live-policy-recovery-20261105/restoration.json",
+      "build/live-policy-recovery-20261105/extra-case-results.json"
+    ]
+  }
+}

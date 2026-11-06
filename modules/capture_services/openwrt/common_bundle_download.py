@@ -46,13 +46,13 @@ class _TransferProgress:
         self.last_notice = now
 
 
-def _receive(url, target, limit, cancel, progress, deadline, channels=None, headers=None, expected_sha=None):
+def _receive(url, target, limit, cancel, progress, deadline, channels=None, headers=None, expected_sha=None, mirrors=(), github_direct=False):
     """\u6d41\u5f0f\u4e0b\u8f7d\u5e76\u9075\u5b88\u516c\u5171\u4ee3\u7406\u7b56\u7565\uff0c\u6709\u53d6\u6d88\u548c\u603b\u8d85\u65f6\u3002"""
     import requests
     from modules.http_socks_bridge import ProxyBridgePool
     from modules.network_policy import allowed_channels, retryable_route_status
-    if channels is None:
-        channels = allowed_channels(None, "proxy")
+    from modules.app_update_services.sources import package_routes, release_response
+    channels = package_routes(url, mirrors, channels, github_direct=github_direct)
     from modules.resumable_download import PartialDownload
     partial = PartialDownload(target, limit, expected_sha, cancel.is_set) if target is not None and expected_sha else None
     if partial and partial.prepare():
@@ -81,11 +81,11 @@ def _receive(url, target, limit, cancel, progress, deadline, channels=None, head
             # direct. Slow or broken proxies must not consume the whole budget.
             route_timeout = max(0.1, (deadline - time.monotonic()) / (2 * (len(channels) - position)))
             try:
-                with session.get(url, proxies=proxies,
+                with release_response(session, channel.url, proxies=proxies,
                                  timeout=(min(10, route_timeout), min(30, route_timeout)),
-                                 stream=True, allow_redirects=False,
+                                 stream=True,
                                  headers={"Accept-Encoding": "identity", "Cache-Control": "no-cache", **(headers or {}), **(partial.headers() if partial else {})}) as response:
-                    if retryable_route_status(response.status_code):
+                    if retryable_route_status(response.status_code) or (response.status_code == 404 and channel.source == 'cloudflare' and position+1 < len(channels)):
                         last = "HTTP " + str(response.status_code)
                         continue
                     if partial:
@@ -205,7 +205,8 @@ def inspect_bundle(cancel, progress, stage, channels=None, kind="common"):
     if not GATEWAY:
         raise ValueError("RouterManager offline resource service is not configured")
     stage("\u6b63\u5728\u83b7\u53d6\u79bb\u7ebf\u5305\u5927\u5c0f\u2026", "info")
-    raw = _receive(GATEWAY + "/offline/" + bundle_spec(kind).namespace + "/manifest",
+    from modules.app_update_services.sources import offline_manifest
+    raw = _receive(offline_manifest(kind),
                    None, 65536, cancel, lambda *_:None, time.monotonic()+60, channels)
     from .bundle_status import local_bundle_status, compare_bundle
     payload = verify_bundle_manifest(raw, kind=kind)

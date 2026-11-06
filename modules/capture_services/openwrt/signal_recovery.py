@@ -16,7 +16,7 @@ def pending_recovery(targets, ready):
     return tuple(target for target in targets if not ready(*target))
 
 
-def wait_for_recovery(targets, observe, cancel, deadline, journal=None, *, hard_deadline=None):
+def wait_for_recovery(targets, observe, cancel, deadline, journal=None, *, hard_deadline=None, mode="ap"):
     """Use the operation deadline and cancellation; do not schedule a UI timer."""
     import time
     from .signal_manager import SignalError
@@ -26,7 +26,7 @@ def wait_for_recovery(targets, observe, cancel, deadline, journal=None, *, hard_
     from .ap_startup_wait import ApStartupWait
     startup = ApStartupWait(deadline=deadline, hard_deadline=hard_deadline, rollback=True)
     deadline = startup.deadline
-    with WirelessReadinessEvidence(journal, "ap").observing() as evidence:
+    with WirelessReadinessEvidence(journal, mode).observing() as evidence:
         while time.monotonic() < deadline:
             if cancel.is_set():
                 raise InterruptedError("Wireless recovery cancelled")

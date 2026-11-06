@@ -19,7 +19,7 @@ def environment(home=None):
         home=Path(home)
         result.update(HOME=str(home),XDG_CONFIG_HOME=str(home/'config'),XDG_STATE_HOME=str(home/'state'),
                       XDG_DATA_HOME=str(home/'data'),XDG_CACHE_HOME=str(home/'cache'),
-                      ROUTERMANAGER_USER_CONFIG_DIR=str(home/'config/RouterManager'),QT_QPA_PLATFORM='offscreen')
+                      ROUTERMANAGER_USER_CONFIG_DIR=str(home/'config/LuXiaoGuan'),QT_QPA_PLATFORM='offscreen')
         result.pop('DBUS_SESSION_BUS_ADDRESS',None)
     return result
 

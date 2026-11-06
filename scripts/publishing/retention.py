@@ -12,31 +12,8 @@ _OFFLINE_ARCHIVE = re.compile(r"offline/openwrt-(common|capture)/files/([a-f0-9]
 
 def offline_candidates(api, inventory, channels):
     """Only signed, superseded bundles of a known active kind may be deleted."""
-    protected, eligible = set(), []
-    for kind in ('common', 'capture'):
-        channel = 'channel/openwrt-'+kind+'.json'
-        if channel not in channels: continue
-        active = verify_bundle_manifest(channels[channel], kind=kind)
-        active_key = urlsplit(active['url']).path.lstrip('/')
-        protected.update((active_key, 'offline/openwrt-'+kind+'/manifests/'+active['sha256']+'.json'))
-        if active_key not in inventory:
-            raise ValueError('Current offline archive is missing; cleanup stopped')
-        for key in inventory:
-            match = _OFFLINE_MANIFEST.fullmatch(key)
-            if not match or match[1] != kind or match[2] == active['sha256']: continue
-            old = verify_bundle_manifest(api.read(key), kind=kind)
-            archive = urlsplit(old['url']).path.lstrip('/')
-            owned = _OFFLINE_ARCHIVE.fullmatch(archive)
-            if (not owned or owned[1] != kind or owned[2] != old['sha256']
-                    or owned[3].lower() != kind or match[2] != old['sha256']):
-                raise ValueError('Offline history ownership mismatch; cleanup stopped')
-            if old['revision'] >= active['revision']: continue
-            if archive in inventory:
-                if inventory[archive]['size'] != old['size']:
-                    raise ValueError('Offline history size mismatch; cleanup stopped')
-                eligible.append(archive)
-            eligible.append(key)
-    return protected, eligible
+    # Cloudflare offline bundles are retained for existing clients after migration.
+    return {key for key in inventory if key.startswith('offline/')}, []
 
 
 def cleanup_retention(*, api=None, report_path=None, apply=True, expected_delete=None):
@@ -56,7 +33,7 @@ def cleanup_retention(*, api=None, report_path=None, apply=True, expected_delete
         if {k:(v['size'],v.get('etag')) for k,v in latest.items()} != {k:(v['size'],v.get('etag')) for k,v in before.items()}:
             raise ValueError('Storage changed during retention planning; cleanup stopped')
         report = dict(status='cleaning', before_bytes=sum(v['size'] for v in before.values()),
-                      planned_delete=selected, deleted=[], app_versions_per_platform_channel=1, app_slots=4, offline_versions_per_kind=1)
+                      planned_delete=selected, deleted=[], app_versions_per_platform_channel=1, app_slots=4, cloudflare_offline_retention="preserve-all-existing")
         path = Path(report_path) if report_path else ROOT/'build/publishing/storage'/('retention-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')+'.json')
         path.parent.mkdir(parents=True, exist_ok=True)
         def save(): path.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')

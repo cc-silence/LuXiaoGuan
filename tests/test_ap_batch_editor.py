@@ -109,6 +109,26 @@ class BatchEditorTests(unittest.TestCase):
         dialog.accept();self.assertEqual(dialog.result(),dialog.Accepted)
         self.assertEqual(dialog.values(),values)
 
+    def test_labels_resolve_ap_device_band_and_do_not_guess_from_numbers(self):
+        from modules.capture_services.openwrt.ap_batch_identity import access_point_band
+        from PySide6.QtWidgets import QLabel
+        data=copy.deepcopy(self.snapshot)
+        wireless=data["configs"]["wireless"]
+        ap=next(name for name,row in wireless.items() if row.get("mode")=="ap")
+        for band,label in (("2g","2.4G"),("5g","5G"),("6g","6G")):
+            wireless["unusual_radio9"]={".type":"wifi-device","band":band}
+            wireless[ap]["device"]="unusual_radio9"
+            self.assertEqual(access_point_band(data,ap),band)
+            dialog=AccessPointBatchDialog(data);self.addCleanup(dialog.deleteLater)
+            title=next(q.text() for q in dialog.findChildren(QLabel) if "["+ap+"]" in q.text())
+            self.assertIn(label,title)
+        wireless[ap]["device"]="missing"
+        self.assertIsNone(access_point_band(data,ap))
+        dialog=AccessPointBatchDialog(data);self.addCleanup(dialog.deleteLater)
+        title=next(q.text() for q in dialog.findChildren(QLabel) if "["+ap+"]" in q.text())
+        self.assertEqual(title,wireless[ap]["ssid"]+" ["+ap+"]")
+
+
     def test_invalid_input_stays_in_editor_with_reason(self):
         dialog=AccessPointBatchDialog(self.snapshot);self.addCleanup(dialog.deleteLater)
         dialog.rows["guest"][1].setText("bad")

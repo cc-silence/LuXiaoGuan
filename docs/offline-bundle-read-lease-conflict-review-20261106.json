@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-06",
+  "problem": "Already prepared offline bundle reports busy on router login",
+  "root_cause": "Background local version inspection and package consumption both acquired the same exclusive cross-process storage lease. Read-only operations on different workers rejected one another.",
+  "applicability": "Computer-local resource coordination only. Router commands, package selection and execution semantics unchanged; OpenWrt command/source audit exemption applies. Windows/POSIX API sources checked.",
+  "change": "Native shared leases for local status, package materialization, hcx body use and export. Download, activation, replacement and retirement retain exclusive leases. Existing canonical lock-file identity preserved for old client interoperability.",
+  "sources": "build/bundle-read-leases-audit-20261106/sources.json",
+  "validation": {
+    "native_windows_tests": 23,
+    "native_windows_result": "passed",
+    "other_installation_regressions": {
+      "tests": 55,
+      "result": "passed"
+    },
+    "coverage": [
+      "readers coexist across threads",
+      "writers exclude readers and other writers",
+      "writer reentrancy and nested reads",
+      "read-to-write upgrades rejected",
+      "exception release",
+      "shared readers across processes",
+      "process crash releases lease",
+      "old CRT lock interoperability",
+      "actual local status check during prepared-package installation"
+    ],
+    "syntax": "passed",
+    "encoding": "UTF-8 checked",
+    "debian12": "Native environment unavailable; documented fcntl shared/exclusive path implemented, not claimed as native tested",
+    "live_router": "No router mutation needed for local locking regression",
+    "total_targeted_tests": 78
+  },
+  "delivery": {
+    "source_fix_only": true,
+    "software_built_or_published": false,
+    "offline_archive_changed": false
+  },
+  "source_sha256": {
+    "modules/platform_services/file_lease.py": "fbdac7df9e3882a18f04f5d0949cf28f6131a9f58491d55100ef16f0bab00a80",
+    "modules/capture_services/openwrt/bundle_storage_lock.py": "87e13fcea133f54870f85a411b13b160ffe2a8ba51de377fbdd6a0204c9563be",
+    "modules/capture_services/openwrt/bundle_status.py": "9605feeb982421e4e836dfd681ae09ff9c6675ceb8fe68a1ff4e05b40ccc94b2",
+    "modules/capture_services/openwrt/bundle_export.py": "8bc0ca8badc9212b4656561ec5783de9ef946e678e6b789fc97bbd89754090d1",
+    "modules/capture_services/openwrt/common_bundle_installer.py": "4a2d8713aeadd62334c378a177bae00f292c3f051f59a0900ed74d1d0abc07ca",
+    "modules/capture_services/openwrt/hcx_bundle.py": "0bdf7a9b2e9928dcad409aaa881f605be57657558a3ef01970664c38f6bb29e2",
+    "tests/test_bundle_read_leases.py": "31487ec90f2e54208c55a2868051297d50aef495f261eb25be7809f9bc81df46"
+  }
+}

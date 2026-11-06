@@ -322,7 +322,7 @@ class FramelessDialog(QDialog):
             event.accept()
 
     def keyPressEvent(self, event):
-        """让编辑弹窗的 Enter 触发其“确定”按钮，而不是走 QDialog 默认关闭路径。
+        """Enter 优先触发当前焦点按钮，其他单行输入则使用默认提交按钮。
 
         参数：event 是当前键盘事件。
         返回值：无。
@@ -334,6 +334,11 @@ class FramelessDialog(QDialog):
             focused = QApplication.focusWidget()
             if isinstance(focused, (QTextEdit, QPlainTextEdit)):
                 super().keyPressEvent(event)
+                return
+            if isinstance(focused, QPushButton) and focused.window() is self:
+                if focused.isEnabled():
+                    focused.click()
+                event.accept()
                 return
             for button in self.findChildren(QPushButton):
                 if button.property("dialogAcceptButton") and button.isEnabled():

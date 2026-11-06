@@ -4,7 +4,9 @@ from pathlib import Path, PurePosixPath
 import tempfile
 from .runtime import is_linux
 
-APP_DIRECTORY = "RouterManager"
+from modules.release_identity import PRODUCT_NAME
+
+APP_DIRECTORY = PRODUCT_NAME
 _XDG = {
     "config": ("XDG_CONFIG_HOME", ".config"),
     "state": ("XDG_STATE_HOME", ".local/state"),

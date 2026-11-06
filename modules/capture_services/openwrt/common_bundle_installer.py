@@ -34,7 +34,7 @@ def _install_downloaded(manager, wanted, device, cache_dir, sftp_available, canc
     from .signal_manager import SignalError
     resources = ExitStack()
     def retain(repo):
-        resources.enter_context(bundle_lock(repo.root))
+        resources.enter_context(bundle_lock(repo.root, shared=True))
         return repo
     try:
         if cancel is not None and cancel.is_set():
@@ -51,7 +51,7 @@ def _install_downloaded(manager, wanted, device, cache_dir, sftp_available, canc
             if not candidate_profiles(repository, device):
                 identity = " / ".join(str(getattr(device, key, "")) for key in
                                       ("distribution", "version", "target", "package_architecture", "package_manager"))
-                reason = "未找到匹配当前系列、平台、架构和包管理器的候选包"
+                reason = "未找到匹配当前系列、平台、架构和包管理器的候选包。请检查离线依赖包更新；最新版仍未覆盖时，需要补齐对应固件组合"
                 tell("本地离线包未匹配当前设备：" + identity + "。" + reason +
                      "；继续尝试路由器自身的软件源。", "info")
                 return False
@@ -68,7 +68,7 @@ def _install_downloaded(manager, wanted, device, cache_dir, sftp_available, canc
             tell("本地离线包未匹配当前设备：" +
                  " / ".join(str(getattr(device, key, "")) for key in
                             ("distribution", "version", "target", "package_architecture", "package_manager")) +
-                 "。不会强行安装其他固件的离线包。", "info")
+                 "。请检查并更新离线依赖包；若最新版仍不匹配，需要补齐该固件的依赖。不会强行安装其他固件的离线包。", "info")
             return False
         tell("\u4f7f\u7528\u5df2\u4e0b\u8f7d\u7684\u79bb\u7ebf\u4f9d\u8d56\u5305\uff0c\u65e0\u9700\u8054\u7f51\u8bfb\u53d6\u8f6f\u4ef6\u6e90\u3002", "info")
         root = Path(cache_dir or default_cache_dir())
@@ -84,7 +84,18 @@ def _install_downloaded(manager, wanted, device, cache_dir, sftp_available, canc
                     install_ipk_candidates(manager, wanted, device, repository, directory, installed,
                         compare, cache_dir, sftp_available, cancel, tell, uploader)
                 else:
-                    selected = repository.ipk_selection(profile, wanted, installed, compare)
+                    from .dependency_resolution import UnsatisfiedDependency
+                    try:
+                        selected = repository.ipk_selection(profile, wanted, installed, compare)
+                    except UnsatisfiedDependency as exc:
+                        from .bundle_dependencies import FIRMWARE_OWNED
+                        versions = getattr(installed, 'versions', {})
+                        base = ', '.join(name + '=' + versions.get(name, '<missing>')
+                                         for name in sorted(FIRMWARE_OWNED))
+                        tell('本地离线包无法满足当前设备的依赖，尚未传输或安装：' + str(exc)
+                             + '\n已读取的系统基础包记录（<missing> 表示未找到已安装记录）：' + base
+                             + '\n继续尝试其他安装来源；仍先预演并禁止替换已安装的包。', 'warning')
+                        return False
                     rows = {row["name"]: row for row in profile["packages"]}
                     paths = tuple(repository.materialize(rows[p.name], directory, cancel) for p in selected)
                     if paths:
