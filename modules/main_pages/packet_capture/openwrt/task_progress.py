@@ -24,8 +24,13 @@ class CaptureTaskProgress(QWidget):
         layout.setSpacing(8)
         self.title_label = PrivacyLabel("", self)
         self.title_label.setObjectName("captureProgressTitle")
+        self.title_label.setTextFormat(Qt.PlainText)
         self.title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.title_label.hide()
+        self.warning_label = PrivacyLabel("", self)
+        self.warning_label.setObjectName("captureProgressWarning")
+        self.warning_label.setTextFormat(Qt.PlainText)
+        self.warning_label.hide()
         self.progress_bar = PrivacyProgressBar(self)
         self.progress_bar.setObjectName("captureProgressBar")
         # 扫描不报告可靠百分比，使用细状态条表达运行中，避免大进度条制造虚假的完成感。
@@ -34,14 +39,17 @@ class CaptureTaskProgress(QWidget):
         self.progress_bar.setRange(0, 1)
         self.progress_bar.setValue(0)
         layout.addWidget(self.title_label)
+        layout.addWidget(self.warning_label)
         layout.addWidget(self.progress_bar, 1)
 
     def apply_progress(self, progress, task_state="idle"):
-        """显示服务快照中的进度，不启动定时器或任务。"""
+        """Render the service progress snapshot without a local timing loop."""
 
         active = task_state not in {"idle", "failed"}
         self.setVisible(active)
         if not active:
+            self.warning_label.clear()
+            self.warning_label.hide()
             self.title_label.clear()
             self.title_label.hide()
             self.progress_bar.setRange(0, 1)
@@ -53,6 +61,9 @@ class CaptureTaskProgress(QWidget):
             title = "正在处理"
         self.title_label.setText(title)
         self.title_label.setVisible(bool(title))
+        warning = str(getattr(progress, "warning_text", "") or "")
+        self.warning_label.setText(warning)
+        self.warning_label.setVisible(bool(warning))
         detail = str(progress.detail or "")
         self.title_label.setToolTip(detail)
         self.progress_bar.setToolTip(detail)

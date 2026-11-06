@@ -156,6 +156,8 @@ class RouterFilesPage(QWidget):
         if owner is not None:owner.openwrtSnapshotChanged.connect(self._apply_connection)
         from .file_dependency_prompt import FileDependencyPrompt
         self._dependency_prompt=FileDependencyPrompt(self)
+        from .capture_file_refresh import CaptureFileRefresh
+        self._capture_refresh=CaptureFileRefresh(self)
         self._apply_connection(None)
 
     def enter(self):
@@ -167,6 +169,7 @@ class RouterFilesPage(QWidget):
             self._loaded_connection=connection
             self._refresh(False)
             self._refresh(True)
+        self._capture_refresh.flush()
 
     def _apply_connection(self,snapshot):
         ssh=self.service.manager.ssh
@@ -845,6 +848,7 @@ class RouterFilesPage(QWidget):
 
     def dispose(self):
         """释放订阅并取消本页请求，不影响其他任务。"""
+        self._capture_refresh.dispose()
         self._cancel()
         self._dependency_prompt.dispose()
         for signal,slot in ((self.service.completed,self._completed),(self.service.failed,self._failed),(self.service.progress,self._progress)):

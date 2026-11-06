@@ -10,12 +10,17 @@ from modules.capture_services.openwrt.command_runner import OpenWrtCommandRunner
 
 class FixtureServer(paramiko.ServerInterface):
     def __init__(self):
-        self.commands=[];self.stopped=threading.Event();self.pty_rejections=0;self.pty_requests=0
+        self.commands=[];self.stopped=threading.Event();self.pty_rejections=0;self.pty_requests=0;self.terminal_modes=[]
+        self.pty_hold=False;self.pty_entered=threading.Event();self.pty_release=threading.Event()
     def check_auth_password(self,username,password):return paramiko.AUTH_SUCCESSFUL
     def get_allowed_auths(self,username):return 'password'
     def check_channel_request(self,kind,chanid):return paramiko.OPEN_SUCCEEDED if kind=='session' else paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
     def check_channel_pty_request(self, channel, term, width, height, pixelwidth, pixelheight, modes):
         self.pty_requests += 1
+        self.terminal_modes.append(modes)
+        if self.pty_hold:
+            self.pty_entered.set()
+            if not self.pty_release.wait(3):return False
         if self.pty_rejections:
             self.pty_rejections -= 1
             return False
@@ -147,5 +152,64 @@ class ChannelIsolationTests(unittest.TestCase):
         self.assertTrue(channel.exit_status_ready())
         self.assertIn('ok',drain_capture_tail(channel))
         with self.assertRaises(CaptureExitUnconfirmed):require_capture_exit_status(channel.recv_exit_status())
+        self.assertTrue(self.client.connected)
+        self.assertEqual(self.runner.run('fixture','accept',timeout=3).exit_code,0)
+
+    def test_control_negotiates_terminal_modes_without_remote_stty(self):
+        channel=self.client.open_control_stream('hold',timeout=3)
+        self.addCleanup(channel.close)
+        modes=paramiko.Message(self.server.terminal_modes[-1])
+        self.assertEqual((modes.get_byte(),modes.get_int()),(b'\x33',0))
+        self.assertEqual((modes.get_byte(),modes.get_int()),(b'\x35',0))
+        self.assertEqual(modes.get_byte(),b'\x00')
+        self.assertEqual(self.server.commands,['hold'])
+
+    def test_control_pty_rejection_closes_owned_channel_and_preserves_login(self):
+        self.server.pty_rejections=1
+        with self.assertRaises(paramiko.SSHException) as error:
+            self.client.open_control_stream('hold',timeout=3)
+        self.assertEqual(error.exception.ssh_stage,'pty_request')
+        self.assertEqual(self.server.commands,[])
+        self.assertTrue(self.client.connected)
+        self.assertEqual(self.runner.run('fixture','accept',timeout=3).exit_code,0)
+
+    def test_control_cancelled_before_open_submits_no_command(self):
+        from modules.capture_services.openwrt.ssh_client import ChannelOpenCancelled
+        cancel=threading.Event();cancel.set()
+        with self.assertRaises(ChannelOpenCancelled):
+            self.client.open_control_stream('hold',cancel_event=cancel,timeout=3)
+        self.assertEqual(self.server.pty_requests,0)
+        self.assertEqual(self.server.commands,[])
+
+    def test_capture_terminal_settings_are_unchanged(self):
+        channel=self.client.open_capture_stream(self.client._client,'hold',threading.Event(),timeout=3)
+        self.addCleanup(channel.close)
+        self.assertEqual(self.server.terminal_modes[-1],b'')
+
+    def test_control_cancel_during_mode_negotiation_releases_only_owned_channel(self):
+        from modules.capture_services.openwrt.ssh_client import ChannelOpenCancelled
+        self.server.pty_hold=True;cancel=threading.Event()
+        try:
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                task=pool.submit(self.client.open_control_stream,'hold',cancel,2)
+                self.assertTrue(self.server.pty_entered.wait(1))
+                cancel.set()
+                with self.assertRaises(ChannelOpenCancelled):task.result(timeout=2)
+        finally:
+            self.server.pty_release.set()
+        self.assertEqual(self.server.commands,[])
+        self.assertTrue(self.client.connected)
+        self.assertEqual(self.runner.run('fixture','accept',timeout=3).exit_code,0)
+
+    def test_control_mode_negotiation_timeout_preserves_login(self):
+        from modules.capture_services.openwrt.ssh_client import SshChannelTimeout
+        self.server.pty_hold=True
+        try:
+            with self.assertRaises(SshChannelTimeout) as error:
+                self.client.open_control_stream('hold',timeout=.5)
+            self.assertEqual(error.exception.ssh_stage,'pty_request')
+        finally:
+            self.server.pty_release.set()
+        self.assertEqual(self.server.commands,[])
         self.assertTrue(self.client.connected)
         self.assertEqual(self.runner.run('fixture','accept',timeout=3).exit_code,0)

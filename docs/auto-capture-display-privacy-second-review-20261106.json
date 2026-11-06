@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-06",
+  "scope": "Recheck automatic capture display privacy",
+  "sources": [
+    "https://doc.qt.io/qt-6/qtextdocument.html#maximumBlockCount-prop",
+    "https://doc.qt.io/qt-6/qtextdocument.html#toPlainText",
+    "https://doc.qt.io/qtforpython-6/PySide6/QtGui/QTextCursor.html"
+  ],
+  "fixed": [
+    "SSID with MAC-like suffix could leak its prefix; now fixed address columns define the private suffix",
+    "UTF-16 trimming could split a surrogate or leave an unlabelled sensitive row fragment; now trim full rows",
+    "toPlainText normalizes Unicode whitespace and could break identity matching; raw text now preserves original spaces and line separators"
+  ],
+  "tests": {
+    "count": 63,
+    "result": "passed",
+    "log": "build/auto-capture-privacy-rechecked.log"
+  },
+  "load_check": {
+    "appends": 2000,
+    "seconds": 2.359,
+    "max_blocks": 1500,
+    "max_utf16_units": 200000
+  },
+  "limits": [
+    "Windows Qt verified; native Debian Qt unavailable in inspected system Python",
+    "No router commands or capture execution behavior changed",
+    "No claim that the separate first-use idle-radio capture failure is fixed"
+  ],
+  "packaged": false
+}

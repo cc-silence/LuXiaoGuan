@@ -7,6 +7,7 @@ from threading import RLock, local
 from contextlib import contextmanager
 from .readiness_diagnostics import FLAGS as READINESS_FLAGS, NUMBERS as READINESS_NUMBERS, FAILURES as AP_FAILURES
 from ..management_diagnostic_schema import ACTIONS,KINDS,CODES,SITE_MODULES
+from .password_control_diagnostics import ENUMS as CONTROL_ENUMS, NUMBERS as CONTROL_NUMBERS, STAGES as CONTROL_STAGES, REASONS as CONTROL_REASONS
 
 # Exact protocol constants may survive text redaction; arbitrary strings may not.
 SAFE_VALUES = {
@@ -19,7 +20,17 @@ SAFE_VALUES = {
         "unexpected_error", "restore_reported_errors", "phase_completed", "native_identity_available",
         "native_identity_unavailable", "configuration_untouched"}),
 }
+from .verification_diagnostics import RESTORE_OPERATIONS, RESTORE_STAGES, RESTORE_REASONS
+SAFE_VALUES["operation"] |= RESTORE_OPERATIONS
+SAFE_VALUES["stage"] |= RESTORE_STAGES
+SAFE_VALUES["reason"] |= RESTORE_REASONS
 SAFE_VALUES["operation"] |= {"password_auth", "password_control_probe"}
+SAFE_VALUES.update(CONTROL_ENUMS)
+SAFE_VALUES["stage"] |= CONTROL_STAGES
+SAFE_VALUES["reason"] |= CONTROL_REASONS
+SAFE_VALUES["reason"] |= {"native_redraw_reply_recovered"}
+SAFE_VALUES["reason"] |= {"native_"+mode+"_"+state for mode in ("pty","pipe") for state in ("ready","unavailable")}
+SAFE_VALUES["reason"] |= {"native_rpc_"+word+"_timeout" for word in ("ping","help","pmksa_flush","disconnect","add_network","remove_network","set_network","select_network","disable_network","status","unknown")}
 SAFE_VALUES["reason"] |= {"authenticated", "wrong_key", "authentication_unconfirmed", "native_control_ready", "native_control_unavailable"}
 SAFE_VALUES["operation"] |= ACTIONS | {"configuration_apply", "wireless_readiness", "wireless_scan_interface"}
 SAFE_VALUES["stage"] |= {"queue","progress","preflight","commit","download","publish","reboot","validation","connect","capabilities","session","stage","apply","verify","confirm","rollback","restore_verify","discard","finish"}
@@ -67,6 +78,7 @@ MAX_CONFIGURATION = 128
 MAX_CONFIGURATION_FAILURES = 16
 STRING_FIELDS = frozenset({"timestamp", "event", "operation", "status", "stage", "kind",
     "selection_source", "connection_reason", "exception_type", "cause_reason", "cause_type", "cause_site", "reason", "code_site", "last_stage", "last_reason", "outcome", "transport", "band", "source", "task_band", "ap_state", "ap_failure", "interface_state", "scan_interface"})
+STRING_FIELDS |= frozenset(CONTROL_ENUMS)
 NUMBER_FIELDS = frozenset({"id", "errno", "winerror", "operation_id", "elapsed_seconds", "connected_before",
     "connected_after", "exit_code", "timed_out", "cancelled", "request_bytes",
     "force_apply", "rollback", "trace_id", "connect_attempts", "verify_attempts", "restore_attempts", "native_error", "candidate_index", "candidate_count", "unavailable_count", "original_target", "remaining_seconds", "restored",
@@ -78,7 +90,7 @@ NUMBER_FIELDS = frozenset({"id", "errno", "winerror", "operation_id", "elapsed_s
     "wireless_cleanup_confirmed", "monitor_active", "result_rows", "accepted_rows",
     "rejected_rows", "frequency_rows", "band_rows", "legacy_rows", "configured_radios", "identified_radios", "physical_radios"}) | NETWORK_NUMBERS | {"snapshot_cached", "rollback_seconds", "confirm_reserve_seconds", "radio_up", "runtime_pending", "interface_present", "interface_up", "configuration_pending", "identity_pending", "frequency", "radio_disabled", "retry_setup_failed", "cac_active", "cac_seconds", "requested_enabled", "configured_enabled", "ap_control_available", "kernel_ap_started", "ap_carrier"}
 
-NUMBER_FIELDS |= set(READINESS_FLAGS) | set(READINESS_NUMBERS)
+NUMBER_FIELDS |= set(READINESS_FLAGS) | set(READINESS_NUMBERS) | CONTROL_NUMBERS
 
 
 def _fields(row):

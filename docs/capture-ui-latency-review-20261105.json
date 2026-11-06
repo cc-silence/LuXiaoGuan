@@ -1,0 +1,91 @@
+{
+  "date": "2026-11-05",
+  "scope": "Read-only local UI latency investigation. No production edits, router operations, app restart or visual changes.",
+  "environment": "Windows, Python 3.10, PySide6, Qt offscreen; synthetic AP list and temporary settings file. Profiling overhead applies to profile measurements.",
+  "profile": {
+    "confirmation_construct_show_cancel": {
+      "first_ms": 122.37,
+      "median_ms": 50.17,
+      "max_ms": 122.37
+    },
+    "unchanged_snapshot_34": {
+      "first_ms": 25.38,
+      "median_ms": 0.28,
+      "max_ms": 25.38
+    },
+    "unchanged_snapshot_300": {
+      "first_ms": 171.29,
+      "median_ms": 0.33,
+      "max_ms": 171.29
+    }
+  },
+  "callbacks": {
+    "yes_button_close_only": {
+      "median_ms": 0.392,
+      "max_ms": 0.967
+    },
+    "no_button_close_only": {
+      "median_ms": 0.43,
+      "max_ms": 0.553
+    },
+    "synchronous_normalize_and_save_1_paths": {
+      "median_ms": 10.486,
+      "max_ms": 11.666
+    },
+    "synchronous_normalize_and_save_10_paths": {
+      "median_ms": 27.706,
+      "max_ms": 31.728
+    },
+    "synchronous_normalize_and_save_100_paths": {
+      "median_ms": 225.722,
+      "max_ms": 233.64
+    }
+  },
+  "findings": [
+    {
+      "area": "confirmation",
+      "result": "Accept/reject close callback is below 1 ms here; full dialog construction/show/cancel is slower. Main measured hotspot: common theme construction, QSS scaling and application.",
+      "sources": [
+        "modules/common_widgets/common_dialogs.py:59",
+        "modules/dialog_theme.py:49",
+        "modules/ui_scale_manager.py:135"
+      ]
+    },
+    {
+      "area": "settings persistence",
+      "result": "Page save callbacks synchronously normalize paths and write configuration in the UI thread. Cost increases with dictionary path count. Temporary single-file measurement does not characterize every deployed storage configuration.",
+      "sources": [
+        "modules/main_pages/packet_capture_page.py:888",
+        "modules/config_services/capture_settings_manager.py:228"
+      ]
+    },
+    {
+      "area": "settings close",
+      "result": "Settings dialog finished signal unconditionally emits settingsChanged; closing an unchanged editor still enters settings collection/normalization/save. Split persistence may skip unchanged writes, but normalization remains synchronous.",
+      "sources": [
+        "modules/main_pages/packet_capture/openwrt/openwrt_page.py:344"
+      ]
+    },
+    {
+      "area": "stop",
+      "result": "Stop callback requests cancellation only; no synchronous worker join or remote cleanup wait found in that direct path. State signals can still trigger UI updates.",
+      "sources": [
+        "modules/capture_services/capture_service.py:1583",
+        "modules/capture_services/task_controller.py:66"
+      ]
+    },
+    {
+      "area": "signal list",
+      "result": "Unchanged AP lists return early and measured sub-ms; initial list rebuild scales with count and can briefly stall UI.",
+      "sources": [
+        "modules/main_pages/packet_capture/openwrt/access_point_table.py:377"
+      ]
+    }
+  ],
+  "limits": [
+    "Not a reproduction of a specific live user click or multi-second freeze.",
+    "No full desktop CPU/GPU or event-dispatch tracing; offscreen timings differ from visible rendering.",
+    "No Debian runtime validation."
+  ],
+  "suggested_scope": "Optimize shared dialog theme reuse and configuration normalization/persistence boundaries first; keep appearance and router behavior unchanged."
+}

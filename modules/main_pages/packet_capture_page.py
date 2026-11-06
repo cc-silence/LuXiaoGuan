@@ -2,6 +2,7 @@ from modules.capture_services.openwrt.password_verification import dictionary_pa
 """\u8def\u5c0f\u7ba1 抓包主页面。"""
 
 from pathlib import Path
+from modules.capture_services.dependency_logging import LOGIN_CATEGORY, DEPENDENCY_CATEGORY, SCOPED_CATEGORIES
 
 from PySide6.QtCore import Qt, QUrl, QSignalBlocker
 from PySide6.QtGui import QDesktopServices
@@ -55,11 +56,15 @@ class PacketCapturePage(QFrame):
         )
         self.settings_info_panel = self._create_info_panel(
             saved_font_delta,
-            "路由器登录、设备检测和依赖安装信息会显示在这里。",
-            "等待登录 OpenWrt 路由器。\n\n"
-            "登录后会显示设备探测、SFTP 和抓包依赖检查结果。\n"
-            "依赖安装失败时，详细原因和处理建议也会保留在这里。",
-            log_category="\u8def\u7531\u5668\u767b\u5f55",
+            "\u8def\u7531\u5668\u767b\u5f55\u3001\u65ad\u5f00\u8fde\u63a5\u548c\u8bbe\u5907\u68c0\u6d4b\u4fe1\u606f\u3002",
+            "\u7b49\u5f85\u767b\u5f55 OpenWrt \u8def\u7531\u5668\u3002",
+            log_category=LOGIN_CATEGORY,
+        )
+        self.dependency_info_panel = self._create_info_panel(
+            saved_font_delta,
+            "\u4f9d\u8d56\u68c0\u67e5\u3001\u5b89\u88c5\u3001\u5378\u8f7d\u548c\u79bb\u7ebf\u5305\u4fe1\u606f\u3002",
+            "",
+            log_category=DEPENDENCY_CATEGORY,
         )
         self.signal_info_panel = self._create_info_panel(
             saved_font_delta, "路由器信号管理信息", "",
@@ -80,10 +85,13 @@ class PacketCapturePage(QFrame):
             signal_info_panel=self.signal_info_panel,
             file_info_panel=self.file_info_panel,
             common_info_panel=self.common_info_panel,
+            dependency_info_panel=self.dependency_info_panel,
         )
         self.root_layout.addWidget(self.openwrt_tab, 1)
         from .packet_capture.openwrt.configuration_progress_controller import ConfigurationProgressController
         self.configuration_progress = ConfigurationProgressController(self, self.capture_service)
+        from .packet_capture.openwrt.password_found_notices import PasswordFoundNotices
+        self.password_notices = PasswordFoundNotices.for_window(self.window(), self.capture_service)
         self.openwrt_tab.settingsChanged.connect(self._save_openwrt_settings)
         self.openwrt_tab.actionRequested.connect(self._handle_openwrt_action)
         # 已抓名单进常驻服务内存；记/清后由服务信号触发同一套配置保存链落盘。
@@ -110,7 +118,8 @@ class PacketCapturePage(QFrame):
         self.capture_service.settingsMessageGenerated.connect(
             self.settings_info_panel.append_info
         )
-        self.info_panels = (self.info_panel, self.settings_info_panel, self.signal_info_panel, self.file_info_panel, self.common_info_panel)
+        self.capture_service.dependencyMessageGenerated.connect(self.dependency_info_panel.append_info)
+        self.info_panels = (self.info_panel, self.settings_info_panel, self.dependency_info_panel, self.signal_info_panel, self.file_info_panel, self.common_info_panel)
         for panel in self.info_panels:
             panel.fontDeltaChanged.connect(self._sync_info_font_delta)
         self.style_mgr.set_light_theme(self.light_theme)
@@ -130,12 +139,20 @@ class PacketCapturePage(QFrame):
             floating_zoom_controls=True,
             color_success_messages=True,
             log_category=log_category,
-            export_context_provider=self._router_export_context,
-            diagnostic_references=lambda: (
-                *self.capture_service.dependency_service.diagnostic_references(),
-                *self.capture_service.auto_capture.diagnostic_references()),
+            export_context_provider=(lambda masker: self._scoped_router_export_context(masker, log_category)),
+            diagnostic_references=(None if log_category == LOGIN_CATEGORY else
+                self.capture_service.dependency_service.diagnostic_references if log_category == DEPENDENCY_CATEGORY else
+                lambda: (*self.capture_service.dependency_service.diagnostic_references(),
+                         *self.capture_service.auto_capture.diagnostic_references())),
         )
 
+
+    def _scoped_router_export_context(self, masker, category):
+        raw = self._router_export_context(masker)
+        if category in SCOPED_CATEGORIES:
+            from modules.capture_services.dependency_logging import export_context
+            return export_context(raw, category)
+        return raw
 
     def _router_export_context(self, masker):
         """四个路由器信息窗口共用当前连接的冻结诊断，不持有旧设备缓存。"""
@@ -156,6 +173,9 @@ class PacketCapturePage(QFrame):
     def _show_task_result_notice(self, title, text):
         """任务终局弹窗告知最终结果，主线程调用，不展示敏感内容。"""
 
+        if title == "\u731c\u5bc6\u7801\u7ed3\u679c":
+            self.password_notices.show_summary(self.info_panel.display_text(title), self.info_panel.display_text(text))
+            return
         MessageDialog(self.info_panel.display_text(title), self.info_panel.display_text(text), self).exec()
 
 
@@ -239,7 +259,7 @@ class PacketCapturePage(QFrame):
                 (self.settings.get("openwrt", {}) or {}).get("wps_defaults", {}).get("mode", "normal")
             )
             self._start_openwrt_wps(
-                {"normal": "normal", "quick": "second", "offline": "offline"}.get(dialog_mode, "normal")
+                {"normal": "normal", "quick": "second", "offline": "offline"}.get(dialog_mode, "normal"), entry="advanced"
             )
             return
         if action.startswith("capture_dependency:"):
@@ -254,6 +274,11 @@ class PacketCapturePage(QFrame):
             return
         if action == "open_output_dir":
             self._open_output_dir()
+            return
+        if action == "cancel_login":
+            snapshot = self.capture_service.openwrt_snapshot
+            if snapshot.connection_state.value == "connecting" and snapshot.task_type.value == "connect":
+                self.capture_service.cancel_openwrt_task()
             return
         if action == "stop":
             if self.capture_service.cancel_openwrt_task():
@@ -374,7 +399,8 @@ class PacketCapturePage(QFrame):
             self.openwrt_tab.tabs.setCurrentIndex(0)
             self.openwrt_tab.login_page.connection.login_button.setFocus()
             return
-        if self._require_feature_dependencies("scan", "信号扫描"):
+        from .packet_capture.scan_entry import explain_scan_unavailable
+        if explain_scan_unavailable(self, settings):
             return
         controller = getattr(self, "_scan_start_controller", None)
         if controller is None:
@@ -703,6 +729,14 @@ class PacketCapturePage(QFrame):
             self.info_panel.append_info(message, "warning")
             MessageDialog("请选择目标", message, self).exec()
             return
+        from modules.capture_services.password_target_status import pending_password_targets
+        targets = pending_password_targets(snapshot.access_points, selected)
+        skipped = len(selected) - len(targets)
+        if skipped:
+            self.info_panel.append_info(f"\u5df2\u8df3\u8fc7 {skipped} \u4e2a\u5df2\u627e\u5230\u5bc6\u7801\u7684\u4fe1\u53f7\u3002", "info")
+        if not targets:
+            return
+        selected = tuple(point.bssid for point in targets)
         dictionary = dictionary_paths(settings)
         if not dictionary or any(not Path(path).is_file() for path in dictionary):
             message = "密码字典不存在，请先在“抓包设置 → 猜密码设置”中选择字典文件。"
@@ -722,7 +756,7 @@ class PacketCapturePage(QFrame):
             "开始猜密码（高风险）",
             f"将对{scope_text}逐个在线试字典密码。\n\n"
             "路由器会被临时改成客户端去连目标：无线配置先备份、结束自动恢复；"
-            "期间路由器自身 Wi-Fi 会中断，耗时很长（每个密码约十几秒）。"
+            "期间所选网卡的 Wi-Fi 会暂时中断；另一块网卡的配置不作修改。验证耗时取决于设备响应。"
             "只能用于自有或已获明确授权的网络。\n\n"
             "请确认你拥有相关设备和网络的管理或测试授权。",
             self,
@@ -740,7 +774,7 @@ class PacketCapturePage(QFrame):
         if not self.capture_service.capture_openwrt_password_async(settings, selected):
             self.info_panel.append_info("当前任务条件不满足或已有任务运行，不能开始猜密码。", "warning")
 
-    def _start_openwrt_wps(self, mode):
+    def _start_openwrt_wps(self, mode, *, entry="quick"):
         """验证连接、目标与同频后，在主线程确认授权并启动 WPS 任务。
 
         参数 mode 是 second/normal/offline/combo。耗时很长且部分路由器会锁定
@@ -762,35 +796,17 @@ class PacketCapturePage(QFrame):
             self.info_panel.append_info(message, "warning")
             MessageDialog("请选择目标", message, self).exec()
             return
-        names = [
-            point.ssid or point.bssid
-            for point in snapshot.access_points
-            if point.bssid in selected
-        ][:3]
-        scope_text = "、".join(names)
-        if len(selected) > 3:
-            scope_text += f"等 {len(selected)} 个目标"
-        mode_text = {"normal": "常规 Pin", "second": "秒 Pin", "offline": "离线 Pin"}.get(mode, "组合 Pin")
-        if ConfirmDialog(
-            f"开始{mode_text}（高风险）",
-            f"将对{scope_text}逐个跑 {mode_text}。\n\n"
-            "耗时很长（分钟到小时级），期间占用无线网卡；部分路由器会锁定 WPS，"
-            "导致后续正常连接都受影响。只能用于自有或已获明确授权的网络。\n\n"
-            "请确认你拥有相关设备和网络的管理或测试授权。",
-            self,
-            yes_text="确认并开始",
-            no_text="取消",
-        ).exec() != ConfirmDialog.Accepted:
-            return
+        from modules.capture_services.openwrt.wps_options import prepare_wps_options
         try:
-            settings["resolved_output_dir"] = str(
-                CaptureSettingsManager.normalized_output_dir(settings.get("output_dir"))
-            )
-        except Exception as exc:
-            self.info_panel.append_info(f"结果目录无效：{exc}", "error")
+            settings = dict(settings, wps_defaults=prepare_wps_options(settings.get("wps_defaults"), mode=mode))
+        except ValueError as exc:
+            MessageDialog("Pin 参数不完整", str(exc), self).exec()
             return
-        if not self.capture_service.capture_openwrt_wps_async(settings, selected, mode):
-            self.info_panel.append_info("当前任务条件不满足或已有任务运行，不能开始 WPS。", "warning")
+        from .packet_capture.wps_start_controller import WpsStartController
+        controller = getattr(self, "_wps_start_controller", None)
+        if controller is None:
+            controller = self._wps_start_controller = WpsStartController(self)
+        controller.start(settings, selected, mode, entry)
 
     def _install_openwrt_dependencies(self):
         from .packet_capture.openwrt.dependency_actions import install_capture
@@ -954,6 +970,7 @@ class PacketCapturePage(QFrame):
             self.capture_service.settingsMessageGenerated.disconnect(
                 self.settings_info_panel.append_info
             )
+            self.capture_service.dependencyMessageGenerated.disconnect(self.dependency_info_panel.append_info)
             self.capture_service.openwrtFingerprintRequired.disconnect(
                 self._confirm_openwrt_fingerprint
             )

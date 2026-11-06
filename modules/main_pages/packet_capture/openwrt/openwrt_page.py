@@ -1,5 +1,6 @@
 """OpenWrt 远程抓包、登录与路由器信号管理容器。"""
 
+from dataclasses import replace
 from PySide6.QtCore import QSignalBlocker, Signal
 from modules.ui_scale_manager import UiScaleManager
 from PySide6.QtCore import Qt
@@ -83,7 +84,10 @@ class OpenWrtCapturePage(QWidget):
 
     def _handle_tool_action(self, action):
         """本机导出由独立控制器处理，其他动作仍走原业务入口。"""
-        if action == "clear_password_attempts":
+        if action == "password_results":
+            from .password_results_dialog import show_password_results
+            show_password_results(self)
+        elif action == "clear_password_attempts":
             if self.service.task_controller.busy:return
             if ConfirmDialog("清理已尝试记录", "将清空所有信号的已尝试记录，下次可重新尝试。\n不删除字典和已保存的结果文件。", self).exec() == ConfirmDialog.Accepted:
                 self.service.password_history.clear_async()
@@ -117,14 +121,18 @@ class OpenWrtCapturePage(QWidget):
         self.access_points.set_access_points(snapshot.access_points)
         self.signal_export.set_has_points(snapshot.access_points)
         self._sync_display_privacy()
-        # 仅握手类任务进行中才点亮“正在抓包”行；其它任务或空闲一律清空，
-        # 即使快照残留旧值也不显示，避免绿行与任务状态脱节。
+        # Highlight the current capture/verification target only while active.
         capturing = ()
         if (snapshot.task_state in {"starting", "capturing", "stopping"}
-                and snapshot.task_type.value == "handshake"):
+                and snapshot.task_type.value in {"handshake", "password_verify", "wps"}):
             capturing = tuple(snapshot.capturing_bssids or ())
-        self.access_points.set_capturing_bssids(capturing)
-        self.progress.apply_progress(snapshot.progress, snapshot.task_state)
+        self.access_points.set_capturing_bssids(capturing, activity=snapshot.task_type.value)
+        progress = snapshot.progress
+        candidate = str(getattr(self.service, "password_verification_candidate", "") or "")
+        if (snapshot.task_type.value == "password_verify"
+                and snapshot.task_state in {"starting", "capturing"} and candidate):
+            progress = replace(progress, title=f"{progress.title} | 当前密码：{candidate}")
+        self.progress.apply_progress(progress, snapshot.task_state)
         enabled = {
             "scan": False,
             "handshake": False,
@@ -143,6 +151,7 @@ class OpenWrtCapturePage(QWidget):
             snapshot.task_type.value,
             snapshot.task_state,
             snapshot.pause_state,
+            snapshot.wps_entry,
         )
         # 会话里一旦有已验证的可用产物（可跑包 CAP/22000），就把取结果入口置绿；
         # 多目标任务中途已有目标出可用包时靠会话级标记提前变绿，不用等任务结束；
@@ -179,7 +188,7 @@ class OpenWrtPage(QWidget):
     settingsChanged = Signal()
     pageChanged = Signal(str)
 
-    def __init__(self, service, settings, info_panel=None, settings_info_panel=None, parent=None, signal_info_panel=None, file_info_panel=None, common_info_panel=None):
+    def __init__(self, service, settings, info_panel=None, settings_info_panel=None, parent=None, signal_info_panel=None, file_info_panel=None, common_info_panel=None, dependency_info_panel=None):
         super().__init__(parent)
         self.service = service
         self.setObjectName("openwrtCapturePage")
@@ -197,6 +206,7 @@ class OpenWrtPage(QWidget):
             service,
             settings,
             self.tabs,
+            info_panel=dependency_info_panel,
         )
         self.login_page = RouterLoginPage(
             service,
@@ -206,7 +216,7 @@ class OpenWrtPage(QWidget):
             dependency_page=self.dependency_page,
         )
         self.tabs.addTab(self.login_page, "路由器登录")
-        self.tabs.addTab(self.dependency_page, "安装依赖")
+        self.tabs.addTab(self.dependency_page, "依赖管理")
         self.stack.addWidget(self.tabs)
 
         self._created_pages = {}
@@ -332,9 +342,8 @@ class OpenWrtPage(QWidget):
             from .capture_settings_dialog import CaptureSettingsDialog
             self._settings_dialog = CaptureSettingsDialog(self.service, self.settings, self)
             page = self._settings_dialog.page
-            self._settings_dialog.finished.connect(lambda _result: self.settingsChanged.emit())
+            self._settings_dialog.settingsChanged.connect(self.settingsChanged)
             page.actionRequested.connect(self.actionRequested)
-            page.settingsChanged.connect(self.settingsChanged)
             page._refresh_history_button()
         elif name == "common":
             from .router_common_settings_page import RouterCommonSettingsPage
@@ -408,9 +417,9 @@ class OpenWrtPage(QWidget):
                 packages = "、".join(item.missing_packages or ()) or "对应软件包"
                 if ConfirmDialog(
                     "WPS 缺少依赖",
-                    f"WPS 需要依赖：{packages}。\n\n请到“安装依赖”页安装依赖后再试。",
+                    f"WPS 需要依赖：{packages}。\n\n请到“依赖管理”页安装依赖后再试。",
                     self,
-                    yes_text="去安装依赖",
+                    yes_text="去依赖管理",
                     no_text="取消",
                 ).exec() == ConfirmDialog.Accepted:
                     self.show_page("login")

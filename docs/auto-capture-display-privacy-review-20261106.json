@@ -1,0 +1,21 @@
+{
+  "scope": "Auto-capture foreground radio consoles and background console display privacy",
+  "result": "Implemented, 55 targeted tests passed; real main-window toggle verified",
+  "log": "build/auto-capture-privacy-review.log",
+  "preview": "build/auto-capture-privacy-preview",
+  "privacy": [
+    "retained and newly received SSIDs and MACs hidden",
+    "split rows held private until complete",
+    "unknown MAC-bearing dialects conservatively hide line",
+    "raw task data and exported source files unchanged",
+    "copy uses projected display",
+    "raw buffer cleared with view; bounded to 200000 UTF-16 units and original block limits"
+  ],
+  "platforms": {
+    "Windows": "Qt tests and rendered dark/light views passed",
+    "Debian12": "Existing WSL distribution inspected; system Python lacks PySide6; native Qt run pending; implementation uses shared Qt APIs only"
+  },
+  "router_commands_changed": false,
+  "packaged": false,
+  "separate_capture_issue": "First-use idle-radio failure still under investigation; user reports success after AP create, enable and disable. Do not claim hardware initialization cause or wydev regression proven without paired successful evidence."
+}

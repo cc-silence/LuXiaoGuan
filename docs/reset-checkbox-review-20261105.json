@@ -1,0 +1,22 @@
+{
+  "scope": "Replace factory-reset typed confirmation with a standard themed checkbox.",
+  "confirmation": "Unchecked on each new dialog. Check enables reset; uncheck disables it. accept also verifies consent.",
+  "execution_boundary": "No changes to maintenance request fields, connection identity checks, backup generation/verification, reset commands or recovery. Pure local consent control; no new remote operation or compatibility assumptions.",
+  "visual_checks": "Dark/light themes at 100 and 150 percent; existing shared checkbox QSS; no new styles or resources.",
+  "screenshots": "build/maintenance-review/reset-{False,True}-{100,150}.png",
+  "platforms": {
+    "Windows": "Local Qt rendering and focused regressions.",
+    "Debian_12": "Desktop runtime not available. Pending: open reset confirmation in both themes, verify checkbox defaults off, toggle button, cancel/reopen and confirm restoration flow on an authorized device."
+  },
+  "live_router_tested": false,
+  "packaged": false,
+  "tests": {
+    "focused_passed": 28,
+    "modules": [
+      "tests.test_maintenance_ui",
+      "tests.test_optional_restore_backup",
+      "tests.test_router_backup"
+    ],
+    "extra_version_contract_check": "Two subcases of test_unproven_reset_layout_or_missing_helper_does_not_offer_reset timed out starting/executing Git Bash after 8 seconds (22.03 overlay=False and helper=False). The version test and remote scripts were not modified; this run is not a passing version-contract result."
+  }
+}

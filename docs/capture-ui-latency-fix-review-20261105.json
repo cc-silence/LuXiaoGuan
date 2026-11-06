@@ -1,0 +1,134 @@
+{
+  "date": "2026-11-05",
+  "scope": "Local GUI latency fix; no remote commands, router options, candidate algorithms or visual design changed. Local theme computation, form commit signals, path serialization and table population only. OpenWrt operation research exempt for this scope.",
+  "changes": [
+    "Bounded LRU for immutable scaled QSS, keyed by original/prepared text and scale; large text bypasses caching and no widget/manager is retained.",
+    "Closing an unchanged settings dialog no longer saves. Existing immediate edit signals still save; unsubmitted form changes flush on close.",
+    "Collect dictionary rows directly from already-resolved editor data rather than resolving again twice per collection.",
+    "Resolve common portable-path roots once per normalization batch, without a persistent filesystem cache.",
+    "Preallocate table row count and suppress intermediate painting while rebuilding; preserve sorting and update state in finally."
+  ],
+  "measurements": {
+    "before_profile": {
+      "confirmation_construct_show_cancel": {
+        "first_ms": 122.37,
+        "median_ms": 50.17,
+        "max_ms": 122.37
+      },
+      "unchanged_snapshot_34": {
+        "first_ms": 25.38,
+        "median_ms": 0.28,
+        "max_ms": 25.38
+      },
+      "unchanged_snapshot_300": {
+        "first_ms": 171.29,
+        "median_ms": 0.33,
+        "max_ms": 171.29
+      }
+    },
+    "after_profile": {
+      "confirmation_construct_show_cancel": {
+        "first_ms": 170.2,
+        "median_ms": 37.19,
+        "max_ms": 170.2
+      },
+      "unchanged_snapshot_34": {
+        "first_ms": 23.85,
+        "median_ms": 0.2,
+        "max_ms": 23.85
+      },
+      "unchanged_snapshot_300": {
+        "first_ms": 165.27,
+        "median_ms": 0.21,
+        "max_ms": 165.27
+      }
+    },
+    "before_callbacks": {
+      "yes_button_close_only": {
+        "median_ms": 0.392,
+        "max_ms": 0.967
+      },
+      "no_button_close_only": {
+        "median_ms": 0.43,
+        "max_ms": 0.553
+      },
+      "synchronous_normalize_and_save_1_paths": {
+        "median_ms": 10.486,
+        "max_ms": 11.666
+      },
+      "synchronous_normalize_and_save_10_paths": {
+        "median_ms": 27.706,
+        "max_ms": 31.728
+      },
+      "synchronous_normalize_and_save_100_paths": {
+        "median_ms": 225.722,
+        "max_ms": 233.64
+      }
+    },
+    "after_save": {
+      "1": {
+        "median_ms": 8.009,
+        "max_ms": 10.741
+      },
+      "10": {
+        "median_ms": 14.936,
+        "max_ms": 18.742
+      },
+      "100": {
+        "median_ms": 86.456,
+        "max_ms": 100.065
+      }
+    }
+  },
+  "visual": {
+    "qss_exact_matches": 16,
+    "same_process_screenshots": [
+      {
+        "theme": "dark.qss",
+        "scale": 100,
+        "pixels_equal": true
+      },
+      {
+        "theme": "dark.qss",
+        "scale": 150,
+        "pixels_equal": true
+      },
+      {
+        "theme": "light.qss",
+        "scale": 100,
+        "pixels_equal": true
+      },
+      {
+        "theme": "light.qss",
+        "scale": 150,
+        "pixels_equal": true
+      }
+    ],
+    "note": "Resources initialized identically; an earlier cross-process first-frame comparison differed only in the close glyph."
+  },
+  "validation": {
+    "tests_run": 46,
+    "passed": 46,
+    "syntax": "passed",
+    "utf8_and_mojibake_scan": "passed",
+    "diff_check": "passed"
+  },
+  "limitations": [
+    "Offscreen Windows measurements, not an instrumented reproduction of a specific live click.",
+    "Warm dialog median improved; first/cold dialog samples did not improve consistently and must not be claimed fixed.",
+    "First 300-row build improvement is small; initial widget creation still costs time.",
+    "Changed settings still normalize and persist synchronously. Batch root resolution reduces CPU/filesystem work but is not a complete asynchronous persistence redesign.",
+    "No Debian runtime validation."
+  ],
+  "deployment": "Source modified; running application not restarted.",
+  "sha256": {
+    "modules/ui_scale_manager.py": "843d88623d25c9080ceb60b619462f8ca44b566da74dcc7551cd5b5784e1dc42",
+    "modules/config_manager.py": "a3a790b2d38aef9897df3c3d3382b82a3f0ae55c6397358a9e69b3492b0d451f",
+    "modules/config_services/capture_settings_manager.py": "557eadca13615f64d484f42983e0d6a8b833098e16816002b01fbf97b02ceeb0",
+    "modules/main_pages/packet_capture/openwrt/capture_settings_dialog.py": "48238b111ab8d05f952f8aa82ce3f295e6e9ac1a9cb2281447dd87cca8732655",
+    "modules/main_pages/packet_capture/openwrt/capture_settings_page.py": "6b7331554be9a4ed28680fbc6373f8f69e48249d6e3579158b76d67cd1d97077",
+    "modules/main_pages/packet_capture/openwrt/openwrt_page.py": "40c4a0caee3748e465f6504f0a5f7d87b9b9a11bcd941246d06d78bd07351118",
+    "modules/main_pages/packet_capture/openwrt/access_point_table.py": "8ec8dfc449be1fc3c44d346bef5f27ebca5d9219524dbb648f740db5e20f8cdd",
+    "tests/test_capture_ui_latency.py": "e84ca9ac037f2a74daa5977314560583cf318aaad71dc3cb7ece032072f52f90"
+  }
+}

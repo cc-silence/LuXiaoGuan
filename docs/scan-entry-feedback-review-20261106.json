@@ -1,0 +1,19 @@
+{
+  "changes": [
+    "clickable scan entry with prerequisite explanations and dependency navigation",
+    "person and arrow SVG login icon"
+  ],
+  "tests": "14 targeted tests passed; build/scan-entry-feedback-final.log",
+  "checks": [
+    "stop action preserved",
+    "unrelated missing dependencies do not block ready scan",
+    "missing, disabled, busy and unchecked prerequisites do not launch network work",
+    "existing management-link protection retained",
+    "dark and light rendering; icon at 100 and 175 percent"
+  ],
+  "limits": [
+    "Windows offline verification only; no native Debian or physical router run"
+  ],
+  "router_execution_changes": false,
+  "packaged": false
+}

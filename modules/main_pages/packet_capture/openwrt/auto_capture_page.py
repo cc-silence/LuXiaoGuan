@@ -430,7 +430,9 @@ class AutoCapturePage(QWidget):
                 from dataclasses import replace
                 from modules.capture_services.openwrt.radio_usage_state import radio_usage_fields
                 card.radio_info = replace(card.radio_info, **radio_usage_fields(is_free))
-                if not card._capturing:
+                session = self.auto_capture_service.sessions.get(radio_name)
+                failed = session is not None and session.stats.state == "error"
+                if not card._capturing and not getattr(card, "_stopping", False) and not failed:
                     from .radio_usage_view import apply_usage_status
                     apply_usage_status(card)
 
@@ -931,9 +933,7 @@ class AutoCapturePage(QWidget):
         doc = self.bg_console.document()
         if doc and doc.characterCount() > 200000:
             self.bg_console.clear()
-        cursor = self.bg_console.textCursor()
-        cursor.movePosition(QTextCursor.End)
-        cursor.insertText(text)
+        self.bg_console.insert_raw_text(text)
         if hasattr(self, "bg_autoscroll_check") and self.bg_autoscroll_check.isChecked():
             self.bg_console.moveCursor(QTextCursor.End)
 
@@ -963,7 +963,7 @@ class AutoCapturePage(QWidget):
                 if "正在并行抓包" in clean_startup or "hcx_autocap.sh" in clean_startup:
                     self._bg_startup_log = clean_startup
             elif not getattr(self, "_bg_startup_log", ""):
-                cur = self.bg_console.toPlainText().strip()
+                cur = self.bg_console.raw_text().strip()
                 if cur and "================================================================" not in cur:
                     self._bg_startup_log = cur
 
@@ -980,7 +980,7 @@ class AutoCapturePage(QWidget):
 
         # 普通增量行日志追加
         clean_text = re.sub(r"\x1b\[[0-9;?]*[a-zA-Z]", "", log_text).replace("\r", "")
-        cur_text = self.bg_console.toPlainText()
+        cur_text = self.bg_console.raw_text()
         if not cur_text.strip():
             self.append_bg_console_text(f"{clean_text.strip()}\n")
             return
@@ -1373,7 +1373,9 @@ class AutoCapturePage(QWidget):
 
         bg_console_layout.addLayout(console_bar)
 
-        self.bg_console = QPlainTextEdit(self.bg_console_card)
+        from modules.common_widgets.privacy_log_view import PrivacyLogView
+        from modules.capture_services.capture_log_privacy import project_capture_log
+        self.bg_console = PrivacyLogView(self.bg_console_card, projector=project_capture_log, context_blocks=34)
         self.bg_console.setReadOnly(True)
         self.bg_console.setMaximumBlockCount(1500)
         font = QFont("Consolas", 9)
@@ -1702,11 +1704,14 @@ class AutoCapturePage(QWidget):
         # 创建或更新存在的
         for r_info in radios:
             if r_info.name not in self.radio_cards:
-                card = AutoCaptureRadioCard(r_info, self.cards_frame)
+                card = AutoCaptureRadioCard(r_info, self.cards_frame, output_dir=str(self.auto_capture_service.get_output_dir()))
                 card.set_light_theme(self._light_theme)
                 card.startRequested.connect(self._on_card_start_requested)
                 card.stopRequested.connect(self._on_card_stop_requested)
                 self.radio_cards[r_info.name] = card
+                session = self.auto_capture_service.sessions.get(r_info.name)
+                if session is not None:
+                    card.apply_stats(session._build_stats_dict())
             else:
                 self.radio_cards[r_info.name].radio_info = r_info
 

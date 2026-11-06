@@ -1,0 +1,154 @@
+{
+  "date": "2026-11-06",
+  "scope": "Changes authored since 12:30: temporary monitor recovery, live cleanup preview, cold-idle capture startup, and user-facing information messages. Existing unrelated dirty changes are excluded.",
+  "root_cause": "In the exact 6.3.4 upstream netlink parser, multiple virtual interfaces on one wiphy overwrite a single entry. A native DOWN managed interface arriving after the selected monitor replaces its ifindex. No native interface or user AP configuration is deleted for this fix.",
+  "rounds": [
+    {
+      "round": 1,
+      "focus": "Failure/success support evidence versus fixed upstream source",
+      "findings": [
+        "Failed scene contains hcxmon0/hcxmon1 AND native wlan0/wlan1; successful scene contains only the two monitors.",
+        "Original parser reproduces selected index replacement; corrected parser preserves selected monitor for either ordering."
+      ],
+      "evidence": "build/hcx-exact-source-regression.log"
+    },
+    {
+      "round": 2,
+      "focus": "Cleanup identity, concurrency, ownership, cancellation and deployment",
+      "findings": [
+        "Read-only preview uses the management queue without replacing the capture task state.",
+        "Asynchronous dialog open releases completed worker ownership; active capture remains view-only.",
+        "Same-device reconnect during preview invalidates the review. Force bypasses occupancy only, never identity/type/owner checks.",
+        "Deployment validates hashes, preserves previous cache on corruption, and avoids cleanup on a changed connection."
+      ],
+      "evidence": [
+        "build/monitor-second-round-tests.log",
+        "build/hcx-compat-final-runtime-tests.log"
+      ]
+    },
+    {
+      "round": 3,
+      "focus": "Architecture/runtime artifacts, background parity and information/export UI",
+      "findings": [
+        "Big-endian byte-swap macro side-effect bug reproduced in upstream and corrected using single-evaluation builtins.",
+        "Five static ELF variants cover all ten declared package architectures; ARM EABI soft-float and MIPS32r2 soft-float checked.",
+        "Background compatibility selection requires kernel >=5.15 and original 6.3.4; newer or older native tools retain their path.",
+        "Linux release resource inventory and licenses include all compatibility artifacts.",
+        "Information panel hides background history audit, simplifies known progress/result text and internal diagnostic file references; raw export entries remain unchanged."
+      ],
+      "evidence": [
+        "build/hcx-final-artifact-verification.log",
+        "build/capture-three-round-final.log",
+        "build/info-message-final-tests.log"
+      ]
+    }
+  ],
+  "tests": {
+    "final_broad": "82 tests: 80 passed, 2 environment skips; one missing compatibility-fixture contract found earlier was corrected and rerun.",
+    "cleanup": "42 passed including reconnect-during-preview regression.",
+    "runtime": "10 passed, including real local POSIX publish/cache/cancel/connection failure and background version/kernel selection.",
+    "information": "12 passed, including raw log export and dependency/login log separation.",
+    "debian": "Actual original/fixed C parser and byte-swap regressions executed; all ELF headers/ABI inspected; actual x86_64 -h and --version executed without capture.",
+    "visual": "Actual Qt light/dark InfoPanel captures reviewed after loading production resources/fonts. No layout/theme change.",
+    "syntax": "22 Python modules compiled; UTF-8 checked; shell syntax checked."
+  },
+  "boundaries": [
+    "No live router was modified or capture attempted in this review. TL-XDR6088 cold-idle acceptance remains pending.",
+    "The separate exec_request channel-closed event in the earlier log is not proven to share the enumeration cause; do not claim it fixed by the parser correction.",
+    "Legacy firmware/native-tool execution remains unchanged; this source correction applies to hcxdumptool 6.3.4 only.",
+    "Non-x86 binaries were statically inspected, not executed on their target routers.",
+    "Full Debian desktop GUI acceptance remains pending; this pass runs native non-GUI/source and artifact checks.",
+    "Optional textual BPF compilation is omitted in the separate component; existing precompiled BPF input is retained and verified."
+  ],
+  "binary_manifest": {
+    "schema": 1,
+    "version": "6.3.4-rm-ifindex1",
+    "source": {
+      "commit": "8dad077bfee93281bdf8f1115ba0c047d22230d7",
+      "sha256": "b7665f924261b0c41cf7f6701a546445c42e56d4df8370221a73740f2c4d0249",
+      "url": "https://api.github.com/repos/ZerBea/hcxdumptool/tarball/8dad077bfee93281bdf8f1115ba0c047d22230d7"
+    },
+    "corrections": [
+      "selected-interface-index",
+      "single-evaluation-byte-swaps"
+    ],
+    "variants": {
+      "x86_64": {
+        "file": "x86_64/hcxdumptool",
+        "sha256": "9951021d75bec89a328cf71d25700bb2f9482835ec89000ff4feb5cf6df8ec45",
+        "size": 147064,
+        "target": "x86_64-linux-musl"
+      },
+      "aarch64": {
+        "file": "aarch64/hcxdumptool",
+        "sha256": "aabd51c035ff0ffec6b72cea9337af07ba69aab78971783088ac987d8b98aa7e",
+        "size": 152480,
+        "target": "aarch64-linux-musl"
+      },
+      "arm": {
+        "file": "arm/hcxdumptool",
+        "sha256": "d45a3f51bc11d0feb73be9ae311f3054da5a7f55b39e478e6fd2294b4f7cb21e",
+        "size": 160344,
+        "target": "arm-linux-musleabi"
+      },
+      "mips": {
+        "file": "mips/hcxdumptool",
+        "sha256": "9a2cb8635fae55f8e677e9d664c2d9f60c5138acd220a0a13499270673d8f6b8",
+        "size": 223676,
+        "target": "mips-linux-musl"
+      },
+      "mipsel": {
+        "file": "mipsel/hcxdumptool",
+        "sha256": "505348486659ee062c39ef5d0426c8ec96f62aba99405cdff4d7ccb57f7d4332",
+        "size": 221452,
+        "target": "mipsel-linux-musl"
+      }
+    }
+  },
+  "official_sources": [
+    {
+      "file": "build\\capture-three-pass-sources\\qt-qdialog.html",
+      "url": "https://doc.qt.io/qtforpython-6/PySide6/QtWidgets/QDialog.html",
+      "sha256": "d2038a347d4415db5c3a5254342b279a6440fa8741e6190e1148568bb0df1fe5",
+      "date": "2026-11-06"
+    },
+    {
+      "url": "https://docs.paramiko.org/en/stable/api/sftp.html",
+      "date": "2026-11-06",
+      "archive_error": "HTTPError",
+      "read_via": "web tool"
+    },
+    {
+      "file": "build\\capture-three-pass-sources\\gcc-byte-swaps.html",
+      "url": "https://gcc.gnu.org/onlinedocs/gcc/Byte-Swapping-Builtins.html",
+      "sha256": "755f7ca22207e76f64a814dc5c25a0c65e58b2447f386d2b7ebcda1307671a06",
+      "date": "2026-11-06"
+    }
+  ],
+  "earlier_official_kernel_sources": "docs/monitor-residual-recovery-review-20261106.json",
+  "source_sha256": {
+    "modules/capture_services/backends/openwrt_backend.py": "6939a200f532faeaa59a4ed7d0bc37994df7c53cd64a40b5229674e3f03dfee6",
+    "modules/capture_services/openwrt/monitor_residuals.py": "0524cf875d2971a144b1de55cfb5b594e89fe0f8a194f55cddc06ee55f442fac",
+    "modules/capture_services/openwrt/monitor_cleanup.py": "90d86788afa8ab0aa2d5829f490782bc3a1542f1aea28eb51a47ff04e8799848",
+    "modules/capture_services/openwrt/monitor_ownership.py": "a485a9a6982a0b4b5200787e4a89b2e550be58740af1cfd051de688e90d5a731",
+    "modules/capture_services/wireless_setup_service.py": "cc760bf2619d720f4754045ff45504d919aef2c34f5973b98ac940addcab436d",
+    "modules/capture_services/router_management_service.py": "fd592d9da9605c45c2b2ee8f70d11715d884d39fbb84d2c99411c17a81fae40e",
+    "modules/capture_services/management_diagnostic_schema.py": "bea351208effcc66c81c74413dd75fab25281340e3c76a37aa9056d2cb737b51",
+    "modules/capture_services/openwrt/auto_capture_service.py": "153f380a576ce24f3e8f7928177809a2734e2935e8237da06210aa485573e887",
+    "modules/capture_services/openwrt/auto_capture_boot_manager.py": "ff25f05adf248bddf93ca4aba2e2bb841575acd14fc173f44cd051483665cb6d",
+    "modules/capture_services/openwrt/hcx_compat_runtime.py": "9f86fc08b29d856756d064572548ef52463794964b2c29c97d60d3e040e1b59a",
+    "modules/main_pages/packet_capture/openwrt/capture_monitor_actions.py": "6a262df1c3490b2a9af7ed95174b7fd81c8cb87091a58c33e12933fd4ee72ea0",
+    "modules/main_pages/packet_capture/openwrt/router_common_settings_page.py": "900ea40fb97bd33cb27b24ad52b624d1b4e11cb690c69ce932418b6363a7867c",
+    "modules/main_pages/packet_capture/openwrt/orphan_review_dialog.py": "4aa9cc9667b1e329096d1b577fff6b2db5cf5e749efa3a64731aee5c5498070f",
+    "modules/main_pages/info_panel.py": "a6013203a38cf0c94d4acede9a60a79e0803ef8bdb88979dd550083a73d8eb41",
+    "modules/info_message_text.py": "92355bdd1cc543f8f4bfa16cb8fb7e2d07ba247474b6c7cb63c6c74e504a5e70",
+    "modules/capture_services/verified_results.py": "a940912362a6a5768da9cf72139a72cf2609c0a70cdc9189eed945b996317acf",
+    "tools/hcx_compat/build.py": "817135bdc13e8fbd0851954c8f102da8fdb514c9f347171e1f2e3a00499a8361",
+    "scripts/linux_release_layout.py": "cebb84b068223335bb89e58d8e0cc9ff911d4a103c4e06e7eef0b2befb579957",
+    "tests/test_hcx_compat_runtime.py": "1572d34510309a4573a7311ba18ad73d3cad2d1f095c20c64236fb79154ea398",
+    "tests/test_info_message_presentation.py": "364589dbb3401a8a8f98eab0785603fbe75f0ecb46d5471da4f13be4d7d7bc55",
+    "tests/test_capture_monitor_cleanup.py": "c186eff8f170b269a60422f7eb70e084589952cd96a3ba2fbc887bfd7936b46d",
+    "tests/test_monitor_residuals.py": "ce9c33a751cfaad9f6c100a7f2e6bdc97ff8f2c35f890bb2a1dcbf820bc54909"
+  },
+  "line_endings": "Preserved indexed LF where Windows writeback would otherwise expand the whole-file diff; no source content change."
+}

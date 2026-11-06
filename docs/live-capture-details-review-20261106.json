@@ -1,0 +1,33 @@
+{
+  "date": "2026-11-06",
+  "feature": "Foreground per-radio live capture details",
+  "ui": "Reuses AutoCaptureReportDialog used by background intelligent log analysis; no parallel dialog implementation.",
+  "data": "Existing hcxdumptool stream and AutoCaptureLogAnalyzer; BSSID merge, UTF-8 incremental decoding, complete-line assembly.",
+  "limits": {
+    "targets_per_radio": 1024,
+    "pending_line_characters": 8192,
+    "table_updates": "Only changed rows; unchanged snapshots cached"
+  },
+  "lifecycle": [
+    "One modeless dialog per radio card",
+    "Live updates from existing stats signals",
+    "Closing window does not stop capture",
+    "Stop retains details; next start clears details",
+    "Page rebuild replays session snapshot",
+    "Existing display privacy switch masks SSID and BSSID"
+  ],
+  "validation": {
+    "targeted_tests_passed": 65,
+    "expanded_tests_passed": 75,
+    "expanded_tests_failed": 1,
+    "unrelated_failure": "test_stop_buttons_have_warning_red_foreground expects inline stylesheet color; shared theme now uses stopAction. Toggle state methods match HEAD and were not changed for this feature.",
+    "syntax_and_utf8": "7 changed feature files passed",
+    "visual": "Light and dark rendered with Windows Microsoft YaHei UI fonts; inspected",
+    "previews": "build/live-capture-details-review-20261106"
+  },
+  "limitations": [
+    "No live-router validation in this change",
+    "Log-reported handshake frames are not a guarantee of usable handshake; packet-file validation is still required",
+    "Application source changed; no application build or release requested"
+  ]
+}

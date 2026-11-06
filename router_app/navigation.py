@@ -9,7 +9,7 @@ from modules.icon_utils import get_theme_icon
 
 
 NAV_ITEMS = (
-    ("login", "btn_packet_capture", "路由器登录", str(BASE_DIR / 'images/icons/cil-wifi-signal-4.png')),
+    ("login", "btn_packet_capture", "路由器登录", str(BASE_DIR / 'images/icons/router-login.svg')),
     ("common", "btn_common_settings", "常用设置", str(BASE_DIR / 'images/icons/cil-options.png')),
     ("signal", "btn_signal", "信号管理", str(BASE_DIR / 'images/icons/cil-rss.png')),
     ("files", "btn_files", "文件管理", str(BASE_DIR / 'images/icons/cil-folder.png')),

@@ -2,7 +2,7 @@
 
 from modules.common_widgets.spin_box import CommonSpinBox as QSpinBox
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QCheckBox, QLineEdit, QPushButton
+from PySide6.QtWidgets import QCheckBox, QLineEdit, QPushButton, QHBoxLayout
 from modules.common_widgets.combo_box import CommonComboBox as QComboBox
 
 from modules.dialog_theme import detect_light_theme
@@ -13,7 +13,7 @@ from modules.main_pages.packet_capture.ui_helpers import (
     create_path_row,
     set_row_visible,
 )
-from modules.main_pages.page_action_buttons import create_page_icon_button
+from modules.main_pages.page_action_buttons import create_page_icon_button, create_page_text_button
 
 
 class ConnectionSection:
@@ -107,7 +107,16 @@ class ConnectionSection:
         self.layout.addWidget(self.remember_password)
         self.layout.addLayout(self.private_key_row)
         self.layout.addWidget(self.fingerprint_check)
-        self.layout.addWidget(self.login_button)
+        login_actions = QHBoxLayout()
+        login_actions.addWidget(self.login_button, 1)
+        self.cancel_login_button = create_page_text_button(
+            self.card, "取消", "取消本次登录，等待连接资源释放。")
+        self.cancel_login_button.setProperty("dangerAction", True)
+        self.cancel_login_button.hide()
+        self.cancel_login_button.clicked.connect(lambda: action_callback("cancel_login"))
+        login_actions.addWidget(self.cancel_login_button)
+        self.layout.addLayout(login_actions)
+        self.card.layout().addStretch(1)
         self.login_button.clicked.connect(lambda: action_callback("connect"))
         # 密码输入完成后按回车直接走与登录按钮相同的主线程校验和连接流程，
         # 不在控件回调中直接建立 SSH 连接。
@@ -159,13 +168,13 @@ class ConnectionSection:
 
         return "" if self.auth_method.currentData() == "private_key" else self.password.text()
 
-    def set_connection_state(self, state):
+    def set_connection_state(self, state, *, stopping=False):
         """按 SSH 状态更新登录按钮和编辑控件，防止连接中重复提交。"""
 
         connected = state == "connected"
         busy = state in {"connecting", "disconnecting"}
         self.login_button.setText(
-            "正在连接..." if state == "connecting"
+            "登录中……" if state == "connecting"
             else "正在断开..." if state == "disconnecting"
             else "登出" if connected
             else "登录"
@@ -180,6 +189,9 @@ class ConnectionSection:
             self.login_button.style().unpolish(self.login_button)
             self.login_button.style().polish(self.login_button)
         self.login_button.setEnabled(not busy)
+        self.cancel_login_button.setVisible(state == "connecting")
+        self.cancel_login_button.setText("取消中…" if stopping else "取消")
+        self.cancel_login_button.setEnabled(state == "connecting" and not stopping)
         # 登录按钮失去可用状态前先把焦点放回分组，避免 Qt 自动跳到下方保存目录，
         # 从而带动整个设置滚动区滚动。
         if busy and self.login_button.hasFocus():

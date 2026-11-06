@@ -1,0 +1,22 @@
+{
+  "checked_at": "2026-11-05",
+  "scope": [
+    "160 MHz option warning only; preserve actual mode data and existing router configuration",
+    "Login-in-progress red cancellation using existing task cancellation"
+  ],
+  "defaults": "Prefer supported 80 MHz, then 40/20 when selecting a new default. Preserve explicitly existing mode, including 160 MHz.",
+  "wireless_log": "XRJ common settings 20261104_144354: Redmi AC2100, OpenWrt 22.03.5, mt7615e. This log does not establish the specific cause of 160 MHz discovery failure.",
+  "reference": "https://www.tek.com/en/documents/primer/wi-fi-overview-80211-physical-layer-and-transmitter-measurements",
+  "evidence": [
+    "build/previews/bandwidth-warning/dark.png",
+    "build/previews/bandwidth-warning/light.png",
+    "build/previews/login-cancel/dark.png",
+    "build/previews/login-cancel/light.png"
+  ],
+  "tests": "20 focused UI/state tests passed; extended suite recorded in final output",
+  "limits": [
+    "Offscreen Windows rendering verified; no live AC2100 160 MHz test performed.",
+    "Debian desktop runtime not revalidated.",
+    "No router bandwidth changed in this task."
+  ]
+}

@@ -4,7 +4,7 @@ import copy
 import json
 from pathlib import Path
 
-from modules.config_manager import APP_DIR_TOKEN, CONFIG_DIR, USER_DOWNLOADS_TOKEN, make_portable_path, resolve_portable_path
+from modules.config_manager import APP_DIR_TOKEN, CONFIG_DIR, USER_DOWNLOADS_TOKEN, make_portable_path, portable_path_roots, resolve_portable_path
 from modules.config_services.config_store import ConfigPair, user_config_dir
 from modules.release_identity import DISPLAY_NAME
 from modules.platform_services.application_paths import ensure_directory
@@ -87,10 +87,11 @@ class CaptureSettingsManager:
             "wps_defaults": {
                 "pin_speed": 1.0,
                 "pin_timeout": 5.0,
-                "attack_seconds": 60,
+                "attack_seconds": 0,
                 "attack_rounds": 1,
                 "additional_args": "-S -N -l 30",
                 "spoof_mac_enabled": False,
+                "rotate_mac_each_pin": False,
                 "spoof_mac": "",
                 "pin_order": "0123456789",
                 "random_order": False,
@@ -323,6 +324,7 @@ class CaptureSettingsManager:
     def normalize(self, data):
         """把外部或损坏配置限制到执行器可接受的范围，不修改传入对象。"""
 
+        roots = portable_path_roots()
         source = data if isinstance(data, dict) else {}
         result = copy.deepcopy(self.DEFAULTS)
         result["version"] = self.DEFAULTS["version"]
@@ -343,7 +345,7 @@ class CaptureSettingsManager:
         openwrt["user"] = str(openwrt.get("user", "root")).strip() or "root"
         openwrt["remember_password"] = self._bool(openwrt.get("remember_password"), False)
         openwrt["auth_method"] = "private_key" if openwrt.get("auth_method") == "private_key" else "password"
-        openwrt["private_key_path"] = self._portable_optional_path(openwrt.get("private_key_path"))
+        openwrt["private_key_path"] = self._portable_optional_path(openwrt.get("private_key_path"), roots=roots)
         openwrt["remember_host_fingerprint"] = self._bool(
             openwrt.get("remember_host_fingerprint"),
             False,
@@ -382,7 +384,7 @@ class CaptureSettingsManager:
         openwrt["handshake_rounds_infinite"] = self._bool(openwrt.get("handshake_rounds_infinite"), False)
         remote_root = str(openwrt.get("remote_work_root", "/tmp/winbox-capture")).strip()
         openwrt["remote_work_root"] = remote_root if remote_root.startswith("/") else "/tmp/winbox-capture"
-        openwrt["output_dir"] = self._portable_output_path(openwrt.get("output_dir"))
+        openwrt["output_dir"] = self._portable_output_path(openwrt.get("output_dir"), roots=roots)
         openwrt["auto_open_dir"] = self._bool(openwrt.get("auto_open_dir"), True)
         openwrt["keep_raw_capture"] = True
         openwrt.pop("generate_22000", None)
@@ -416,16 +418,17 @@ class CaptureSettingsManager:
             wps.update({key: wps_source[key] for key in wps if key in wps_source})
         wps["pin_speed"] = self._clamp_float(wps.get("pin_speed"), 0.0, 100.0, 1.0)
         wps["pin_timeout"] = self._clamp_float(wps.get("pin_timeout"), 0.0, 100.0, 5.0)
-        wps["attack_seconds"] = self._clamp_int(wps.get("attack_seconds"), 0, 3600, 60)
+        wps["attack_seconds"] = self._clamp_int(wps.get("attack_seconds"), 0, 3600, 0)
         wps["attack_rounds"] = self._clamp_int(wps.get("attack_rounds"), 1, 20, 1)
         wps["additional_args"] = str(wps.get("additional_args", "")).strip()
         wps["spoof_mac_enabled"] = self._bool(wps.get("spoof_mac_enabled"), False)
         wps["spoof_mac"] = str(wps.get("spoof_mac", "")).strip()
+        wps["rotate_mac_each_pin"] = self._bool(wps.get("rotate_mac_each_pin"), False) and wps["spoof_mac_enabled"]
         pin_order = "".join(char for char in str(wps.get("pin_order", "")) if char.isdigit())
         wps["pin_order"] = pin_order or "0123456789"
         wps["random_order"] = self._bool(wps.get("random_order"), False)
         wps["partial_pin"] = "".join(char for char in str(wps.get("partial_pin", "")) if char.isdigit())[:8]
-        wps["resume_file"] = self._portable_optional_path(wps.get("resume_file"))
+        wps["resume_file"] = self._portable_optional_path(wps.get("resume_file"), roots=roots)
         wps["mode"] = wps.get("mode") if wps.get("mode") in {"normal", "quick", "offline"} else "normal"
         openwrt["wps_defaults"] = wps
         dictionaries = openwrt.get("password_dictionaries")
@@ -435,7 +438,7 @@ class CaptureSettingsManager:
         for value in dictionaries:
             if not isinstance(value, str):
                 continue
-            path = self._portable_optional_path(value)
+            path = self._portable_optional_path(value, roots=roots)
             if path and path.casefold() not in seen:
                 paths.append(path)
                 seen.add(path.casefold())
@@ -526,16 +529,16 @@ class CaptureSettingsManager:
 
 
     @classmethod
-    def _portable_output_path(cls, value):
-        return cls.portable_output_dir(value)
+    def _portable_output_path(cls, value, *, roots=None):
+        return make_portable_path(cls.normalized_output_dir(value), roots=roots)
 
 
     @staticmethod
-    def _portable_optional_path(value):
+    def _portable_optional_path(value, *, roots=None):
         text = str(value or "").strip()
         if not text or text.startswith("{"):
             return text
-        return make_portable_path(text)
+        return make_portable_path(text, roots=roots)
 
     @staticmethod
     def _clamp_int(value, minimum, maximum, default):

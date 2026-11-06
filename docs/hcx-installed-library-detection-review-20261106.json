@@ -1,0 +1,63 @@
+{
+  "date": "2026-11-06",
+  "applicability": "Router dependency installation: mandatory official-source compatibility review applies. Shared remote query has no desktop-OS branch.",
+  "root_cause": "APK info -v NAME requests descriptive package information; installed version pins were lost by name-version parsing. Use info -v -e NAME for installed-only name-version output.",
+  "change": "Only APK installed-version query changed; opkg status query unchanged. Missing versions now identify package names in a structured dependencies failure.",
+  "source_evidence": [
+    "build/hcx-library-fix-20261106/sources/manifest.json",
+    "build/hcx-library-fix-20261106/sources/supported-apk-versions.json"
+  ],
+  "official_scope": {
+    "opkg_series": [
+      "19.07",
+      "21.02",
+      "22.03",
+      "23.05",
+      "24.10"
+    ],
+    "apk_releases": [
+      "25.12.0",
+      "25.12.1",
+      "25.12.2",
+      "25.12.3",
+      "25.12.4",
+      "25.12.5",
+      "25.12.6"
+    ],
+    "apk_version": "3.0.5-r3",
+    "architecture_independence": "Installed package metadata query; no CPU-specific binary or command branch changed."
+  },
+  "validation": {
+    "command": ".venv/Scripts/python.exe -m unittest tests.test_hcx_library_probe tests.test_hcx_primary_installer tests.test_hcx_policy tests.test_hcx_architectures tests.test_dependency_two_round_audit -q",
+    "tests": 46,
+    "result": "passed",
+    "coverage": [
+      "original bug reproduced using shell output contract",
+      "installed APK versions recognized",
+      "actual missing library remains missing",
+      "regular library installation followed by re-probe",
+      "opkg installed and missing states",
+      "existing library version pins preserved",
+      "unrelated package changes rejected",
+      "cancellation, timeout, hash failure, cleanup and wrong post-install version"
+    ],
+    "syntax": "py_compile passed",
+    "encoding": "UTF-8 and replacement-character checks passed",
+    "desktop": "Windows with Git Bash",
+    "debian12": "Native run not available; shared Python/POSIX logic only",
+    "live_router": "Not run"
+  },
+  "delivery": {
+    "source_only": true,
+    "application_packaged": false,
+    "published": false,
+    "offline_archives_modified": false
+  },
+  "files": {
+    "modules/capture_services/openwrt/hcx_primary_installer.py": "370677aa7e268de8e6d461e26fc1ad3690ccb19d4b2ebe822b56487980f12afd",
+    "tests/test_hcx_primary_installer.py": "0932dfb984dbe3545470d930bddfaa103cf398540a1479878c509accc502e48b",
+    "tests/test_hcx_library_probe.py": "db62be05c74e1d0111cea94bc215b40a2ddf48e6921bb951b0b34cfe19f0fb37"
+  },
+  "followup_review": "docs/hcx-installed-library-detection-second-three-pass-review-20261106.json",
+  "historical_snapshot": true
+}

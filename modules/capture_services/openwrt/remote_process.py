@@ -399,13 +399,15 @@ class RemoteProcessManager:
         match = re.search(r"reaped=(\d+)", result.stdout or "")
         return int(match.group(1)) if match else 0
 
-    def stop(self, handle, cancel_event=None):
+    def stop(self, handle, cancel_event=None, *, graceful_signal="TERM"):
         """校验身份后先 TERM 再 KILL；仅在命令成功执行后移除登记。
 
         远程连接中断或命令失败时保留句柄，后续恢复流程仍可按 PID 和启动标记重试；身份
         已不匹配时远端脚本安全返回成功，只移除已经失效的本地记录。
         """
 
+        if graceful_signal not in {"TERM", "INT"}:
+            raise ValueError("Unsupported process stop signal")
         current = self._handles.get(handle.session_id)
         if current != handle:
             return True
@@ -414,7 +416,7 @@ class RemoteProcessManager:
         self._close_supervisor(handle.session_id)
         command = (
             f"{self._identity_test(handle)} || exit 0; "
-            f"kill {int(handle.pid)} >/dev/null 2>&1 || true; "
+            f"kill -{graceful_signal} {int(handle.pid)} >/dev/null 2>&1 || true; "
             f"n=0; while {self._identity_test(handle)} && [ $n -lt 2 ]; do "
             "sleep 1 || exit 1; n=$((n+1)); done; "
             f"{self._identity_test(handle)} && "

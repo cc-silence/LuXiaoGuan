@@ -9,7 +9,7 @@ tooltip、主题图标和样式对象名。
 """
 
 from PySide6.QtCore import QSize, Qt, QEvent
-from PySide6.QtWidgets import QToolButton, QPushButton
+from PySide6.QtWidgets import QToolButton, QPushButton, QAbstractButton
 
 from modules.dialog_theme import detect_light_theme
 from modules.icon_utils import get_theme_icon
@@ -59,7 +59,7 @@ def refresh_tool_button_icons(root, is_light):
     无 iconPath 的按钮不动。
     """
 
-    for button in root.findChildren(QToolButton):
+    for button in root.findChildren(QAbstractButton):
         icon_path = button.property("iconPath")
         if icon_path:
             button.setIcon(get_theme_icon(str(icon_path), bool(is_light),

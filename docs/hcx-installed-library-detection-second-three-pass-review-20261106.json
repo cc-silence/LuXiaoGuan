@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-06",
+  "request": "Second set of three reviews explicitly requested after initial three-pass review",
+  "rounds": [
+    {
+      "round": 1,
+      "focus": "Failure semantics of both package managers",
+      "sources": "build/hcx-library-fix-20261106/three-pass-sources",
+      "finding": "The earlier shell if/pipeline swallowed package query exit failures and stderr, yielding success with an empty result.",
+      "reproduction": "build/hcx-library-fix-20261106/query-error-reproduction.json",
+      "fix": "Capture the opkg status result and propagate its exit. For APK, first read installed names, then query versions only for known installed libraries; every query failure propagates, including exit 1."
+    },
+    {
+      "round": 2,
+      "focus": "Version parsing and exact package identity",
+      "sources": "build/hcx-library-fix-20261106/second-three-pass-source-and-version-check.json",
+      "finding": "An invalid or duplicated installed-library version must not be treated as missing.",
+      "fix": "Reject invalid, empty or duplicate version rows. Exact installed-name membership prevents similarly named packages from satisfying the library check.",
+      "result": "Actual library versions in all 3602 current common/capture profile records parsed correctly."
+    },
+    {
+      "round": 3,
+      "focus": "Full installer call chain and legacy compatibility",
+      "result": "Real shell fault injected into full hcx installation blocks library installation, upload and hcx mutation for both managers. Legacy status command and normal format retained. Existing version pin, wrong-architecture, hash, unrelated package plan, timeout, cancellation, cleanup and post-install verification tests rerun."
+    }
+  ],
+  "source_scope": {
+    "exact_releases": 50,
+    "opkg_fixed_commits": 7,
+    "apk_original_versions": [
+      "3.0.2",
+      "3.0.5"
+    ],
+    "checks": "Source SHA256 rechecked; opkg missing-name status returns success with no installed record; APK no-name info lists installed names."
+  },
+  "validation": {
+    "installer_policy_architecture_tests": 42,
+    "installer_tests_result": "passed",
+    "syntax": "passed",
+    "encoding": "passed",
+    "desktop": "Windows/Git Bash",
+    "native_debian": "not available",
+    "live_routers": "not run",
+    "query_tests": 9,
+    "query_tests_result": "passed",
+    "total_targeted_tests": 51
+  },
+  "delivery": {
+    "common_archive": "RouterManager_OpenWrt_Common_Offline_20261106_101557.zip",
+    "common_bytes": 285026116,
+    "common_sha256": "8a00895b0687c96564c06f9f9724ba38154d9e72ab5db32677c2a80bbbd63532",
+    "common_status": "published-and-client-verified",
+    "cloudflare_offline_objects_unchanged": true,
+    "hcx_application_fix": "source only; not installed by an offline dependency ZIP"
+  },
+  "source_sha256": {
+    "modules/capture_services/openwrt/hcx_primary_installer.py": "2b0139e9125afa18af6bfe19faab62131d115837c0a172092cc2380687f30e09",
+    "tests/test_hcx_library_probe.py": "97ec9c10e0c5f0d67394a7b6210571a089cacb30ab45885e2d69faf68abb396d",
+    "tests/test_hcx_primary_installer.py": "bcafab62d8478d3f5e1269a946c71299305c32edd15b8a4531e32721e30a3daf"
+  },
+  "limitation": "Official-source review and offline regression are not universal live-device certification."
+}

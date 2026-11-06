@@ -48,6 +48,7 @@ QTableWidget#captureAccessPointTable::indicator:checked { background: #4a8db7; b
 QTableWidget#captureAccessPointTable::item { padding: 5px; border: none; }
 QTableWidget#captureAccessPointTable QTableCornerButton::section { background: #181b1f; border: none; }
 QLabel#captureProgressTitle { color: #f4f6f8; font: __BODY_PT__pt "__FONT_FAMILY__"; }
+QLabel#captureProgressWarning { color: #ff7070; font: __BODY_PT__pt "__FONT_FAMILY__"; }
 QProgressBar#captureProgressBar { min-height: 8px; max-height: 8px; background: #111315; border: none; border-radius: 4px; }
 QProgressBar#captureProgressBar::chunk { background: #1687d8; border-radius: 4px; }
 
@@ -91,10 +92,10 @@ QWidget#captureToolPanel QPushButton#downloadActionButton[riskAction="true"] { c
 QWidget#captureToolPanel QPushButton#downloadActionButton[riskAction="true"]:hover { background: #3a3020; border-color: #a88339; }
 QPushButton#captureSecondaryButton[riskAction="true"] { color: #ef9a9a; border-color: #7a3333; }
 QPushButton#captureSecondaryButton[riskAction="true"]:hover { background: #3a2323; border-color: #a84545; }
-QWidget#captureToolPanel QPushButton#downloadActionButton[hasCaptureResult="true"] { color: #7ee2a8; border-color: #2e6b47; }
-QWidget#captureToolPanel QPushButton#downloadActionButton[hasCaptureResult="true"]:hover { background: #1d2f26; border-color: #3f9c63; }
-QWidget#openwrtSignalPage QPushButton#downloadActionButton[needsDependencyInstall="true"], QWidget#routerCommonSettingsPage QPushButton#downloadActionButton[needsDependencyInstall="true"] { color: #7ee2a8; border-color: #2e6b47; }
-QWidget#openwrtSignalPage QPushButton#downloadActionButton[needsDependencyInstall="true"]:hover, QWidget#routerCommonSettingsPage QPushButton#downloadActionButton[needsDependencyInstall="true"]:hover { background: #1d2f26; border-color: #3f9c63; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="open_output_dir"] { color: #7ee2a8; border-color: #2e6b47; background: #1d2f26; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="open_output_dir"]:hover { background: #244331; border-color: #3f9c63; }
+QWidget#openwrtSignalPage QPushButton#downloadActionButton[needsDependencyInstall="true"], QWidget#routerCommonSettingsPage QPushButton#downloadActionButton[needsDependencyInstall="true"] { color: #7ee2a8; border-color: #2e6b47; background: #1d2f26; }
+QWidget#openwrtSignalPage QPushButton#downloadActionButton[needsDependencyInstall="true"]:hover, QWidget#routerCommonSettingsPage QPushButton#downloadActionButton[needsDependencyInstall="true"]:hover { background: #244331; border-color: #3f9c63; }
 QFrame#captureDependencyRow { background: transparent; }
 /* 路由器信号管理列表：分组标题、空提示和单行卡片。 */
 QLabel#captureSignalSectionTitle { color: #f4f6f8; font: __BODY_PT__pt "__FONT_FAMILY__"; padding-top: 8px; border: none; background: transparent; }
@@ -185,3 +186,30 @@ QPushButton#captureSecondaryButton[dependencyInstallPrimary="true"]:hover:enable
 
 QFrame#captureSettingsGroup { background: transparent; border: none; }
 QLabel#captureSettingsGroupTitle { color: #f4f6f8; font: __HEADER_PT__pt "__FONT_FAMILY__"; font-weight: bold; background: #293442; border: 1px solid #46566a; border-radius: 5px; padding: 10px 12px; }
+
+/* Viewport search panel, shared by signal tables. */
+QFrame#tableFilterPanel { background: #24292f; border: 1px solid #4c5665; border-radius: 5px; }
+QToolButton#tableFilterToggle { color: #cadacf; background: #223329; border: 1px solid #4c6655; border-radius: 5px; padding: 2px 4px; font-size: 10pt; }
+QToolButton#tableFilterToggle:hover { background: #2a4033; }
+QToolButton#tableFilterToggle:checked { background: #2e4538; }
+
+/* Shared compact toolbar action, preserving existing colors. */
+QPushButton#downloadActionButton[compactAction="true"] { min-height: 24px; padding: 2px 8px; }
+
+/* Records tables align directly below their navigation, without base table padding. */
+QTableWidget#captureAccessPointTable[passwordRecords="true"] { padding: 0px; }
+
+/* Compact result headers; keep the shared header colors and typography. */
+QTableWidget#captureAccessPointTable[passwordRecords="true"] QHeaderView::section:horizontal { padding: 3px 8px; }
+
+/* Shared task actions: yellow password pause/resume and solid red stop. */
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="pause_password"], QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="resume_password"] { color: #241b08; background: #d9ae42; border-color: #efc764; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="pause_password"]:hover:enabled, QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="resume_password"]:hover:enabled { background: #edc35a; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="pause_password"]:disabled, QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="resume_password"]:disabled { color: #b8a579; background: #51452b; border-color: #51452b; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="stop"], QPushButton#downloadActionButton[stopAction="true"] { color: #ffffff; background: #ad3038; border-color: #d34b54; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="stop"]:hover:enabled, QPushButton#downloadActionButton[stopAction="true"]:hover:enabled { background: #c83c45; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="stop"]:pressed, QPushButton#downloadActionButton[stopAction="true"]:pressed { background: #91252d; }
+QWidget#captureToolPanel QPushButton#downloadActionButton[captureAction="stop"]:disabled, QPushButton#downloadActionButton[stopAction="true"]:disabled { color: #b99094; background: #422a2e; border-color: #422a2e; }
+
+QFrame#captureDependencyRow[installed="true"] { background: #203e2c; }
+QFrame#captureDependencyRow[installed="true"][selected="true"] { background: #2a563a; }

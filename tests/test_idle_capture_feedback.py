@@ -95,6 +95,39 @@ class IdleCaptureFeedbackTests(unittest.TestCase):
         ssh._open_owned.reset_mock()
         self.assertIs(ssh.open_sftp(),new);ssh._open_owned.assert_not_called()
 
+    def test_eof_sftp_cache_is_rebuilt_before_channel_is_closed(self):
+        from paramiko import Channel
+        for attribute in ('eof_received','eof_sent'):
+            with self.subTest(attribute=attribute):
+                ssh=OpenWrtSshClient();ssh._client=Mock()
+                ssh._client.get_transport.return_value.is_active.return_value=True
+                channel=Channel(4);channel.active=True
+                setattr(channel,attribute,True)
+                old=Mock();old.get_channel.return_value=channel;ssh._sftp=old
+                new=Mock();new.get_channel.return_value=NS(closed=False,active=True)
+                ssh._open_owned=Mock(return_value=new)
+                self.assertIs(ssh.open_sftp(),new)
+                old.close.assert_called_once()
+                ssh._client.close.assert_not_called()
+
+    def test_wrapped_sftp_disconnect_is_dropped_but_real_file_errors_are_retained(self):
+        from paramiko import SSHException
+        from modules.capture_services.openwrt.auto_capture_service import AutoCaptureRadioSession
+        for error,drop in ((SSHException('Server connection dropped: EOF'),True),
+                           (PermissionError('Access denied'),False),
+                           (FileNotFoundError('Missing remote capture'),False)):
+            with self.subTest(error=type(error).__name__), TemporaryDirectory() as temp:
+                ssh=Mock();ssh.transfer.return_value=nullcontext()
+                ssh.open_sftp.return_value.stat.side_effect=error
+                session=NS(remote_cap_file='/root/cap/owned.pcapng',output_dir=Path(temp),ssh_client=ssh,
+                           radio_name='radio0',stats=NS(error_message='',file_size_bytes=0),service=Mock())
+                AutoCaptureRadioSession._pull_capture_result(session)
+                self.assertEqual(ssh.drop_sftp.called,drop)
+                ssh.close.assert_not_called()
+                if not isinstance(error,FileNotFoundError):
+                    self.assertIn(str(error),session.stats.error_message)
+                self.assertFalse(list(Path(temp).glob('*.part')))
+
     def test_download_failure_is_retained_in_session_error(self):
         from modules.capture_services.openwrt.auto_capture_service import AutoCaptureRadioSession
         with TemporaryDirectory() as temp:
@@ -105,5 +138,51 @@ class IdleCaptureFeedbackTests(unittest.TestCase):
             AutoCaptureRadioSession._pull_capture_result(session)
             self.assertIn('Socket is closed',session.stats.error_message)
             self.assertFalse(list(Path(temp).glob('*.part')))
+
+class SharedTransferHandoffTests(unittest.TestCase):
+    def test_successful_auto_pull_keeps_shared_session_usable_for_files_and_scan(self):
+        from modules.capture_services.openwrt.auto_capture_service import AutoCaptureRadioSession
+        from modules.capture_services.openwrt.router_management import RouterManagement
+        import threading
+        class Transfer:
+            closed=False
+            def close(self):self.closed=True
+            def stat(self,path):
+                if self.closed:raise OSError('Socket is closed')
+                return NS(st_size=4,st_mtime=1)
+            def get(self,source,destination,**kwargs):
+                if self.closed:raise OSError('Socket is closed')
+                Path(destination).write_bytes(b'data')
+            def get_channel(self):return NS(settimeout=lambda _:None)
+            def listdir_iter(self,*args,**kwargs):
+                if self.closed:raise OSError('Socket is closed')
+                return iter(())
+        transfer=Transfer()
+        ssh=Mock();ssh.transfer.side_effect=lambda *a,**k:nullcontext()
+        ssh.open_sftp.return_value=transfer
+        with TemporaryDirectory() as temp:
+            service=Mock();service.should_generate_cap.return_value=False
+            session=NS(remote_cap_file='/root/cap/owned.pcapng',output_dir=Path(temp),ssh_client=ssh,
+                       radio_name='radio0',stats=NS(error_message='',file_size_bytes=0),service=service)
+            result=AutoCaptureRadioSession._pull_capture_result(session)
+            self.assertEqual(result.read_bytes(),b'data')
+            self.assertFalse(transfer.closed)
+            self.assertEqual(RouterManagement(ssh,Mock()).list_directory('/root',threading.Event())['entries'],[])
+            from modules.capture_services.openwrt.auto_capture_boot_manager import AutoCaptureBootManager
+            from modules.capture_services.openwrt.workspace import CaptureWorkspaceManager
+            runner=Mock();runner.run.return_value=RemoteCommandResult('list',0,'offline.pcapng\n')
+            stable=set()
+            files=AutoCaptureBootManager(runner,ssh).pull_offline_artifacts(temp,stable_captures=stable)
+            self.assertEqual(len(files),1)
+            self.assertEqual(Path(files[0]).read_bytes(),b'data')
+            self.assertEqual(stable,set(files))
+            self.assertFalse(transfer.closed)
+            self.assertEqual(RouterManagement(ssh,Mock()).list_directory('/root',threading.Event())['entries'],[])
+            destination=Path(temp)/'regular.pcapng'
+            CaptureWorkspaceManager(ssh,runner).download_atomic('/root/regular.pcapng',destination)
+            self.assertEqual(destination.read_bytes(),b'data')
+            self.assertFalse(transfer.closed)
+            ssh.drop_sftp.assert_not_called()
+
 
 if __name__=='__main__':unittest.main()

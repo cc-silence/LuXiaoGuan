@@ -144,6 +144,6 @@ class VerifiedResults(QObject):
             owner.messageGenerated.emit(
                 f"本地结果核验：{len(missing)} 个目标的全部已知产物确认缺失，已撤销完成标记；"
                 f"{unknown} 个目标的文件位置或访问状态待核实，保留记录。"
-                "可检查存储位置，或手动清除状态后重抓。", "warning" if unknown else "info",
+                "可检查存储位置，或手动清除状态后重抓。", "diagnostic",
             )
         return frozenset(missing)

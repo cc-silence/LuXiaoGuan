@@ -3,6 +3,14 @@ from functools import wraps
 from time import monotonic
 
 
+RESTORE_OPERATIONS = frozenset({'password_restore_check', 'password_restore_baseline',
+    'password_restore_config_check', 'password_restore_wireless_check', 'password_restore_network_check'})
+RESTORE_STAGES = frozenset({'configuration', 'runtime'})
+RESTORE_REASONS = frozenset({'configuration_unconfirmed', 'runtime_read_failed',
+    'temporary_network_remaining', 'temporary_wireless_remaining', 'wireless_not_settled',
+    'wireless_disabled_mismatch', 'original_interface_state_changed', 'verified'})
+
+
 def verification_phase(stage):
     def decorate(method):
         @wraps(method)

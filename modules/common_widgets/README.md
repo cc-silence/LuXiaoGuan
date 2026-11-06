@@ -5,7 +5,7 @@
 - `NavigationButton`：主导航和设置分类共用的按钮，只在绘制时去掉虚线焦点框；保留 Tab/空格键、悬停和选中状态。
 
 - `tooltip_policy.install_tooltip_policy(app)`: shared hover text wrapping, measured with the current UI font and bounded to the screen; supports widgets and table items without retaining widget caches.
-- `FramelessDialog`: title dragging uses Qt system movement where available, preserving OS snapping; manual movement is only a platform fallback.
+- `FramelessDialog`: title dragging uses Qt system movement where available, preserving OS snapping; manual movement is only a platform fallback. Enter activates the focused push button, including secondary and cancel actions; other single-line fields fall back to the enabled `dialogAcceptButton`. Multiline editors preserve their own Enter handling.
 - `modules.main_pages.info_panel.InfoPanel`: shared log font, bounded log storage and `fontDeltaChanged` / `set_font_delta` for synchronized zoom across router pages.
 
 - `settings_widgets.ContentSizedStackedWidget`: shared current-page stack for inline wireless settings. Size hints, minimum size and height-for-width all come from the current page, so hidden long forms cannot add blank space. Pages retain their original size policies.
@@ -38,3 +38,23 @@ Modal editors minimize the visible owner group to retain modal ownership; modele
 The OpenWrt RouterTaskProgressDialog adapter can optionally display a bounded, read-only LAN guidance panel using the shared settingsMessageText theme and CommonComboBox. Its networkRenewRequested signal carries only the selected adapter identity; the widget performs no OS networking operations. ConfigurationProgressController routes the request to the task-bound recovery service and owns/disconnects explicit Qt connection handles. The panel supports light/dark themes and UI scaling; static or unsupported interfaces show guidance without a recovery action.
 
 - `button_focus_style.install_button_focus_style(app)`: install once before widget creation; shares the existing WidgetFilterStyle application proxy and wraps the current platform style to hide native focus rectangles on push/tool buttons, preserving Tab/Space, input focus and existing theme drawing.
+
+- `NavigationButton.stack_icon_text`: defaults to `True` for main navigation. `SettingsNavPanel` sets it to `False` to use the native icon-left, vertically centered label layout and existing theme alignment.
+
+- `ModelessMessageGroup`: shared themed notifications using `show()` and `Qt.NonModal`. Windows close independently and delete on close; at most 8 windows remain open, with subsequent messages grouped into the last window (latest 64). Optional `max_windows=1, incremental=True` appends new messages to the same unacknowledged window without rebuilding its text; `max_messages` bounds the buffer. Password-found notifications use this mode and keep summaries separate. Callers retain durable result files; closing clears displayed text and in-memory message buffers. No nested event loop, acknowledgment queue, worker-thread widget creation or timers.
+
+- `TableFilterPanel`: table-owned, fixed-position collapsible search and filter controls. It emits state changes without changing row selection, uses viewport resize events without timers, and uses the packet capture light/dark theme rules. The softly colored opaque toggle uses compact upright vertical text at the viewport bottom-right with a 2px logical inset; the filter panel expands to its left.
+
+- Page text buttons may set `compactAction=true` inside the capture theme to use a compact toolbar height while retaining their normal/danger colors.
+
+- `FloatingFeedback.show_feedback(..., anchor=QPoint(...))`: optional position in parent coordinates for feedback beside a completed click; clamps the animation to the parent. Omit it to keep the existing bottom-right placement.
+- `SpacedItemDelegate(..., show_focus_rect=False, minimum_height=False)`: suppress cell focus rectangles while keeping the original size hint; the default minimum row height remains enabled for other callers.
+
+
+- `ElidingCheckBox`: native checkbox drawing and interaction; long labels elide only when width is constrained, preserving adjacent action buttons. `text()` retains the complete value and callers keep their normal detailed tooltip. Size hints follow actual style and font metrics; no timers or text mutation.
+
+### PrivacyLogView
+
+Read-only streaming log view with reversible display privacy. Use `insert_raw_text()` to append and `setPlainText()` to replace a frame; use `raw_text()` only for internal deduplication. Copy and selection always use displayed text. Raw storage has a 200,000 UTF-16-unit bound and trims complete rows. `setMaximumBlockCount()` limits visible rows; `context_blocks` reserves a small additional raw prefix for fields spanning multiple rows (34 for capture output, 1 by default). Appends reproject only that bounded suffix; identity changes rebuild the bounded display. An optional projector contributes sensitive spans to the common `Masker.text(..., extra_spans=...)` operation, so overlapping and multiline identities are replaced once against original text.
+
+InfoPanel display text is projected through `modules.info_message_text.user_info_text`; raw entries and persistent export history remain unchanged. Mark internal checks as `diagnostic` at their source. Keep actionable failures visible; do not filter arbitrary messages by technical keywords.

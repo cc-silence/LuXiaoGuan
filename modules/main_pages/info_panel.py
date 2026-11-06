@@ -313,7 +313,8 @@ class InfoPanel(LogExportActions, QFrame):
                 }
             if level != "success" or self._color_success_messages:
                 fmt.setForeground(colors[level])
-        cursor.insertText(self.display_text(text), fmt)
+        from modules.info_message_text import user_info_text
+        cursor.insertText(self.display_text(user_info_text(text)), fmt)
         self._render_has_entry = True
 
         self.info_box.setTextCursor(cursor)

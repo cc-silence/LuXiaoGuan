@@ -82,6 +82,7 @@ class SettingsNavPanel(QFrame):
         副作用：按钮加入 self.buttons 列表，插入到面板布局中。
         """
         button = NavigationButton(text, self)
+        button.stack_icon_text = False
         button.setObjectName("settingsCategoryButton")
         button.setCheckable(True)
         if icon_path:

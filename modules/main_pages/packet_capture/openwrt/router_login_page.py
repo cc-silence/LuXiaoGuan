@@ -1,7 +1,7 @@
 """OpenWrt 路由器登录页：SSH 连接、设备信息与信息窗口。"""
 
 from PySide6.QtCore import Qt, QTimer, Signal, QSignalBlocker
-from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QSplitter, QVBoxLayout, QWidget
 
 from modules.main_pages.packet_capture.ui_helpers import create_capture_card
 from .connection_section import ConnectionSection
@@ -41,7 +41,12 @@ class RouterLoginPage(QWidget):
         # 左右并排：左侧参数，右侧基本信息，各占一半
         content_layout = QHBoxLayout(content)
         content_layout.setContentsMargins(0, 0, 4, 0)
-        content_layout.setSpacing(8)
+        content_layout.setSpacing(0)
+        self.cards_splitter = QSplitter(Qt.Horizontal, content)
+        self.cards_splitter.setObjectName("captureContentSplitter")
+        self.cards_splitter.setChildrenCollapsible(False)
+        self.cards_splitter.setHandleWidth(8)
+        content_layout.addWidget(self.cards_splitter)
         self.scroll_area.setWidget(content)
 
         self.connection = ConnectionSection(
@@ -70,7 +75,7 @@ class RouterLoginPage(QWidget):
             lambda _index: self.settingsChanged.emit()
         )
         self.connection.card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
-        content_layout.addWidget(self.connection.card, 1)
+        self.cards_splitter.addWidget(self.connection.card)
 
         device_card, device_layout = create_capture_card(
             content,
@@ -82,7 +87,12 @@ class RouterLoginPage(QWidget):
         device_layout.addWidget(self.device_status)
         device_layout.addStretch(1)
         device_card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
-        content_layout.addWidget(device_card, 1)
+        self.cards_splitter.addWidget(device_card)
+        self.cards_splitter.setStretchFactor(0, 1)
+        self.cards_splitter.setStretchFactor(1, 1)
+        self.cards_splitter.setSizes([500, 500])
+        self.cards_splitter.handle(1).setCursor(Qt.SplitHCursor)
+        self.cards_splitter.handle(1).setToolTip("\u5de6\u53f3\u62d6\u52a8\u8c03\u6574\u767b\u5f55\u548c\u57fa\u672c\u4fe1\u606f\u5361\u7247\u5bbd\u5ea6")
 
         self.info_panel = info_panel
         if info_panel is not None:
@@ -218,7 +228,7 @@ class RouterLoginPage(QWidget):
         state = snapshot.connection_state.value
         previous = self._last_connection_state
         self._last_connection_state = state
-        self.connection.set_connection_state(state)
+        self.connection.set_connection_state(state, stopping=snapshot.task_state == "stopping")
         if (
             state in {"disconnected", "failed"} and previous is not None and state != previous
         ):

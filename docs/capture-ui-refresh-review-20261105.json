@@ -1,0 +1,29 @@
+{
+  "scope": "Local UI refresh only; capture execution unchanged",
+  "cause": "Progress-only snapshots rewrote every AP cell and triggered synchronous table repaint through the progress update.",
+  "changes": [
+    "Unchanged immutable AP snapshots skip data refresh",
+    "Changed AP snapshots update only changed rows",
+    "Active target transitions update old/new rows and use an indexed point lookup"
+  ],
+  "fixture": {
+    "rows": 150,
+    "progress_updates": 15,
+    "before_seconds": 2.258,
+    "after_seconds": 0.0115
+  },
+  "validation": {
+    "windows_offline_tests": 27,
+    "windows_visual_profile": "build/capture-ui-profile.json",
+    "reproduction": "build/profile-capture-ui.py",
+    "live_router_capture": "Not performed",
+    "debian_12_gui": "Not verified; shared Qt/Python code has no platform-specific branch"
+  },
+  "preserved": [
+    "Selection",
+    "Supported sorting",
+    "Scroll position",
+    "Task row highlights",
+    "Existing visuals and animations"
+  ]
+}

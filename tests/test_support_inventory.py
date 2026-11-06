@@ -12,11 +12,12 @@ class SupportInventoryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder); docs=root/"docs";docs.mkdir();f=fixture(root/"bundle")
             f.archive.with_suffix(".report.json").write_text(json.dumps(dict(complete=True,zip_sha256=f.payload["sha256"],zip_bytes=f.payload["size"])),encoding="utf-8")
-            initial=dict(product="RouterManager",packages=[],router_model_verification=[dict(model="JCG Q30",status="actual-firmware-unconfirmed"),dict(model="old platform",status="package-platform-covered",targets=["removed/target"],architecture="removed")])
+            initial=dict(product="RouterManager",packages=[],excluded_targets=[f.profile["target"],"not/covered"],router_model_verification=[dict(model="JCG Q30",status="actual-firmware-unconfirmed"),dict(model="old platform",status="package-platform-covered",targets=["removed/target"],architecture="removed")])
             (docs/"support.json").write_text(json.dumps(initial),encoding="utf-8")
             path=write_inventory("common",f.archive,docs=docs);data=json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(data["packages"][0]["exact_profiles"],[{k:f.profile[k] for k in ["release","target","architecture","package_manager"]}])
             self.assertEqual(data["router_model_verification"][0]["status"],"actual-firmware-unconfirmed")
+            self.assertEqual(data["excluded_targets"], ["not/covered"])
             self.assertEqual(data["router_model_verification"][1]["status"],"platform-not-covered")
             self.assertIn("24.10.8",(docs/"support.txt").read_text(encoding="utf-8"))
             receipt=dict(kind="common",sha256=f.payload["sha256"],status="published-and-client-verified",manifest_url="https://example.com/manifest",archive_url="https://example.com/archive")

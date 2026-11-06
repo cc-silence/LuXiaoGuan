@@ -36,7 +36,7 @@ class FloatingFeedback(QLabel):
         self._animation.addAnimation(self._opacity_animation)
         self._animation.finished.connect(self.hide)
 
-    def show_feedback(self, text, kind, scale_manager=None):
+    def show_feedback(self, text, kind, scale_manager=None, *, anchor=None):
         """显示一次操作反馈。
 
         参数：text 是用户可见结果文本；kind 是 success 或 cancel；scale_manager 用于字体和边距缩放。
@@ -64,8 +64,17 @@ class FloatingFeedback(QLabel):
         self.adjustSize()
 
         target = self._target_position(scale_manager)
+        if anchor is not None:
+            target = anchor + QPoint(self._scaled_px(scale_manager, 12),
+                                     -self.height() - self._scaled_px(scale_manager, 12))
         start = target + QPoint(0, self._scaled_px(scale_manager, 8))
         end = target - QPoint(0, self._scaled_px(scale_manager, 14))
+        if anchor is not None:
+            parent = self.parentWidget()
+            limit_x = max(0, parent.width() - self.width())
+            limit_y = max(0, parent.height() - self.height())
+            start = QPoint(max(0, min(start.x(), limit_x)), max(0, min(start.y(), limit_y)))
+            end = QPoint(max(0, min(end.x(), limit_x)), max(0, min(end.y(), limit_y)))
         self.move(start)
         self._opacity_effect.setOpacity(1.0)
         self.show()
@@ -81,6 +90,11 @@ class FloatingFeedback(QLabel):
         self._opacity_animation.setEndValue(0.0)
         self._opacity_animation.setEasingCurve(QEasingCurve.OutCubic)
         self._animation.start()
+
+    def dismiss(self):
+        """Stop active feedback immediately when its owning view closes."""
+        self._animation.stop()
+        self.hide()
 
     def show_mode_transition(self, title, detail, scale_manager=None):
         """显示主机模式切换的顶部居中横幅。

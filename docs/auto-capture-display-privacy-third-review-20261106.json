@@ -1,0 +1,37 @@
+{
+  "date": "2026-11-06",
+  "scope": "Third review of automatic capture display privacy",
+  "sources": [
+    "https://doc.qt.io/qt-6/qtextdocument.html#toRawText",
+    "https://docs.python.org/3/library/stdtypes.html#str.splitlines",
+    "https://github.com/ZerBea/hcxdumptool/blob/6.3.4/hcxdumptool.c#L580"
+  ],
+  "confirmed_and_fixed": [
+    "known identities spanning multiple rows were matched separately and could remain visible",
+    "raw row retention could discard sensitive context and a later privacy toggle could reveal continuation text",
+    "adjacent whitespace quantifiers were replaced to avoid excessive matching work on malformed long rows"
+  ],
+  "design": "fixed fields and identity spans are merged once against original complete text; incremental projection retains 34-row context, with at most 33 extra raw rows, within the existing 200000 UTF-16-unit budget; controls default read-only and visible maximum 1500 rows",
+  "validation": {
+    "regression_count": 94,
+    "regression_log": "build/auto-capture-privacy-third-verified.log",
+    "final_widget_log": "build/auto-capture-privacy-context-final.log",
+    "cases": [
+      "all two-part chunk boundaries",
+      "seeded fragmented replay at several row limits",
+      "multiline names and Qt paragraph normalization",
+      "copy payload and clear",
+      "log retention followed by toggle",
+      "malformed long whitespace output"
+    ],
+    "load": {
+      "appends": 2000,
+      "seconds": 10.047,
+      "visible_blocks": 1500,
+      "raw_blocks": 1533
+    }
+  },
+  "platforms": "Windows pinned Qt verified; native Debian Qt still unavailable in inspected system Python",
+  "router_execution_changed": false,
+  "packaged": false
+}

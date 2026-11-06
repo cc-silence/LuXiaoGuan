@@ -15,6 +15,8 @@ from PySide6.QtWidgets import (
 
 from modules.main_pages.page_action_buttons import create_page_text_button
 from modules.common_widgets.combo_box import CommonComboBox as QComboBox
+from modules.icon_utils import get_theme_icon
+from modules.dialog_theme import detect_light_theme
 
 
 
@@ -75,44 +77,50 @@ class CaptureToolPanel(QWidget):
         handshake_layout.addWidget(self.handshake_button)
         root.addWidget(handshake_group)
 
-        other_group, other_layout = self._group("其他方式")
-        other_layout.addWidget(self._subsection_label("WPS / Pin", other_group))
-        # 秒 Pin 和高级 Pin 放一排，省出空间给下面的猜密码按钮。
+        password_group, password_layout = self._group("\u731c\u5bc6\u7801")
+        self.dictionary_rounds_check = QCheckBox("\u6309\u5b57\u5178\u9010\u8f6e\u5c1d\u8bd5", password_group)
+        self.dictionary_rounds_check.setObjectName("captureCheckBox")
+        self.dictionary_rounds_check.setToolTip("\u6240\u6709\u9009\u4e2d\u4fe1\u53f7\u5148\u8bd5\u5b8c\u5b57\u5178\u4e00\uff0c\u518d\u8bd5\u5b57\u5178\u4e8c\uff1b\u5df2\u627e\u5230\u5bc6\u7801\u7684\u4fe1\u53f7\u4f1a\u8df3\u8fc7\u3002")
+        password_layout.addWidget(self.dictionary_rounds_check)
+        password_row = QHBoxLayout()
+        password_row.setContentsMargins(0, 0, 0, 0)
+        password_row.setSpacing(6)
+        self.password_pause_button = self._button(password_group, "\u6682\u505c", "pause_password")
+        self.password_pause_button.hide()
+        self.password_button = self._button(password_group, "\u5f00\u59cb\u731c\u5bc6\u7801", "password")
+        self.password_button.setProperty("riskAction", True)
+        password_row.addWidget(self.password_pause_button, 1)
+        password_row.addWidget(self.password_button, 1)
+        password_layout.addLayout(password_row)
+        self.clear_attempts_button = self._button(password_group, "\u6253\u5f00\u731c\u5bc6\u7801\u7ed3\u679c", "password_results")
+        self.clear_attempts_button.setToolTip("\u67e5\u770b\u5df2\u8bd5\u8bb0\u5f55\u548c\u5df2\u731c\u51fa\u7684\u5bc6\u7801\u3002")
+        password_layout.addWidget(self.clear_attempts_button)
+        root.addWidget(password_group)
+
+        wps_group, wps_layout = self._group("WPS / Pin")
         wps_row = QHBoxLayout()
         wps_row.setContentsMargins(0, 0, 0, 0)
         wps_row.setSpacing(6)
-        self.wps_button = self._button(other_group, "开始秒 Pin", "wps")
-        self.advanced_wps_button = create_page_text_button(other_group, "高级 Pin", "打开普通 Pin、秒 Pin和离线 Pin 参数窗口。")
-        self.advanced_wps_button.clicked.connect(self.advancedWpsRequested)
+        self.wps_button = self._button(wps_group, "\u5f00\u59cb\u79d2 Pin", "wps")
+        self.advanced_wps_button = create_page_text_button(wps_group, "\u9ad8\u7ea7 Pin", "\u6253\u5f00\u666e\u901a Pin\u3001\u79d2 Pin \u548c\u79bb\u7ebf Pin \u53c2\u6570\u7a97\u53e3\u3002")
+        self.advanced_wps_button.clicked.connect(self._advanced_wps_action)
         wps_row.addWidget(self.wps_button, 1)
         wps_row.addWidget(self.advanced_wps_button, 1)
-        other_layout.addLayout(wps_row)
-        risk_label = self._subsection_label("在线密码验证", other_group)
-        risk_label.setProperty("risk", True)
-        other_layout.addWidget(risk_label)
-        self.password_pause_button = self._button(other_group, "暂停猜密码", "pause_password")
-        self.password_pause_button.hide()
-        other_layout.addWidget(self.password_pause_button)
-        self.dictionary_rounds_check = QCheckBox("按字典逐轮尝试", other_group)
-        self.dictionary_rounds_check.setObjectName("captureCheckBox")
-        self.dictionary_rounds_check.setToolTip("勾选后，所有选中信号先试完字典一，再试字典二；已找到密码的信号会跳过。")
-        other_layout.addWidget(self.dictionary_rounds_check)
-        self.password_button = self._button(other_group, "开始猜密码", "password")
-        self.password_button.setProperty("riskAction", True)
-        other_layout.addWidget(self.password_button)
-        self.clear_attempts_button = self._button(other_group, "清理已尝试记录", "clear_password_attempts")
-        self.clear_attempts_button.setToolTip("清空所有信号的已尝试记录；不删除字典和结果文件。")
-        other_layout.addWidget(self.clear_attempts_button)
-        root.addWidget(other_group)
-        # “打开包存储目录”独立放在其他方式组下方：它是取结果入口，不属于抓包手段；
-        # 跑出可用包时用户第一时间来这里取结果。
-        self.open_dir_button = self._button(self, "打开包存储目录", "open_output_dir")
-        # 该按钮比普通动作按钮高三分之一，在窄栏里更显眼，方便跑出结果后一眼找到。
-        UiScaleManager.for_widget(self).bind_metrics(self.open_dir_button, min_height=35)
-        self.settings_button = self._button(self, "\u6293\u5305\u8bbe\u7f6e", "capture_settings")
-        UiScaleManager.for_widget(self).bind_metrics(self.settings_button, min_height=35)
-        root.addWidget(self.settings_button)
-        root.addWidget(self.open_dir_button)
+        wps_layout.addLayout(wps_row)
+        root.addWidget(wps_group)
+
+        results_group, results_layout = self._group("\u6293\u5305\u8bbe\u7f6e\u4e0e\u7ed3\u679c")
+        self.open_dir_button = self._button(results_group, "\u6253\u5f00\u7ed3\u679c\u76ee\u5f55", "open_output_dir")
+        self.open_dir_button.setProperty("iconPath", ":/icons/images/icons/cil-folder-open.png")
+        self.open_dir_button.setIcon(get_theme_icon(self.open_dir_button.property("iconPath"), detect_light_theme(self)))
+        UiScaleManager.for_widget(self).bind_metrics(self.open_dir_button, min_height=35, icon_size=18)
+        self.settings_button = self._button(results_group, "\u6293\u5305\u8bbe\u7f6e", "capture_settings")
+        self.settings_button.setProperty("iconPath", ":/icons/images/icons/cil-settings.png")
+        self.settings_button.setIcon(get_theme_icon(self.settings_button.property("iconPath"), detect_light_theme(self)))
+        UiScaleManager.for_widget(self).bind_metrics(self.settings_button, min_height=35, icon_size=18)
+        results_layout.addWidget(self.settings_button)
+        results_layout.addWidget(self.open_dir_button)
+        root.addWidget(results_group)
         root.addStretch(1)
 
         self.load_settings(settings)
@@ -133,8 +141,8 @@ class CaptureToolPanel(QWidget):
         tips = {
             "scan": "查找所选频段的 Wi-Fi 和连接设备，运行中再点一次可停止。先登录路由器。",
             "handshake": "先勾选自有或已授权的信号，再开始抓取连接数据。是否让目标设备断网重连，由“允许主动断连”设置决定；运行中可点此按钮停止。",
-            "wps": "仅适用于自有或已授权且开启 WPS 的网络。尝试常见 Pin 码，不保证成功；频繁尝试可能让目标暂时锁定 WPS。",
-            "open_output_dir": "打开已保存抓包结果的文件夹，按钮变绿表示已有可用结果。",
+            "wps": "仅适用于自有或已授权且开启 WPS 的网络。使用 Pixie Dust 离线恢复 Pin，仅部分设备支持，不保证成功；频繁尝试可能让目标暂时锁定 WPS。",
+            "open_output_dir": "打开已保存抓包结果的文件夹。",
         }
         button = create_page_text_button(self, text, tips.get(action, text))
         button.setProperty("captureAction", action)
@@ -190,11 +198,11 @@ class CaptureToolPanel(QWidget):
         }
 
 
-    def set_action_availability(self, connected, busy, enabled_features, task_type="", task_state="", pause_state=""):
+    def set_action_availability(self, connected, busy, enabled_features, task_type="", task_state="", pause_state="", wps_entry="quick"):
         """按连接、任务和功能开关统一控制动作，不自行判断依赖细节。"""
 
         enabled = bool(connected and not busy)
-        self.clear_attempts_button.setEnabled(not busy)
+        self.clear_attempts_button.setEnabled(True)
         self.dictionary_rounds_check.setEnabled(not busy)
         mapping = {
             self.scan_button: "scan",
@@ -208,10 +216,11 @@ class CaptureToolPanel(QWidget):
         scan_running = busy and task_type == "wifi_scan"
         handshake_running = busy and task_type == "handshake"
         password_running = busy and task_type == "password_verify"
+        wps_running = busy and task_type == "wps"
         self.password_pause_button.setVisible(password_running)
         self.password_pause_button.setText({
-            "pausing": "等待暂停…", "paused": "继续猜密码", "cleaning": "正在恢复配置…",
-        }.get(pause_state, "暂停猜密码"))
+            "pausing": "\u7b49\u5f85\u6682\u505c\u2026", "paused": "\u7ee7\u7eed", "cleaning": "\u6062\u590d\u914d\u7f6e\u2026",
+        }.get(pause_state, "\u6682\u505c"))
         self.password_pause_button.setProperty(
             "captureAction", "resume_password" if pause_state == "paused" else "pause_password",
         )
@@ -225,9 +234,15 @@ class CaptureToolPanel(QWidget):
             password_running and task_state != "stopping" and pause_state in {"running", "paused"},
         )
         for button, feature in mapping.items():
-            if button in {self.scan_button, self.handshake_button, self.password_button}:
+            if button in {self.scan_button, self.handshake_button, self.password_button, self.wps_button, self.advanced_wps_button}:
                 continue
             self._set_button_enabled(button, enabled and bool(enabled_features.get(feature, False)))
+        active_wps_button = self.advanced_wps_button if wps_entry == "advanced" else self.wps_button
+        for button, idle_text in ((self.wps_button, "\u5f00\u59cb\u79d2 Pin"), (self.advanced_wps_button, "\u9ad8\u7ea7 Pin")):
+            owns_wps = wps_running and button is active_wps_button
+            button.setText(("\u6b63\u5728\u505c\u6b62\u2026" if task_state == "stopping" else "\u505c\u6b62 Pin") if owns_wps else idle_text)
+            button.setProperty("captureAction", "stop" if owns_wps else "wps")
+            self._set_button_enabled(button, task_state != "stopping" if owns_wps else enabled and bool(enabled_features.get("wps", False)))
         if scan_running:
             self.scan_button.setText("停止扫描")
             self.scan_button.setProperty("captureAction", "stop")
@@ -238,7 +253,7 @@ class CaptureToolPanel(QWidget):
             # 未连接时仍允许点击并显示明确的“先登录”提示；连接后检查 scan 依赖。
             self._set_button_enabled(
                 self.scan_button,
-                not connected or (not busy and bool(enabled_features.get("scan", False))),
+                True,
             )
         if handshake_running:
             self.handshake_button.setText("停止定向任务")
@@ -252,14 +267,14 @@ class CaptureToolPanel(QWidget):
                 not connected or (not busy and bool(enabled_features.get("handshake", False))),
             )
         self.password_button.setText(
-            ("正在停止…" if task_state == "stopping" else "停止猜密码")
+            ("\u6b63\u5728\u505c\u6b62\u2026" if task_state == "stopping" else "\u505c\u6b62")
             if password_running else "开始猜密码"
         )
         self.password_button.setProperty("captureAction", "stop" if password_running else "password")
         self.password_button.setToolTip(
             "正在停止猜密码并恢复路由器配置，请等待清理完成。"
             if password_running and task_state == "stopping" else
-            "停止猜密码并恢复路由器配置；不保留可继续的验证进度。"
+            "\u505c\u6b62\u731c\u5bc6\u7801\u5e76\u6062\u590d\u8def\u7531\u5668\u914d\u7f6e\uff1b\u5df2\u786e\u8ba4\u7684\u5c1d\u8bd5\u8bb0\u5f55\u4fdd\u7559\uff0c\u4e0b\u6b21\u81ea\u52a8\u8df3\u8fc7\u3002"
             if password_running else "按设置中的字典逐个尝试连接，只能用于自有或已授权的网络。会临时修改路由器配置，可能断网，开始前需确认并备份；大字典可能耗时很久。"
         )
         self._set_button_enabled(
@@ -270,9 +285,17 @@ class CaptureToolPanel(QWidget):
         # 运行中的按钮使用 hover 样式 + 循环扫光（蓝色边框），与未开始明确区分。
         # 复用 SweepButton 引导模式的视觉；状态未变化时不重复调用，避免每次快照
         # 刷新都重启扫光动画导致扫光冻结在起始位置。
+        self._sync_running_visual(self.wps_button, wps_running and active_wps_button is self.wps_button)
+        self._sync_running_visual(self.advanced_wps_button, wps_running and active_wps_button is self.advanced_wps_button)
         self._sync_running_visual(self.scan_button, scan_running)
         self._sync_running_visual(self.handshake_button, handshake_running)
         self._sync_running_visual(self.password_button, password_running)
+
+    def _advanced_wps_action(self):
+        if self.advanced_wps_button.property("captureAction") == "stop":
+            self.actionRequested.emit("stop")
+        else:
+            self.advancedWpsRequested.emit()
 
     def _set_button_enabled(self, button, enabled):
         """安全更新动作按钮状态，防止 Qt 自动将焦点跳到表单输入框。"""
@@ -283,11 +306,7 @@ class CaptureToolPanel(QWidget):
         button.setEnabled(enabled)
 
     def set_result_available(self, has_result):
-        """有可用抓包产物时把“打开包存储目录”置绿，提示用户去取结果。
-
-        参数 has_result 为真表示当前会话已跑出可跑包产物；断开连接后快照清空，
-        调用方会重新传入假值恢复原色。QSS 用 hasCaptureResult 属性区分颜色。
-        """
+        """Retain result availability; the output-directory action stays green."""
 
         has_result = bool(has_result)
         if bool(self.open_dir_button.property("hasCaptureResult")) == has_result:

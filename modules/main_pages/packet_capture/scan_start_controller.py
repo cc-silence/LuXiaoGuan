@@ -15,7 +15,9 @@ class ScanStartController(QObject):
     def start(self, settings):
         probe_id = self.service.start(settings)
         if not probe_id:
-            self.page.info_panel.append_info("\u5f53\u524d\u672a\u8fde\u63a5\u8def\u7531\u5668\u6216\u5df2\u6709\u4efb\u52a1\u8fd0\u884c\uff0c\u4e0d\u80fd\u5f00\u59cb\u626b\u63cf\u3002", "warning")
+            message = "\u5f53\u524d\u672a\u8fde\u63a5\u8def\u7531\u5668\u6216\u5df2\u6709\u4efb\u52a1\u8fd0\u884c\uff0c\u4e0d\u80fd\u5f00\u59cb\u626b\u63cf\u3002"
+            self.page.info_panel.append_info(message, "warning")
+            MessageDialog("\u626b\u63cf\u672a\u5f00\u59cb", message, self.page).exec()
             return
         self._pending = (probe_id, dict(settings))
         self.page.info_panel.append_info("\u6b63\u5728\u8def\u7531\u5668\u4e0a\u6838\u5b9e\u5f53\u524d\u767b\u5f55\u8fde\u63a5\u7684\u5b9e\u9645\u63a5\u53e3\uff0c\u8bf7\u7a0d\u5019\u3002", "info")
@@ -71,4 +73,6 @@ class ScanStartController(QObject):
             page.info_panel.append_info("\u6293\u5305\u7ed3\u679c\u76ee\u5f55\u65e0\u6548\uff1a" + str(exc), "error")
             return
         if not page.capture_service.scan_openwrt_wifi_async(settings):
-            page.info_panel.append_info("\u5f53\u524d\u672a\u8fde\u63a5\u8def\u7531\u5668\u6216\u5df2\u6709\u4efb\u52a1\u8fd0\u884c\uff0c\u4e0d\u80fd\u5f00\u59cb\u626b\u63cf\u3002", "warning")
+            message = "\u5f53\u524d\u672a\u8fde\u63a5\u8def\u7531\u5668\u6216\u5df2\u6709\u4efb\u52a1\u8fd0\u884c\uff0c\u4e0d\u80fd\u5f00\u59cb\u626b\u63cf\u3002"
+            page.info_panel.append_info(message, "warning")
+            MessageDialog("\u626b\u63cf\u672a\u5f00\u59cb", message, page).exec()

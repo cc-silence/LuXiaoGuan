@@ -63,7 +63,7 @@ class StandaloneTests(unittest.TestCase):
         tabs = container.tabs
         self.assertEqual(tabs.count(), 2)
         self.assertEqual(tabs.tabText(0), "路由器登录")
-        self.assertEqual(tabs.tabText(1), "安装依赖")
+        self.assertEqual(tabs.tabText(1), "依赖管理")
         self.assertIs(tabs.widget(0), container.login_page)
         self.assertIs(tabs.widget(1), container.dependency_page)
         nav_buttons = self.window.navigation.page_buttons

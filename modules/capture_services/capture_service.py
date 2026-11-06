@@ -45,12 +45,14 @@ class CaptureService(QObject):
     stateChanged = Signal(str)
     messageGenerated = Signal(str, str)
     settingsMessageGenerated = Signal(str, str)
+    dependencyMessageGenerated = Signal(str, str)
     windowsMessageGenerated = Signal(str, str)
     activityChanged = Signal()
     openwrtSnapshotChanged = Signal(object)
     openwrtFingerprintRequired = Signal(object)
     verifiedHistoryChanged = Signal(object)
     taskFinishedNotice = Signal(str, str)
+    passwordFound = Signal(object)
     takeoverProbeFinished = Signal(str, object, str, bool)
 
     def __init__(self, parent=None):
@@ -75,6 +77,7 @@ class CaptureService(QObject):
         self._shutting_down = False
         # SSH 密码只保存在当前进程内的服务对象中，页面空闲回收后仍可恢复；退出时清空。
         self._openwrt_password = ""
+        self.password_verification_candidate = ""
         self._openwrt_workers = {}
         self._pending_fingerprint_request = None
         self._handshake_active_deauth = False
@@ -227,7 +230,7 @@ class CaptureService(QObject):
             self._verified_history = dict(ordered[-200:])
         self.verifiedHistoryChanged.emit(self.verified_history_snapshot())
 
-    def _apply_verified_history(self, point, existing_selection):
+    def _apply_verified_history(self, point, existing_selection, password_states=None):
         """扫描回显单个 AP：保留勾选，命中已抓名单的标“已有可用包”。"""
 
         updated = point.with_selected(point.bssid.upper() in existing_selection)
@@ -240,6 +243,9 @@ class CaptureService(QObject):
             ))
         ):
             updated = replace(updated, capture_state=AccessPointCaptureState.CAPTURED)
+        if password_states is not None:
+            from .password_target_status import restore_scan
+            updated = restore_scan(updated, password_states)
         return self.verified_results.decorate(updated)
 
     def clear_verified_history(self):
@@ -397,6 +403,8 @@ class CaptureService(QObject):
             progress = CaptureProgress(
                 "正在停止猜密码", 0, 0, "正在恢复路由器配置，请等待清理完成。", True,
             )
+        if normalized_type != CaptureTaskType.PASSWORD_VERIFY or state in {"idle", "failed", "stopping"}:
+            self.password_verification_candidate = ""
         connection_changes = {}
         if normalized_type == CaptureTaskType.CONNECT and state == "starting":
             # 登录任务与连接状态必须同步发布，避免页面按旧的未连接状态清空当次密码。
@@ -456,21 +464,10 @@ class CaptureService(QObject):
         network_prepare = getattr(self, "network_prepare", None)
 
         def operation(event, progress=None):
-            if event is not None and event.is_set():
-                raise InterruptedError("登录已取消")
-            if network_prepare is not None:
-                normalized = self.openwrt_backend.validate_settings(settings_copy)
-                settings_copy.update(normalized)
-                network_prepare(normalized["host"], normalized["port"], event)
-            elif network_ready is not None:
-                network_ready(event)
-            return self.openwrt_backend.connect(
-                settings_copy,
-                password,
-                expected_fingerprint=expected_fingerprint,
-                cancel_event=event,
-                progress_callback=progress,
-            )
+            from .login_operation import run_login
+            return run_login(self.openwrt_backend, settings_copy, password,
+                             expected_fingerprint, event, progress,
+                             network_prepare, network_ready)
 
         self._start_openwrt_worker(
             session_id,
@@ -758,7 +755,7 @@ class CaptureService(QObject):
             return ""
         probe_id = uuid4().hex
         cancel_event = self.task_controller.begin(
-            CaptureTaskType.HANDSHAKE.value,
+            CaptureTaskType.DEVICE_PROBE.value,
             probe_id,
             CaptureSessionState.STARTING,
         )
@@ -866,7 +863,7 @@ class CaptureService(QObject):
         )
         self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
         if bool(options.get("handshake_rounds_infinite", False)):
-            rounds_text = "不限轮数（抓到可用包、连续两轮确认无进展或任务失败时停止）"
+            rounds_text = "不限轮数（持续尝试，抓到可用包或手动停止；执行故障会报出原因）"
         else:
             try:
                 rounds_value = max(1, min(int(options.get("handshake_rounds", _MAX_HANDSHAKE_ROUNDS)), 99))
@@ -1127,11 +1124,12 @@ class CaptureService(QObject):
         if self.openwrt_backend.snapshot.connection_state != OpenWrtConnectionState.CONNECTED:
             return False
         selected = {str(value).upper() for value in selected_bssids}
-        targets = tuple(
-            point
-            for point in self.openwrt_backend.snapshot.access_points
-            if point.bssid.upper() in selected
-        )
+        from .password_target_status import pending_password_targets
+        targets = pending_password_targets(self.openwrt_backend.snapshot.access_points, selected)
+        skipped = sum(point.bssid.upper() in selected and point.password_state == 'found'
+                      for point in self.openwrt_backend.snapshot.access_points)
+        if skipped:
+            self.messageGenerated.emit(f"\u5df2\u8df3\u8fc7 {skipped} \u4e2a\u5df2\u627e\u5230\u5bc6\u7801\u7684\u4fe1\u53f7\u3002", 'info')
         if not targets:
             return False
         if not dictionary_paths(settings):
@@ -1145,6 +1143,8 @@ class CaptureService(QObject):
         )
         if cancel_event is None:
             return False
+        from .password_target_status import begin
+        begin(self, targets)
         options = dict(settings)
         self._stash_privacy_mask(settings)
         self._stash_result_prefs(options)
@@ -1211,6 +1211,9 @@ class CaptureService(QObject):
                         verified=True,
                     ),
                 )
+        from .password_target_status import complete, finish
+        complete(self, results)
+        status_summary = finish(self)
         self.openwrt_backend.snapshot = replace(
             self.openwrt_backend.snapshot,
             artifacts=artifacts,
@@ -1219,11 +1222,14 @@ class CaptureService(QObject):
         )
         self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
         total = len(results)
-        skipped = sum(not entry.found and entry.tried == 0 for entry in results)
+        errors = sum(bool(getattr(entry, "error", False)) for entry in results)
+        skipped = sum(not entry.found and not getattr(entry, "error", False) and entry.tried == 0 for entry in results)
         head = (
             f"在线密码验证结束：共 {total} 个目标，找到 {good} 个，"
-            f"未找到 {total - good - skipped} 个，跳过 {skipped} 个。"
+            f"未找到 {total - good - skipped - errors} 个，跳过 {skipped} 个，超时未完成 {errors} 个。"
         )
+        if status_summary:
+            head += "\n" + status_summary
         if restore_errors:
             head += f"配置恢复异常：{restore_errors}"
         self.messageGenerated.emit(head, "success" if good else "warning")
@@ -1241,18 +1247,24 @@ class CaptureService(QObject):
     def _on_openwrt_password_failed(self, summary, detail):
         """验证失败保留连接；取消与 SSH 中断按 info 处理。"""
 
+        from .password_target_status import finish
+        status_summary = finish(self, cancelled="\u5df2\u53d6\u6d88" in str(summary))
+        if status_summary:
+            summary = str(summary) + "\n" + status_summary
         snapshot = self._task_failure_snapshot(summary)
         self.openwrt_backend.snapshot = snapshot
         self.openwrtSnapshotChanged.emit(snapshot)
         level = "info" if "已取消" in str(summary) or "SSH 连接已断开" in str(summary) else "error"
         self.messageGenerated.emit(f"在线密码验证未完成：{summary}", level)
-        if level != "info":
-            self._notify_task_result("猜密码结果", f"在线密码验证未完成：{summary}")
+        self._notify_task_result("\u731c\u5bc6\u7801\u7ed3\u679c", f"\u5728\u7ebf\u5bc6\u7801\u9a8c\u8bc1\u672a\u5b8c\u6210\uff1a{summary}")
         self.task_controller.finish(failed=level == "error")
 
     def _on_openwrt_password_progress(self, update):
         """发布逐密码进度：标题带第几个目标与第几个候选。"""
 
+        from .password_found_events import forward_found_notice
+        if forward_found_notice(self, update):
+            return
         snapshot = self.openwrt_backend.snapshot
         if (snapshot.task_type != CaptureTaskType.PASSWORD_VERIFY
                 or snapshot.task_state == CaptureSessionState.STOPPING.value):
@@ -1260,12 +1272,20 @@ class CaptureService(QObject):
         if snapshot.task_state == CaptureSessionState.STARTING.value:
             self.task_controller.set_state(CaptureSessionState.CAPTURING)
             snapshot = self.openwrt_backend.snapshot
+        if not getattr(update, "speed_only", False):
+            self.password_verification_candidate = str(getattr(update, "candidate", "") or "")
+        target_bssid = str(getattr(update, "target_bssid", "") or "").upper()
         total_targets = max(1, int(update.target_total or 1))
         index = min(max(0, int(update.target_index or 0)), total_targets - 1)
         label = str(update.target_label or "")
         title = f"正在验证第{index + 1}/{total_targets}个"
         if label:
             title += f"：{label}"
+        speed_text = str(getattr(update, "speed_text", "") or "")
+        if speed_text:
+            title += f" | {speed_text}"
+        if getattr(update, "phase", ""):
+            title += f" | {update.phase}"
         total = max(1, int(update.total or 0))
         tried = min(max(0, int(update.tried or 0)), total)
         self.openwrt_backend.snapshot = replace(
@@ -1277,6 +1297,7 @@ class CaptureService(QObject):
                 f"已试 {tried}/{total} 个候选。",
                 False,
             ),
+            capturing_bssids=(target_bssid,) if target_bssid else (),
         )
         self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
 
@@ -1284,14 +1305,14 @@ class CaptureService(QObject):
         """\u8f6c\u53d1\u539f\u59cb\u6807\u8bc6\uff0c\u4e0d\u63a5\u6536\u5bc6\u7801\u5185\u5bb9\u3002"""
         self.messageGenerated.emit(str(text), str(level))
 
-    def capture_openwrt_wps_async(self, settings, selected_bssids=(), mode="second"):
+    def capture_openwrt_wps_async(self, settings, selected_bssids=(), mode="second", *, entry="quick"):
         """在后台对已选目标逐个跑 Pin，调用前页面必须已确认。
 
         参数 mode 是 second/normal/offline/combo。返回 True 表示任务已启动。
         PIN 与密码只进结果文件，永不进快照或消息。
         """
 
-        if mode not in ("normal", "second", "offline", "combo"):
+        if mode not in ("normal", "second", "offline", "combo") or entry not in {"quick", "advanced"}:
             return False
         if self._shutting_down or self.task_controller.busy:
             return False
@@ -1304,6 +1325,12 @@ class CaptureService(QObject):
             if point.bssid.upper() in selected
         )
         if not targets:
+            return False
+        from .openwrt.wps_options import prepare_wps_options
+        try:
+            settings = dict(settings, wps_defaults=prepare_wps_options(settings.get("wps_defaults"), mode=mode))
+        except ValueError as exc:
+            self.messageGenerated.emit(str(exc), "warning")
             return False
         session_id = uuid4().hex
         cancel_event = self.task_controller.begin(
@@ -1323,6 +1350,8 @@ class CaptureService(QObject):
         mode_text = {"normal": "常规 Pin", "second": "秒 Pin", "offline": "离线 Pin"}.get(mode, "组合 Pin")
         self.openwrt_backend.snapshot = replace(
             self.openwrt_backend.snapshot,
+            wps_entry=entry,
+            capturing_bssids=(),
             progress=CaptureProgress(
                 f"准备{mode_text}",
                 0,
@@ -1333,8 +1362,10 @@ class CaptureService(QObject):
             last_error="",
         )
         self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
+        from modules.capture_services.openwrt.wps_defaults import wps_mode_description
+        timing = wps_mode_description(mode)
         self.messageGenerated.emit(
-            f"开始{mode_text}：{scope_text}。耗时较长，部分路由器会锁定 WPS。",
+            f"开始{mode_text}：{scope_text}。{timing}部分设备会锁定 WPS。",
             "info",
         )
         self._start_openwrt_worker(
@@ -1359,7 +1390,8 @@ class CaptureService(QObject):
     def _on_openwrt_wps_succeeded(self, results):
         """汇总 Pin 结局：成功只报结果文件路径，PIN 与密码永不进消息。"""
 
-        artifacts = self.openwrt_backend.snapshot.artifacts
+        artifacts = tuple(item for item in self.openwrt_backend.snapshot.artifacts
+                          if item.kind != "wps_wpc")
         pins = 0
         psks = 0
         for entry in results:
@@ -1378,19 +1410,10 @@ class CaptureService(QObject):
                         verified=bool(entry.pin_ok),
                     ),
                 )
-            if entry.wpc_file:
-                artifacts = artifacts + (
-                    CaptureArtifact(
-                        "wps_wpc",
-                        entry.wpc_file,
-                        bssid=entry.bssid,
-                        ssid=entry.ssid,
-                        verified=False,
-                    ),
-                )
         self.openwrt_backend.snapshot = replace(
             self.openwrt_backend.snapshot,
             artifacts=artifacts,
+            capturing_bssids=(),
             has_verified_result=self.openwrt_backend.snapshot.has_verified_result or pins > 0,
             last_error="",
         )
@@ -1409,20 +1432,23 @@ class CaptureService(QObject):
     def _on_openwrt_wps_failed(self, summary, detail):
         """WPS 失败保留连接；取消与 SSH 中断按 info 处理。"""
 
-        snapshot = self._task_failure_snapshot(summary)
+        from .openwrt.wps_result_text import failure_message, record_detail
+        record_detail(summary)
+        message = failure_message(summary)
+        snapshot = replace(self._task_failure_snapshot(message), capturing_bssids=())
         self.openwrt_backend.snapshot = snapshot
         self.openwrtSnapshotChanged.emit(snapshot)
         level = "info" if "已取消" in str(summary) or "SSH 连接已断开" in str(summary) else "error"
-        self.messageGenerated.emit(f"WPS 任务未完成：{summary}", level)
+        self.messageGenerated.emit(message, level)
         if level != "info":
-            self._notify_task_result("WPS 结果", f"WPS 任务未完成：{summary}")
+            self._notify_task_result("WPS 结果", message)
         self.task_controller.finish(failed=level == "error")
 
     def _on_openwrt_wps_progress(self, update):
         """发布逐目标 Pin 进度：标题带第几个目标与阶段。"""
 
         snapshot = self.openwrt_backend.snapshot
-        if snapshot.task_type != CaptureTaskType.WPS:
+        if snapshot.task_type != CaptureTaskType.WPS or snapshot.task_state == "stopping":
             return
         if snapshot.task_state == CaptureSessionState.STARTING.value:
             self.task_controller.set_state(CaptureSessionState.CAPTURING)
@@ -1436,16 +1462,36 @@ class CaptureService(QObject):
         phase = str(update.phase or "")
         if phase:
             title += f"（{phase}）"
-        total = max(1, int(update.total or 0))
-        elapsed = min(max(0, int(update.elapsed or 0)), total)
+        candidate = str(getattr(update, "current_pin", "") or "")
+        if not (candidate.isascii() and candidate.isdigit() and len(candidate) in (4, 8)):
+            candidate = ""
+        status = str(getattr(update, "status", "") or "")
+        warning_text = status if "限流" in status or "锁定" in status else ""
+        if status and not warning_text:
+            title += f" · {status}"
+        if not candidate:
+            title = "当前 PIN：等待工具报告 | " + title
+        else:
+            from .openwrt.wps_progress_text import candidate_timing_text
+            title = f"当前 PIN：{candidate} · {candidate_timing_text(update)} | " + title
+        current_bssid = str(getattr(update, "target_bssid", "") or "").strip().upper()
+        capturing = (current_bssid,) if current_bssid and phase != "结束" else ()
+        unlimited = int(update.total or 0) == 0
+        total = max(0, int(update.total or 0))
+        elapsed = max(0, int(update.elapsed or 0))
+        if not unlimited:
+            elapsed = min(elapsed, total)
+        from .openwrt.wps_progress_text import TIMING_NOTE
         self.openwrt_backend.snapshot = replace(
             snapshot,
+            capturing_bssids=capturing,
             progress=CaptureProgress(
                 title,
                 elapsed,
                 total,
-                f"已跑 {elapsed}/{total} 秒。",
-                False,
+                (f"\u5df2\u8dd1 {elapsed} \u79d2\uff08\u4e0d\u9650\u5236\u603b\u65f6\u957f\uff09\u3002" if unlimited else f"\u5df2\u8dd1 {elapsed}/{total} \u79d2\u3002") + TIMING_NOTE,
+                unlimited,
+                warning_text=warning_text,
             ),
         )
         self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
@@ -1573,6 +1619,19 @@ class CaptureService(QObject):
     def _on_openwrt_connect_succeeded(self, result):
         """在主线程处理连接结果；两种指纹确认都不视为失败。"""
 
+        if result.status == "cancelled":
+            self._pending_fingerprint_request = None
+            self._openwrt_password = ""
+            self.openwrt_backend.snapshot = replace(
+                self.openwrt_backend.snapshot, connection_detail=result.detail, last_error="")
+            self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
+            self.settingsMessageGenerated.emit(result.detail, "info")
+            self.task_controller.finish()
+            return
+        if self.openwrt_snapshot.task_state == "stopping":
+            self.task_controller.finish()
+            self.disconnect_openwrt_async()
+            return
         if result.status in {"fingerprint_required", "fingerprint_changed"}:
             self._pending_fingerprint_request = result
             self.openwrt_backend.snapshot = replace(
@@ -1630,8 +1689,10 @@ class CaptureService(QObject):
 
         existing_selection = {item.bssid.upper() for item in self.openwrt_backend.snapshot.access_points if item.selected}
         # 重扫回显：历史上已抓出可用包的 BSSID 直接标“已有可用包”，勾选保留逻辑不变。
+        from .password_target_status import scan_states
+        password_states = scan_states(self.openwrt_backend.snapshot.access_points)
         access_points = tuple(
-            self._apply_verified_history(point, existing_selection)
+            self._apply_verified_history(point, existing_selection, password_states)
             for point in result.access_points
         )
         self.openwrt_backend.snapshot = replace(
@@ -1680,8 +1741,10 @@ class CaptureService(QObject):
         existing_selection = {point.bssid.upper() for point in snapshot.access_points if point.selected}
         access_points = snapshot.access_points
         if update.access_points:
+            from .password_target_status import scan_states
+            password_states = scan_states(snapshot.access_points)
             access_points = tuple(
-                self._apply_verified_history(point, existing_selection)
+                self._apply_verified_history(point, existing_selection, password_states)
                 for point in update.access_points
             )
         remaining = max(0, int(update.total) - int(update.elapsed))

@@ -12,9 +12,9 @@ MAX_ATTEMPTS = 8
 AUTH_METHODS = frozenset({'none', 'password', 'publickey', 'keyboard-interactive',
                           'gssapi-with-mic', 'gssapi-keyex', 'hostbased'})
 ENUMS = {
-    'status': {'started', 'completed', 'failed', 'timeout', 'confirmation_required', 'blocked'},
+    'status': {'started', 'completed', 'failed', 'timeout', 'confirmation_required', 'blocked', 'cancelled'},
     'stage': {'connect_or_handshake', 'tcp_connect', 'ssh_banner', 'ssh_handshake', 'host_key', 'authentication', 'configuration', 'complete'},
-    'reason': {'pending', 'authenticated', 'existing_connection', 'authentication_rejected',
+    'reason': {'cancelled', 'pending', 'authenticated', 'existing_connection', 'authentication_rejected',
                'authentication_timeout', 'authentication_interrupted', 'public_key_algorithm_mismatch', 'auth_method_not_allowed',
                'host_key_confirmation_required', 'host_key_changed', 'connection_timeout',
                'connection_refused', 'connection_error', 'windows_access_denied', 'name_resolution_failed',
@@ -32,7 +32,7 @@ EXCEPTIONS = {'AuthenticationException', 'BadAuthenticationType', 'PasswordRequi
               'HostKeyConfirmationRequired', 'HostKeyChangedError', 'TimeoutError', 'OSError',
               'ConnectionRefusedError', 'ConnectionResetError', 'gaierror', 'EOFError',
               'SSHException', 'IncompatiblePeer', 'NoValidConnectionsError', 'ValueError',
-              'FileNotFoundError', 'ImportError', 'Exception'}
+              'FileNotFoundError', 'ImportError', 'InterruptedError', 'Exception'}
 
 
 def safe_row(row):
@@ -145,7 +145,9 @@ class LoginDiagnostics:
             fields['stage'] = getattr(self._local, 'row', {}).get('stage', 'connect_or_handshake')
             fields.update(status='failed', exception_type=name if name in EXCEPTIONS else 'Exception', reason='unexpected_error')
             from .ssh_login_probe import PrivateKeyLoadError
-            if isinstance(error, PrivateKeyLoadError):
+            if isinstance(error, InterruptedError):
+                fields.update(status="cancelled", reason="cancelled")
+            elif isinstance(error, PrivateKeyLoadError):
                 fields.update(stage='configuration', reason=error.reason)
             elif isinstance(exc, HostKeyConfirmationRequired):
                 fields.update(status='confirmation_required', stage='host_key', reason='host_key_confirmation_required')
@@ -210,13 +212,13 @@ class LoginDiagnostics:
 
 def record_login(operation):
     @wraps(operation)
-    def wrapped(self, password='', expected_fingerprint='', timeout=15, auth_method='password', private_key_path=''):
+    def wrapped(self, password='', expected_fingerprint='', timeout=15, auth_method='password', private_key_path='', cancel_event=None):
         journal = self.login_diagnostics
         reused = self.connected
         journal.begin(self, password, timeout, auth_method, private_key_path)
         started = time.monotonic()
         try:
-            result = operation(self, password, expected_fingerprint, timeout, auth_method, private_key_path)
+            result = operation(self, password, expected_fingerprint, timeout, auth_method, private_key_path, cancel_event=cancel_event)
         except Exception as exc:
             journal.finish(time.monotonic() - started, exc)
             raise

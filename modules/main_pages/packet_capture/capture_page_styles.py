@@ -201,6 +201,9 @@ class CapturePageStyleManager:
         for table in root.findChildren(AccessPointTable):
             table.set_light_theme(self.page.light_theme)
             table.refresh_scale()
+        from modules.common_widgets.discrete_tick_slider import DiscreteTickSlider
+        for slider in root.findChildren(DiscreteTickSlider):
+            slider.set_light_theme(self.page.light_theme)
         for combo in root.findChildren(CommonComboBox):
             combo.set_light_theme(self.page.light_theme)
         refresh_tool_button_icons(root, self.page.light_theme)
