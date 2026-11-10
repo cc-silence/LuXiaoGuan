@@ -9,7 +9,8 @@ from modules.platform_services import application_paths
 
 class PortableSettingsPolicyTests(unittest.TestCase):
     def test_windows_ignores_other_installations_appdata_and_writes_only_local(self):
-        with tempfile.TemporaryDirectory() as folder, patch.object(application_paths, 'is_linux', return_value=False):
+        with tempfile.TemporaryDirectory() as folder, patch.object(application_paths, 'is_linux', return_value=False), \
+                patch.dict('os.environ', {'ROUTERMANAGER_USER_CONFIG_DIR': ''}):
             root=Path(folder); old=root/'old-user'/'settings.json'; first=root/'app-a'/'config'/'settings.json'; second=root/'app-b'/'config'/'settings.json'
             ConfigPair(old, old).write_json({'value':'legacy'})
             a=application_settings_pair(old, first); b=application_settings_pair(old, second)

@@ -75,4 +75,4 @@ class ScanInterfaceSelectionTests(unittest.TestCase):
     def test_fallback_records_which_candidate_was_selected(self):
         value=self.call(ThreeRadioDevice())
         self.assertEqual(value["interface_selection"],dict(
-            candidates=2,unavailable=1,selected_index=2,interface="wlan1-1"))
+            candidates=2,unavailable=1,selected_index=2,interface="wlan1-1",radio_target=False))
