@@ -128,7 +128,8 @@ class UpdateTransfer(QThread):
             raise ValueError("Not enough disk space for download and rollback")
         channels=self.channels
         if channels is None:
-            config=json.loads((self.root/"config/app_update.json").read_text(encoding="utf-8")); mode=config.get("network_mode","auto")
+            from .config import load_update_config
+            config=load_update_config(self.root/"config/app_update.json", "win-x64"); mode=config.get("network_mode","auto")
             channels=allowed_channels(None,"direct" if mode=="direct" else "proxy")
         if not channels: raise ValueError("No update network route")
         done=0; total=plan["download_bytes"]

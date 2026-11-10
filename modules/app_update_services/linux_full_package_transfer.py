@@ -72,7 +72,8 @@ def _receive(worker,release,staged,check):
     channels=worker.channels
     if channels is None:
         from modules.platform_services.update_dispatch import channel_config
-        config=json.loads(channel_config(worker.root).read_text(encoding='utf-8'))
+        from .config import load_update_config
+        config=load_update_config(channel_config(worker.root), 'linux-x64')
         channels=allowed_channels(None,'direct' if config.get('network_mode')=='direct' else 'proxy')
     from .sources import package_routes, release_response
     channels=package_routes(release.url,release.mirrors,channels)
