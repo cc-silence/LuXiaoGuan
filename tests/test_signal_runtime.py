@@ -205,7 +205,7 @@ class SelectedRadioScanTests(unittest.TestCase):
         self.assertEqual((action, values), ("scan", {"scan_radio": "radio1"}))
         cancel, message = threading.Event(), Mock()
         operation(cancel, message)
-        manager.scan.assert_called_once_with(10, cancel, message, radio="radio1", on_results=None)
+        manager.scan.assert_called_once_with(10, cancel, message, radio="radio1", on_results=None, on_started=None)
 
 
 class ScanStateTests(unittest.TestCase):

@@ -39,12 +39,13 @@ def prepare_takeover(takeover, ssh, workspace, session_id, phy, cancel_event,
         journal_name = f"takeover-journal-{safe_tag}.json" if safe_tag else "takeover-journal.json"
         try:
             workspace.local_dir.mkdir(parents=True, exist_ok=True)
-            # 快照含路由器无线明文密码，落盘前脱敏；内存原文仅用于本次映射，不再外传。
-            redacted = re.sub(r"\.key='[^']*'", ".key='***'", snapshot_text)
+            # Persist only the already-resolved radio and interface identities.
+            from .recovery_identity_snapshot import recovery_identity_snapshot
+            safe_snapshot = recovery_identity_snapshot(snapshot_text)
             (workspace.local_dir / snapshot_name).write_text(
-                redacted, encoding="utf-8", errors="replace"
+                safe_snapshot, encoding="utf-8"
             )
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             raise RuntimeError(f"无线快照本地落盘失败，拒绝接管无线网卡：{exc}") from exc
         record = takeover.prepare_config_takeover(phy, radio, session_id, cancel_event)
         journal = SessionJournal(

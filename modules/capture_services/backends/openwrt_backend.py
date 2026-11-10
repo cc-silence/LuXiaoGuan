@@ -602,7 +602,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         except (ValueError, IndexError):
             return None
 
-    def _ensure_remote_tmp(self, cancel_event=None):
+    def _ensure_remote_tmp(self, cancel_event=None, *, allow_unavailable_password_record=False):
         """保证远端 /tmp 可用空间；不足先做一次自家残留清理再复核，仍不足拒绝。
 
         真机证据：/tmp 写满会导致 netifd 无线配置重载生成空接口（嘴上说 up，
@@ -610,7 +610,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         之前就拦下，给出明确清理指引。
         """
 
-        self.reconnect_cleanup.require_ready()
+        self.reconnect_cleanup.require_ready(allow_unavailable_password_record=allow_unavailable_password_record)
         free_mb = self._check_remote_tmp(cancel_event)
         if free_mb is None or free_mb >= self._TMP_MIN_FREE_MB:
             return
@@ -704,7 +704,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
             except (OSError, ValueError):
                 problems.append(f"{path.name} 无法解析，已保留。")
                 continue
-            if journal is None or not journal.radio or not journal.interfaces:
+            if journal is None or not journal.radio or (not journal.interfaces and not journal.config_token):
                 continue
             if journal.cleanup_stage == "restored":
                 continue
@@ -846,18 +846,20 @@ class OpenWrtCaptureBackend(CaptureBackend):
     def scan_wifi(self, session_id, settings, cancel_event=None, progress_callback=None, message_callback=None):
         """执行单次受控 Wi-Fi 扫描，并在 finally 精确恢复远端临时资源。
 
-        参数：settings 是已保存的普通扫描配置。返回 WifiScanResult。副作用：仅创建和
-        删除本任务 monitor/目录，短时运行 airodump-ng；不改 UCI、不重载无线。
+        参数：settings 是已保存的普通扫描配置。返回 WifiScanResult。
+        When a confirmed single-channel radio is busy and the user agrees, the
+        shared takeover flow temporarily changes wireless state and restores it.
         """
 
         if not self.ssh_client.connected:
             raise RuntimeError("OpenWrt 尚未连接，不能开始 Wi-Fi 扫描。")
-        self._ensure_remote_tmp(cancel_event)
+        self._ensure_remote_tmp(cancel_event, allow_unavailable_password_record=True)
         band = "5G" if settings.get("band") == "5G" else "2.4G"
-        self.reconnect_cleanup.require_ready()
+        self.reconnect_cleanup.require_ready(allow_unavailable_password_record=True)
         workspace = CaptureWorkspaceFactory.create(session_id, local_session_root(), "/tmp/winbox-capture")
         self._running = True
         primary_error = None
+        takeover_record = None
         try:
             radio = self._find_scan_radio(
                 band, cancel_event, idle_radio_only=bool(settings.get("idle_radio_only", False)),
@@ -870,7 +872,21 @@ class OpenWrtCaptureBackend(CaptureBackend):
                     (expected_fingerprint and expected_fingerprint != self.ssh_client.host_fingerprint)):
                 raise RuntimeError("扫描条件或登录连接已变化，请重新开始扫描。")
             require_management_link(self.command_runner, radio, cancel_event)
+            from modules.capture_services.openwrt.scan_channel_policy import scan_takeover_needed
+            takeover_needed = scan_takeover_needed(self.command_runner, radio, cancel_event)
+            if takeover_needed:
+                if not (settings.get("scan_single_channel_confirmed") is True
+                        and expected_phy == radio and expected_fingerprint == self.ssh_client.host_fingerprint):
+                    raise RuntimeError('\u65e0\u7ebf\u7f51\u5361\u72b6\u6001\u5df2\u53d8\u5316\uff0c\u672c\u6b21\u626b\u63cf\u9700\u8981\u91cd\u65b0\u786e\u8ba4\u63a5\u7ba1\u3002\u8bf7\u91cd\u65b0\u5f00\u59cb\u626b\u63cf\u3002')
+                # Scanning may bypass an unreadable password recovery record; wireless
+                # configuration changes must retain the stricter recovery admission.
+                self.reconnect_cleanup.require_ready()
             self.workspace_manager.create(workspace, cancel_event)
+            if takeover_needed:
+                takeover_record = self._maybe_takeover(
+                    workspace, session_id, radio,
+                    dict(settings, allow_radio_takeover=True), cancel_event,
+                    task_type="scan", message_callback=message_callback, expected_band=band)
             record = self.radio_session.create(
                 session_id, radio, band, cancel_event=cancel_event,
                 idle_radio_only=bool(settings.get("idle_radio_only", False)),
@@ -893,7 +909,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
             primary_error = _ssh_lost_error(self.ssh_client, exc)
             raise _fail_with_site(primary_error, workspace) from exc
         finally:
-            self._finish_capture_task(workspace, primary_error)
+            self._finish_capture_task(workspace, primary_error, takeover_record, message_callback)
 
     @with_capture_logs
     def capture_pmkid(
@@ -1951,7 +1967,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 return ["SSH 会话不可用，临时接口与接管恢复待下次连接后核实清理。"]
             return []
         errors = []
-        if any(h.program in ("airbase-ng", "hcxdumptool") and str(h.remote_work_dir) == str(workspace.remote_dir)
+        if any(h.program in ("airbase-ng", "hcxdumptool", "airodump-ng") and str(h.remote_work_dir) == str(workspace.remote_dir)
                for h in self.process_manager.handles()):
             return ["辅助采集进程停止尚未确认，无线恢复暂缓；请重新登录后清理。"]
         _say("正在删除临时无线接口…")
@@ -2016,7 +2032,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
             reason="restore_unconfirmed" if cleanup_errors else "restore_confirmed")
         if not self.ssh_client.connected:
             cleanup_errors.append("SSH 会话不可用，远端工作目录待下次连接后核实清理。")
-        elif any(h.program in ("airbase-ng", "hcxdumptool") and str(h.remote_work_dir) == str(workspace.remote_dir)
+        elif any(h.program in ("airbase-ng", "hcxdumptool", "airodump-ng") and str(h.remote_work_dir) == str(workspace.remote_dir)
                  for h in self.process_manager.handles()):
             cleanup_errors.append("辅助进程停止未确认，保留远端任务目录等待重连清理。")
         else:

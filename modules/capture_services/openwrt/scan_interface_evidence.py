@@ -15,6 +15,7 @@ def record_scan_selection(runner, result, radio):
     interface = row.get("interface")
     if not isinstance(interface, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,64}", interface):
         return
+    target = "radio" if row.get("radio_target") is True else "interface"
     journal.record("workflow", operation="wireless_scan_interface", status="completed", stage="select_radio",
                    reason="verified", candidate_count=total, unavailable_count=skipped,
-                   candidate_index=selected, scan_interface=interface)
+                   candidate_index=selected, scan_interface=interface, scan_target=target)

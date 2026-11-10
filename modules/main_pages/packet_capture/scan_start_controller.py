@@ -61,6 +61,22 @@ class ScanStartController(QObject):
                 return
             self._cancelled()
             return
+        settings.pop("scan_single_channel_confirmed", None)
+        if plan.scan_takeover_required and settings.get("skip_scan_takeover_confirmation") is not True:
+            dialog = ConfirmDialog('\u626b\u63cf\u9700\u8981\u4e34\u65f6\u63a5\u7ba1\u65e0\u7ebf\u7f51\u5361', '\u8be5\u9891\u6bb5\u65e0\u7ebf\u7f51\u5361\u6b63\u5728\u627f\u8f7d\u4fe1\u53f7\u6216\u6865\u63a5\uff0c\u5e76\u4e14\u4e00\u6b21\u53ea\u80fd\u5de5\u4f5c\u5728\u4e00\u4e2a\u4fe1\u9053\u3002\n\n\u7ee7\u7eed\u540e\u5c06\u5148\u5907\u4efd\u5e76\u4e34\u65f6\u505c\u7528\u8be5\u7f51\u5361\u7684\u4fe1\u53f7\u548c\u6865\u63a5\uff0c\u518d\u626b\u63cf\u3002\u626b\u63cf\u7ed3\u675f\u3001\u53d6\u6d88\u6216\u5931\u8d25\u65f6\u4f1a\u5c1d\u8bd5\u6062\u590d\u5e76\u6838\u5b9e\u3002\n\n\u63a5\u7ba1\u671f\u95f4\u8be5\u9891\u6bb5\u65e0\u7ebf\u548c\u6865\u63a5\u4f1a\u4e2d\u65ad\u3002\u8bf7\u901a\u8fc7\u7f51\u7ebf\u6216\u53e6\u4e00\u5f20\u65e0\u7ebf\u7f51\u5361\u4fdd\u6301\u7ba1\u7406\u8fde\u63a5\u3002', page, yes_text='\u786e\u8ba4\u63a5\u7ba1\u5e76\u626b\u63cf', no_text='\u53d6\u6d88\u626b\u63cf', remember_option_text='\u4e0b\u6b21\u4e0d\u518d\u63d0\u793a')
+            if dialog.exec() != ConfirmDialog.Accepted:
+                self._cancelled()
+                return
+            if dialog.remember_checked:
+                preference = "skip_scan_takeover_confirmation"
+                previous = page.settings["openwrt"].get(preference, False)
+                page.settings["openwrt"][preference] = True
+                if not page._save_settings_with_feedback():
+                    page.settings["openwrt"][preference] = previous
+                    return
+                settings[preference] = True
+        if plan.scan_takeover_required:
+            settings["scan_single_channel_confirmed"] = True
         settings["management_scan_phy"] = plan.phy
         settings["management_scan_fingerprint"] = plan.fingerprint
         self._launch(settings)

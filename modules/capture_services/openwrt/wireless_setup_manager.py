@@ -112,7 +112,16 @@ class WirelessSetupManager:
                         message = ("配置保存核验未通过，已尝试恢复原配置。"
                                    if action == "save_only_commit" else messages[code])
                         raise SignalError(code, message + "（核验项：" + field + "）")
-                raise SignalError(code, messages.get(code, "路由器无线管理请求失败（" + re.sub(r"[^a-zA-Z0-9_.-]", "", code)[:90] + "），请检查组件及权限。"))
+                error = SignalError(code, messages.get(code, "路由器无线管理请求失败（" + re.sub(r"[^a-zA-Z0-9_.-]", "", code)[:90] + "），请检查组件及权限。"))
+                native = result.get("native_error")
+                if type(native) is int and 0 <= native <= 255:
+                    error.native_error = native
+                interface = result.get("scan_interface")
+                if isinstance(interface, str) and re.fullmatch(r"[A-Za-z0-9_.:-]{1,64}", interface):
+                    error.scan_interface = interface
+                if result.get("scan_target") in ("radio", "interface"):
+                    error.scan_target = result["scan_target"]
+                raise error
             if not isinstance(result.get("result"), dict):
                 raise ValueError()
             return result["result"]
@@ -265,7 +274,7 @@ exit 1
             raise SignalError("installation", "relayd 安装后仍未检测到程序和启动脚本，未开始桥接。")
         return after
 
-    def scan(self, seconds, cancel, message, *, radio=None, on_results=None):
+    def scan(self, seconds, cancel, message, *, radio=None, on_results=None, on_started=None):
         """Scan existing or temporary interfaces without changing saved configuration."""
         if type(seconds) is not int or not 5 <= seconds <= 120:
             raise ValueError("扫描时间需要在 5 到 120 秒之间。")
@@ -283,6 +292,8 @@ exit 1
             raise SignalError("radio", "没有当前可用的无线网卡，请检查驱动或等待网卡状态切换完成。")
         message("开始扫描：" + "、".join(r["name"] for r in radios) + "，采集时间 " + str(seconds) + " 秒；已发起的原生扫描最多等待 " + str(SCAN_COMMAND_TIMEOUT_SECONDS) + " 秒完成。", "info")
         deadline = time.monotonic() + seconds
+        if on_started is not None:
+            on_started(deadline)
         networks = {}
         published_at = None
         published = None
@@ -332,6 +343,9 @@ exit 1
                             published = batch
                         published_at = now
                 except SignalError as exc:
+                    if exc.code != "cancelled":
+                        from .scan_failure_evidence import record_scan_failure
+                        record_scan_failure(self.runner, env.data, radio, interface, exc)
                     if exc.code in ("cancelled", "disconnected", "transport", "scan_recovery", "scan_interface_busy"):
                         raise
                     failures.append(str(exc))

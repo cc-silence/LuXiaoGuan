@@ -104,6 +104,8 @@ class RouterLoginPage(QWidget):
             outer.addWidget(self.scroll_area, 1)
 
         self.dependency_prompt = None
+        from .recovery_access_prompt import RecoveryAccessPrompt
+        self._recovery_access_prompt = RecoveryAccessPrompt(self)
         service.router_management.passwordInvalidated.connect(self._password_invalidated)
         service.openwrtSnapshotChanged.connect(self._apply_snapshot)
         self._apply_snapshot(service.openwrt_snapshot)

@@ -486,7 +486,7 @@ end
 local ok,result=pcall(run)
 bus:close()
 if ok then io.write(json.stringify({ok=true,result=result}))
-else io.write(json.stringify({ok=false,code=type(result)=="table" and result.code or "internal",verification=type(result)=="table" and result.verification or nil,actual_type=type(result)=="table" and result.actual_type or nil,expected_type=type(result)=="table" and result.expected_type or nil})) end
+else io.write(json.stringify({ok=false,code=type(result)=="table" and result.code or "internal",native_error=type(result)=="table" and result.native_error or nil,scan_interface=type(result)=="table" and result.scan_interface or nil,scan_target=type(result)=="table" and result.scan_target or nil,verification=type(result)=="table" and result.verification or nil,actual_type=type(result)=="table" and result.actual_type or nil,expected_type=type(result)=="table" and result.expected_type or nil})) end
 '''
 
 BOOT = BOOT.replace("__CHECKED_APPLY__", CHECKED_APPLY).replace("__CHECKED_ACTIONS__", CHECKED_ACTIONS).replace("__CAPABILITIES__", NETIFD_BOOL_LUA + CAPABILITIES_LUA).replace("__DEVICE_OPTIONS__", ",".join(json.dumps(k) for k in RADIO_SETTINGS)).replace("__INTERFACE_OPTIONS__", ",".join(json.dumps(k) for k in IFACE_SETTINGS)).replace("__SCAN__", SCAN).replace("__ORPHANS__", ORPHANS).replace("__RELOCATION__", RELOCATION).replace("__PENDING__", PENDING).replace("__WIRELESS_RUNTIME__", WIRELESS_RUNTIME).replace("__SAVE_ONLY__", SAVE_ONLY).replace("__COMMON_SETTINGS__", COMMON_SETTINGS).replace("__IDENTITY__", IDENTITY).replace("__BRIDGE_HELPERS__", BRIDGE).replace("__BRIDGE_STATUS__", STATUS).replace("__BRIDGE_TOGGLE__", TOGGLE).replace("__DELETE__", DELETE).replace("__IFACE_KEYS__", ",".join(json.dumps(k) for k in IFACE_KEYS)).replace("__RADIO_KEYS__", ",".join(json.dumps(k) for k in RADIO_KEYS))
@@ -513,7 +513,7 @@ for method in apply confirm rollback;do
  case "$rpcmethods" in *\"$method\"*) :;; *) rollback=0;; esac
 done
 printf 'rollback=%s\n' "$rollback"
-if command -v relayd >/dev/null 2>&1 && test -x /etc/init.d/relayd;then printf 'relayd=1\n';else printf 'relayd=0\n';fi 
+if command -v relayd >/dev/null 2>&1 && test -x /etc/init.d/relayd;then printf 'relayd=1\n';else printf 'relayd=0\n';fi
 '''
 
 def wireless_command(action, lua_bin="lua", **values):

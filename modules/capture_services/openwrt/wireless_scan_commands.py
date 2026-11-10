@@ -22,7 +22,11 @@ local function scan_native()
   -- when addressed by a physical radio; it does not require an AP or UCI apply.
   local ok,result=pcall(rpc,"iwinfo","scan",{device=phy})
   if not cleared() then fail("scan_recovery") end
-  if not ok then fail("scan_native") end
+  if not ok then
+   local code=type(result)=="table" and result.code or ""
+   local native=type(code)=="string" and code:match("^rpc_iwinfo_scan_(%d+)$") or nil
+   error({code="scan_native",native_error=native and tonumber(native) or nil},0)
+  end
   if rpc("iwinfo","phyname",{section=req.radio}).phyname~=phy then fail("radio") end
   return result
  end
@@ -40,6 +44,19 @@ local function scan_native()
  local rs=status[req.radio]
  if matches[req.interface] and (matches[req.interface]~=1 or owners[req.interface]~=req.radio) then fail("radio") end
  if type(rs)~="table" or not rs.up or rs.pending then fail("radio") end
+ -- Match the router web scan target only while an active station is present.
+ -- The target remains the verified radio, never a guessed interface or PHY.
+ local station_active=false
+ local c=clean(true)
+ for _,iface in ipairs(rs.interfaces or {}) do
+  local section=iface.section
+  local cfg=type(section)=="string" and c:get_all("wireless",section) or nil
+  if type(cfg)=="table" and cfg.device==req.radio and cfg.mode=="sta" and
+     type(iface.ifname)=="string" and matches[iface.ifname]==1 and owners[iface.ifname]==req.radio then
+   local dev,err=bus:call("network.device","status",{name=iface.ifname})
+   if not err and type(dev)=="table" and dev.up==true then station_active=true end
+  end
+ end
  local candidates,seen={req.interface},{[req.interface]=true}
  for _,iface in ipairs(rs.interfaces or {}) do
   local name=iface.ifname
@@ -56,8 +73,16 @@ local function scan_native()
    local device,err=bus:call("network.device","status",{name=iface})
    if err and err~=2 then fail("scan_interface_read") end
    if not err and type(device)=="table" and device.up==true then
-    local result=rpc("iwinfo","scan",{device=iface})
-    result.interface_selection={candidates=#candidates,unavailable=unavailable,selected_index=index,interface=iface}
+    -- The nl80211 backend recognizes radio pseudo devices only by this prefix.
+    -- Other valid configuration names retain the verified interface scan path.
+    local use_radio=station_active and req.radio:sub(1,5)=="radio"
+    local target=use_radio and req.radio or iface
+    local ok,result=pcall(rpc,"iwinfo","scan",{device=target})
+    if not ok then
+     if type(result)=="table" then result.scan_interface=iface;result.scan_target=use_radio and "radio" or "interface" end
+     error(result,0)
+    end
+    result.interface_selection={candidates=#candidates,unavailable=unavailable,selected_index=index,interface=iface,radio_target=use_radio}
     return result
    end
   end
