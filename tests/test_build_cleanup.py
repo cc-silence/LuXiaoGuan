@@ -91,6 +91,12 @@ class BuildCleanupTests(unittest.TestCase):
             return resolve(path,*args,**kwargs)
         with patch.object(path_type,'resolve',expanded):
             self.assertEqual(cleanup.guarded(self.root,target),self.root.resolve()/'build'/'long-name')
+        alias=self.root.parent/'SHORTROOT'
+        def expand_root(path,*args,**kwargs):
+            if path==alias:return resolve(self.root,*args,**kwargs)
+            return resolve(path,*args,**kwargs)
+        with patch.object(path_type,'resolve',expand_root):
+            self.assertEqual(cleanup.guarded(alias,target),target.resolve())
         def inspect(path,*args,**kwargs):
             if path==target:return SimpleNamespace(st_mode=stat.S_IFDIR,st_file_attributes=0x400)
             return lstat(path,*args,**kwargs)
