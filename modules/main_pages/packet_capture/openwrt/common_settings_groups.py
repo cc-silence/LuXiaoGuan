@@ -36,7 +36,7 @@ class SettingsCardGroups:
         for grid, (_title, cards) in zip(self.grids, self.groups):
             for row in range(grid.rowCount()):
                 grid.setRowStretch(row, 0)
-            for column in range(3):
+            for column in range(max(grid.columnCount(), columns)):
                 grid.setColumnStretch(column, 1 if column < columns else 0)
             for card in cards:
                 grid.removeWidget(card)

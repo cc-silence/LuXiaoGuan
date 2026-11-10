@@ -106,6 +106,9 @@ class PacketCapturePage(QFrame):
             self._on_verified_history_changed
         )
         self.capture_service.taskFinishedNotice.connect(self._show_task_result_notice)
+        self.capture_service.wpsPinFound.connect(self._on_wps_pin_found)
+        self._pending_wps_pins = []
+        self._wps_pin_dialog_open = False
         self.capture_service.takeoverProbeFinished.connect(self._on_takeover_probe_finished)
         # 射频预检的待认领请求（probe_id, 设置副本, 勾选快照），结果过期直接丢弃。
         self._pending_takeover_probe = None
@@ -177,6 +180,55 @@ class PacketCapturePage(QFrame):
             self.password_notices.show_summary(self.info_panel.display_text(title), self.info_panel.display_text(text))
             return
         MessageDialog(self.info_panel.display_text(title), self.info_panel.display_text(text), self).exec()
+
+
+    def _on_wps_pin_found(self, payload):
+        """主线程显示已获取的 PIN；只弹窗，不写入信息窗或日志。"""
+
+        if not isinstance(payload, dict):
+            return
+        pin = str(payload.get("pin", "") or "")
+        if not (pin.isascii() and pin.isdigit() and len(pin) == 8):
+            return
+        self._pending_wps_pins.append(dict(payload))
+        if self._wps_pin_dialog_open:
+            return
+        self._wps_pin_dialog_open = True
+        try:
+            while self._pending_wps_pins:
+                self._show_wps_pin_dialog(self._pending_wps_pins.pop(0))
+        finally:
+            self._wps_pin_dialog_open = False
+        ssid = str(payload.get("ssid") or "")
+        bssid = str(payload.get("bssid") or "")
+        self.info_panel.append_info(f"已pin出：{ssid} ({bssid})，PIN: {pin}", "success")
+
+
+    def _show_wps_pin_dialog(self, payload):
+        ssid = str(payload.get("ssid") or "")
+        bssid = str(payload.get("bssid") or "")
+        pin = str(payload.get("pin") or "")
+        psk = str(payload.get("psk") or "")
+        saved = bool(payload.get("saved"))
+
+        lines = [
+            f"目标名称 (SSID)：{ssid or '（未知）'}",
+            f"设备 MAC (BSSID)：{bssid}",
+            "",
+            f"【 跑出的 PIN 码 】： {pin}",
+        ]
+        if psk:
+            lines.append(f"【 跑出的 WiFi 密码 】： {psk}")
+
+        lines.append("")
+        if saved:
+            lines.append("✓ 已自动记住该 PIN 码；下次点击“开始秒 Pin”或“高级 Pin”时将优先尝试。")
+        else:
+            lines.append("⚠ 未能自动写入系统凭据库，请手动记录上方 PIN 码。")
+
+        lines.append("提示：如果因路由器 WPS 锁定而中断，请在高级 Pin 中手动输入该 PIN 码继续验证。")
+
+        MessageDialog("WPS 结果汇报：成功捕获", "\n".join(lines), self).exec()
 
 
     def _save_openwrt_settings(self):
@@ -252,7 +304,7 @@ class PacketCapturePage(QFrame):
             self.capture_service.set_openwrt_password_paused(action == "pause_password")
             return
         if action == "wps":
-            self._start_openwrt_wps("second")
+            self._prompt_quick_wps()
             return
         if action == "advanced_wps_confirmed":
             dialog_mode = str(
@@ -773,6 +825,52 @@ class PacketCapturePage(QFrame):
             return
         if not self.capture_service.capture_openwrt_password_async(settings, selected):
             self.info_panel.append_info("当前任务条件不满足或已有任务运行，不能开始猜密码。", "warning")
+
+    def _prompt_quick_wps(self):
+        """Ask for per-candidate seconds and online rounds before a quick WPS task."""
+        defaults = (self.settings.get("openwrt", {}) or {}).get("wps_defaults", {}) or {}
+        from .packet_capture.openwrt.quick_wps_dialog import QuickWpsDialog
+        dialog = QuickWpsDialog(defaults, self, clear_callback=self._clear_remembered_wps_pins)
+        try:
+            if dialog.exec() != QuickWpsDialog.Accepted:
+                return
+            values = dialog.get_settings()
+        finally:
+            dialog.deleteLater()
+        openwrt = self.settings.setdefault("openwrt", {})
+        wps = openwrt.setdefault("wps_defaults", {})
+        wps.update(values)
+        if not self._save_settings_with_feedback():
+            return
+        self._start_openwrt_wps("second", entry="quick")
+
+    def _clear_remembered_wps_pins(self):
+        """Delete remembered PINs for the currently selected targets only."""
+        from modules.capture_services.openwrt.wps_remembered_pin import credential_target, delete_pin
+        from modules.platform_services.runtime import is_linux
+        snapshot = self.capture_service.openwrt_snapshot
+        selected = [point.bssid for point in snapshot.access_points if point.selected]
+        if not selected:
+            self.info_panel.append_info("请先勾选要清除记住 PIN 的目标。", "warning")
+            return
+
+        def done(_value, error, bssid):
+            if error is None:
+                self.info_panel.append_info(f"已清除 {bssid} 记住的 PIN。", "info")
+            else:
+                self.info_panel.append_info(f"清除 {bssid} 记住的 PIN 失败：{error}", "warning")
+
+        for bssid in selected:
+            try:
+                if is_linux():
+                    self.capture_service.credentials.submit(
+                        "delete", credential_target(bssid), "", "", self,
+                        lambda value, error, b=bssid: done(value, error, b))
+                else:
+                    delete_pin(bssid)
+                    done(None, None, bssid)
+            except Exception as exc:
+                done(None, exc, bssid)
 
     def _start_openwrt_wps(self, mode, *, entry="quick"):
         """验证连接、目标与同频后，在主线程确认授权并启动 WPS 任务。

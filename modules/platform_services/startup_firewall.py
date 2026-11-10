@@ -76,7 +76,7 @@ def ensure_startup_firewall_rules(progress=None):
             _AUDIT_COMPLETE=False
             _AUDIT_ROUTE=route
         if route=='ipsec':
-            return AuditMessages(['防火墙服务已禁用，登录时将核对 IP 安全策略并为目标 SSH 端口添加放行。'],route)
+            return AuditMessages(['防火墙服务已禁用，跳过防火墙规则添加；登录优先直接连接，仅在连接被本机拒绝时尝试 IP 安全策略放行。'],route)
         if route=='not_applicable':
             return AuditMessages(['Windows network policy audit is not applicable on this platform.'],route)
         if _AUDIT_COMPLETE:

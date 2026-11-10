@@ -16,9 +16,13 @@ def header_state(row, snapshot, default_text, default_kind):
         if row.running == 'inactive' and not snapshot.stale:
             return enabled, 'ready', ' \u00b7 \u94fe\u63a5\u5931\u8d25', 'blocked', row.runtime_note
         return unknown
+    if any(n.connection_state == 'connecting' for n in networks):
+        return enabled, 'ready', ' \u00b7 \u8fde\u63a5\u4e2d', 'unknown', ''
+    if any(n.connection_state == 'unknown' for n in networks):
+        return unknown
     if not all(n.association_known for n in networks):
         return unknown
-    if not all(n.associated for n in networks):
+    if not all(n.associated and n.connection_state == 'connected' for n in networks):
         return enabled, 'ready', ' \u00b7 \u94fe\u63a5\u5931\u8d25', 'blocked', ''
     prefix = enabled + ' \u00b7 \u8fde\u63a5\u6210\u529f'
     proofs = [n.internet for n in networks]

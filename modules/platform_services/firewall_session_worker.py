@@ -77,6 +77,14 @@ def serve_connection(connection, apply=None, self_test_only=False, parent_pid=0)
                     result=apply(request)
             except Exception as exc:
                 result={"success":False,"error":str(exc),"timings":getattr(exc,"firewall_timings",{})}
+                from .ipsec_verification import safe_evidence
+                evidence=safe_evidence(getattr(exc,"verification",None))
+                if evidence:result["verification"]=evidence
+                from .ipsec_command_diagnostics import safe_commands
+                commands=safe_commands(getattr(exc,'ipsec_commands',None))
+                if commands:result['commands']=commands
+                code=getattr(exc,'ipsec_exit_code',None)
+                if type(code) is int:result['native_error']=code
             try:
                 send_json(connection,result)
             except (EOFError,OSError):

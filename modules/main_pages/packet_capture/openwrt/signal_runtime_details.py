@@ -45,7 +45,8 @@ def strength(signal, noise=None):
 
 def matching_networks(row, snapshot):
     return tuple(n for n in snapshot.wireless_status.networks
-                 if (n.section, n.radio, n.mode) == (row.section, row.radio, row.mode))
+                 if (n.section, n.radio, n.mode) == (row.section, row.radio, row.mode)
+                 and (row.mode != 'sta' or n.ssid == (row.runtime_ssid or row.ssid)))
 
 
 def runtime_detail_text(row, snapshot, private=False):

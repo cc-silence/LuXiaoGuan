@@ -104,6 +104,7 @@ class RouterLoginPage(QWidget):
             outer.addWidget(self.scroll_area, 1)
 
         self.dependency_prompt = None
+        service.router_management.passwordInvalidated.connect(self._password_invalidated)
         service.openwrtSnapshotChanged.connect(self._apply_snapshot)
         self._apply_snapshot(service.openwrt_snapshot)
 
@@ -155,9 +156,18 @@ class RouterLoginPage(QWidget):
         settings = self._credential_settings()
         return (settings["host"].casefold(), settings["port"], settings["user"])
 
+    def _password_invalidated(self, settings):
+        identity = (str(settings.get("host", "")).casefold(), settings.get("port", 22), settings.get("user", "root"))
+        if identity == self._credential_identity():
+            self._credential_ui.intent += 1
+            self.connection.password.clear()
+
     def _load_saved_password(self):
         """按当前地址加载 Windows 凭据；失败时保留空密码并显示原因。"""
 
+        reset_credentials = getattr(getattr(self.service, 'router_management', None), 'factory_credentials', None)
+        if reset_credentials is not None and reset_credentials.is_pending(self._credential_settings()) is True:
+            return False
         if self._credential_ui.enabled:
             return self._credential_ui.load()
         try:

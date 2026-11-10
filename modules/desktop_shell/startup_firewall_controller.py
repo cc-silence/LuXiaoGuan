@@ -89,14 +89,23 @@ class StartupFirewallController(QObject):
                 raise InterruptedError("登录已取消")
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                raise TimeoutError("防火墙检查超时，尚未连接路由器；请检查管理员授权窗口后重试。")
+                raise TimeoutError("防火墙检查超时，自动放行未完成；请检查管理员授权窗口后重试。")
             if self._ready.wait(min(remaining, 0.1)):
                 break
         if self._error:
             raise OSError(self._error)
 
     def prepare_connection(self, address, port, cancel_event):
-        """Prepare only this login target after the ordinary startup audit."""
+        """Return optional repair; firewall audit is never a login prerequisite."""
+        if cancel_event is not None and cancel_event.is_set():
+            raise InterruptedError('Login cancelled')
+        if not self.applicable:
+            return None
+        from functools import partial
+        return partial(self._repair_connection, address, port, cancel_event)
+
+    def _repair_connection(self, address, port, cancel_event):
+        """Run existing policy preparation only after local TCP access denial."""
         self.wait_ready(cancel_event)
         if self.applicable:
             from modules.platform_services.network_policy import prepare_target

@@ -58,6 +58,9 @@ class RouterDependencyPage(QWidget):
         root.insertWidget(0, self.common_tools.card)
         self.other_tools = CommonToolSection(content, service, other=True)
         root.addWidget(self.other_tools.card)
+        from .dependency_backup_card import DependencyBackupCard
+        self.backup_card = DependencyBackupCard(content, service)
+        root.addWidget(self.backup_card.card)
 
         for index in range(root.count()):
             card = root.itemAt(index).widget()
@@ -77,6 +80,7 @@ class RouterDependencyPage(QWidget):
         return {"enabled_features": self.dependencies.enabled_features()}
 
     def set_light_theme(self, enabled):
+        self.backup_card.set_light_theme(enabled)
         self.common_tools.set_light_theme(enabled)
         self.other_tools.set_light_theme(enabled)
         self.dependencies.offline_controls.set_light_theme(enabled)
@@ -98,6 +102,7 @@ class RouterDependencyPage(QWidget):
 
     def dispose(self):
         self.service.openwrtSnapshotChanged.disconnect(self._apply_snapshot)
+        self.backup_card.dispose()
         self.common_tools.dispose()
         self.other_tools.dispose()
         self.dependencies.dispose()

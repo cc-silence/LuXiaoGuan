@@ -19,7 +19,7 @@ class RouterPasswordDialog(FramelessDialog):
         layout = QVBoxLayout(body)
         self.new_password = PasswordInput(body, "输入新登录密码")
         self.confirm_password = PasswordInput(body, "再次输入新登录密码")
-        add_field(layout, body, "新密码", self.new_password, "8～128 字节，不允许换行或控制字符。")
+        add_field(layout, body, "新密码", self.new_password, "6～128 字节，不允许换行或控制字符。")
         add_field(layout, body, "确认密码", self.confirm_password, "两次输入必须一致。")
         self.error_label = hint("", body)
         self.error_label.setObjectName("settingsValidationError")

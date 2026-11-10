@@ -93,12 +93,12 @@ class AdvancedWpsDialog(FramelessDialog):
         for label, control, tip in (
             ("Pin 速率", self.pin_speed, "两次尝试之间的等待时间，不是每秒尝试次数。建议保留 1 秒；不要盲目调小，尝试过快可能被目标限制。"),
             ("超时时间", self.pin_timeout, "等待一次回应的时间，建议保留 5 秒。信号弱、经常超时时可适当调大，但每次等待会更久。"),
-            ("攻击时间", self.attack_seconds, "0 \u8868\u793a\u4e0d\u9650\u5236\u603b\u65f6\u957f\uff0c\u6210\u529f\u3001\u5de5\u5177\u7ed3\u675f\u6216\u624b\u52a8\u505c\u6b62\u65f6\u7ed3\u675f\uff1b\u6b63\u6570\u8868\u793a\u6bcf\u4e2a\u76ee\u6807\u6bcf\u8f6e\u7684\u79d2\u6570\u4e0a\u9650\u3002"),
-            ("攻击轮数", self.attack_rounds, "建议先用 1 轮。增加轮数会重复尝试并延长总时间，不保证得到结果。"),
+            ("攻击时间", self.attack_seconds, "0 表示不限制；常规/离线为每目标每轮上限，秒 Pin 为每个候选的上限。"),
+            ("攻击轮数", self.attack_rounds, "秒 Pin 只重复在线候选，离线每个目标只试一次；增加轮数会延长总时间。"),
             ("附加参数", self.additional_args, "高级用户使用。普通用户保留原值，不要粘贴整条命令；不支持的参数会被拒绝。"),
             ("排序 Pin 码", self.pin_order, "不清楚就保留 0123456789。只调整尝试顺序，不是填写已知的 Pin 码；已知部分号码请填在下面。"),
             ("部分 Pin 码", self.partial_pin, "已知 Pin 前 4 位或完整 8 位时填写；不知道就留空。这里不是 Wi-Fi 密码。"),
-            ("模式", self.mode, "“秒 Pin”匹配默认 PIN 算法后速测，无匹配立即跳过，匹配不代表已验证成功；“Pin”逐个尝试；“离线 Pin”使用 Pixie Dust。只用于自有或已授权网络。"),
+            ("模式", self.mode, "“秒 Pin”先试 pin24、再试离线 Pin、最后补厂商公式；“Pin”逐个尝试；“离线 Pin”使用 Pixie Dust。只用于自有或已授权网络。"),
         ):
             layout.addLayout(create_form_row(card, label, control, tip))
         layout.addLayout(create_path_row(card, "恢复进度", self.resume_file, self.resume_file_button,
@@ -122,7 +122,7 @@ class AdvancedWpsDialog(FramelessDialog):
         )
         self._on_spoof_mac_toggled(self.spoof_mac_enabled.isChecked())
         self.attack_seconds.valueChanged.connect(self._sync_mode_controls)
-        self.mode.currentIndexChanged.connect(self._sync_mode_controls)
+        self.mode.currentIndexChanged.connect(self._on_mode_changed)
         self._sync_mode_controls()
 
     def _load(self, settings):
@@ -130,8 +130,10 @@ class AdvancedWpsDialog(FramelessDialog):
 
         self.pin_speed.setValue(float(settings.get("pin_speed", 1.0)))
         self.pin_timeout.setValue(float(settings.get("pin_timeout", 5.0)))
-        self.attack_seconds.setValue(int(settings.get("attack_seconds", 0)))
-        self.attack_rounds.setValue(int(settings.get("attack_rounds", 1)))
+        self._normal_seconds = int(settings.get("attack_seconds", 0) or 0)
+        self._normal_rounds = int(settings.get("attack_rounds", 1) or 1)
+        self._quick_seconds = int(settings.get("quick_seconds", 60) or 0)
+        self._quick_rounds = int(settings.get("quick_rounds", 1) or 1)
         self.additional_args.setText(str(settings.get("additional_args", "-S -N -l 30")))
         self.spoof_mac.setText(str(settings.get("spoof_mac", "")))
         self.spoof_mac_enabled.setChecked(bool(settings.get("spoof_mac_enabled", False)))
@@ -144,16 +146,44 @@ class AdvancedWpsDialog(FramelessDialog):
             str(self.resource_picker.settings_manager.resolve_path(resume_value)) if resume_value else ""
         )
         self.mode.setCurrentIndex(max(0, self.mode.findData(settings.get("mode", "normal"))))
+        self._current_mode = self.mode.currentData()
+        self._load_mode_values()
+
+    def _save_mode_values(self):
+        if self._current_mode == "quick":
+            self._quick_seconds = int(self.attack_seconds.value())
+            self._quick_rounds = int(self.attack_rounds.value())
+        else:
+            self._normal_seconds = int(self.attack_seconds.value())
+            self._normal_rounds = int(self.attack_rounds.value())
+
+    def _load_mode_values(self):
+        if self._current_mode == "quick":
+            self.attack_seconds.setValue(self._quick_seconds)
+            self.attack_rounds.setValue(self._quick_rounds)
+        else:
+            self.attack_seconds.setValue(self._normal_seconds)
+            self.attack_rounds.setValue(self._normal_rounds)
+
+    def _on_mode_changed(self, _index=None):
+        mode = self.mode.currentData()
+        if mode == self._current_mode:
+            return
+        self._save_mode_values()
+        self._current_mode = mode
+        self._load_mode_values()
+        self._sync_mode_controls()
 
     def _sync_mode_controls(self, _index=None):
         quick = self.mode.currentData() == "quick"
-        self.attack_seconds.setSuffix(" 秒（速测不使用）" if quick else " 秒")
-        self.attack_rounds.setSuffix(" 轮（速测不使用）" if quick else " 轮")
+        self.attack_seconds.setSuffix(" 秒")
+        self.attack_rounds.setSuffix(" 轮")
         self.partial_pin.setPlaceholderText("已知完整 8 位可填；留空自动匹配" if quick else "取值：[前4位，全部8位]")
-        for control in (self.attack_seconds, self.attack_rounds, self.pin_order,
-                        self.random_order, self.resume_file, self.resume_file_button):
+        for control in (self.pin_order, self.random_order,
+                        self.resume_file, self.resume_file_button):
             control.setEnabled(not quick)
-        self.attack_rounds.setEnabled(not quick and self.attack_seconds.value() > 0)
+        self.attack_seconds.setEnabled(True)
+        self.attack_rounds.setEnabled(quick or self.attack_seconds.value() > 0)
         self._sync_rotation_controls()
 
     def _sync_rotation_controls(self, _checked=None):
@@ -184,13 +214,21 @@ class AdvancedWpsDialog(FramelessDialog):
         super().accept()
 
     def get_settings(self):
-        """返回未执行的高级 Pin 参数。"""
+        """返回未执行的高级 Pin 参数；秒 Pin 与常规 Pin 各用一组时间/轮数。"""
 
+        if self.mode.currentData() == "quick":
+            attack_seconds, attack_rounds = self._normal_seconds, self._normal_rounds
+            quick_seconds, quick_rounds = int(self.attack_seconds.value()), int(self.attack_rounds.value())
+        else:
+            attack_seconds, attack_rounds = int(self.attack_seconds.value()), int(self.attack_rounds.value())
+            quick_seconds, quick_rounds = self._quick_seconds, self._quick_rounds
         return {
             "pin_speed": float(self.pin_speed.value()),
             "pin_timeout": float(self.pin_timeout.value()),
-            "attack_seconds": self.attack_seconds.value(),
-            "attack_rounds": self.attack_rounds.value(),
+            "attack_seconds": attack_seconds,
+            "attack_rounds": attack_rounds,
+            "quick_seconds": quick_seconds,
+            "quick_rounds": quick_rounds,
             "additional_args": self.additional_args.text().strip(),
             "spoof_mac_enabled": self.spoof_mac_enabled.isChecked(),
             "rotate_mac_each_pin": self.rotate_mac_each_pin.isEnabled() and self.rotate_mac_each_pin.isChecked(),

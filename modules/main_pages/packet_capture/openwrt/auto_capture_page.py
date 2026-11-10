@@ -1713,7 +1713,7 @@ class AutoCapturePage(QWidget):
                 if session is not None:
                     card.apply_stats(session._build_stats_dict())
             else:
-                self.radio_cards[r_info.name].radio_info = r_info
+                self.radio_cards[r_info.name].update_radio_info(r_info)
 
         self._reposition_cards()
 
@@ -1997,7 +1997,7 @@ class AutoCapturePage(QWidget):
         for card in self.radio_cards.values():
             configs.append({
                 "radio_info": card.radio_info,
-                "channels": card.channel_edit.text().strip(),
+                "channels": card.channels_for_start(),
                 "allow_takeover": card.takeover_check.isChecked(),
             })
         self._start_preflight.request(configs)
