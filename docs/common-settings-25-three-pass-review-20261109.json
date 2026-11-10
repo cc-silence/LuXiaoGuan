@@ -1,0 +1,138 @@
+{
+  "date": "2026-11-09",
+  "summary": "已修复 25 版 LAN 单地址列表误拦，保留旧版写入流程。已完成三轮核对，399 项定向回归通过。",
+  "scope": "All Common Settings cards and initialization sub-options; source/contract/offline review, not live-device certification",
+  "diagnostic_evidence": {
+    "app": "1.0.51_alpha",
+    "firmware": "25.12.6",
+    "model": "Xiaomi Mi Router 3G",
+    "failed_operation": "policy_preview(initial)",
+    "failure_site": "router_policy_plan:148",
+    "times_local": [
+      "2026-11-08 18:55:09",
+      "2026-11-08 18:56:15"
+    ],
+    "connection": "snapshot commands completed successfully before the local planner rejected the input",
+    "limit": "Export omits raw network.lan. The exact failed-device ipaddr/gateway cannot be reconstructed. The single-address-list defect is confirmed independently against official 25.12.6 config_generate bytes and reproduced in real Lua fixtures."
+  },
+  "changes": [
+    {
+      "file": "modules/capture_services/openwrt/router_policy_plan.py",
+      "effect": "Allow one valid IPv4 address in a list; retain multi-address, gateway, DHCP-pool and upstream-conflict guards. Do not branch on firmware versions. Existing scalar target plus netmask write contract is unchanged."
+    },
+    {
+      "file": "modules/capture_services/openwrt/router_policy_commands.py",
+      "effect": "Compare runtime IPv4 addresses against scalar or list CIDR saved addresses, including restoring the original 25.12 list. Saved values must still match exactly; Python network_ready verifies the prefix and device."
+    },
+    {
+      "file": "tests/test_lan_cidr_policy.py",
+      "effect": "Eight focused regressions covering scalar/list formats, real Lua persistence, invalid data, conflict protection, full initial plan, editor save and verified rollback to CIDR lists."
+    }
+  ],
+  "rounds": [
+    {
+      "round": 1,
+      "method": "Trace forward from card actions and read paths; compare exact default configuration and component fields",
+      "sources": "50 config_generate source files rehashed against exact release records; official v25.12.6 system, dropbear, uhttpd, sysntpd, dnsmasq and firewall sources read through web",
+      "finding": "Confirmed single-element list misclassified as multi-address. No additional confirmed read/field defect in reviewed common settings."
+    },
+    {
+      "round": 2,
+      "method": "Trace save/apply/confirmation and reverse recovery paths; compare native rpcd semantics",
+      "sources": "50 exact-release rpcd Makefile-to-commit mappings and uci.c hashes revalidated; apply, confirm, rollback and config.change implementations inspected",
+      "finding": "Confirmed original list/CIDR runtime equality failed during policy restore verification; fixed together with the planner. Existing general LAN editor already supports CIDR lists and rollback."
+    },
+    {
+      "round": 3,
+      "method": "Cross-check exact 25.12.6 service/package changes against unchanged old paths; inject failures and run all selected regressions once together",
+      "sources": "Official sysupgrade/firstboot, LuCI static protocol and dispatcher, fstools pinned block.c, BusyBox 1.37.0 source archive verified against the exact OpenWrt SHA256",
+      "finding": "factoryreset, apk backup metadata and generated service-state archive member already handled. No additional confirmed defect within this review scope. No unrelated implementation changes made."
+    }
+  ],
+  "feature_review": [
+    {
+      "feature": "LAN editor and initialization LAN",
+      "result": "Fixed initialization list rejection and original-format restore verification; old scalar/mask, legacy ifname/type and modern device bindings covered"
+    },
+    {
+      "feature": "Password",
+      "result": "BusyBox 1.37.0 prompts and stdin path match bounded implementation; fingerprint-pinned independent authentication and secret cleanup retained"
+    },
+    {
+      "feature": "Hostname/timezone/logging/time synchronization",
+      "result": "25.12.6 service option names, /tmp/TZ versus zoneinfo symlink and reload contract match existing implementation"
+    },
+    {
+      "feature": "Initialization firewall, SSH and HTTP options",
+      "result": "DirectInterface precedence already cleared, LAN logical binding retained; selected upstream zones, echo-only IPv6 drops and separate listen_http/listen_https handling retained"
+    },
+    {
+      "feature": "Chinese UI and homepage",
+      "result": "Capability-gated translation and actual LuCI page probes retained; unique active /www server and custom index order guards retained; LuCI sources reviewed from 25.12 branch, not claimed as exact installed package bytes"
+    },
+    {
+      "feature": "Boot Wi-Fi policy and station/AP identity",
+      "result": "START=18 before network START=20, saved enable switches, credentials and actual radio ownership protections retained"
+    },
+    {
+      "feature": "Mount/swap and upgrade service",
+      "result": "Pinned fstools anon_swap and auto_mount semantics match; existing configured swap preserved; attended service path capability-gated"
+    },
+    {
+      "feature": "Backup/restore/factory reset/reboot",
+      "result": "Native sysupgrade owns opkg/apk metadata; etc/uci-defaults service-state archive member accepted; factoryreset/jffs2reset selected by capability and layout, original fingerprint/backup/confirmation protections retained"
+    },
+    {
+      "feature": "Relocation/orphan/monitor cleanup",
+      "result": "LAN protected; exact selected sections/interfaces, live references and active-task ownership rechecked; existing tests pass"
+    }
+  ],
+  "verification": {
+    "final_unique_tests": 399,
+    "failures": 0,
+    "elapsed_seconds": 122.992,
+    "runtime": "Windows project .venv; real Lua interpreter plus simulated UCI/rpcd and Qt tests",
+    "syntax": "py_compile passed for both changed implementation files and new regression file",
+    "encoding": "UTF-8 strict decode and replacement/mojibake scan passed",
+    "diff": "Scoped git diff --check passed",
+    "fault_injection_output": "Expected monitor permission-denied fault logged by a passing cleanup regression; suite outcome OK"
+  },
+  "evidence": [
+    {
+      "path": "build\\common-settings-25-three-pass-20261109\\busybox-sources.json",
+      "sha256": "8e525dcb151c9ac4662bf5e3627e42cff31aaf9f807224cfc4ea73c0154db523"
+    },
+    {
+      "path": "build\\common-settings-25-three-pass-20261109\\common25_round1_web.json",
+      "sha256": "53c4e28f541da65819d85ed4c6bbdea3da35ccacc7fe49f31f6217c58f6499cd"
+    },
+    {
+      "path": "build\\common-settings-25-three-pass-20261109\\common25_round2_web.json",
+      "sha256": "0908e1532124d824ed78e52e09f4847e7dae1d80de53c34530db609cb3b82b37"
+    },
+    {
+      "path": "build\\common-settings-25-three-pass-20261109\\common25_round3_components_web.json",
+      "sha256": "8f0f7744c26a38a7a992cb95a90803a36acb1d519759c26f922c8095962457b6"
+    },
+    {
+      "path": "build\\common-settings-25-three-pass-20261109\\common25_round3_crosscheck_web.json",
+      "sha256": "13971261830923f0109fa5c4a8d3dea59a22c50b296ccd24a1e5ccf15d9ec3ff"
+    },
+    {
+      "path": "build\\common-settings-25-three-pass-20261109\\common25_round3_web.json",
+      "sha256": "c80b3c0c7a68f6373d4dbcde23e7b44c160ba58556f2bd5e1b50a2cdac8dddfa"
+    },
+    {
+      "path": "build\\common-settings-25-three-pass-20261109\\verified-local-sources.json",
+      "sha256": "340d40386f4238e031fa3933ff76e963732032fe3bae1c16f276b959e54e7a24"
+    }
+  ],
+  "limits": [
+    "No router or local adapter configuration was changed; no package built or published.",
+    "Raw failed-device LAN configuration was not included in user export; a real gateway or customized multi-address configuration must still be inspected before changing it.",
+    "Windows offline execution does not establish Debian 12 native acceptance; shared Python/Lua code contains no new OS-specific branch.",
+    "No all-hardware/all-release runtime certification is claimed. Parser change is hardware-independent; reset/storage/radio behavior remains device-specific.",
+    "Browser evidence files hash the extracted evidence record, not upstream raw bytes. Exact local source and BusyBox member hashes are separately identified.",
+    "Native router acceptance remains: preview initialization on 25.12.6 and an old firmware, apply only after user confirmation and backup, verify saved/runtime address, then test controlled recovery."
+  ]
+}

@@ -3,6 +3,16 @@ import re
 from .command_builder import quote_argument as q
 from .command_runner import require_command_completion
 
+# Our own capture engines: the firmware package name and the deployed
+# compatibility build (/root/.luxiaoguan-tools/hcx-ifindex1). /proc/<pid>/comm
+# is the executable basename, so both names must be recognised before a PID is
+# signalled or declared absent.
+CAPTURE_PROCESS_NAMES = ("hcxdumptool", "hcx-ifindex1")
+
+
+def _capture_process_pattern():
+    return "|".join(CAPTURE_PROCESS_NAMES)
+
 def monitor_removal_command(interface, phy):
     if not re.fullmatch(r"hcxmon[0-9]+",interface) or not re.fullmatch(r"phy[0-9]+",phy):
         raise RuntimeError("Cannot verify monitor interface ownership")
@@ -69,6 +79,7 @@ def owned_capture_stop_command(interface):
     # Verify the current PID identity before every signal, including after reuse.
     if not re.fullmatch(r"hcxmon[0-9]+", interface):
         raise ValueError("Invalid capture interface")
+    names = _capture_process_pattern()
     return 'PIDFILE=' + q('/tmp/.hcx_' + interface + '.pid') + '; IFACE=' + q(interface) + '; ' + r"""
 uncertain_identity() { printf PROCESS_IDENTITY_UNCONFIRMED >&2; exit 47; }
 own_live() {
@@ -77,7 +88,7 @@ own_live() {
   return 1
  fi
  comm=$(cat /proc/"$PID"/comm 2>/dev/null) || uncertain_identity
- [ "$comm" = hcxdumptool ] || return 1
+ case "$comm" in """ + names + r""") :;; *) return 1;; esac
  state=$(awk '$1=="State:" {print $2;exit}' /proc/"$PID"/status 2>/dev/null)
  [ -n "$state" ] || uncertain_identity
  [ "$state" != Z ] && [ "$state" != z ] || return 1
@@ -115,6 +126,39 @@ printf PROCESS_STOPPED
 """
 
 
+def capture_process_scan_command(interface):
+    """Report PRESENT when one of our own engines still owns this monitor."""
+    if not re.fullmatch(r"hcxmon[0-9]+", interface):
+        raise ValueError("Invalid capture interface")
+    names = _capture_process_pattern()
+    return 'IFACE=' + q(interface) + '; found=0; for pdir in /proc/[0-9]*; do ' + r"""
+ [ -d "$pdir" ] || continue
+ p=${pdir#/proc/}
+ [ "$p" -gt 1 ] 2>/dev/null || continue
+ comm=$(cat /proc/$p/comm 2>/dev/null)
+ case "$comm" in """ + names + r""") :;; *) continue;; esac
+ args=$(head -c 8193 /proc/$p/cmdline 2>/dev/null | tr '\000' '\n')
+ printf '%s\n' "$args" | awk -v iface="$IFACE" '
+  previous=="-i" && $0==iface {found=1}
+  $0=="-i" iface || $0=="--interface=" iface {found=1}
+  {previous=$0}
+  END {exit !found}' && found=1
+done
+[ "$found" = 0 ] && printf ABSENT || printf PRESENT
+"""
+
+
+def verified_capture_process_absent(runner, interface, cancel_event=None):
+    """True only when the router proves no capture engine still holds the interface."""
+    result = runner.run("scan_capture_process", capture_process_scan_command(interface),
+                        timeout=6, cancel_event=cancel_event, output_limit=4096)
+    require_command_completion(result)
+    state = (result.stdout or "").strip()
+    if result.exit_code != 0 or state not in ("ABSENT", "PRESENT"):
+        raise RuntimeError("Capture process scan could not be verified")
+    return state == "ABSENT"
+
+
 def sweep_stale_monitors_command(interfaces=None):
     """
     生成扫除遗留专属抓包监听接口 (hcxmon* / hcxstub*) 及其关联残留进程的 Shell 命令。
@@ -142,6 +186,7 @@ def sweep_stale_monitors_command(interfaces=None):
     else:
         loop_target = "for d in $(ls /sys/class/net 2>/dev/null); do"
 
+    names = _capture_process_pattern()
     return (
         loop_target + "\n"
         r""" case "$d" in
@@ -152,7 +197,8 @@ def sweep_stale_monitors_command(interfaces=None):
     case "$pid" in ''|*[!0-9]*) :;; *)
      if [ "$pid" -gt 1 ] 2>/dev/null && kill -0 "$pid" 2>/dev/null; then
       comm=$(cat /proc/"$pid"/comm 2>/dev/null)
-      if [ "$comm" = "hcxdumptool" ]; then
+      case "$comm" in """ + names + r""") :;; *) comm="";; esac
+      if [ -n "$comm" ]; then
        kill -TERM "$pid" 2>/dev/null
        for _w in 1 2 3 4 5; do
         kill -0 "$pid" 2>/dev/null || break
@@ -168,19 +214,19 @@ def sweep_stale_monitors_command(interfaces=None):
     [ -d "$pdir" ] || continue
     p="${pdir#/proc/}"
     [ "$p" -gt 1 ] 2>/dev/null || continue
-    if [ "$(cat /proc/$p/comm 2>/dev/null)" = "hcxdumptool" ]; then
-     cmd=$(head -c 4096 /proc/$p/cmdline 2>/dev/null | tr '\0' ' ')
-     case " $cmd " in
-      *" -i $d "*|*" --interface=$d "*)
-       kill -TERM "$p" 2>/dev/null
-       for _w in 1 2 3; do
-        kill -0 "$p" 2>/dev/null || break
-        usleep 100000 2>/dev/null || sleep 1
-       done
-       kill -0 "$p" 2>/dev/null && kill -KILL "$p" 2>/dev/null
-       ;;
-     esac
-    fi
+    comm=$(cat /proc/$p/comm 2>/dev/null)
+    case "$comm" in """ + names + r""") :;; *) continue;; esac
+    cmd=$(head -c 4096 /proc/$p/cmdline 2>/dev/null | tr '\0' ' ')
+    case " $cmd " in
+     *" -i $d "*|*" --interface=$d "*)
+      kill -TERM "$p" 2>/dev/null
+      for _w in 1 2 3; do
+       kill -0 "$p" 2>/dev/null || break
+       usleep 100000 2>/dev/null || sleep 1
+      done
+      kill -0 "$p" 2>/dev/null && kill -KILL "$p" 2>/dev/null
+      ;;
+    esac
    done
    if [ -e "/sys/class/net/$d" ]; then
     info=$(iw dev "$d" info 2>/dev/null)

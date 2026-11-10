@@ -70,9 +70,10 @@ class PassOneInteractionTests(unittest.TestCase):
         owner=RecoveryOwner(NS(),NS());owner.lan_recovery=LanRecoveryService(owner);self.addCleanup(owner.deleteLater)
         dialog=FactoryResetResultDialog(dict(note='Reset submitted'),dict(adapters=[adapter()]),owner)
         self.addCleanup(dialog.deleteLater);dialog.show();APP.processEvents()
-        with patch('modules.capture_services.task_completion.start_capture_task') as start:
+        with patch('modules.capture_services.task_completion.start_capture_task') as start, patch.object(owner.lan_recovery.factory_refresh,'refresh',return_value=True) as refresh:
             dialog.panel.button.click();start.assert_not_called()
             dialog.ready.setChecked(True);self.assertTrue(dialog.panel.button.isEnabled())
+            refresh.assert_called_once_with(dialog.offer)
             dialog.ready.setChecked(False);self.assertFalse(dialog.panel.button.isEnabled())
             dialog.panel.button.click();start.assert_not_called()
         QTest.keyClick(dialog,Qt.Key_Escape);APP.processEvents()

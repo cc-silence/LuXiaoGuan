@@ -184,11 +184,16 @@ class FactoryResultUiTests(unittest.TestCase):
         page,_=self.create_page();owner=RecoveryOwner(NS(),NS())
         owner.lan_recovery=LanRecoveryService(owner)
         result=dict(note=login_note(dict(address='192.168.1.1',password='empty')))
-        with patch('modules.platform_services.lan_network.renew') as renew:
+        with patch('modules.platform_services.lan_network.renew') as renew, patch(
+                'modules.platform_services.lan_network.inspect', return_value=dict(adapters=[adapter()], error='')):
             dialog=FactoryResetResultDialog(result,dict(adapters=[adapter()]),owner,page)
             self.addCleanup(dialog.deleteLater);dialog.show();APP.processEvents()
             self.assertFalse(dialog.panel.button.isEnabled())
             dialog.ready.setChecked(True)
+            deadline=time.monotonic()+3
+            while owner._openwrt_workers and time.monotonic()<deadline:
+                APP.processEvents();time.sleep(.01)
+            self.assertFalse(owner._openwrt_workers)
             self.assertTrue(dialog.panel.button.isEnabled())
             renew.assert_not_called()
             dialog.reject()

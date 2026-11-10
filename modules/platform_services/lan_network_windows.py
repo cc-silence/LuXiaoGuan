@@ -19,7 +19,7 @@ def powershell(script):
     return executable,['-NoProfile','-NonInteractive','-EncodedCommand',encoded]
 
 
-def inspect(peer=None,timeout=10,*,adapter_id=None):
+def inspect(peer=None,timeout=10,*,adapter_id=None,include_unaddressed=False):
     # Qt uses the native adapter API; registry reads supply DHCP lease metadata.
     # Avoid slow PowerShell network-provider initialization during preflight.
     import socket
@@ -40,7 +40,7 @@ def inspect(peer=None,timeout=10,*,adapter_id=None):
         for entry in nic.addressEntries():
             try:addresses.append(str(ipaddress.IPv4Interface(entry.ip().toString()+'/'+str(entry.prefixLength()))))
             except ValueError:continue
-        if not addresses and adapter_id is None:continue
+        if not addresses and adapter_id is None and not include_unaddressed:continue
         luid=ctypes.c_ulonglong();guid=(ctypes.c_ubyte*16)()
         api=ctypes.windll.iphlpapi
         if api.ConvertInterfaceIndexToLuid(nic.index(),ctypes.byref(luid)):continue

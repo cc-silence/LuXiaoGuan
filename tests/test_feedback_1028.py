@@ -135,7 +135,9 @@ class FeedbackUiTests(unittest.TestCase):
             reset.show();APP.processEvents()
             self.assertFalse(reset.panel.button.isEnabled())
             reset.grab().save(str(output/('reset-'+str(light)+'.png')))
-            reset.ready.setChecked(True);self.assertTrue(reset.panel.button.isEnabled())
+            with patch.object(owner.lan_recovery.factory_refresh,'refresh',return_value=True) as refresh:
+                reset.ready.setChecked(True);self.assertTrue(reset.panel.button.isEnabled())
+                refresh.assert_called_once_with(reset.offer)
             reset.reject();self.assertFalse(owner.lan_recovery.offers)
 
     def test_error_draws_in_both_themes_and_clears_on_user_edit(self):

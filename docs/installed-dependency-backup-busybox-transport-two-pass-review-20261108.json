@@ -1,0 +1,86 @@
+{
+  "date": "2026-11-08",
+  "scope": "Two further reviews focused on stock BusyBox capability, router identity limits, space and transfer cleanup",
+  "pass_one": {
+    "finding": "All 50 supported official release default BusyBox configurations disable stat and its custom format feature; old directory metadata command therefore required a non-default applet",
+    "fix": "Shared directory metadata module probes optional formatted stat once, otherwise reads stock ls numeric ownership and symbolic permission bits; no package installation or default permission guesses",
+    "source_index": "build/dependency-snapshot-review/stock-busybox-source-index.json",
+    "exact_release_count": 50,
+    "directory_mtime_limit": "Without stat only directory modification time is set to epoch zero; actual modes, uid/gid and special mode bits are retained. File timestamps remain in captured tar headers",
+    "native": {
+      "passed": true,
+      "busybox_version": "1.36.1",
+      "source_sha256": "b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314",
+      "checks": [
+        "real-upstream-ls-applet",
+        "stock-OpenWrt-ls-flags",
+        "no-stat-applet-or-PATH-command",
+        "private-directory-mode-2700",
+        "numeric-owner-and-group",
+        "path-with-spaces"
+      ],
+      "scope": "Native x86-64 BusyBox ls-only build and production shell command in isolated temporary directories; not a full router firmware"
+    }
+  },
+  "pass_two": {
+    "focus": [
+      "SSH receive/send flow control and exit status",
+      "Mid-transfer cancellation and cleanup",
+      "Truncated data and incorrect hashes",
+      "Bounded remote error output",
+      "Free-space rejection and unit conversion",
+      "Same-device identity comparison and address mutability"
+    ],
+    "new_production_defects_found": 0,
+    "added_regressions": [
+      "Transient send timeout followed by successful partial sends",
+      "Cancellation during receive closes channel and streams",
+      "Remote early exit cannot acknowledge incomplete upload",
+      "Truncated or hash-mismatched download is rejected",
+      "Remote stderr is bounded and resources close",
+      "Missing or insufficient free-space data prevents continuation"
+    ],
+    "identity_limit": "Network addresses can be changed by software and are not cryptographic immutable device identifiers. Current matching is a same-device heuristic under the user-owned same-router scope; no claim of tamper-proof identity"
+  },
+  "validation": {
+    "windows_related_tests": 104,
+    "debian12_business_tests": 49,
+    "native_busybox_ls_no_stat": true,
+    "syntax_encoding_whitespace": "Changed Python files compiled; UTF-8 and whitespace checks clean"
+  },
+  "limits": [
+    "No real-router factory-reset/offline-restore acceptance",
+    "Debian tests bypass capture_services package initializer due to missing PySide6 and do not validate the desktop UI",
+    "BusyBox native validation uses an isolated x86-64 ls-only build with relevant stock OpenWrt flags, not a complete firmware or device",
+    "Earlier APK and opkg native install proofs were not repeated because package encoding and install commands did not change",
+    "Deleted initialization scripts and non-reconstructable extended permissions still stop incomplete backups"
+  ],
+  "primary_sources": [
+    "https://github.com/openwrt/openwrt/blob/v24.10.4/package/utils/busybox/Config-defaults.in",
+    "https://github.com/openwrt/openwrt/blob/v24.10.4/package/utils/busybox/Makefile",
+    "https://docs.paramiko.org/en/stable/api/channel.html",
+    "https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-class-net"
+  ],
+  "source_files": {
+    "modules/capture_services/openwrt/installed_dependency_backup.py": {
+      "sha256": "503dc9b482b26d167ea3ff0017c3a1524a5584a475e446a09556481f9053a600",
+      "lines": 284
+    },
+    "modules/capture_services/openwrt/dependency_snapshot_permissions.py": {
+      "sha256": "b06aa3d5c37e4f616285caf64c2e73d350889782b8082c053222850e6494bcf4",
+      "lines": 51
+    },
+    "tests/test_dependency_snapshot_permissions.py": {
+      "sha256": "a9dbfebd47e36f52dc2f144f868a11a8275bc3600c42e12a6d679c35eb9488b8",
+      "lines": 25
+    },
+    "tests/test_dependency_snapshot_transfer.py": {
+      "sha256": "1e4a61732082513ed9fcfecb959b691c15d4ee4a774037d2c6d914b337ec0524",
+      "lines": 143
+    },
+    "tests/test_dependency_restore_failure_paths.py": {
+      "sha256": "1a907fdc2d765380c451b9a19a90d48662d4ec83fa558086fc62e8cf96df2ce5",
+      "lines": 92
+    }
+  }
+}

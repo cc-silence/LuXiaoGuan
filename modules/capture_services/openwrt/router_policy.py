@@ -190,9 +190,15 @@ class RouterPolicyManager:
         generation=getattr(self.ssh,"connection_generation",None)
         try:
             result=self._apply_review(review,backup_path,backup_expected,cancel,report)
+            from .initial_security_evidence import record_initial_selection
+            record_initial_selection(getattr(self.manager.runner, "operation_diagnostics", None), review, status="completed", result=result)
             if review.get("kind")=="station" and result.get("applied") and hasattr(self.ssh,"adopt_verified"):
                 result['session_restored']=self.ssh.adopt_verified(self._apply_channel.ssh,self.connection,generation,self.fingerprint)
             return result
+        except Exception:
+            from .initial_security_evidence import record_initial_selection
+            record_initial_selection(getattr(self.manager.runner, "operation_diagnostics", None), review, status="failed")
+            raise
         finally:
             self._apply_channel.close()
             self._apply_channel=None
@@ -226,6 +232,8 @@ class RouterPolicyManager:
         current=self.read(cancel) if backup is not None else before
         if current["signature"]!=review["signature"]:raise RuntimeError("配置已变化，未执行修改，请重新预览。"+backup_note)
         if cancel.is_set():raise InterruptedError("已取消，尚未执行修改。"+backup_note)
+        from .initial_security_evidence import record_initial_selection
+        record_initial_selection(getattr(self.manager.runner, "operation_diagnostics", None), review)
         if review.get('await_reconnect'):
             from .initial_reconnect import apply_initial
             return apply_initial(self,review,current,cancel,report,backup_note)

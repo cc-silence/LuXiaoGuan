@@ -6,6 +6,9 @@ _TRY = re.compile(r"Trying pin\s+[\"']?([0-9]{8}|[0-9]{4})(?![0-9])", re.I)
 _EXCHANGE = re.compile(r"received (?:m[1357]|identity|wsc nack|eap_failure)\b", re.I)
 _ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
+# reaver -K 依赖独立的 pixiewps 包；缺它时离线 Pin 无法进行，但其余在线候选仍可继续。
+PIXIE_TOOL_MISSING = "Pixiewps 不可用，未完成计算"
+
 
 @dataclass(frozen=True)
 class WpsObservation:
@@ -32,7 +35,7 @@ def analyze(text):
             stage = "tool_error"
             status = next((label for code, label in reasons.items() if "winbox_watchdog_" + code in lower), "\u8fdc\u7aef\u4fdd\u62a4\u673a\u5236\u5df2\u505c\u6b62\u4efb\u52a1")
         elif "pixiewps" in lower and any(token in lower for token in ("not found", "no such file", "permission denied")):
-            stage, status = "tool_error", "Pixiewps 不可用，未完成计算"
+            stage, status = "tool_error", PIXIE_TOOL_MISSING
         elif "pixiewps fail" in lower or "wps pin not found" in lower:
             stage, status = "pixie_failed", "Pixie Dust 本次计算未找到 PIN"
         elif "executing pixiewps" in lower:

@@ -1,0 +1,117 @@
+{
+  "date": "2026-11-09",
+  "applies": "Router package backup/restore; shared Windows and Debian Python logic",
+  "implementation": "Recover consumed initialization files from exact authenticated originals. Capture current permitted per-package UCI settings independently; schema 2 restores affected same-version settings after native installation hooks and verifies resulting file hashes. Read schema 1 and schema 2; schema 1 is still emitted if no settings are present. The installation payload remains rebuilt from current files and recovered originals rather than a wholesale replacement with stock package files.",
+  "safeguards": [
+    "local common then capture exact profile and version; shared read leases, lazy catalog loading",
+    "official stable online fallback with existing proxy/download policy and SHA256; no different version substitution",
+    "ordinary missing payload stops; no script execution or installation during backup",
+    "native APK signature verification and extraction in unique private workspace; no allow-untrusted during extraction",
+    "bounded archives, cancellation, original-source provenance and final database identity check",
+    "old snapshots and additive-only restore remain supported"
+  ],
+  "tests": {
+    "total": 85,
+    "passed": 85,
+    "failures": 0,
+    "errors": 0,
+    "new_tests": 21
+  },
+  "limitations": [
+    "Customer router live backup and restore not performed",
+    "Native Debian 12 environment not validated",
+    "Exact local or official same-version originals are required; no cross-firmware substitution",
+    "Customer log omits installed Chinese package version; local exact match remains to be confirmed",
+    "Settings protection covers permitted owned etc/config files in the affected dependency closure; network, wireless, firewall and credentials stay excluded",
+    "Restored settings may require the corresponding service or router restart to take effect; no automatic unrelated service restart",
+    "New schema-2 snapshots require the updated application; older schema-1 snapshots remain readable",
+    "Direct raw-source archival failed with Windows network reset. Official web retrievals were read in this turn; retrieval hashes below are not upstream raw-source hashes. OpenWrt 22.03.7 boot source retrieval was unavailable."
+  ],
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.10/package/base-files/files/etc/init.d/boot",
+      "error": "URLError: <urlopen error [WinError 10054] \u8fdc\u7a0b\u4e3b\u673a\u5f3a\u8feb\u5173\u95ed\u4e86\u4e00\u4e2a\u73b0\u6709\u7684\u8fde\u63a5\u3002>"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.7/package/base-files/files/etc/init.d/boot",
+      "error": "URLError: <urlopen error [WinError 10054] \u8fdc\u7a0b\u4e3b\u673a\u5f3a\u8feb\u5173\u95ed\u4e86\u4e00\u4e2a\u73b0\u6709\u7684\u8fde\u63a5\u3002>"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.7/package/base-files/files/etc/init.d/boot",
+      "error": "URLError: <urlopen error [WinError 10054] \u8fdc\u7a0b\u4e3b\u673a\u5f3a\u8feb\u5173\u95ed\u4e86\u4e00\u4e2a\u73b0\u6709\u7684\u8fde\u63a5\u3002>"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/base-files/files/etc/init.d/boot",
+      "error": "URLError: <urlopen error [WinError 10054] \u8fdc\u7a0b\u4e3b\u673a\u5f3a\u8feb\u5173\u95ed\u4e86\u4e00\u4e2a\u73b0\u6709\u7684\u8fde\u63a5\u3002>"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.8/package/base-files/files/etc/init.d/boot",
+      "error": "URLError: <urlopen error [WinError 10054] \u8fdc\u7a0b\u4e3b\u673a\u5f3a\u8feb\u5173\u95ed\u4e86\u4e00\u4e2a\u73b0\u6709\u7684\u8fde\u63a5\u3002>"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/base-files/files/etc/init.d/boot",
+      "error": "URLError: <urlopen error [WinError 10054] \u8fdc\u7a0b\u4e3b\u673a\u5f3a\u8feb\u5173\u95ed\u4e86\u4e00\u4e2a\u73b0\u6709\u7684\u8fde\u63a5\u3002>"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk-extract.8.scd",
+      "error": "URLError: <urlopen error [WinError 10054] \u8fdc\u7a0b\u4e3b\u673a\u5f3a\u8feb\u5173\u95ed\u4e86\u4e00\u4e2a\u73b0\u6709\u7684\u8fde\u63a5\u3002>"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/app_extract.c",
+      "error": "URLError: <urlopen error [WinError 10054] \u8fdc\u7a0b\u4e3b\u673a\u5f3a\u8feb\u5173\u95ed\u4e86\u4e00\u4e2a\u73b0\u6709\u7684\u8fde\u63a5\u3002>"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk-verify.8.scd",
+      "error": "URLError: <urlopen error [WinError 10054] \u8fdc\u7a0b\u4e3b\u673a\u5f3a\u8feb\u5173\u95ed\u4e86\u4e00\u4e2a\u73b0\u6709\u7684\u8fde\u63a5\u3002>"
+    }
+  ],
+  "changed_files": [
+    {
+      "path": "modules\\capture_services\\openwrt\\installed_dependency_backup.py",
+      "sha256": "249f1b90f3ef03e05480b7afdb65c60ddd1358645a3a387b1c55aa12ed2188f6"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\installed_dependency_reader.py",
+      "sha256": "71408d4dfcd35f991c28dacf6809f88cfdffcfcad76d0146fa8008182bb01d60"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\dependency_snapshot_archive.py",
+      "sha256": "c47ae2e0711cda953227d4177e80174321f8c2216a8c38d1a5c786bf3097dda3"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\snapshot_original_packages.py",
+      "sha256": "2a9a52058afc9981985d3641507bd614ae963b6c6efc1cf7365558b53b093692"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\snapshot_configuration.py",
+      "sha256": "ca8ba9d082cd805de83b34e7bd7ffca0d3c803e2c6a16391cba6cf08264e1951"
+    },
+    {
+      "path": "modules\\capture_services\\dependency_backup_service.py",
+      "sha256": "8411709d0b9761b7ae449c3f63bfd3b54dd3c46f1abc0e0d24f7f9304ead2e53"
+    },
+    {
+      "path": "tests\\test_snapshot_original_packages.py",
+      "sha256": "285fe678d72bee8107584403443e6d34ca134927735680fcd9dad48173b7155d"
+    },
+    {
+      "path": "tests\\test_snapshot_configuration.py",
+      "sha256": "023f7dc8d557ffd9e7f9ec10597ee8c87121e4cab340b36ea8f92a7deb5c1c77"
+    }
+  ],
+  "web_evidence": {
+    "file": "build\\dependency-backup-defaults-20261109\\web-evidence.json",
+    "sha256": "ea0ebbd46e8edbc8ef24e2ac028ffcf6d70752d4e8a5809cce12eefdf51d6857",
+    "kind": "web retrieval record, not upstream raw source"
+  },
+  "official_sources_read": [
+    "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.10/package/base-files/files/etc/init.d/boot",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.7/package/base-files/files/etc/init.d/boot",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/base-files/files/etc/init.d/boot",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/base-files/files/etc/init.d/boot",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.8/package/base-files/files/lib/functions.sh",
+    "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk-extract.8.scd",
+    "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/app_extract.c",
+    "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk-verify.8.scd"
+  ]
+}

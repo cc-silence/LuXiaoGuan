@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-08",
+  "problem": "Customer version 1.0.52 authenticated SSH successfully, then closed the transport when local password recovery record validation could not complete. The exact customer filesystem/validation cause remains unknown.",
+  "scope": "Host-side login admission and automation guards only. Existing OpenWrt recovery commands, identity checks and restore verification are unchanged.",
+  "behavior": [
+    "Only recovery record read/validation failures become a connected session with an explicit warning.",
+    "Skip ALL login-time mutating cleanup in this degraded state; retain original records unchanged.",
+    "Keep device information, dependency checks, terminal access and read-only management available.",
+    "Block wireless tasks, automatic management writes and dependency install/uninstall through existing shared task boundaries.",
+    "Bind the block to the authenticated device fingerprint; clear only after a successful recovery recheck.",
+    "Do not downgrade cancellation or a started-but-unverified recovery transaction.",
+    "Export only allowlisted error category/type and integer native codes, never record contents, paths or credentials."
+  ],
+  "verification": {
+    "new_tests": 7,
+    "real_loopback_ssh_authentication": true,
+    "customer_new_application_login": false,
+    "native_debian12_run": false,
+    "old_package_contains_fix": false,
+    "warnings": "Some older management Qt fixtures emit callbacks with incomplete SimpleNamespace ssh objects; suites reported zero failures/errors. Those fixtures were not modified."
+  },
+  "sources": [
+    {
+      "url": "https://docs.python.org/3.10/library/pathlib.html#pathlib.Path.exists",
+      "reviewed": "2026-11-08",
+      "purpose": "Keep inaccessible/invalid record storage distinct from no pending records."
+    },
+    {
+      "url": "https://docs.python.org/3.10/library/exceptions.html#OSError",
+      "reviewed": "2026-11-08",
+      "purpose": "Classify local storage exceptions and retain bounded native error codes without raw messages."
+    }
+  ],
+  "source_sha256": {
+    "modules/capture_services/openwrt/password_recovery_admission.py": "308063a407c0a2b3b5da927ae4b05ee348233ee821be4a7001cc279897848065",
+    "modules/capture_services/openwrt/password_recovery.py": "ffa4a458f1b1a698994401ad6488581e7b320a2b87db59fc9eeed5570d65ac32",
+    "modules/capture_services/openwrt/reconnect_cleanup.py": "fbe2c13cc53219e319688694a20426b9290fd042f82bde1a2ccbadb1ac9f0c46",
+    "modules/capture_services/backends/openwrt_backend.py": "39262a8bd431d89f99a07618d50cb2cc27d571042ccd30efc5a2621cbcb5e182",
+    "modules/capture_services/router_management_service.py": "20b4135f7f5f45a54c2ab2eef031c667f14f0ef5d60b3e8720ea97503383887d",
+    "modules/capture_services/auto_handshake_service.py": "f5f15d03f9d0fb264809eca76c084303ec7a554b98a26726a0c310a4dcae6a18",
+    "modules/capture_services/dependency_service.py": "89dc968a9434adde0eaf6bfafd605a9fee09a28afcf80800b6922a59a8b68def",
+    "modules/capture_services/openwrt/operation_diagnostics.py": "e3deed384eaf86123125471be474f4fbd5e19c384f6b4bd3db2cc3ec8d47db8a",
+    "tests/test_login_recovery_admission.py": "22bcb151bc84690118893f5cb00e1d67d9ceda6de6da5509ad51ad2da55bf071"
+  },
+  "delivery": "Source modified; no package created. Previously delivered 1.0.52 ZIP is unchanged."
+}

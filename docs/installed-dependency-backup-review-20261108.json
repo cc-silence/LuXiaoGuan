@@ -1,0 +1,191 @@
+{
+  "date": "2026-11-08",
+  "feature": "Private same-device installed dependency backup and offline restore",
+  "implementation": {
+    "scope": "Installed roots from common tools, other tools, SFTP, tmux and every capture dependency group; recursive installed providers and dependencies",
+    "transport": "Bounded SSH binary exec; no SFTP dependency, no repository download",
+    "formats": "Native OpenWrt gzip-tar IPK and APK v2 accepted by APK 3.0.5",
+    "apk_trust": "--allow-untrusted for this local restore only; --no-network; no system trust changes",
+    "protection": "ROM firmware hashes, board/release/kernel identity, intersecting hashed hardware address; package hashes; private workspace; additive-only native plan",
+    "existing_packages": "Retain existing versions; native solver must satisfy constraints without replacing existing packages",
+    "excluded": "Router login credentials, core network configuration, package database replacement, unrelated software, runtime private data",
+    "builtin": "Firmware-provided unchanged packages are recorded as prerequisites instead of copying their files",
+    "lifecycle": "Resident owner worker, bounded operation, cancellation before install, noninterruptible native write, final temporary cleanup, shared dependency status reconciliation",
+    "memory": "Chunked transfers, streamed payload inspection, bounded metadata and archive sizes"
+  },
+  "verification": {
+    "windows_related_tests": {
+      "passed": 83,
+      "suite": "catalog, snapshots, binary transfer, service, dependency sync, group controls, page/log layout, partial install/uninstall"
+    },
+    "native_apk": {
+      "passed": true,
+      "apk": "/tmp/luxiaoguan-apk-native-75z4g9zm/out/src/apk",
+      "root": "/tmp/luxiaoguan-apk-install-y746fzx4/target",
+      "checks": [
+        "native-v2-reader",
+        "baseline-skip",
+        "virtual-dependency",
+        "simulate",
+        "install",
+        "permissions",
+        "symlink",
+        "repeat-restore"
+      ]
+    },
+    "native_opkg": {
+      "passed": true,
+      "opkg": "/tmp/luxiaoguan-opkg-native-re9uosiq/opkg-out/src/opkg-cl",
+      "root": "/tmp/luxiaoguan-ipk-install-1lery6ui/target",
+      "checks": [
+        "native-ipk-reader",
+        "baseline-skip",
+        "dependency-solver",
+        "simulate",
+        "install",
+        "permissions",
+        "symlink",
+        "repeat-restore"
+      ]
+    },
+    "native_registration": "Both native-generated databases were re-read to check file ownership, install scripts and APK triggers; installer scripts themselves were disabled in isolated roots",
+    "visual": "Rendered and inspected shared light/dark cards at 100 and 150 percent; labels and both buttons visible",
+    "native_findings_fixed": [
+      "APK directory records required",
+      "APK v2 per-file SHA1 PAX fields required; outer integrity remains SHA256",
+      "OpenWrt IPK outer container must be gzip-tar, not Debian ar"
+    ]
+  },
+  "not_verified": [
+    "Real router SSH capture/transfer",
+    "Actual factory reset followed by offline restoration",
+    "Actual shared-library ABI and service start on customer firmware",
+    "Maintainer hook execution on a real router",
+    "Debian desktop Qt startup/card/shutdown; isolated native core tests do not constitute desktop verification"
+  ],
+  "device_acceptance": [
+    "Back up on a spare router and verify the file is complete",
+    "Only then reset that same unchanged firmware; reconnect and confirm SSH identity through the existing login flow",
+    "Disconnect internet while keeping the LAN management link; restore and verify reported skipped and installed dependencies",
+    "Repeat restore; no reinstall should be requested; test actual selected tools"
+  ],
+  "risks": [
+    "Partial native-install failure has no automatic rollback; report incomplete results and inspect before retry",
+    "Private backup may include package-owned tool configuration; keep it private",
+    "Unregistered hand-copied tools are not claimed as registered package backups",
+    "Unavailable ROM metadata or stable hardware identity is rejected; no guess or force bypass"
+  ],
+  "sources": [
+    {
+      "url": "https://github.com/alpinelinux/apk-tools/tree/v3.0.5",
+      "sha256": "8795712ce02457d29c0beb18f82851b408d1d47f98a0cbbbd33ab5ea496f665d",
+      "archive_metadata": {
+        "comment": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866"
+      }
+    },
+    {
+      "url": "https://github.com/openwrt/opkg-lede",
+      "sha256": "36704fc015ab6c34ef426c27ad1a3d6f10020df831828e76bec14e4c7f60fad5",
+      "archive_metadata": {
+        "comment": "80503d94e356476250adaf1f669ee955ec26de76"
+      }
+    },
+    {
+      "url": "https://github.com/openwrt/libubox",
+      "sha256": "566c0ca41fedaaa63e266b5e853459daf332cb87f4cc0516ce52c0bde125c729",
+      "archive_metadata": {
+        "comment": "a396f38a8568a1d670c240465cd8d24fdfdf6463"
+      }
+    }
+  ],
+  "files": {
+    "modules/capture_services/dependency_backup_service.py": {
+      "sha256": "df280642a1a5269f93ca1d85bea195be0548405f8a7f54c17e51cfb04e5fc8a1",
+      "lines": 114
+    },
+    "modules/capture_services/openwrt/installed_dependency_catalog.py": {
+      "sha256": "147af7b69ddc5794e2f84fb3abd6addd776dd67fcb10a2a4d3bf03d1e7123640",
+      "lines": 180
+    },
+    "modules/capture_services/openwrt/installed_dependency_reader.py": {
+      "sha256": "b36359e2b62d29bef439274f0a080fb1e60bbbaa46e0790d52ff50faabc2c9cc",
+      "lines": 176
+    },
+    "modules/capture_services/openwrt/installed_dependency_backup.py": {
+      "sha256": "c7e6aa7cd6135fd5ea4055124e70b2101f06e56b773349797e97d1b57a734c98",
+      "lines": 294
+    },
+    "modules/capture_services/openwrt/dependency_snapshot_archive.py": {
+      "sha256": "84504e3698b1c57b0a930623ea38b6f66b10c3a2ff0734ab05830743eab50947",
+      "lines": 262
+    },
+    "modules/capture_services/openwrt/dependency_snapshot_package_check.py": {
+      "sha256": "11b0589fc82451a4cbe845819302e0e327bff70789cec08a902c6e7f91b39df1",
+      "lines": 82
+    },
+    "modules/capture_services/openwrt/dependency_snapshot_plan.py": {
+      "sha256": "983a50853da7e6e5abd70ed39504ec2513be7df9916061d60fdc91454d6abfcd",
+      "lines": 43
+    },
+    "modules/capture_services/openwrt/dependency_snapshot_transfer.py": {
+      "sha256": "357f6e084518a8059ab33524d6624eae7e48f3c8196350a5b8de4113eadbd17f",
+      "lines": 131
+    },
+    "modules/main_pages/packet_capture/openwrt/dependency_backup_card.py": {
+      "sha256": "bd4ceba748e14da35c79031c89b3716288f42b3bc608f6e019f8f0aaa000f61b",
+      "lines": 157
+    },
+    "modules/main_pages/packet_capture/openwrt/router_dependency_page.py": {
+      "sha256": "86324ff15cc2f6bfc118170b02b3cc7a9b4c61785058a625cdf513db555a9949",
+      "lines": 108
+    }
+  },
+  "validation_artifacts": "Generated native binaries and extracted build trees cleaned after validation; summaries, source archive hashes, scripts, logs and screenshots retained",
+  "official_source_reaudit": {
+    "date": "2026-11-08",
+    "findings_fixed": [
+      {
+        "issue": "Deleted uci-defaults initialization payload was silently omitted",
+        "fix": "Fail incomplete capture with the missing path; require every rebuilt owned file to be captured or proven a directory",
+        "source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.6/package/base-files/files/lib/functions.sh"
+      },
+      {
+        "issue": "Status records omit original Require-User and other control fields",
+        "fix": "Read and identity-check retained installed control records, merge them with current status, remove stale original archive sizes and digests",
+        "sources": [
+          "https://raw.githubusercontent.com/openwrt/opkg-lede/master/libopkg/pkg.c",
+          "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.6/package/base-files/files/lib/functions.sh"
+        ]
+      },
+      {
+        "issue": "APK installed version alone could mask broken files, scripts, or xattrs after restoration",
+        "fix": "Validate final APK installed-package health flags before reporting completion",
+        "source": "https://raw.githubusercontent.com/alpinelinux/apk-tools/v3.0.5/src/database.c"
+      }
+    ],
+    "windows_related_regressions": {
+      "passed": 83
+    },
+    "debian12_pure_business_tests": {
+      "passed": 28,
+      "namespace_isolation": "Only capture_services package initializer bypassed because Debian lacks PySide6; production business modules executed"
+    },
+    "actual_posix_shell": {
+      "passed": true,
+      "checks": [
+        "generated-POSIX-shell",
+        "missing-initialization-script",
+        "missing-binary",
+        "no-archive-created"
+      ]
+    },
+    "limitations": [
+      "Original initialization scripts deleted by installation cannot be reconstructed from installed files alone; such incomplete captures now stop rather than claiming success",
+      "Native APK/opkg isolated installation proofs predate this reaudit; not repeated after these metadata and completion-check changes",
+      "Native installer hooks were registered and re-read previously but not executed in isolated installer tests",
+      "No real router factory reset and offline restore acceptance has been performed",
+      "No Debian12 desktop/UI acceptance; PySide6 unavailable in current WSL environment",
+      "Whole-worktree diff check reports pre-existing trailing whitespace in unrelated packet_capture_page.py; unrelated edits preserved"
+    ]
+  }
+}

@@ -67,6 +67,8 @@ class InfoPanel(LogExportActions, QFrame):
         self._entry_sizes = deque()
         self._entry_bytes = 0
         self._render_has_entry = False
+        self._rendered_sizes = deque()
+        self._render_clipped_chars = 0
         self._log_category = str(log_category)
         self._export_context_provider = export_context_provider
         self._diagnostic_provider = diagnostic_references
@@ -199,7 +201,8 @@ class InfoPanel(LogExportActions, QFrame):
         if history is not None:
             history.append(self._log_category, text, level)
             self._persist_diagnostics()
-        trimmed = False
+        previous_count = len(self._entries)
+        removed_count = 0
         retained = []
         for line in text.split('\n'):
             raw = line.encode('utf-8')
@@ -213,11 +216,10 @@ class InfoPanel(LogExportActions, QFrame):
             while len(self._entries) > 2000 or self._entry_bytes > MAX_INFO_BYTES:
                 self._entries.popleft()
                 self._entry_bytes -= self._entry_sizes.popleft()
-                trimmed = True
-        if trimmed:
-            self._refresh_privacy()
-        else:
-            self._append_rendered('\n'.join(retained), level)
+                removed_count += 1
+        self._trim_rendered_entries(min(removed_count, previous_count))
+        retained = retained[max(0, removed_count - previous_count):]
+        self._append_rendered_entries((line, level) for line in retained)
 
     def _persist_diagnostics(self, force=False):
         import time
@@ -254,6 +256,53 @@ class InfoPanel(LogExportActions, QFrame):
             path = Path(match.group(1))
             self.add_diagnostic_reference(path, path.parent, 'session')
 
+    def _trim_rendered_entries(self, count):
+        """Remove only expired text; diagnostic-only entries occupy no document space."""
+        if not count:
+            return
+        chars = sum(self._rendered_sizes.popleft() for _ in range(count))
+        clipped = min(chars, self._render_clipped_chars)
+        self._render_clipped_chars -= clipped
+        chars -= clipped
+        if chars:
+            cursor = QTextCursor(self.info_box.document())
+            cursor.setPosition(0)
+            cursor.setPosition(min(chars, self.info_box.document().characterCount() - 1),
+                               QTextCursor.KeepAnchor)
+            cursor.removeSelectedText()
+        if not any(self._rendered_sizes):
+            self._render_has_entry = False
+
+    def _append_rendered_entries(self, entries):
+        """Batch insert new entries and track UTF-16 document lengths for exact trimming."""
+        entries = tuple(entries)
+        if all(level == "diagnostic" for _, level in entries):
+            self._rendered_sizes.extend(0 for _ in entries)
+            return
+        document = self.info_box.document()
+        limit = self.info_box.maximumBlockCount()
+        self.info_box.setMaximumBlockCount(0)
+        cursor = QTextCursor(document)
+        cursor.beginEditBlock()
+        try:
+            for text, level in entries:
+                before = document.characterCount()
+                had_entry = self._render_has_entry
+                self._append_rendered(text, level, follow=False)
+                size = document.characterCount() - before
+                if level != "diagnostic" and not had_entry:
+                    size += 1  # Account for the separator following the first entry.
+                self._rendered_sizes.append(size)
+        finally:
+            cursor.endEditBlock()
+            before = document.characterCount()
+            self.info_box.setMaximumBlockCount(limit)
+            self._render_clipped_chars += before - document.characterCount()
+        if self._render_has_entry:
+            cursor.movePosition(QTextCursor.End)
+            self.info_box.setTextCursor(cursor)
+            self.info_box.ensureCursorVisible()
+
     def _refresh_privacy(self):
         bar = self.info_box.verticalScrollBar()
         position, at_end = bar.value(), bar.value() == bar.maximum()
@@ -261,8 +310,9 @@ class InfoPanel(LogExportActions, QFrame):
         try:
             self.info_box.clear()
             self._render_has_entry = False
-            for text, level in self._entries:
-                self._append_rendered(text, level)
+            self._rendered_sizes.clear()
+            self._render_clipped_chars = 0
+            self._append_rendered_entries(self._entries)
             bar.setValue(bar.maximum() if at_end else position)
         finally:
             self.info_box.setUpdatesEnabled(True)
@@ -281,7 +331,7 @@ class InfoPanel(LogExportActions, QFrame):
         menu.addAction(clear_action)
         menu.exec(self.info_box.viewport().mapToGlobal(pos))
 
-    def _append_rendered(self, text, level="info"):
+    def _append_rendered(self, text, level="info", *, follow=True):
         """按信息层级写入带颜色的文本到信息框。
 
         level 支持：
@@ -317,8 +367,9 @@ class InfoPanel(LogExportActions, QFrame):
         cursor.insertText(self.display_text(user_info_text(text)), fmt)
         self._render_has_entry = True
 
-        self.info_box.setTextCursor(cursor)
-        self.info_box.ensureCursorVisible()
+        if follow:
+            self.info_box.setTextCursor(cursor)
+            self.info_box.ensureCursorVisible()
 
     def clear(self):
         """清空信息框内容。"""
@@ -326,6 +377,8 @@ class InfoPanel(LogExportActions, QFrame):
         self._entry_sizes.clear()
         self._entry_bytes = 0
         self._diagnostic_references.clear()
+        self._rendered_sizes.clear()
+        self._render_clipped_chars = 0
         self._render_has_entry = False
         self.info_box.clear()
 

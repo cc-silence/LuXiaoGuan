@@ -66,8 +66,10 @@ class WpsDiagnosticTrace:
         self.empty = False
         self.event("target_started", mode=mode if mode in {"normal", "second", "offline", "combo"} else "unknown",
                    channel=_number(target.channel), band=target.band if target.band in {"2.4G", "5G"} else "unknown",
-                   seconds=15 if mode == "second" else _number(options.get("attack_seconds")),
-                   rounds=_number(options.get("attack_rounds", 1)),
+                   seconds=(_number(options.get("quick_seconds", 60)) if mode == "second"
+                            else _number(options.get("attack_seconds"))),
+                   rounds=(_number(options.get("quick_rounds", 1)) if mode == "second"
+                           else _number(options.get("attack_rounds", 1))),
                    receive_timeout=_number(options.get("pin_timeout", 5)),
                    attempt_delay=_number(options.get("pin_speed", 1)),
                    wps_advertised=bool(target.wps_supported), wps_locked=bool(target.wps_locked),

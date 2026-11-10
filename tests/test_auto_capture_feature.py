@@ -318,7 +318,7 @@ init_bpf_filter
         card.startRequested.connect(mock_slot)
         card._on_start_clicked()
         self.assertFalse(card.takeover_check.isChecked())
-        mock_slot.assert_called_once_with(radio_busy, card.channel_edit.text().strip(), False)
+        mock_slot.assert_called_once_with(radio_busy, "", False)
 
         # 测试进入 error 状态
         card.apply_state("error", "未安装抓包工具")
@@ -591,6 +591,7 @@ __WINBOX_KERNEL__=5.15.137
         self.assertEqual(session.mon_iface, "hcxmon1")
 
         # 验证构建阶梯尝试命令 (对齐 hcx_autocap.sh next_attempt 阶梯)
+        session.runner.run.return_value = RemoteCommandResult("capability_fixture", 0, "")
         attempts = session._build_attempt_commands("", "/tmp/.hcx_test.bpf")
         self.assertGreaterEqual(len(attempts), 5)
         descs = [a[0] for a in attempts]
@@ -631,6 +632,9 @@ __WINBOX_KERNEL__=5.15.137
 
         # 模拟命令执行返回
         def fake_run(name, cmd, timeout=None, cancel_event=None, **kwargs):
+            if name == "capture_channel_capabilities":
+                return RemoteCommandResult(name, 0, "Wiphy phy0\n\tBand 1:\n" +
+                    "".join(f"\t\t* {2407+n*5} MHz [{n}] (20.0 dBm)\n" for n in range(1, 14)))
             if name == "find_hcx_bin":
                 return RemoteCommandResult(name, 0, "/usr/bin/hcxdumptool", "")
             if name == "snapshot_wireless":

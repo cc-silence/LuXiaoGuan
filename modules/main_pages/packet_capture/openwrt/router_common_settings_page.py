@@ -35,7 +35,7 @@ class RouterCommonSettingsPage(QWidget):
         self.status_label.setTextFormat(Qt.PlainText)
         root.addWidget(self.status_label)
         from .management_dependency_prompt import ManagementDependencyBanner
-        self.dependency_banner=ManagementDependencyBanner(self,root)
+        self.dependency_banner=ManagementDependencyBanner(self,root,show_checking=False)
         self.install_button=self.dependency_banner.button
         scroll = BounceScrollArea(self)
         scroll.setObjectName("captureScrollArea")
@@ -148,6 +148,7 @@ class RouterCommonSettingsPage(QWidget):
 
     def showEvent(self,event):
         super().showEvent(event)
+        self._layout_cards()
         self.dependency_banner.enter()
 
     def eventFilter(self, watched, event):
@@ -159,10 +160,10 @@ class RouterCommonSettingsPage(QWidget):
         layout = self.cards_layout
         margins = layout.contentsMargins()
         width = self.scroll.viewport().width() - margins.left() - margins.right()
-        spacing = max(0, layout.horizontalSpacing())
+        spacing = max(0, self.card_groups.grids[0].horizontalSpacing())
         minimum = max(UiScaleManager.for_widget(self).px(280),
                       max(card.minimumSizeHint().width() for card in self.cards))
-        columns = max(1, min(3, (width + spacing) // (minimum + spacing)))
+        columns = max(1, (width + spacing) // (minimum + spacing))
         if columns == self._card_columns:
             return
         self.card_groups.place(columns)
@@ -175,6 +176,7 @@ class RouterCommonSettingsPage(QWidget):
             self.info_panel.append_info(text, level)
         else:
             self.status_label.setText(text)
+            self.status_label.setVisible(bool(text))
 
     def _password_error(self, text):
         from modules.common_widgets.common_dialogs import MessageDialog
@@ -209,6 +211,7 @@ class RouterCommonSettingsPage(QWidget):
             self.status_label.setText(notice)
         elif connected and self.status_label.text() == notice:
             self.status_label.clear()
+        self.status_label.setVisible(bool(self.status_label.text()))
 
     def _change_password(self):
         if not self.password_button.isEnabled():

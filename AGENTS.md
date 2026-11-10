@@ -98,6 +98,8 @@
 
 ## Local build disk retention
 
+- Workspace-level ../build is generated staging too. scripts/workspace_build_retention.py cleans completed audit downloads, Linux setup installers, obsolete sync copies and backups after successful builds. Keep final reports only; do not create backup copies before cache cleanup. Never delete installed WSL distributions or delivered ZIPs through this cleanup.
+
 - Keep exactly one latest verified local application build under build/releases. A failed or incomplete build must never replace the retained usable build.
 - scripts/build_cleanup.py owns local artifact cleanup. The application builder runs it after the complete ZIP is verified. Application publication keeps one local blobs cache after client verification; signed manifests, reports and isolated publisher credentials remain intact.
 - After a verified offline ZIP is delivered into dist, delete its reproducible staging objects, downloaded index cache and byte-identical staged ZIP copies. Keep the delivered ZIP and support records.

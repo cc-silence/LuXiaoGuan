@@ -26,6 +26,12 @@ def sanitized_policy_rows(rows):
                             'rollback':{'verified','not_needed','unconfirmed'},
                             'exception_type':{'OSError','PermissionError','TimeoutError','ValueError','InterruptedError'}}.items():
             if isinstance(row.get(key),str) and row[key] in allowed:clean[key]=row[key]
+        from .ipsec_verification import safe_evidence
+        evidence=safe_evidence(row.get("verification"))
+        if evidence:clean["verification"]=evidence
+        from .ipsec_command_diagnostics import safe_commands
+        commands=safe_commands(row.get('commands'))
+        if commands:clean['commands']=commands
         output.append(clean)
     return output
 
@@ -66,9 +72,11 @@ def prepare_target(address,port,cancel_event):
                     or not isinstance(result.get('status'),str) or result['status'] not in valid_statuses):
                 raise ValueError('IPsec success response does not match this login target')
         if type(result.get('code')) is int:diagnostic['native_error']=result['code']
-        diagnostic.update({k:result[k] for k in ('success','status','backup','backup_sha256','rollback','error','completed_steps','native_error','journal_error') if k in result})
+        diagnostic.update({k:result[k] for k in ('success','status','backup','backup_sha256','rollback','error','completed_steps','native_error','journal_error','verification','commands') if k in result})
         if not result.get('success'):
-            raise OSError('\u65e0\u6cd5\u5b8c\u6210 IP \u5b89\u5168\u7b56\u7565\u653e\u884c\uff1a'+str(result.get('error','Unknown policy error'))+
+            from .ipsec_verification import failure_message
+            detail=failure_message(result.get('verification')) or str(result.get('error','Unknown policy error'))
+            raise OSError('\u65e0\u6cd5\u5b8c\u6210 IP \u5b89\u5168\u7b56\u7565\u653e\u884c\uff1a'+detail+
                           ('; backup='+result['backup'] if result.get('backup') else ''))
         if cancel_event is not None and cancel_event.is_set():raise InterruptedError('Login cancelled')
         return result

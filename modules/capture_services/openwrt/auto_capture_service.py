@@ -14,6 +14,7 @@
 4. 开机自启服务管理集成。
 """
 
+from .capture_live_logs import with_capture_logs
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -92,6 +93,8 @@ class AutoCaptureRadioSession:
 
     def __init__(self, radio_info: OpenWrtRadioInfo, runner, ssh_client, output_dir: Path, service):
         self.radio_info = radio_info
+        self._requested_radio_info = radio_info
+        self._channel_plan = None
         self.runner = runner
         self.ssh_client = ssh_client
         self.output_dir = output_dir
@@ -123,6 +126,7 @@ class AutoCaptureRadioSession:
         self._initialization_failed = False
         self._recovery = None
         self._bound_client = getattr(ssh_client, "_client", None)
+        self._capture_evidence_epoch = getattr(getattr(runner, "operation_diagnostics", None), "epoch", -1)
         self._bound_fingerprint = getattr(ssh_client, "host_fingerprint", "")
         self._coordinator: Optional[CaptureStartupCoordinator] = None
 
@@ -149,6 +153,14 @@ class AutoCaptureRadioSession:
             self.service.messageGenerated.emit(
                 "\u4e0a\u6b21\u4e34\u65f6\u63a5\u53e3\u5c1a\u672a\u786e\u8ba4\u6e05\u7406\uff0c\u8bbe\u5907\u8eab\u4efd\u5df2\u53d8\u5316\uff0c\u5df2\u963b\u6b62\u672c\u6b21\u542f\u52a8\u3002", "error")
             return
+        if self._created_stubs and self._requested_radio_info.interface != self.phy:
+            if coordinator is not None: coordinator.cancel()
+            self.service.messageGenerated.emit(
+                "\u4e0a\u6b21\u4e34\u65f6\u63a5\u53e3\u5c1a\u672a\u786e\u8ba4\u6e05\u7406\uff0c\u7269\u7406\u7f51\u5361\u5f52\u5c5e\u5df2\u53d8\u5316\uff0c\u8bf7\u5148\u91cd\u65b0\u767b\u5f55\u5b8c\u6210\u6062\u590d\u3002", "error")
+            return
+        self.radio_info = self._requested_radio_info
+        self.phy = self.radio_info.interface or ""
+        self._channel_plan = None
         if hasattr(self.service, 'diagnostics'):
             self.service.diagnostics.begin(self.radio_name)
         # Attempt-local state must not authorize cleanup of the previous attempt.
@@ -202,8 +214,10 @@ class AutoCaptureRadioSession:
         stub_cleanup = ""
         if stub_name and stub_name in self._created_stubs:
             stub_cleanup = placeholder_removal_command(stub_name, self.phy) + "; "
+        from .auto_capture_cleanup import CAPTURE_PROCESS_NAMES
+        process_names = "|".join(CAPTURE_PROCESS_NAMES)
         cleanup_script = (
-            f"stale_pids=$(ps w 2>/dev/null | grep 'hcxdumptool' | grep -w '{self.mon_iface}' | grep -v grep | awk '{{print $1}}'); "
+            f"stale_pids=$(ps w 2>/dev/null | grep -E '{process_names}' | grep -w '{self.mon_iface}' | grep -v grep | awk '{{print $1}}'); "
             f"if [ -n \"$stale_pids\" ]; then "
             f"  for p in $stale_pids; do kill -TERM \"$p\" 2>/dev/null; done; "
             f"  sleep 1; "
@@ -219,6 +233,99 @@ class AutoCaptureRadioSession:
         from .capture_placeholders import build_placeholder_script
         return build_placeholder_script(self.phy)
 
+    def _open_capture_or_recover(self, client, command):
+        """Open the capture channel; at most one verified reopen after refusal."""
+        try:
+            return self.ssh_client.open_capture_stream(
+                client, command, self._stop_event, timeout=10)
+        except Exception as exc:
+            stage = getattr(exc, "ssh_stage", "unknown")
+            if not self._channel_refused_after_exec(exc):
+                raise RuntimeError("\u6293\u5305\u901a\u9053\u8bf7\u6c42\u5931\u8d25\uff0c\u9636\u6bb5=" + stage + ": " + str(exc)) from exc
+            channel, retry_error = self._recover_capture_channel(client, command)
+            if channel is not None:
+                return channel
+            if retry_error is not None:
+                exc = retry_error
+                stage = getattr(exc, "ssh_stage", "unknown")
+            raise RuntimeError("\u6293\u5305\u901a\u9053\u8bf7\u6c42\u5931\u8d25\uff0c\u9636\u6bb5=" + stage + ": " + str(exc)) from exc
+
+    def _channel_refused_after_exec(self, exc) -> bool:
+        """Whether the router refused the capture exec request itself.
+
+        Paramiko raises SSHException("Channel closed.") for a closed channel
+        and also for SSH_MSG_CHANNEL_FAILURE, which it closes locally
+        (paramiko channel._request_failed). Dropbear replies CHANNEL_FAILURE
+        when exec cannot spawn the command (svr-chansession.c
+        sessioncommand/ptycommand). Retrying is only safe after proving that
+        no capture process survived.
+        """
+        from paramiko.ssh_exception import SSHException
+        if not isinstance(exc, SSHException):
+            return False
+        if getattr(exc, "ssh_stage", "") != "exec_request":
+            return False
+        if self._stop_event.is_set():
+            return False
+        return any(marker in str(exc).lower()
+                   for marker in ("channel closed", "channel is not open"))
+
+    def _recover_capture_channel(self, client, command):
+        """One verified reopen after a refused capture exec request.
+
+        Returns (channel, retry_error); never raises, so the caller keeps its
+        original failure message. The retry runs only after the owned PID file
+        and the monitor interface prove that nothing survived the refusal.
+        """
+        from .capture_transport_evidence import collect_transport_failure
+        collect_transport_failure(self.runner, self.radio_name, "exec_request", self._stop_event)
+        if (getattr(self.ssh_client, "_client", None) is not client
+                or not getattr(self.ssh_client, "connected", False)
+                or self._stop_event.is_set()):
+            return None, None
+        self.service.radioStreamOutput.emit(
+            self.radio_name,
+            "\n⚠️ [通道恢复] 路由器在确认抓包命令时关闭了通道（可能是 Dropbear 拒绝启动）。"
+            "正在核实远端没有残留抓包进程，随后重试一次...\n",
+        )
+        from .capture_takeover import takeover_transaction
+        from .command_runner import require_command_completion
+        try:
+            with takeover_transaction(cancel_event=self._stop_event):
+                from .auto_capture_cleanup import (
+                    owned_capture_stop_command, reset_finished_attempt,
+                    verified_capture_process_absent)
+                stopped = self.runner.run(
+                    "recover_capture_channel", owned_capture_stop_command(self.mon_iface),
+                    timeout=8, cancel_event=self._stop_event)
+                require_command_completion(stopped)
+                if stopped.exit_code != 0:
+                    raise RuntimeError("capture process identity unconfirmed")
+                if not verified_capture_process_absent(
+                        self.runner, self.mon_iface, self._stop_event):
+                    raise RuntimeError("a capture process still holds the monitor interface")
+                reset_finished_attempt(self.runner, self.mon_iface, self.phy,
+                                       self.remote_cap_file, self._stop_event)
+        except Exception as exc:
+            if hasattr(self.service, 'diagnostics'):
+                self.service.diagnostics.recovery(
+                    self.radio_name, "capture channel recovery aborted: " + str(exc))
+            return None, None
+        if (self._stop_event.is_set()
+                or getattr(self.ssh_client, "_client", None) is not client):
+            return None, None
+        try:
+            channel = self.ssh_client.open_capture_stream(
+                client, command, self._stop_event, timeout=10)
+        except Exception as exc:
+            collect_transport_failure(self.runner, self.radio_name,
+                                      getattr(exc, "ssh_stage", "exec_request"), self._stop_event)
+            return None, exc
+        self.service.radioStreamOutput.emit(
+            self.radio_name, "✅ [通道恢复] 已确认无残留进程，抓包命令已重新提交。\n")
+        return channel, None
+
+    @with_capture_logs
     def _run_capture_pipeline(self, channels: str, allow_takeover: bool):
         """抓包完整流程：接管 -> 建口 -> 起 hcxdumptool -> 读流 -> 收尾回滚 -> 拉成果。"""
         coordinator = self._coordinator
@@ -269,6 +376,8 @@ class AutoCaptureRadioSession:
                 # 动态核准该射频对应的真实底层物理 phy (对齐 hcx_autocap.sh 三级动态探测)
                 snapshot = takeover.snapshot_wireless(self._stop_event)
                 self.phy, _interfaces = takeover.resolve_phy(self.radio_name, snapshot)
+                from .auto_capture_channels import prepare_session_channels
+                channels = prepare_session_channels(self, channels, snapshot)
                 self.service.radioStreamOutput.emit(
                     self.radio_name,
                     f"📡 [射频绑定] 物理设备: {self.phy} (对应配置: wireless.{self.radio_name})\n",
@@ -421,12 +530,7 @@ class AutoCaptureRadioSession:
                 )
                 wrapped_cmd = f"sh -c 'echo $$ > /tmp/.hcx_{self.mon_iface}.pid; exec {cmd_str}'"
 
-                try:
-                    self._channel = self.ssh_client.open_capture_stream(
-                        client, wrapped_cmd, self._stop_event, timeout=10)
-                except Exception as exc:
-                    stage = getattr(exc, "ssh_stage", "unknown")
-                    raise RuntimeError("\u6293\u5305\u901a\u9053\u8bf7\u6c42\u5931\u8d25\uff0c\u9636\u6bb5=" + stage + ": " + str(exc)) from exc
+                self._channel = self._open_capture_or_recover(client, wrapped_cmd)
 
                 # 耐心等待 3.5 秒检验是否闪退 (对齐 hcx_autocap.sh verify_captures 与 netlink 物理能力探测耗时)
                 crashed = False
@@ -577,34 +681,20 @@ class AutoCaptureRadioSession:
         return "modern"
 
     def _detect_phy_channels(self, target_band: str) -> str:
-        """从远端 iw phy <phy> info 探测驱动实际支持且未 disabled 的物理信道。"""
+        """Read enabled frequencies; band headings and radio IDs are not band evidence."""
+        from .auto_capture_channels import physical_inventory, SUFFIX
         try:
-            res = self.runner.run("detect_phy_channels", f"iw phy {self.phy} info 2>/dev/null", timeout=6)
-            stdout = res.stdout or ""
-            current_band = ""
-            channels = []
-            for line in stdout.splitlines():
-                if "Band 1:" in line:
-                    current_band = "2g"
-                elif "Band 2:" in line:
-                    current_band = "5g"
-                elif "Band " in line:
-                    current_band = "other"
-
-                if "MHz [" in line and "disabled" not in line.lower():
-                    m = re.search(r"\[(\d+)\]", line)
-                    if m:
-                        ch = int(m.group(1))
-                        if target_band == "5g" and (current_band == "5g" or ch > 14):
-                            channels.append(f"{ch}b")
-                        elif target_band == "2g" and (current_band == "2g" or ch <= 11):
-                            channels.append(f"{ch}a")
-
-            if channels:
-                return ",".join(channels[:14])
+            res = self.runner.run("detect_phy_channels", f"iw phy {self.phy} info 2>/dev/null", timeout=6,
+                                  cancel_event=self._stop_event)
+            from .command_runner import require_command_completion
+            require_command_completion(res)
+            if res.exit_code != 0: return ""
+            values = physical_inventory(res.stdout).get(target_band, ())
+            return ",".join(str(n) + SUFFIX[target_band] for n in sorted(values)[:14])
+        except (InterruptedError, TimeoutError):
+            raise
         except Exception:
-            pass
-        return ""
+            return ""
 
     def _build_attempt_commands(self, user_channels: str, bpf_file: str) -> List[tuple[str, str]]:
         """与 hcx_autocap.sh next_attempt 严格对齐，构建多档自愈阶梯命令列表 (全程启用受控 Deauth 踢线重连)。"""
@@ -620,49 +710,26 @@ class AutoCaptureRadioSession:
         except Exception:
             pass
 
-        band_str = ""
-        if self.radio_info.bands:
-            band_str = str(self.radio_info.bands[0])
-        else:
-            phy_info = self.runner.run(
-                "detect_phy_band",
-                f"iw phy {self.phy} info 2>/dev/null",
-                timeout=6,
-            )
-            stdout = phy_info.stdout or ""
-            if "Band 2:" in stdout:
-                band_str = "5G"
-            elif "Band 1:" in stdout:
-                band_str = "2.4G"
-            elif "Band 4:" in stdout or "6000" in stdout:
-                band_str = "6G"
-
-        is_5g = "5" in band_str
-        is_6g = "6" in band_str
-
-        channels = user_channels.strip()
+        from .auto_capture_channels import radio_band, normalize_channels, channel_plan
+        plan = self._channel_plan
+        band = plan.band if plan is not None else radio_band(self.radio_info.bands)
+        if band is None:
+            phy_info = self.runner.run("detect_phy_band", f"iw phy {self.phy} info 2>/dev/null", timeout=6,
+                                       cancel_event=self._stop_event)
+            from .command_runner import require_command_completion
+            require_command_completion(phy_info)
+            band = channel_plan(phy_info.stdout, self.radio_info.bands, user_channels).band
+        is_5g, is_6g = band == "5g", band == "6g"
+        channels = normalize_channels(user_channels, band, plan.available if plan is not None else None)
         if not channels:
-            if is_5g:
-                # 优先探测当前 5G 网卡驱动实际支持且未禁用的信道
-                detected_5g = self._detect_phy_channels("5g")
-                channels = detected_5g or "36b,40b,44b,48b"  # 纯基础低频 DFS-free 信道，避免 149~165 报 EINVAL
+            if plan is not None:
+                channels = plan.channels
+            elif is_5g:
+                channels = self._detect_phy_channels("5g") or "36b,40b,44b,48b"
             elif is_6g:
                 channels = "5c,21c,37c,53c,69c,85c,101c,117c"
             else:
-                detected_2g = self._detect_phy_channels("2g")
-                channels = detected_2g or "1a,2a,3a,4a,5a,6a,7a,8a,9a,10a,11a,12a,13a"
-
-        # 信道规范化：若 modern 方言下传入了纯数字信道，智能补齐对应频段后缀 (a/b/c)，杜绝 EINVAL
-        if dialect == "modern" and channels:
-            ch_items = [ch.strip() for ch in channels.split(",") if ch.strip()]
-            norm_items = []
-            suffix = "b" if is_5g else ("c" if is_6g else "a")
-            for item in ch_items:
-                if re.fullmatch(r"\d+", item):
-                    norm_items.append(f"{item}{suffix}")
-                else:
-                    norm_items.append(item)
-            channels = ",".join(norm_items)
+                channels = self._detect_phy_channels("2g") or "1a,2a,3a,4a,5a,6a,7a,8a,9a,10a,11a,12a,13a"
 
         pure_ch = re.sub(r"[a-zA-Z]", "", channels).strip(",")
         clean_ch = ",".join(ch for ch in pure_ch.split(",") if ch.strip())
@@ -771,13 +838,18 @@ class AutoCaptureRadioSession:
                     self._parse_stream_stats(tail)
                 if self._stop_event.is_set():
                     break
-                code = require_capture_exit_status(channel.recv_exit_status())
+                from .capture_evidence import record_auto_exit
+                raw_code = channel.recv_exit_status()
+                record_auto_exit(self, reason="process_exit", exit_code=raw_code)
+                code = require_capture_exit_status(raw_code)
                 raise RuntimeError("\u6293\u5305\u8fdb\u7a0b\u610f\u5916\u9000\u51fa\uff0c\u9000\u51fa\u7801=" + str(code))
             try:
                 data = channel.recv(2048)
                 if not data:
                     if self._stop_event.is_set():
                         break
+                    from .capture_evidence import record_auto_exit
+                    record_auto_exit(self, reason="unexpected_eof")
                     raise RuntimeError("\u6293\u5305\u6570\u636e\u901a\u9053\u63d0\u524d\u7ed3\u675f\uff0c\u8fdb\u7a0b\u9000\u51fa\u72b6\u6001\u5c1a\u672a\u786e\u8ba4\u3002")
                 text = self._stream_decoder.decode(data)
                 self.service.radioStreamOutput.emit(self.radio_name, text)
@@ -1232,6 +1304,8 @@ class AutoCaptureService(QObject):
                 service=self,
             )
             self.sessions[radio_info.name] = session
+        # The next start adopts fresh data only after old recovery/worker gates pass.
+        self.sessions[radio_info.name]._requested_radio_info = radio_info
         return self.sessions[radio_info.name]
 
     def _other_router_task_active(self):
@@ -1701,9 +1775,13 @@ class AutoCaptureService(QObject):
                     "awk '/MemAvailable/ {avail=$2} /MemTotal/ {total=$2} END {printf \"%d:%d:\", avail/1024, total/1024}' /proc/meminfo; "
                     "df -k /root | tail -n 1 | awk '{printf \"%d:%d\\n\", $(NF-2)/1024, $(NF-4)/1024}'"
                 )
-                res = self.runner.run("guard_probe", cmd, timeout=5)
+                from .router_health_evidence import SAMPLE_COMMAND, accept_guard
+                journal = getattr(self.runner, "operation_diagnostics", None)
+                epoch = getattr(journal, "epoch", None)
+                connection = getattr(self.ssh, "_client", None)
+                res = self.runner.run("guard_probe", cmd + "\n" + SAMPLE_COMMAND, timeout=5)
                 if res.exit_code == 0 and res.stdout:
-                    parts = res.stdout.strip().split(":")
+                    parts = accept_guard(self.runner, res.stdout, epoch, connection).strip().split(":")
                     if len(parts) == 4:
                         mem_avail = int(parts[0])
                         mem_total = int(parts[1])

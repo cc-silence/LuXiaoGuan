@@ -126,7 +126,9 @@ def domestic_sources(manager, base, cancel, tell):
     """Use PC official/proxy transport, or an owned native domestic source copy."""
     from modules.network_policy import configured_proxy_channels
     if configured_proxy_channels():
-        raise SignalError('offline_retry', '\u5df2\u914d\u7f6e\u4ee3\u7406\uff0c\u6539\u7531\u7535\u8111\u901a\u8fc7\u4ee3\u7406\u4ece\u5b98\u65b9\u6e90\u4e0b\u8f7d\u5e76\u4f20\u5305\u5b89\u88c5\u3002')
+        error = SignalError('offline_retry', '\u5df2\u914d\u7f6e\u4ee3\u7406\uff0c\u6539\u7531\u7535\u8111\u901a\u8fc7\u4ee3\u7406\u4ece\u5b98\u65b9\u6e90\u4e0b\u8f7d\u5e76\u4f20\u5305\u5b89\u88c5\u3002')
+        error.route_skipped = True
+        raise error
     from .signal_package_feed import preferred_mirror_order
     from .package_mirror_policy import source_name
     mirror = preferred_mirror_order()[0]

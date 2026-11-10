@@ -1,0 +1,80 @@
+{
+  "date": "2026-11-07",
+  "scope": "Two additional independent reviews of dependency installation changes",
+  "round1": {
+    "finding": "Names-only installed inventory incorrectly borrowed repository version for conflict checks",
+    "fix": "Distinguish installed packages from planned packages explicitly; unknown installed versions remain unknown",
+    "validation": {
+      "modules": [
+        "test_other_dependency_install_fix",
+        "test_other_dependencies",
+        "test_dependency_providers",
+        "test_firmware_dependency_support",
+        "test_dependency_install_review",
+        "test_dependency_install_followup",
+        "test_dependency_install_finalaudit",
+        "test_dependency_partial_install",
+        "test_dependency_mixed_install",
+        "test_dependency_compatibility_audit",
+        "test_dependency_two_round_audit",
+        "test_protected_dependency_candidates",
+        "test_common_offline_bundle",
+        "test_offline_dependency_fallback",
+        "test_signal_dependency_source",
+        "test_wireless_dependency_source",
+        "test_package_install_guards",
+        "test_opkg_repeated_plan",
+        "test_offline_cleanup",
+        "test_installation_added_regressions",
+        "test_dependency_download_messages",
+        "test_dependency_diagnostic_paths",
+        "test_installation_source_failures"
+      ],
+      "run": 217,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "success": true
+    }
+  },
+  "round2": {
+    "finding": "No additional defect found in examined boundaries",
+    "boundaries": [
+      "Cancellation exception identity",
+      "Rollback of transitive alternative dependencies",
+      "Full kernel identity preserved by mirrors",
+      "Duplicate and incomplete kernel metadata rejection",
+      "Loopback SOCKS and verified TLS",
+      "Weak-network progress and cancellation",
+      "Error classification and package size queries"
+    ],
+    "validation": {
+      "modules": [
+        "test_dependency_install_boundary_review",
+        "test_package_mirror_policy",
+        "test_package_mirror_three_passes",
+        "test_mirror_task_preference",
+        "test_package_download_diagnostics",
+        "test_package_error_classification",
+        "test_dependency_weak_network",
+        "test_dependency_socks",
+        "test_package_space_queries"
+      ],
+      "run": 94,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "success": true
+    }
+  },
+  "checks": {
+    "compiled_python_files": 10,
+    "utf8_replacement_character_scan": "passed",
+    "diff_whitespace_check": "passed"
+  },
+  "limits": [
+    "No customer-router installation performed",
+    "No native Debian 12 validation performed",
+    "No new binary release generated"
+  ]
+}

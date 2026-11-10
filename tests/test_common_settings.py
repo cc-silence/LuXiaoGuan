@@ -55,11 +55,17 @@ class CommonSettingsTests(unittest.TestCase):
         self.assertFalse(self.device.sessions)
         self.assertFalse(any(method=="apply" for _,method in self.device.calls))
     def test_absent_optional_lan_fields_are_not_deleted(self):
+        deletions=[]
+        original_call=self.device.call
+        def observe(obj,method,args):
+            if obj=="uci" and method=="delete":deletions.append(self.device.unwrap(args))
+            return original_call(obj,method,args)
+        self.device.lua.globals().bridge_call=observe
         review=read_settings(self.device,"network",self.cancel)
         values=dict(review["values"],auto="1",gateway="",broadcast="",ip6gw="",ip6addr=[],ip6prefix=[])
         result=save_settings(self.device,review,values,self.cancel)
         self.assertTrue(result["saved"])
-        self.assertNotIn(("uci","delete"),self.device.calls)
+        self.assertFalse(any("option" in row or row.get("section")=="lan" for row in deletions))
         self.assertFalse(self.device.sessions)
 
     def test_clearing_existing_lan_option_still_deletes_it(self):

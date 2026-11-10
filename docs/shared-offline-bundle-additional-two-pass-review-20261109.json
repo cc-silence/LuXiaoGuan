@@ -1,0 +1,82 @@
+{
+  "date": "2026-11-09",
+  "scope": "Two further source-backed reviews of shared offline dependencies",
+  "round1": {
+    "finding": "Switching all overlapping donor dependency versions could break an otherwise satisfiable mixed-version graph",
+    "reproduction": "tmux requires lib-a >= 2 and lib-b < 2; primary has both at 1 and donor has both at 2",
+    "fix": "Choose a donor provider only for the exact unresolved requirement. Preserve satisfied dependency versions. Cache task-local native comparisons and bound provider replacements to the existing 64-package closure limit.",
+    "regression": "Signed fixtures resolve lib-a 2 plus lib-b 1; each native version comparison executes at most once."
+  },
+  "round2": {
+    "finding": "No additional defect in examined integrity, update and cleanup boundaries",
+    "regression": "Borrowed object corruption and cancellation both stop before installation; exclusive locks are available afterwards for both roots and signed receipts stay unchanged."
+  },
+  "official_sources": [
+    "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk-add.8.scd",
+    "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk-package.5.scd",
+    "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/commit.c",
+    "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex",
+    "https://docs.python.org/3.10/library/contextlib.html#contextlib.ExitStack"
+  ],
+  "retrieval_file": "build/shared-bundle-reuse-20261109/additional-official-retrieval.json",
+  "retrieval_sha256": "9fd4af09361b149008feee7fed3a784b344c8716879494710571d6c86790917c",
+  "retrieval_note": "Hash identifies saved web retrieval JSON, not raw source bytes.",
+  "validation": {
+    "modules": [
+      "test_other_dependency_install_fix",
+      "test_other_dependencies",
+      "test_dependency_providers",
+      "test_firmware_dependency_support",
+      "test_dependency_install_review",
+      "test_dependency_install_followup",
+      "test_dependency_install_finalaudit",
+      "test_dependency_partial_install",
+      "test_dependency_mixed_install",
+      "test_dependency_compatibility_audit",
+      "test_dependency_two_round_audit",
+      "test_protected_dependency_candidates",
+      "test_common_offline_bundle",
+      "test_offline_dependency_fallback",
+      "test_signal_dependency_source",
+      "test_wireless_dependency_source",
+      "test_package_install_guards",
+      "test_opkg_repeated_plan",
+      "test_offline_cleanup",
+      "test_installation_added_regressions",
+      "test_dependency_download_messages",
+      "test_dependency_diagnostic_paths",
+      "test_installation_source_failures",
+      "test_dependency_install_boundary_review",
+      "test_package_mirror_policy",
+      "test_package_mirror_three_passes",
+      "test_mirror_task_preference",
+      "test_package_download_diagnostics",
+      "test_package_error_classification",
+      "test_dependency_weak_network",
+      "test_dependency_socks",
+      "test_package_space_queries",
+      "test_shared_bundle_packages",
+      "test_bundle_layout"
+    ],
+    "run": 333,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "success": true
+  },
+  "checks": {
+    "python_compile_files": 5,
+    "utf8": "passed",
+    "scoped_diff_check": "passed"
+  },
+  "limits": [
+    "No real router installation performed",
+    "No native Debian 12 execution verified",
+    "No new software ZIP generated",
+    "Incomplete or inconsistent dependency graphs are rejected; no dependency, index or signature checks are bypassed"
+  ],
+  "source_sha256": {
+    "modules/capture_services/openwrt/shared_bundle_packages.py": "76ead0382fce879c7bd521ece5b2a7a7f787418c72bc285fc78203071fc549f8",
+    "tests/test_shared_bundle_packages.py": "3f8cec13b720691946efac34d87bdf97addb3794e64f28c04d65189bf2facd69"
+  }
+}

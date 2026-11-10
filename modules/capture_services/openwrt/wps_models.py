@@ -1,5 +1,5 @@
 """Shared immutable WPS results and progress."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -15,6 +15,9 @@ class WpsTargetResult:
     result_file: str = ""
     wpc_file: str = ""
     note: str = ""
+    # 仅用于主线程弹窗与凭据库写入；repr 不显示，消息与快照也不读取。
+    pin: str = field(default="", repr=False)
+    pin_saved: bool = field(default=False, repr=False)
 
 
 @dataclass(frozen=True)

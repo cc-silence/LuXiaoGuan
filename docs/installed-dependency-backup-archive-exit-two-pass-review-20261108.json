@@ -1,0 +1,75 @@
+{
+  "date": "2026-11-08",
+  "scope": "Two further audits of approval/content binding and remote install exit acknowledgment",
+  "pass_one": {
+    "focus": [
+      "Private ZIP member names and duplicate entries",
+      "Selected archive changes after confirmation",
+      "Native package identity versus reviewed manifest"
+    ],
+    "new_production_defects_found": 0,
+    "added_regressions": [
+      "Duplicate manifest and unexpected traversal-like member rejected without writing outside private workspace",
+      "Source replaced after confirmation rejected before router inventory or upload",
+      "Both IPK and APK identity mismatch rejected"
+    ]
+  },
+  "pass_two": {
+    "focus": "Cleanup after native package installation timeouts or connection failures",
+    "finding": "Unconditional cleanup could delete private package files while remote native installation might still need them; channel close does not acknowledge command termination",
+    "fixes": [
+      "SnapshotCommandFailure preserves whether a nonzero remote exit was actually received",
+      "Installation pending state remains set on timeout, transport loss or missing exit status",
+      "Unknown installation exit retains private workspace and reports uncertainty; immediate retry discouraged",
+      "Confirmed native exit permits cleanup even if later inventory verification fails"
+    ],
+    "source_reasoning": "Potential continued remote execution is an inference from the SSH/Paramiko contract, not a real-router reproduction or a claim that every Dropbear continues after close",
+    "local_paramiko": {
+      "version": "5.0.0",
+      "channel_module_sha256": "3173be0b9762a72f10d12861f5c791f823cf88107eb2c4fff68220c3306143fa"
+    },
+    "added_regressions": [
+      "Known nonzero native exit cleans workspace",
+      "Lost connection during install preserves packages",
+      "Inventory timeout after acknowledged install still cleans",
+      "Negative/missing exit status remains unconfirmed",
+      "Existing timeout test now explicitly requires workspace retention"
+    ]
+  },
+  "validation": {
+    "windows_related_regressions": 111,
+    "debian12_business_regressions": 56,
+    "syntax_encoding_whitespace": "Changed Python files compile; UTF-8 and whitespace checks clean"
+  },
+  "limits": [
+    "No real router factory-reset and offline-restore acceptance",
+    "Retained workspace occupies router /tmp when exit is unknown; do not infer installation completion or immediately rerun",
+    "No remote kill, forced rollback, restart or retry added",
+    "Debian business tests bypass capture_services initialization because PySide6 absent; no desktop UI acceptance",
+    "Previous native package and BusyBox tests were not repeated for this orchestration-only change"
+  ],
+  "primary_sources": [
+    "https://docs.python.org/3.10/library/zipfile.html",
+    "https://docs.paramiko.org/en/stable/api/channel.html#paramiko.channel.Channel.close",
+    "https://www.rfc-editor.org/rfc/rfc4254#section-5.3",
+    "https://www.rfc-editor.org/rfc/rfc4254#section-6.10"
+  ],
+  "source_files": {
+    "modules/capture_services/openwrt/installed_dependency_reader.py": {
+      "sha256": "d1844c7717a64dc04003f74aa2b6c7334f03280b28f5f15e033c53f87b949ceb",
+      "lines": 191
+    },
+    "modules/capture_services/openwrt/installed_dependency_backup.py": {
+      "sha256": "5aa74df69ebad9360e16bc33c324aef7303d925d99359f1884ea0ada203071bb",
+      "lines": 297
+    },
+    "tests/test_dependency_snapshot.py": {
+      "sha256": "e8e7c3a98b5165b056ddb632a9af3e60d1ef5be2ab2e373c71eae781da73ce19",
+      "lines": 339
+    },
+    "tests/test_dependency_restore_failure_paths.py": {
+      "sha256": "04a61b59020c0de33863ddfa399aaaba547fa4e388a0e4812f7f63ce3f5a8ad2",
+      "lines": 130
+    }
+  }
+}

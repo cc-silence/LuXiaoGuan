@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import hashlib
 import ipaddress
 import re
+from .ipsec_verification import IPsecVerificationError
 
 POLICY_ID=re.compile(r'ipsecPolicy\{[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}\}',re.IGNORECASE)
 
@@ -71,6 +72,9 @@ def dump_rows(text):
         options={}
         for option in _OPTIONS.finditer(line[match.end():]):
             key=option[1].lower()
+            # Native netsh help explicitly permits multiple certificate authorities.
+            # Authentication material is irrelevant to permit verification and not retained.
+            if key in {'rootca','psk'}:continue
             if key in options:raise ValueError('Duplicate IPsec dump option')
             options[key]=option[2] if option[2] is not None else option[3]
         rows.append((match[1].lower(),options))
@@ -81,35 +85,59 @@ def dump_rows(text):
 def verify_dump(plan,text):
     if isinstance(text,bytes):
         from .legacy_ipsec_output import text_candidates
-        for candidate in text_candidates(text):
-            try:
-                verify_dump(plan,candidate)
-                return True
-            except ValueError:
-                continue
-        raise ValueError('IPsec dump does not verify in the supported output encodings')
-    rows=dump_rows(text);filters,action,rule=plan.names
+        best=None
+        decoded=0
+        try:
+            for candidate in text_candidates(text):
+                decoded+=1
+                try:
+                    verify_dump(plan,candidate)
+                    return True
+                except IPsecVerificationError as error:
+                    error.__traceback__=None
+                    score=lambda item:(item.verification.get("checked",0),item.verification.get("rows",0))
+                    if best is None or score(error)>score(best):best=error
+        except UnicodeError:
+            pass
+        if best is not None:
+            best.verification['decoded_candidates']=decoded
+            raise best
+        raise IPsecVerificationError('output_decode',decoded_candidates=decoded)
+    try:
+        rows=dump_rows(text)
+    except ValueError:
+        raise IPsecVerificationError('output_parse') from None
+    progress=0
+    def fail(reason,field=''):
+        raise IPsecVerificationError(reason,field=field,checked=progress,rows=len(rows))
+    if not rows:fail('output_unrecognized')
+    filters,action,rule=plan.names
     def one(kind,key,value):
+        nonlocal progress
         found=[r for k,r in rows if k==kind and r.get(key,'').casefold()==value.casefold()]
-        if len(found)!=1:raise ValueError('IPsec owned object is missing or ambiguous: '+kind)
+        if len(found)!=1:fail({'filterlist':'filterlist_count','filter':'filter_count','filteraction':'action_count','rule':'rule_count'}[kind])
+        progress+=1
         return found[0]
     one('filterlist','name',filters)
     f=one('filter','filterlist',filters)
     expected=dict(srcaddr='me',dstaddr=plan.address,srcport='0',dstport=str(plan.port),mirrored='yes')
     if f.get('protocol','').lower() not in ('tcp','6'):
-        raise ValueError('IPsec filter is not TCP')
-    if any(f.get(k,'').lower()!=v for k,v in expected.items()):raise ValueError('IPsec filter differs from exact SSH endpoint')
+        fail('filter_protocol','protocol')
+    for key,value in expected.items():
+        if f.get(key,'').lower()!=value:fail('filter_endpoint',key)
+    progress+=1
     if f.get('srcmask','255.255.255.255') not in ('255.255.255.255','32'):
-        raise ValueError('IPsec filter has a broad source mask')
+        fail('filter_srcmask','srcmask')
     if f.get('dstmask','255.255.255.255') not in ('255.255.255.255','32'):
-        raise ValueError('IPsec filter has a broad destination mask')
+        fail('filter_dstmask','dstmask')
     a=one('filteraction','name',action)
-    if a.get('action','').lower()!='permit':raise ValueError('IPsec action is not permit')
+    if a.get('action','').lower()!='permit':fail('action_permit')
     r=one('rule','name',rule)
     expected=dict(policy=plan.policy,filterlist=filters,filteraction=action,conntype='all',activate='yes')
-    if r.get('tunnel','0.0.0.0') != '0.0.0.0':
-        raise ValueError('IPsec rule unexpectedly uses a tunnel')
-    if any(r.get(k,'').casefold()!=v.casefold() for k,v in expected.items()):raise ValueError('IPsec rule differs from planned association')
+    if r.get('tunnel','0.0.0.0').casefold() not in {'0.0.0.0','no'}:
+        fail('rule_tunnel','tunnel')
+    for key,value in expected.items():
+        if r.get(key,'').casefold()!=value.casefold():fail('rule_association',key)
     if any(k=='rule' and item.get('name','').casefold()!=rule.casefold() and item.get('filterlist','').casefold()==filters.casefold() for k,item in rows):
-        raise ValueError('Owned IPsec filter list is referenced by another rule')
+        fail('foreign_reference','filterlist')
     return True

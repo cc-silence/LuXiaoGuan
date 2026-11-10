@@ -1,0 +1,115 @@
+{
+  "date": "2026-11-09",
+  "scope": "Consumed initialization files and dependency snapshot configuration restoration; Windows and Debian shared Python code.",
+  "rounds": [
+    {
+      "round": 1,
+      "focus": "Exact originals, format and signature boundaries",
+      "result": "Official APK extract destination and separate verify semantics confirmed; local exact release/target/architecture/manager/version checks retained; no package installation during backup."
+    },
+    {
+      "round": 2,
+      "focus": "Configuration staging and version isolation",
+      "result": "Found post-install transfer failure exposure and skipped different-version settings still exposed to native hooks. Stage and hash-check settings before install, reject affected version mismatches before creating restore workspace."
+    },
+    {
+      "round": 3,
+      "focus": "Post-install validation, transport limits and bounded archive reads",
+      "result": "Verify package results before applying settings; use uploaded file list for native APK original extraction; configuration ZIP reads now check cancellation and size every block."
+    }
+  ],
+  "fixes": [
+    "configuration transport failure must precede native install",
+    "affected configuration version mismatch stops before install",
+    "post-install package verification failure cannot proceed to configuration overwrite",
+    "large consumed-file lists no longer expand SSH exec command",
+    "configuration ZIP extraction has per-block cancellation and length bounds"
+  ],
+  "tests": {
+    "total": 89,
+    "passed": 89,
+    "failed": 0,
+    "errors": 0,
+    "added_this_review": 4,
+    "large_list_files": 150
+  },
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk-extract.8.scd",
+      "revision": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk-verify.8.scd",
+      "revision": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.10/package/base-files/files/lib/functions.sh",
+      "revision": "v19.07.10"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.7/package/base-files/files/lib/functions.sh",
+      "revision": "v21.02.7"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.8/package/base-files/files/lib/functions.sh",
+      "revision": "v24.10.8"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/base-files/files/lib/functions.sh",
+      "revision": "v25.12.6"
+    },
+    {
+      "url": "https://docs.python.org/3.10/library/tarfile.html",
+      "revision": "Python 3.10 documentation"
+    },
+    {
+      "url": "https://docs.python.org/3.10/library/zipfile.html",
+      "revision": "Python 3.10 documentation"
+    }
+  ],
+  "limitations": [
+    "No real router backup or restore was executed",
+    "No native Debian 12 desktop validation was performed",
+    "Only exact available originals are accepted; third-party firmware does not fall back to a different official firmware",
+    "Not every supported exact firmware/hardware combination was individually verified; OpenWrt 22.03.7 source retrieval remained unavailable",
+    "BusyBox 1.37.0 source retrieval unavailable; native tar commands retain existing transport assumptions and require device retest",
+    "New schema-2 backups require the updated client; schema-1 remains readable",
+    "Only allowed owned etc/config files are restored; protected network/wireless/firewall/credential paths remain excluded",
+    "Some restored service settings require a service or router restart; this code does not restart unrelated services"
+  ],
+  "files": [
+    {
+      "path": "modules\\capture_services\\openwrt\\snapshot_original_packages.py",
+      "sha256": "12102e47b72b7b478287763e4542afbe7c60e9ab7ee322cea337452ee9703b8b"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\snapshot_configuration.py",
+      "sha256": "f5f2fe38967685e4ab456ea26a53ab2d88b6f99de38ccef85484fb9cef816d4e"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\installed_dependency_backup.py",
+      "sha256": "3358a60944b018b82130aab671a913dc268b55dd4a03a40d607ee84b6aaf513e"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\dependency_snapshot_archive.py",
+      "sha256": "4aea245be6ff7b6d3af112053a3cb105c3bf8eb5523b40ca115507555f87235c"
+    },
+    {
+      "path": "modules\\capture_services\\dependency_backup_service.py",
+      "sha256": "43bcb097a24c881ef684b16f4a7fa50eeee2e8b3c31e8aa74d188ce0233284bc"
+    },
+    {
+      "path": "tests\\test_snapshot_original_packages.py",
+      "sha256": "c3c00eb78a8dd04770810cc15c04fc9d3d62d9f41023524a936e136ebd449dd5"
+    },
+    {
+      "path": "tests\\test_snapshot_configuration.py",
+      "sha256": "674ef68267720ced26e533a8990fa0564b17c5935f10674f3588cd0071247a72"
+    }
+  ],
+  "evidence": {
+    "path": "build\\dependency-backup-defaults-20261109\\three-pass-web-evidence.json",
+    "sha256": "d52dc27a871112a26e46ad81920f50f7c7c5d8297def7121e1ce59eafe358963",
+    "note": "Truncated web retrieval excerpts, not raw upstream source hashes; full results were read in this conversation."
+  }
+}

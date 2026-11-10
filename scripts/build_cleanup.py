@@ -49,14 +49,21 @@ def digest(path):
 
 
 def guarded(root,path):
-    root=Path(root).resolve(strict=True)
+    input_root=Path(root).absolute()
+    root=input_root.resolve(strict=True)
     path=Path(path).absolute()
     resolved=path.resolve(strict=True)
     build=root/'build'
-    if resolved == build or not resolved.is_relative_to(build) or path != resolved:
+    if resolved == build or not resolved.is_relative_to(build):
         raise ValueError('Cleanup path escaped build or contains a link: '+str(path))
+    if path.is_relative_to(input_root):
+        traversal_root=input_root
+    elif path.is_relative_to(root):
+        traversal_root=root
+    else:
+        raise ValueError('Cleanup path is outside the requested root: '+str(path))
     for parent in (path,*path.parents):
-        if parent == root:
+        if parent == traversal_root:
             break
         info=parent.lstat()
         if stat.S_ISLNK(info.st_mode) or getattr(info,'st_file_attributes',0)&0x400:
@@ -196,6 +203,9 @@ def cleanup_releases(root=ROOT,keep_stage=None,apply=True):
     candidates,keep=release_candidates(root,keep_stage)
     result=remove_candidates(root,candidates,apply)
     result['retained']=str(keep) if keep else None
+    if apply:
+        from scripts.workspace_build_retention import cleanup_workspace_build
+        result['workspace_build']=cleanup_workspace_build(root)
     return result
 
 
@@ -238,6 +248,8 @@ def main():
     obsolete=ROOT/'build/compatibility-audit/superseded'
     if obsolete.is_dir():candidates.append(obsolete)
     result=remove_candidates(ROOT,candidates,args.apply)
+    from scripts.workspace_build_retention import cleanup_workspace_build
+    result['workspace_build']=cleanup_workspace_build(ROOT,apply=args.apply)
     result.update(retained_build=str(keep),retained_publication_cache=str(published))
     target=ROOT/'build/local-cleanup.json'
     target.write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')

@@ -25,9 +25,10 @@ def install_management_dependencies(page,service,report):
 
 
 class ManagementDependencyBanner(QObject):
-    def __init__(self,page,layout):
+    def __init__(self,page,layout,*,show_checking=True):
         super().__init__(page)
         self.page=page
+        self.show_checking=show_checking
         self.readiness=getattr(page.service,'management_readiness',None)
         self.row=QWidget(page)
         row=QHBoxLayout(self.row)
@@ -48,7 +49,7 @@ class ManagementDependencyBanner(QObject):
         if state is None:self.row.hide();return
         connected=state.binding() is not None
         missing=state.missing
-        visible=connected and (state.checking or bool(missing) or bool(state.error) or state.probe is not None and not state.ready)
+        visible=connected and ((self.show_checking and state.checking) or bool(missing) or bool(state.error) or state.probe is not None and not state.ready)
         self.row.setVisible(visible)
         install=bool(missing)
         self.button.setText('\u5b89\u88c5\u7f3a\u5c11\u4f9d\u8d56' if install else '\u91cd\u65b0\u68c0\u67e5\u4f9d\u8d56')

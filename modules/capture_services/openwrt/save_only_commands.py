@@ -1,5 +1,7 @@
 """Commit only this rpcd session through libuci, without config-change events."""
-SAVE_ONLY = r'''
+from .save_session_directory import SAVE_SESSION_DIRECTORY
+
+SAVE_ONLY = SAVE_SESSION_DIRECTORY + r'''
 local save_configs={"wireless","network","firewall","dhcp"}
 local function save_snapshot(c,config)
  local out,count,size={},0,0
@@ -45,7 +47,7 @@ local function save_session_commit(verify,selected_configs,expected_hashes)
  if not selected_configs then clean() end
  if req.revision and req.revision~=revision() then fail("changed") end
  if req.dhcp_revision and req.dhcp_revision~="" and req.dhcp_revision~=dhcp_revision() then fail("dhcp_changed") end
- local path="/tmp/run/rpcd/uci-"..sid()
+ local path=save_session_directory((selected_configs or save_configs)[1])
  local c=uci.cursor("/etc/config",path)
  if c:get_confdir()~="/etc/config" or c:get_savedir()~=path then fail("save_unsupported") end
  local global=uci.cursor()
@@ -58,12 +60,14 @@ local function save_session_commit(verify,selected_configs,expected_hashes)
   if c:load(config) then
    local changes=c:changes(config)
    if type(changes)~="table" then fail("save_commit") end
-   if next(changes) then
+   local staged=next(changes) and save_snapshot(c,config) or nil
+   local unchanged=staged and global:load(config) and save_equal(staged,save_snapshot(global,config),0)
+   if staged and not unchanged then
     configs[#configs+1]=config
     hashes[config]=pending_hash("/etc/config/"..config)
     if expected_hashes and hashes[config]~=expected_hashes[config] then fail("changed") end
     if hashes[config]=="absent" then fail("save_unsupported") end
-    expected[config]=save_snapshot(c,config)
+    expected[config]=staged
    end
   end
  end

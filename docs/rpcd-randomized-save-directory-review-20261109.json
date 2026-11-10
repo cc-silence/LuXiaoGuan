@@ -1,0 +1,33 @@
+{
+  "date": "2026-11-09",
+  "customer_correction": "AP creation always failed; both save-only and save-and-apply reported failing. Initial security setup is not established as a cause.",
+  "confirmed_defect": "Save-only assumed rpcd runtime directory suffix equals bearer session ID. OpenWrt 25.12.6 rpcd independently randomizes directory names.",
+  "upstream_rpcd": "d99f703e4035d03fbcfbada3cb697db346c2b984",
+  "sources": [
+    "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/system/rpcd/Makefile",
+    "https://raw.githubusercontent.com/openwrt/rpcd/d99f703e4035d03fbcfbada3cb697db346c2b984/session.c",
+    "https://raw.githubusercontent.com/openwrt/rpcd/d99f703e4035d03fbcfbada3cb697db346c2b984/uci.c"
+  ],
+  "fix": "Identify own staged directory using a random transient section, delete it before libuci commit, retain no-reload save-only semantics and original verification/rollback. Fail closed on absent or ambiguous directory.",
+  "tests": {
+    "targeted_suite": 141,
+    "result": "passed",
+    "coverage": [
+      "reproduce old unconfirmed under randomized directory",
+      "legacy and randomized AP save-only",
+      "legacy and randomized AP save-and-apply",
+      "foreign session preserved",
+      "marker cleanup failure refuses commit",
+      "missing and duplicate marker refuse commit",
+      "WDS and relayd save preserve DHCP and runtime",
+      "legacy and modern LAN bindings, hostname, timezone",
+      "initial policy public preview/apply",
+      "transient marker delta history does not force unchanged configuration writes"
+    ]
+  },
+  "limitations": [
+    "No customer router connected for live validation.",
+    "Existing customer archives retain save-only failures; save-and-apply failure has not been reproduced by these fixtures. Do not claim both customer failures resolved.",
+    "Debian desktop runtime not validated by Windows tests."
+  ]
+}

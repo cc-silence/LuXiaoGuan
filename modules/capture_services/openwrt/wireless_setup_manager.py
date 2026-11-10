@@ -105,6 +105,13 @@ class WirelessSetupManager:
                             "shared_network": "这条中继共用了局域网或其他无线接口的网络，不能直接改成上级出口；请重新扫描加入独立连接。",
                             "password": "缺少可用密码，请重新输入。",
                             "recovery": "系统回滚结果未确认，请等待 90 秒后重新登录核对。"}
+                if code == "unconfirmed":
+                    from .wireless_saved_diagnostics import saved_check_detail
+                    field = saved_check_detail(result, self.runner, action)
+                    if field:
+                        message = ("配置保存核验未通过，已尝试恢复原配置。"
+                                   if action == "save_only_commit" else messages[code])
+                        raise SignalError(code, message + "（核验项：" + field + "）")
                 raise SignalError(code, messages.get(code, "路由器无线管理请求失败（" + re.sub(r"[^a-zA-Z0-9_.-]", "", code)[:90] + "），请检查组件及权限。"))
             if not isinstance(result.get("result"), dict):
                 raise ValueError()

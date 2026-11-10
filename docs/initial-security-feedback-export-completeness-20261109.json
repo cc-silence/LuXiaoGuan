@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-09",
+  "scope": "Audit diagnostics generation, bounded retention, sanitization and real feedback ZIP export",
+  "findings_fixed": [
+    "Save verification evidence could be evicted by unrelated background workflow records",
+    "Initial security selections were not independently retained",
+    "Combined description/network validation could not identify which check failed"
+  ],
+  "retained": [
+    "16 latest field-only save verification failures",
+    "8 latest initial security start/completion/failure records including selected-item flags, touched-config flags and result flags"
+  ],
+  "evidence": [
+    "Failed field plus actual/expected Lua type; no values",
+    "Real policy entry logs after review validation before direct or reconnecting apply",
+    "200 refresh events do not evict dedicated evidence",
+    "Actual exported ZIP for login, common settings and signal management contains diagnostics in operation-diagnostics.json and router-info.json and current-run/router-info.json",
+    "Injected private values are excluded",
+    "Different router fingerprint resets evidence",
+    "Selection catalog coverage and queue limits checked"
+  ],
+  "tests": {
+    "windows": 67,
+    "passed": true,
+    "real_router": false,
+    "debian_gui": false
+  },
+  "boundaries": [
+    "No initial security setting behavior or validation condition weakened",
+    "No guarantee against process termination before any history snapshot is written",
+    "Old executable packages do not contain these new diagnostics",
+    "Root cause of customer original save failure remains unconfirmed"
+  ],
+  "sha256": {
+    "modules/capture_services/openwrt/initial_security_evidence.py": "c5f2a4d0940bc614d807ed1a6bbf235c5646b3f57db5b170bdbfc1d2331f773a",
+    "modules/capture_services/openwrt/wireless_saved_diagnostics.py": "db1129ce30736066708c54ec78e0ee58152a29cf50c5c5a9e79690405f0187fe",
+    "modules/capture_services/openwrt/operation_diagnostics.py": "7a3ff2b503ee763adc4a41b01b88097693e9ef20ae1c840d65749bbf27833e55",
+    "modules/capture_services/openwrt/router_policy.py": "684de93927f43ce712fe782210c38044b639a48878f0bd1be3042b172ed9a54f",
+    "modules/capture_services/openwrt/wireless_setup_commands.py": "e825fc7dddd8d66ecf8d758abb90c5d5a9956d4ed0f0f8fb3e5b6db1db68b09e",
+    "tests/test_security_feedback_export.py": "ebb692d8792f957122a7b8eed4a464720ac399a23b92a573be8505e64688e1c1",
+    "tests/test_saved_verification_evidence.py": "4187f8b7bc5d6ac493989abb8ece763537c36f7e2dd9c8ac7774311bfb511aab"
+  }
+}

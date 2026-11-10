@@ -81,6 +81,28 @@ class BuildCleanupTests(unittest.TestCase):
             with self.subTest(path=path),self.assertRaises(ValueError):cleanup.remove_candidates(self.root,[path],True)
         self.assertTrue((self.root/'dist').exists())
 
+    def test_short_path_expansion_is_allowed_but_reparse_points_are_rejected(self):
+        import stat
+        from types import SimpleNamespace
+        target=self.root/'build'/'alias';target.mkdir(parents=True)
+        path_type=type(target);resolve=path_type.resolve;lstat=path_type.lstat
+        def expanded(path,*args,**kwargs):
+            if path==target:return self.root.resolve()/'build'/'long-name'
+            return resolve(path,*args,**kwargs)
+        with patch.object(path_type,'resolve',expanded):
+            self.assertEqual(cleanup.guarded(self.root,target),self.root.resolve()/'build'/'long-name')
+        alias=self.root.parent/'SHORTROOT'
+        def expand_root(path,*args,**kwargs):
+            if path==alias:return resolve(self.root,*args,**kwargs)
+            return resolve(path,*args,**kwargs)
+        with patch.object(path_type,'resolve',expand_root):
+            self.assertEqual(cleanup.guarded(alias,target),target.resolve())
+        def inspect(path,*args,**kwargs):
+            if path==target:return SimpleNamespace(st_mode=stat.S_IFDIR,st_file_attributes=0x400)
+            return lstat(path,*args,**kwargs)
+        with patch.object(path_type,'lstat',inspect),self.assertRaises(ValueError):
+            cleanup.guarded(self.root,target)
+
     def test_credential_and_unknown_build_paths_cannot_be_removal_targets(self):
         for relative in ('publishing/cloudflare-config','release-metadata','user-notes'):
             path=self.root/'build'/relative;path.mkdir(parents=True,exist_ok=True)

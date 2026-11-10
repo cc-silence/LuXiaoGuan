@@ -1,0 +1,58 @@
+{
+  "date": "2026-11-07",
+  "scope": "Second review of the dependency installation fixes",
+  "reproduced_and_fixed": [
+    {
+      "issue": "A running kernel with the opkg package revision suffix was accepted by prefix matching",
+      "fix": "Compare the full running kernel version exactly to the kernel portion of the installed ABI"
+    },
+    {
+      "issue": "HTTP success with gzipped HTML or an empty index was reported as package absence",
+      "fix": "Validate recognizable package records before treating missing kmod-tun as absence; retain unreadable-source failures and verified fallback"
+    }
+  ],
+  "new_regressions": [
+    "Reject truncated version, package revision suffix and full ABI as uname output before requests",
+    "Distinguish empty, HTML and invalid UTF-8 indexes from confirmed absence",
+    "Preserve confirmed absence for a valid index containing other packages",
+    "Recover from an invalid primary index through a verified fallback"
+  ],
+  "validation": {
+    "modules": [
+      "test_other_dependency_install_fix",
+      "test_other_dependencies",
+      "test_dependency_providers",
+      "test_firmware_dependency_support",
+      "test_dependency_install_review",
+      "test_dependency_install_followup",
+      "test_dependency_install_finalaudit",
+      "test_dependency_partial_install",
+      "test_dependency_mixed_install",
+      "test_dependency_compatibility_audit",
+      "test_dependency_two_round_audit",
+      "test_protected_dependency_candidates",
+      "test_common_offline_bundle",
+      "test_offline_dependency_fallback",
+      "test_signal_dependency_source",
+      "test_wireless_dependency_source",
+      "test_package_install_guards",
+      "test_opkg_repeated_plan",
+      "test_offline_cleanup",
+      "test_installation_added_regressions",
+      "test_dependency_download_messages",
+      "test_dependency_diagnostic_paths",
+      "test_installation_source_failures"
+    ],
+    "run": 214,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "success": true
+  },
+  "limits": [
+    "No live customer-router install was performed",
+    "No new release package was generated",
+    "Native Debian execution was not verified",
+    "Stable official opkg kernel support remains scoped to exact kmod-tun; APK and firmware candidates retain their existing restrictions"
+  ]
+}

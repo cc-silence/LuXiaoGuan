@@ -72,9 +72,8 @@ class UpdateChecker(QObject):
         record("check_started", version=self.current_version, manual=manual, testing=bool(self.test_code))
         try:
             package_platform = require_package_platform()
-            if self.config_path.stat().st_size > 4096:
-                raise ValueError("Update channel configuration is too large")
-            config = json.loads(self.config_path.read_text(encoding="utf-8"))
+            from .config import load_update_config
+            config = load_update_config(self.config_path, package_platform)
             if config.get("schema") != 1 or config.get("enabled") is not True or not self.public_key:
                 raise ValueError("\u81ea\u52a8\u66f4\u65b0\u670d\u52a1\u5c1a\u672a\u542f\u7528\u3002")
             self._url = https_url(config.get("manifest_url"))

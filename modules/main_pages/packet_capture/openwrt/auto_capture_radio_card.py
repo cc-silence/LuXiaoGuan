@@ -147,12 +147,11 @@ class AutoCaptureRadioCard(QFrame):
         self.channel_edit = QLineEdit(self.channel_row_widget)
         self.channel_edit.setObjectName("captureLineEdit")
         self.channel_edit.setPlaceholderText("留空则自动选用推荐跳频信道")
-        if "5" in band_str:
-            self.channel_edit.setText("36b,40b,44b,48b,149b,153b,157b,161b,165b")
-        elif "6" in band_str:
-            self.channel_edit.setText("5c,21c,37c,53c,69c,85c,101c,117c")
-        else:
-            self.channel_edit.setText("1a,2a,3a,4a,5a,6a,7a,8a,9a,10a,11a")
+        from modules.capture_services.openwrt.auto_capture_channels import default_channels
+        self._default_channels = default_channels(radio_info.bands)
+        self._channels_user_edited = False
+        self.channel_edit.setText(self._default_channels)
+        self.channel_edit.textEdited.connect(self._channel_edited)
         channel_row.addWidget(self.channel_edit, 1)
 
         self.channel_row_widget.setVisible(False)
@@ -449,10 +448,27 @@ class AutoCaptureRadioCard(QFrame):
             badge_font.setBold(True)
             self.status_badge.setFont(badge_font)
 
+    def _channel_edited(self, _text):
+        self._channels_user_edited = True
+
+    def channels_for_start(self):
+        """An untouched recommendation is resolved against fresh hardware in the worker."""
+        text = self.channel_edit.text().strip()
+        return '' if not self._channels_user_edited and text == self._default_channels else text
+
+    def update_radio_info(self, radio_info):
+        from modules.capture_services.openwrt.auto_capture_channels import default_channels
+        previous = self.channel_edit.text().strip()
+        automatic = not self._channels_user_edited and previous == self._default_channels
+        self.radio_info = radio_info
+        self._default_channels = default_channels(radio_info.bands)
+        if automatic:
+            self.channel_edit.setText(self._default_channels)
+
     def refresh_status(self, session=None, latest_radio_info=None):
         """刷新卡片状态与回显指标。"""
         if latest_radio_info is not None:
-            self.radio_info = latest_radio_info
+            self.update_radio_info(latest_radio_info)
             band_str = "/".join(latest_radio_info.bands) if latest_radio_info.bands else "2.4G"
             phy_name = latest_radio_info.interface or "phy"
             drv_str = f" [{latest_radio_info.driver}]" if latest_radio_info.driver else ""
@@ -469,7 +485,7 @@ class AutoCaptureRadioCard(QFrame):
 
     def _on_start_clicked(self):
         self._clear_console()
-        channels = self.channel_edit.text().strip()
+        channels = self.channels_for_start()
         allow_takeover = self.takeover_check.isChecked()
 
         self.startRequested.emit(self.radio_info, channels, allow_takeover)

@@ -11,6 +11,7 @@ from modules.capture_services.openwrt.common_settings import validate_values
 from modules.capture_services.openwrt.uci_booleans import netifd_bool
 from modules.platform_services.static_network import StaticMigrationError
 from .signal_setup_forms import text_input, choice, add_field, hint
+from .lan_ipv4_form import LanIpv4Form
 
 
 class RouterConfigDialog(FramelessDialog):
@@ -90,7 +91,8 @@ class RouterConfigDialog(FramelessDialog):
         add_field(layout,body,"\u65f6\u533a",zone,"\u6309\u6240\u5728\u5730\u533a\u9009\u62e9\u65f6\u533a\uff0c\u4f7f\u7528\u5bf9\u5e94\u7684\u590f\u4ee4\u65f6\u89c4\u5219\u3002")
 
     def _lan(self,body,layout):
-        old=self.review["values"]
+        self._ipv4_form=LanIpv4Form(self.review["values"])
+        old=self._ipv4_form.display
         layout.addWidget(hint("“保存并应用”会立即更新网络，期间会短暂断线；“仅保存”暂不生效。",body))
         protocol=choice(body,[("静态地址","static"),("自动获取地址（DHCP）","dhcp"),("不配置地址","none")])
         index=protocol.findData(old.get("proto","static"))
@@ -114,8 +116,8 @@ class RouterConfigDialog(FramelessDialog):
         auto.setChecked(netifd_bool(old.get("auto"),default=True))
         self.controls["auto"]=auto
         layout.addWidget(auto)
-        fields=[("ipaddr","IPv4 地址",True,"使用加减按钮增删地址；可以填写 192.168.1.1/24。"),
-                ("netmask","IPv4 子网掩码",False,"例如 255.255.255.0；地址已带 /24 时可以留空。"),
+        fields=[("ipaddr","IPv4 地址",True,"例如 192.168.1.1；子网掩码在下方设置。多地址使用不同掩码时，可分别填写带前缀的地址。"),
+                ("netmask","IPv4 子网掩码",False,"例如 255.255.255.0；多个地址各自带前缀时可以留空。"),
                 ("gateway","IPv4 网关",False,"下一站路由器地址；没有明确用途时保留原值。"),
                 ("broadcast","IPv4 广播地址",False,"可留空，由系统自动计算。"),
                 ("ip6addr","IPv6 地址",True,"使用加减按钮增删 IPv6 地址，包含前缀长度。"),
@@ -156,7 +158,7 @@ class RouterConfigDialog(FramelessDialog):
                 original=self.review["values"].get(key)
                 values[key]=entries[0] if len(entries)==1 and not isinstance(original,list) else entries
             else:values[key]=control.text().strip()
-        return values
+        return self._ipv4_form.storage_values(values)
 
     def _validate(self,apply=False):
         try:

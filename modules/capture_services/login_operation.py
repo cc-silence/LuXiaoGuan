@@ -9,15 +9,20 @@ def run_login(backend, settings, password, fingerprint, cancel, progress,
             raise InterruptedError("Login cancelled")
     try:
         check()
+        network_repair = None
         if network_prepare is not None:
             normalized = backend.validate_settings(settings)
             settings.update(normalized)
-            network_prepare(normalized["host"], normalized["port"], cancel)
+            preparation = network_prepare(normalized["host"], normalized["port"], cancel)
+            if callable(preparation):
+                network_repair = preparation
         elif network_ready is not None:
             network_ready(cancel)
         check()
-        result = backend.connect(settings, password, expected_fingerprint=fingerprint,
-                                 cancel_event=cancel, progress_callback=progress)
+        options = dict(expected_fingerprint=fingerprint, cancel_event=cancel, progress_callback=progress)
+        if network_repair is not None:
+            options['network_repair'] = network_repair
+        result = backend.connect(settings, password, **options)
         check()
         return result
     except InterruptedError:

@@ -1,0 +1,65 @@
+{
+  "date": "2026-11-09",
+  "summary": "已修正旧驱动地址误判，并完成当前设备的只读实机验证。",
+  "symptom": "Previously working STA stayed at connection status unknown, which prevented the subsequent Internet checks.",
+  "root_cause": "The new verdict incorrectly required iwinfo.info.bssid to equal the authenticated peer BSSID. On the observed wlan0 interface, iwinfo returned the local station MAC, not the upstream AP. The exact-interface supplicant STATUS was COMPLETED with matching SSID and configured BSSID.",
+  "live_readonly_evidence": {
+    "interface": "wlan0",
+    "native_bss_info_available": false,
+    "wpa_cli_available": true,
+    "wpa_state": "COMPLETED",
+    "ssid_matches": true,
+    "configured_bssid_matches": true,
+    "driver_bssid_equals_station_own_mac": true,
+    "driver_bssid_equals_supplicant_peer": false,
+    "kernel_iw_link_matches_supplicant_peer": true,
+    "station_peer_matches_supplicant_peer": true
+  },
+  "fix": "Use exact-interface supplicant STATUS as authenticated-peer authority. Keep COMPLETED, valid BSSID, SSID byte matching and explicit configured BSSID constraints. Driver association or station own MAC can neither establish nor veto authentication success. Publish the verified peer identity to the runtime model.",
+  "safeguards": [
+    "Incomplete handshake still shows connecting; missing/invalid evidence remains unknown.",
+    "A wrong SSID or a mismatch with an explicitly locked BSSID still cannot show success.",
+    "Unlocked profiles may connect to any authenticated BSSID matching the configured SSID, as configured by the user.",
+    "No firmware version, model or radio number is used to guess behavior.",
+    "No router configuration, password, package, wireless link or local adapter was changed."
+  ],
+  "verification": {
+    "windows_tests": 125,
+    "failures": 0,
+    "elapsed_seconds": 22.545,
+    "live_result": {
+      "connection_state": "connected",
+      "internet_state": "limited",
+      "reason": "http_only",
+      "unique_egress": true
+    },
+    "meaning": "The existing bound-interface Internet probe completed: ordinary HTTP verification passed, HTTPS verification did not pass. This is a current observation, not a claim that every destination is unreachable.",
+    "syntax": "py_compile and UTF-8 checks passed",
+    "new_regressions": [
+      "Driver self MAC with native authenticated status",
+      "Driver self MAC with old wpa_cli fallback",
+      "Unlocked peer change and locked target mismatch protections"
+    ]
+  },
+  "authorization_and_privacy": "Saved OS credential used only in memory and the saved trusted fingerprint enforced. A stale software-directory mirror fingerprint rejected the initial attempt; the newer user-level primary configuration supplied the correct previously trusted identity. No fingerprint was bypassed or overwritten. Hostnames, SSIDs, MAC addresses and credentials were not printed or saved.",
+  "source": {
+    "url": "https://w1.fi/wpa_supplicant/devel/ctrl_iface_page.html",
+    "section": "STATUS",
+    "finding": "Read-only status reports the authenticated connection BSSID, SSID and wpa_state. Device inspection established that this driver info BSSID instead equals the local MAC."
+  },
+  "files": [
+    {
+      "path": "modules\\capture_services\\openwrt\\station_connection.py",
+      "sha256": "0b0d431326f2a8b4b413ad96129b55005b39faec8ac558808bcddd05b4790b10"
+    },
+    {
+      "path": "tests\\test_station_connection.py",
+      "sha256": "c168d832eaba11960b306de5b9baf867523ca6d51a0b958a8ffd74ce09f2b1dd"
+    }
+  ],
+  "limits": [
+    "The already running GUI still has the old Python module loaded; restart is required to show the correction.",
+    "No running user process was forcibly stopped.",
+    "Live verification covers the current device only; exact-release source contracts and existing tests cover broader compatibility without claiming universal hardware acceptance."
+  ]
+}

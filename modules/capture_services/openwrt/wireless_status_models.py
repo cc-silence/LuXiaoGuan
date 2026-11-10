@@ -61,11 +61,12 @@ class WirelessNetwork:
     rx_bps: float | None = None
     tx_bps: float | None = None
     internet: InternetStatus = InternetStatus()
+    connection_state: str = 'unknown'
 
     @property
     def identity(self):
         return (self.interface, self.section, self.mode, self.ssid, self.bssid,
-                self.probe_interface, self.source_ips, self.associated, self.association_known)
+                self.probe_interface, self.source_ips, self.associated, self.association_known, self.connection_state)
 
 
 @dataclass(frozen=True)
@@ -152,6 +153,8 @@ def parse_wireless_status(data):
         bssid = _text(raw.get('bssid', ''))
         if bssid and not _MAC.fullmatch(bssid):
             raise ValueError('Invalid wireless BSSID')
+        connection=raw.get('connection_state','unknown')
+        if connection not in {'unknown','connecting','connected','disconnected'}:raise ValueError('Invalid connection state')
         networks.append(WirelessNetwork(name, _text(raw.get('section', '')), _text(raw.get('radio', '')),
                        raw['mode'], _text(raw.get('ssid', '')), bssid.lower(),
                        _number(raw.get('channel'), 1, 233), _number(raw.get('frequency'), 2000, 8000),
@@ -159,7 +162,7 @@ def parse_wireless_status(data):
                        raw.get('associated') is True, raw.get('association_known', type(raw.get('associated')) is bool) is True,
                        raw.get('peers_available') is True,
                        tuple(sorted(peers, key=lambda p: p.mac)), probe, tuple(sorted(set(ips))),
-                       _counter(raw.get('rx_bytes')), _counter(raw.get('tx_bytes'))))
+                       _counter(raw.get('rx_bytes')), _counter(raw.get('tx_bytes')), connection_state=connection))
     if len({n.interface for n in networks}) != len(networks):
         raise ValueError('Duplicate wireless interface')
     return WirelessStatus(tuple(sorted(networks, key=lambda n: (n.mode, n.radio, n.interface))),

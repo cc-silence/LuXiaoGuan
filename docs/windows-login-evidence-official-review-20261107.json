@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-07",
+  "tool_version": "1.0.2",
+  "official_sources": "build/windows-login-diagnostics/official-review-20261107/sources.json",
+  "findings_fixed": [
+    "Omitted invalid/missing/oversized policy binary must mark collection incomplete",
+    "Verify complete ZIP before publishing; clean partial output after serialization/fsync/CRC/rename failures",
+    "Distinguish inability to run port probe from a completed connection refusal/timeout",
+    "SSH identification requires a complete line, respects RFC 4253 255-byte limit including CRLF, and shares one receive deadline",
+    "Preserve IP Helper native error codes and show optional query failures in the customer summary"
+  ],
+  "validation": {
+    "targeted_tests_passed": 51,
+    "authentication_redaction_truncation_boundaries": 310,
+    "frozen_modules_matched": 16,
+    "entrypoint_matched": true,
+    "portable_chinese_path_self_test": true,
+    "launcher_syntax": true,
+    "zip_crc": true,
+    "real_frozen_collection": true,
+    "missing_required": [
+      "administrator",
+      "policy_local"
+    ]
+  },
+  "administrator_validation": {
+    "status": "not_started",
+    "reason": "Start-Process -Verb RunAs raised InvalidOperationException; underlying Windows error was not retained. No privileged collection is claimed. No policy was created or changed."
+  },
+  "archive": "C:\\Users\\CC\\Desktop\\Work\\RouterManager\\RouterManager_python\\dist\\LuXiaoGuan_LoginDiagnostics_v1.0.2_20261107_143006.zip",
+  "sha256": "d8e886f35905635d103c25b40c904deef934e37312d3ea192646e9e4f0f8d61a",
+  "bytes": 7451145,
+  "supersedes": [
+    "LuXiaoGuan_LoginDiagnostics_v1.0.0_20261107_141200.zip",
+    "LuXiaoGuan_LoginDiagnostics_v1.0.1_20261107_142537.zip"
+  ],
+  "limits": [
+    "Administrator policy-store collection still requires a successful authorized native run",
+    "No customer authenticated router login was tested",
+    "MS-GPIPSEC documentation defines policy layouts; it does not prove every customer local registry variant matches. Unknown binary layouts are withheld and marked incomplete."
+  ],
+  "scope": "Windows host read-only collector only; no router commands, services, firewall policy or application UI were changed."
+}

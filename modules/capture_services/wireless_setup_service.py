@@ -42,7 +42,7 @@ class WirelessSetupService(QObject):
         identity = self._connection_identity() if state.connection_state.value == "connected" else None
         dependencies = tuple(sorted((item.key, item.state.value, tuple(item.missing_packages))
                                     for item in getattr(state, "dependencies", ())
-                                    if item.key in {"wpa_cli", "signal", "iw", "iwinfo"}))
+                                    if item.key in {"wpa_cli", "signal", "iw", "iwinfo", "wireless_rpc"}))
         changed = dependencies != self._dependency_key
         self._dependency_key = dependencies
         if identity is self._identity:
@@ -141,8 +141,15 @@ class WirelessSetupService(QObject):
         return self._start("pending_commit", lambda cancel, message: self.manager.commit_pending(token, cancel))
 
     def install(self, approved):
-        device = self.owner.openwrt_backend.snapshot.device
-        return self._start("install", lambda cancel, message: self.manager.install(tuple(approved), device, cancel, message))
+        previous = self.owner.openwrt_backend.snapshot
+        approved = tuple(approved)
+        def operation(cancel, message):
+            environment = self.manager.install(approved, previous.device, cancel, message)
+            from .dependency_state_sync import refresh_related
+            checked = refresh_related(self.owner.dependency_service.manager, approved,
+                                      previous, cancel, message=message)
+            return replace(environment, dependencies=checked)
+        return self._start("install", operation)
 
     def scan(self, seconds, radio):
         if not valid_radio_name(radio):
@@ -257,6 +264,9 @@ class WirelessSetupService(QObject):
                 adopted=result.value.pop("restored_connection",None)
                 expected=relocation_fingerprint
                 valid=publish_verified_connection(self.owner,ssh,adopted,expected) or valid
+            if valid and action == "install" and not result.error and result.value.dependencies:
+                binding = (identity, result.value.fingerprint)
+                self.owner.dependency_service.publish_verified(result.value.dependencies, binding, notify=True)
             self.owner.task_controller.finish(failed=bool(result.error))
             self.active = False
             self.snapshot = replace(self.snapshot, busy=False, action="")

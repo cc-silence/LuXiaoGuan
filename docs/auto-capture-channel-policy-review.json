@@ -1,0 +1,83 @@
+{
+  "scope": "Automatic foreground capture stale-band/default-channel fix; preserve AP/bridge implementation, capture engine switches, takeover/restore and UI layout.",
+  "evidence_archive": "XRJ_LuXiaoGuan_\u81ea\u52a8\u6293\u5305_20261109_170836.zip",
+  "reported_device": {
+    "model": "Xiaomi MiWiFi Mini",
+    "firmware": "25.12.6",
+    "kernel": "6.12.112",
+    "actual_mapping": {
+      "radio0/phy0": "5G",
+      "radio1/phy1": "2.4G"
+    }
+  },
+  "reproduction": "Two offline card refresh tests failed before the change: 2.4G->5G and 5G->2.4G left the old default channel text unchanged. Both pass after the change.",
+  "root_causes": [
+    "The card refresh and page refresh replaced radio_info without updating the default channel list.",
+    "Existing sessions retained stale radio_info.",
+    "Non-empty user channel lists bypassed hardware/band validation."
+  ],
+  "changes": [
+    "One pure shared channel policy based on physical frequency rows and disabled flags, not radio/phy numbering or iw Band heading indices.",
+    "Untouched defaults resolve in the existing worker using live capabilities. User edits, including deliberate empty input, remain intact.",
+    "Read iw phy info once after verified radio-to-phy resolution and before takeover, stale sweep or monitor creation; reject invalid/mismatched/unavailable channels.",
+    "For physical multi-band devices use the freshly read configured band; ambiguity or a disabled selected band stops startup.",
+    "Existing sessions adopt new device information only after active worker, recovery and leftover-placeholder gates pass.",
+    "No additional timer, no UI-thread remote IO, no wireless driver replacement, no new changes to AP/bridge execution."
+  ],
+  "source": {
+    "commit": "8dad077bfee93281bdf8f1115ba0c047d22230d7",
+    "sha256": "b7665f924261b0c41cf7f6701a546445c42e56d4df8370221a73740f2c4d0249",
+    "url": "https://api.github.com/repos/ZerBea/hcxdumptool/tarball/8dad077bfee93281bdf8f1115ba0c047d22230d7",
+    "local_archive": "tools/hcx_compat/upstream-6.3.4.tar.gz",
+    "archive_sha256_verified": true,
+    "checked_help_lines": "4736-4747",
+    "excerpt": [
+      "\t\"-c <digit>     : set channel (1a,2a,36b,...)\\n\"",
+      "\t\"                  default: 1a,6a,11a\\n\"",
+      "\t\"                  important notice: channel numbers are not unique\\n\"",
+      "\t\"                  it is mandatory to add band information to the channel number (e.g. 12a)\\n\"",
+      "\t\"                   band a: NL80211_BAND_2GHZ\\n\"",
+      "\t\"                   band b: NL80211_BAND_5GHZ\\n\"",
+      "\t#if(LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))",
+      "\t\"                   band c: NL80211_BAND_6GHZ\\n\"",
+      "\t\"                   band d: NL80211_BAND_60GHZ\\n\"",
+      "\t\"                   band e: NL80211_BAND_S1GHZ (902 MHz)\\n\"",
+      "\t#endif",
+      "\t\"                  to disable frequency management, set this option to a single frequency/channel\\n\""
+    ]
+  },
+  "compatibility": {
+    "command": "iw phy <verified phy> info; existing POSIX command and shared iter_phy_channels parser reused",
+    "hardware_policy": "Frequency/capability driven and architecture independent. Both numbering permutations, 2.4G/5G/6G and multi-band inputs tested; not a per-model live compatibility claim.",
+    "legacy_tools": "Existing legacy numerical channel conversion and engine options retained.",
+    "system_range": "Same public policy for supported official 19.07/21.02/22.03/23.05/24.10/25.12 series; missing or unparseable capabilities explicitly block startup. Exact per-device live acceptance remains required."
+  },
+  "verification": {
+    "final_targeted_tests": "211 passed in 34.322 seconds",
+    "syntax_utf8_diff": "passed",
+    "visual": "Offscreen widgets rendered in both themes; layout size, stylesheet and hidden channel-row visibility unchanged.",
+    "native_debian12": "not run",
+    "live_router": "not run",
+    "package": {
+      "version": "1.0.60_alpha",
+      "archive": "C:\\Users\\CC\\Desktop\\Work\\RouterManager\\RouterManager_python\\dist\\LuXiaoGuan_v1.0.60_alpha_20261110_083038.zip",
+      "sha256": "4fdee5c521ed773d19a43295606246195cfaa92cc38f4974d12290511688865c",
+      "size": 83043359,
+      "zip_crc_verified": true,
+      "version_consistency": true,
+      "frozen_smoke_checks": [
+        "ssh-dependencies",
+        "all-pages-and-settings",
+        "native-terminal",
+        "update-worker",
+        "local-gpo-self-test"
+      ]
+    }
+  },
+  "live_acceptance": [
+    "On Mini, radio0 first attempt must receive 5G channels and radio1 first attempt must receive 2.4G channels.",
+    "Repeat single and dual starts, refresh and reconnect; correct first attempt must not depend on a wrong-band fallback.",
+    "Verify existing 3G/other known-good devices without changing driver or engine options.",
+    "A manually entered wrong-band list must be rejected before takeover or monitor creation."
+  ]
+}

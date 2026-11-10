@@ -81,7 +81,7 @@ class CaptureIntegrationSafetyTests(unittest.TestCase):
         service, client = Mock(), Mock()
         runner = Mock()
         def run(name, *args, **kwargs):
-            return RemoteCommandResult(name, 0, "/usr/sbin/hcxdumptool" if name == "find_hcx_bin" else "ABSENT" if name == "sweep_stale" else "")
+            return RemoteCommandResult(name, 0, "/usr/sbin/hcxdumptool" if name == "find_hcx_bin" else "ABSENT" if name == "sweep_stale" else "* 5180 MHz [36] (20.0 dBm)" if name == "capture_channel_capabilities" else "")
         runner.run.side_effect = run
         session = AutoCaptureRadioSession(OpenWrtRadioInfo(name="radio7", interface="phy2"), runner, client, Path("."), service)
         gate = Mock(_expected={"radio7", "radio0"})

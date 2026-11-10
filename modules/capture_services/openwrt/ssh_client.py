@@ -213,6 +213,7 @@ class OpenWrtSshClient:
         auth_method="password",
         private_key_path="",
         cancel_event=None,
+        network_repair=None,
     ):
         """建立 SSH 连接并校验主机指纹。
 
@@ -273,7 +274,8 @@ class OpenWrtSshClient:
                 connect_kwargs["pkey"] = load_selected_private_key(connect_kwargs.pop("key_filename"))
                 self.login_diagnostics.update(stage="tcp_connect")
             from .ssh_connect_control import login_socket
-            with login_socket(connect_kwargs["hostname"], connect_kwargs["port"], timeout, cancel_event) as sock:
+            network_options = {'network_repair': network_repair} if network_repair is not None else {}
+            with login_socket(connect_kwargs["hostname"], connect_kwargs["port"], timeout, cancel_event, **network_options) as sock:
                 if sock is not None:
                     connect_kwargs["sock"] = sock
                 client.connect(**connect_kwargs)
@@ -413,6 +415,24 @@ class OpenWrtSshClient:
         return self._open_pty_stream(connection, cancel_event, timeout, command=command,
                                      kind="control", term="dumb", width=240, height=24)
 
+    def open_diagnostic_stream(self, connection, command, cancel_event, timeout=4):
+        """Optional read-only PTY; a logging failure cannot invalidate the login."""
+        with self._lock:
+            if self._client is not connection or not self.connected:
+                raise RuntimeError("Diagnostic connection changed")
+        def opener(register):
+            channel = connection.get_transport().open_session(timeout=timeout)
+            register(channel, "pty_request")
+            channel.settimeout(timeout)
+            from .ssh_terminal import request_control_pty
+            request_control_pty(channel, term="dumb", width=240, height=24)
+            register(channel, "exec_request")
+            channel.exec_command(command)
+            channel.settimeout(0.2)
+            return channel
+        return self._open_owned(connection, opener, _close_resource, timeout,
+                                cancel_event, "diagnostic", isolate_failure=True)
+
     def open_capture_stream(self, connection, command, cancel_event, timeout=10):
         """Open a capture channel; retry only before any command submission."""
         return self._open_pty_stream(connection, cancel_event, timeout, command=command,
@@ -511,7 +531,7 @@ class OpenWrtSshClient:
         _close_resource(client)
         if callback is not None:callback(client)
 
-    def _open_owned(self, client, opener, dispose, timeout, cancel_event, kind):
+    def _open_owned(self, client, opener, dispose, timeout, cancel_event, kind, *, isolate_failure=False):
         """有界等待资源并原子移交所有权；放弃后的资源由打开线程回收。"""
         if timeout <= 0:
             raise ValueError("SSH 通道打开期限必须大于零。")
@@ -589,7 +609,7 @@ class OpenWrtSshClient:
                 dispose(resource)
             # 建立后的确认/子系统超时只属于该通道，不能据此关闭登录连接。
             from paramiko.ssh_exception import ChannelException, SSHException
-            fatal = not isinstance(exc, (InterruptedError, ChannelException)) and (
+            fatal = not isolate_failure and not isinstance(exc, (InterruptedError, ChannelException)) and (
                 stage == "channel_open" and (
                     isinstance(exc, (TimeoutError, ConnectionError, EOFError))
                     or isinstance(exc, SSHException) and "timeout opening channel" in str(exc).lower()

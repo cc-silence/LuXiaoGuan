@@ -18,7 +18,7 @@ class UpdatePlatformTests(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
-    def test_linux_never_reads_windows_test_code_and_rejects_missing_channel_without_network(self):
+    def test_linux_never_reads_windows_test_code_and_uses_default_missing_channel(self):
         with tempfile.TemporaryDirectory() as folder, \
              patch.object(support, "is_linux", return_value=True), \
              patch("modules.platform_services.app_update_access.read_code") as read, \
@@ -27,11 +27,14 @@ class UpdatePlatformTests(unittest.TestCase):
             errors = []
             checker.failed.connect(lambda message, manual: errors.append((message, manual)))
             self.assertEqual(checker.test_code, "")
-            self.assertFalse(checker.check(manual=True))
-            self.assertTrue(errors[0][1])
-            self.assertIn("missing.json", errors[0][0])
+            with patch.object(checker, "_next_channel") as dispatch:
+                self.assertTrue(checker.check(manual=True))
+                dispatch.assert_called_once()
+            self.assertEqual(errors, [])
+            self.assertIn("platform=linux-x64", checker._url)
             read.assert_not_called()
-            network.assert_not_called()
+            network.assert_called_once()
+            checker.cancel()
             checker.deleteLater()
 
     def test_even_correctly_signed_windows_package_is_rejected_on_linux(self):

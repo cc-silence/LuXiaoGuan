@@ -6,7 +6,7 @@ from .network_diagnostics import emit, adapter_state
 from .runtime import current_os,WINDOWS,LINUX
 
 
-def inspect(peer=None,timeout=10,*,adapter_id=None,local_address=None):
+def inspect(peer=None,timeout=10,*,adapter_id=None,local_address=None,include_unaddressed=False):
     if current_os()==WINDOWS:
         from .lan_network_windows import inspect as read
     elif current_os()==LINUX:
@@ -15,7 +15,10 @@ def inspect(peer=None,timeout=10,*,adapter_id=None,local_address=None):
     try:local_address=str(ipaddress.IPv4Address(local_address)) if local_address is not None else None
     except (TypeError,ValueError):local_address=None
     try:
-        rows=read(None if local_address else peer,timeout=timeout,**({"adapter_id":adapter_id} if adapter_id is not None else {}))
+        options = {"adapter_id": adapter_id} if adapter_id is not None else {}
+        if include_unaddressed and current_os() == WINDOWS:
+            options["include_unaddressed"] = True
+        rows=read(None if local_address else peer,timeout=timeout,**options)
         if not isinstance(rows,list) or len(rows)>128:raise ValueError('Invalid adapter inventory')
         if local_address:
             rows=[dict(row,route=_owns_address(row,local_address)) for row in rows]

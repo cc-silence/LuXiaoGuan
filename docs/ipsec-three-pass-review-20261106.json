@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-06",
+  "scope": "Windows host IPsec login preparation only; router operations and UI unchanged",
+  "rounds": [
+    {
+      "round": 1,
+      "focus": "Native script syntax and text decoding",
+      "evidence": [
+        "Microsoft netsh command documentation pinned to commit 4282dd47a285a65de44c1512e8e9abd2384582a8",
+        "GetACP/GetOEMCP official definitions",
+        "Local Microsoft netsh static add rule ? help permits repeated rootca parameters"
+      ],
+      "finding": "The old parser rejected repeated rootca even in unrelated existing rules. This is a valid native syntax, not a decoding failure.",
+      "change": "Do not retain or treat authentication-only rootca/psk parameters as unique semantic selectors; continue rejecting duplicate ports, addresses and policy associations.",
+      "validation": "Independent duplicate-certificate fixtures; first and repeat login pass; wrong endpoint and duplicate critical fields still fail."
+    },
+    {
+      "round": 2,
+      "focus": "Exact allow scope, identity preservation and rollback",
+      "evidence": [
+        "Microsoft static filter/rule/permit grammar",
+        "Existing registry preservation implementation and prior protocol source cross-check"
+      ],
+      "finding": "No evidence supports widening the permit scope or bypassing verification. Snapshot checks and owned-object rollback remain necessary.",
+      "change": "No changes to policy selection, service state, destination masks, ports, policy assignment or rollback semantics.",
+      "validation": "Existing transaction, original-node preservation, concurrent-change, backup failure, partial-command failure and receipt-failure regressions pass."
+    },
+    {
+      "round": 3,
+      "focus": "Process results, IPC and diagnostic export",
+      "evidence": [
+        "CPython v3.10.11 subprocess source",
+        "Microsoft service state reporting contract",
+        "Actual administrator worker and exported diagnostic sanitizer call chain"
+      ],
+      "finding": "Failures before backup lost native exit codes; exported logs lacked per-command outcome and output-size metadata.",
+      "change": "Add at most 12 command metadata rows, including fixed operation code, outcome, return code, elapsed milliseconds and output bytes; retain pre-backup errors through administrator IPC; never export command arguments or output.",
+      "validation": "Metadata whitelist, bounded retention, timeout, capture failure, pre-backup error, final-verification rollback, login export, cancellation and session regressions pass."
+    }
+  ],
+  "customer_evidence": {
+    "zip": "XM_LuXiaoGuan_\u8def\u7531\u5668\u767b\u5f55_20261106_181224.zip",
+    "observed": "Three attempts stopped after four IPsec additions, failed final verification, verified rollback; SSH authentication was not reached.",
+    "unknown": "No raw dump or failing field in original export. Repeated certificates and tunnel=no are compatibility findings, not proven causes for this customer."
+  },
+  "validation": {
+    "unique_tests_passed": 125,
+    "core_suite_before_last_added_test": 82,
+    "additional_startup_session_cancel_network_suite": 42,
+    "additional_first_repeat_login_regression": 1,
+    "final_changed_test_modules_passed": 17,
+    "syntax_utf8_files": 8,
+    "source_hashes_verified": 7,
+    "host_policy_mutations": 0,
+    "native_calls": "Read-only netsh add filter ? and add rule ? only",
+    "native_help_host_version": "10.0.19044"
+  },
+  "performance": "No extra policy calls, polling or timers; metadata collection uses fixed-size rows and a 12-entry cap; existing output limits and process cleanup retained.",
+  "sources_manifest": "build/ipsec-three-pass-review-20261106/sources.json",
+  "delivery": "Source and offline validation only; no application package, publication or customer-machine success claimed."
+}

@@ -1,0 +1,188 @@
+{
+  "date": "2026-11-08",
+  "scope": "Two independent official-source reviews of same-device installed dependency backup and offline restore",
+  "pass_one": {
+    "focus": [
+      "Precise firmware package-manager commits",
+      "IPK and APK v2 reader and checksum contracts",
+      "File ownership, ordinary and extended permissions",
+      "Original control and script metadata"
+    ],
+    "sources": {
+      "releases": [
+        "19.07.0",
+        "19.07.1",
+        "19.07.10",
+        "19.07.2",
+        "19.07.3",
+        "19.07.4",
+        "19.07.5",
+        "19.07.6",
+        "19.07.7",
+        "19.07.8",
+        "19.07.9",
+        "21.02.0",
+        "21.02.1",
+        "21.02.2",
+        "21.02.3",
+        "21.02.4",
+        "21.02.5",
+        "21.02.6",
+        "21.02.7",
+        "22.03.0",
+        "22.03.1",
+        "22.03.2",
+        "22.03.3",
+        "22.03.4",
+        "22.03.5",
+        "22.03.6",
+        "22.03.7",
+        "23.05.0",
+        "23.05.1",
+        "23.05.2",
+        "23.05.3",
+        "23.05.4",
+        "23.05.5",
+        "23.05.6",
+        "24.10.0",
+        "24.10.1",
+        "24.10.2",
+        "24.10.3",
+        "24.10.4",
+        "24.10.5",
+        "24.10.6",
+        "24.10.7",
+        "24.10.8",
+        "25.12.0",
+        "25.12.1",
+        "25.12.2",
+        "25.12.3",
+        "25.12.4",
+        "25.12.5",
+        "25.12.6"
+      ],
+      "component_commits": [
+        "1bf042dd06751b693a8544d2317e5b969d666b69",
+        "38eccbb1fd694d4798ac1baf88f9ba83d1eac616",
+        "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866",
+        "c09fe2098718807ddbca13ee36e3e38801822946",
+        "c5dccea956b8be14eabf6ff69b331a3e9ac36749",
+        "d038e5b6d155784575f62a66a8bb7e874173e92e",
+        "d093f7c198a64bff0cd58afeaf638909fda24ca8",
+        "dcbc142e51f5f5f2fb9e4e44657e013d3c36a52b",
+        "f2166a89b7e96e2c60002959731eebc5f45fa318"
+      ],
+      "firmware_sources": 100,
+      "component_sources_and_archives": 49,
+      "indexes": [
+        "build/dependency-snapshot-review/two-pass-source-index.json",
+        "build/dependency-snapshot-review/two-pass-component-index.json"
+      ]
+    },
+    "fixed": "APK ACL/xattr digests were discarded; selected addon packages with non-reconstructable extended permissions now stop backup before transfer rather than losing permissions silently"
+  },
+  "pass_two": {
+    "focus": [
+      "Installed dependency closure and prerequisite retention",
+      "Healthy installed state versus version-only success",
+      "Offline repository isolation in all seven exact opkg commits and both exact APK commits",
+      "Worker, cancellation, connection binding and final cleanup",
+      "Native installation and actual initialization-script execution"
+    ],
+    "fixed": "opkg reinstreq state could be treated as healthy; common health validation now checks both APK broken flags and opkg reinstall-required state at backup, selection, and restore completion"
+  },
+  "validation": {
+    "windows_related_regressions": {
+      "passed": 85
+    },
+    "debian12_business_regressions": {
+      "passed": 30,
+      "limitation": "Only capture_services package initialization bypassed due to absent PySide6; not a desktop validation"
+    },
+    "actual_native_apk": [
+      {
+        "passed": true,
+        "version": "3.0.2",
+        "ref": "d093f7c198a64bff0cd58afeaf638909fda24ca8",
+        "apk": "/tmp/luxiaoguan-exact-apk-3fahpsx9/out-3.0.2/src/apk",
+        "root": "/tmp/luxiaoguan-apk-install-xg57o7e0/target",
+        "checks": [
+          "native-v2-reader",
+          "baseline-skip",
+          "virtual-dependency",
+          "simulate",
+          "install",
+          "permissions",
+          "symlink",
+          "repeat-restore",
+          "chrooted-post-install",
+          "chrooted-trigger"
+        ]
+      },
+      {
+        "passed": true,
+        "version": "3.0.5",
+        "ref": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866",
+        "apk": "/tmp/luxiaoguan-exact-apk-3fahpsx9/out-3.0.5/src/apk",
+        "root": "/tmp/luxiaoguan-apk-install-y8ni2isj/target",
+        "checks": [
+          "native-v2-reader",
+          "baseline-skip",
+          "virtual-dependency",
+          "simulate",
+          "install",
+          "permissions",
+          "symlink",
+          "repeat-restore",
+          "chrooted-post-install",
+          "chrooted-trigger"
+        ]
+      }
+    ],
+    "actual_official_initialization_hooks": {
+      "passed": 50,
+      "result_file": "build/dependency-snapshot-review/two-pass-official-hook-result.json",
+      "scope": "Actual account creation and postinst-pkg execution in isolated roots using rebuilt control; no service startup on routers"
+    },
+    "syntax_and_encoding": "Changed Python files compiled; UTF-8 replacement-character scan clean"
+  },
+  "limits": [
+    "No real router factory reset/offline restore acceptance or real device service-startup tests",
+    "Deleted original initialization payload cannot be reconstructed from installed files alone; incomplete capture stops",
+    "Selected addon APK packages with recorded extended attributes are rejected because current transport cannot reconstruct their values",
+    "No Debian desktop acceptance; PySide6 unavailable",
+    "Exact opkg commits reviewed from source; previous isolated native opkg test is separate and does not prove every firmware",
+    "Existing unrelated working-tree changes preserved"
+  ],
+  "source_files": {
+    "modules/capture_services/openwrt/installed_dependency_catalog.py": {
+      "sha256": "751cdf6fe42ce395f582e2b0f0b210025f055d57af432dba295f9f2f2aa1388d",
+      "lines": 194
+    },
+    "modules/capture_services/openwrt/installed_dependency_reader.py": {
+      "sha256": "299a73d906f3c54b24cabe86750d45860d5f69b2091fe3e0ce698499836e1b08",
+      "lines": 182
+    },
+    "modules/capture_services/openwrt/dependency_snapshot_archive.py": {
+      "sha256": "2bd09161fe9445bc597af060bf65ac30725df57727b384ed08466e144a5d5a7c",
+      "lines": 265
+    },
+    "modules/capture_services/dependency_backup_service.py": {
+      "sha256": "5e3f0293de01d2ed910495334d182f97844fb97cd99108f69f26009c925e148c",
+      "lines": 115
+    },
+    "tests/test_installed_dependency_catalog.py": {
+      "sha256": "058d932f5ccf5bc961b0ecc321958e430aeb4f38cf5916495b7f4ae6738d208c",
+      "lines": 54
+    },
+    "tests/test_dependency_snapshot.py": {
+      "sha256": "21b3ea98785c0f5fddd4c867d53bf0336d478bc5bfc42902af351d849a4c1296",
+      "lines": 285
+    }
+  },
+  "primary_references": [
+    "https://github.com/openwrt/openwrt/blob/v25.12.0/package/system/apk/Makefile",
+    "https://github.com/alpinelinux/apk-tools/blob/d093f7c198a64bff0cd58afeaf638909fda24ca8/src/database.c",
+    "https://github.com/openwrt/opkg-lede/blob/38eccbb1fd694d4798ac1baf88f9ba83d1eac616/libopkg/pkg.c"
+  ]
+}

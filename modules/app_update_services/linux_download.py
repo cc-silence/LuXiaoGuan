@@ -65,7 +65,8 @@ def download(worker,plan):
     channels=worker.channels
     if channels is None:
         from modules.platform_services.update_dispatch import channel_config
-        config=json.loads(channel_config(root).read_text(encoding='utf-8'))
+        from .config import load_update_config
+        config=load_update_config(channel_config(root), 'linux-x64')
         channels=allowed_channels(None,'direct' if config.get('network_mode')=='direct' else 'proxy')
     if not channels:raise ValueError('No update network route')
     from .catalog import BASELINE

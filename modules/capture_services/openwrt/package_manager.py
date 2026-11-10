@@ -150,6 +150,10 @@ def package_error_reason(output):
         return '路由器空间不足'
     if any(x in text for x in ('signature', 'untrusted', 'bad checksum')):
         return '软件源或安装包签名校验失败，未绕过校验'
+    if any(x in text for x in ('check_data_file_clashes', 'trying to overwrite', 'already provided by package', 'conflicts with')):
+        if 'dnscrypt-proxy' in text and 'dnscrypt-proxy2' in text:
+            return 'dnscrypt-proxy \u4e0e dnscrypt-proxy2 \u4e0d\u80fd\u5171\u5b58\uff08\u65b0\u65e7\u7248\u672c\u5360\u7528\u76f8\u540c\u6587\u4ef6\uff09\uff1b\u5df2\u4fdd\u7559\u73b0\u6709\u7a0b\u5e8f\uff0c\u672a\u5f3a\u5236\u8986\u76d6'
+        return '\u5b89\u88c5\u5305\u4e0e\u5df2\u6709\u8f6f\u4ef6\u5360\u7528\u76f8\u540c\u6587\u4ef6\u6216\u4e0d\u80fd\u5171\u5b58\uff1b\u5df2\u4fdd\u7559\u73b0\u6709\u8f6f\u4ef6\uff0c\u672a\u5f3a\u5236\u8986\u76d6'
     if any(x in text for x in ('unknown package', 'no such package')):
         return '软件源中没有该软件包，请核对固件源'
     if any(x in text for x in ('unsatisfiable', 'unable to select packages', 'cannot satisfy', 'incompatible with the architectures')):

@@ -301,9 +301,16 @@ local function policy_applied()
    end
    if op.config=="network" and section=="lan" and op.values and op.values.ipaddr then
     local state=optional("network.interface.lan","status",{})
-    local found=false
-    for _,entry in ipairs(state["ipv4-address"] or {}) do if entry.address==op.values.ipaddr then found=true end end
-    if state.up~=true or state.pending==true or not found then return {ready=false} end
+    local addresses=op.values.ipaddr
+    if type(addresses)~="table" then addresses={addresses} end
+    if #addresses==0 then return {ready=false} end
+    for _,address in ipairs(addresses) do
+     local ip=address:match("^([^/]+)")
+     local found=false
+     for _,entry in ipairs(state["ipv4-address"] or {}) do if entry.address==ip then found=true end end
+     if not found then return {ready=false} end
+    end
+    if state.up~=true or state.pending==true then return {ready=false} end
     network_state=fields(state,{"proto","device","ipv4-address","ipv6-address","ipv6-prefix","route"})
     network_state.up=state.up;network_state.pending=state.pending
    end
@@ -347,5 +354,7 @@ BOOT = BOOT.replace("__INITIAL_RECONNECT__",INITIAL_RECONNECT).replace("__CHECKE
 def policy_command(action, lua_bin="lua", **values):
     if lua_bin not in _LUA_BINS:
         raise ValueError("Invalid Lua executable")
+    import secrets
+    values.setdefault("save_nonce", secrets.token_hex(16))
     payload=json.dumps(dict(action=action,**values),ensure_ascii=True,separators=(",",":"))
     return lua_bin+" - "+quote_argument(payload)+" <<'LXG_POLICY'\n"+BOOT+"\nLXG_POLICY"

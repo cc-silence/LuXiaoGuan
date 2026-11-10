@@ -51,12 +51,40 @@ def _connect_socket(host, port, timeout, cancel):
     raise NoValidConnectionsError(errors)
 
 
+def connection_errors(error):
+    from paramiko.ssh_exception import NoValidConnectionsError
+    return tuple(error.errors.values()) if isinstance(error, NoValidConnectionsError) else (error,)
+
+
+def access_denied(error):
+    errors = connection_errors(error)
+    return bool(errors) and all(
+        isinstance(item, OSError) and (getattr(item, 'winerror', None) == 10013
+                                      or item.errno in (errno.EACCES, 10013))
+        for item in errors)
+
+
+def _open_login_socket(host, port, timeout, cancel, network_repair):
+    try:
+        return _connect_socket(host, port, timeout, cancel)
+    except OSError as error:
+        check_cancel(cancel)
+        if network_repair is None or not access_denied(error):
+            raise
+        # Only a local access denial can request policy repair. Authentication
+        # and host identity are checked later, once, over the returned socket.
+        network_repair()
+        check_cancel(cancel)
+        return _connect_socket(host, port, timeout, cancel)
+
+
 @contextmanager
-def login_socket(host, port, timeout, cancel):
-    if cancel is None:
+def login_socket(host, port, timeout, cancel, network_repair=None):
+    if cancel is None and network_repair is None:
         yield None
         return
-    sock = _connect_socket(host, port, timeout, cancel)
+    cancel = cancel if cancel is not None else Event()
+    sock = _open_login_socket(host, port, timeout, cancel, network_repair)
     done = Event()
 
     def interrupt():
@@ -70,9 +98,11 @@ def login_socket(host, port, timeout, cancel):
                 return
 
     watcher = Thread(target=interrupt, name="RouterLoginCancel", daemon=True)
-    watcher.start()
+    watcher_started = False
     succeeded = False
     try:
+        watcher.start()
+        watcher_started = True
         check_cancel(cancel)
         yield sock
         check_cancel(cancel)
@@ -83,6 +113,7 @@ def login_socket(host, port, timeout, cancel):
         raise
     finally:
         done.set()
-        watcher.join()
+        if watcher_started:
+            watcher.join()
         if not succeeded:
             sock.close()

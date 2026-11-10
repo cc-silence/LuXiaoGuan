@@ -1,0 +1,80 @@
+{
+  "date": "2026-11-09",
+  "scope": "Two further source-backed verification passes; no production changes",
+  "round1": {
+    "scope": "Independent numeric version-constraint matrix with installed-package protection",
+    "cases": 1568,
+    "valid": 448,
+    "blocked_as_expected": 1120,
+    "success": true,
+    "network_or_router_access": false
+  },
+  "round2": {
+    "modules": [
+      "test_other_dependency_install_fix",
+      "test_other_dependencies",
+      "test_dependency_providers",
+      "test_firmware_dependency_support",
+      "test_dependency_install_review",
+      "test_dependency_install_followup",
+      "test_dependency_install_finalaudit",
+      "test_dependency_partial_install",
+      "test_dependency_mixed_install",
+      "test_dependency_compatibility_audit",
+      "test_dependency_two_round_audit",
+      "test_protected_dependency_candidates",
+      "test_common_offline_bundle",
+      "test_offline_dependency_fallback",
+      "test_signal_dependency_source",
+      "test_wireless_dependency_source",
+      "test_package_install_guards",
+      "test_opkg_repeated_plan",
+      "test_offline_cleanup",
+      "test_installation_added_regressions",
+      "test_dependency_download_messages",
+      "test_dependency_diagnostic_paths",
+      "test_installation_source_failures",
+      "test_dependency_install_boundary_review",
+      "test_package_mirror_policy",
+      "test_package_mirror_three_passes",
+      "test_mirror_task_preference",
+      "test_package_download_diagnostics",
+      "test_package_error_classification",
+      "test_dependency_weak_network",
+      "test_dependency_socks",
+      "test_package_space_queries",
+      "test_shared_bundle_packages",
+      "test_bundle_layout"
+    ],
+    "run": 333,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "success": true
+  },
+  "new_defects_found": 0,
+  "production_code_changed": false,
+  "official_sources": [
+    "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk-package.5.scd",
+    "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk-verify.8.scd",
+    "https://docs.python.org/3.10/library/contextlib.html#contextlib.ExitStack"
+  ],
+  "reviewed_contracts": [
+    "Package identities require version, architecture and integrity validation; name equality alone is not sufficient",
+    "Original native APK index verification remains active",
+    "ExitStack explicitly closes the leases on completion or exception",
+    "Unsatisfiable version constraints and changes to installed packages remain rejected"
+  ],
+  "retrieval_sha256": "04be4a971764752d95a049c766bb7d59a326555354fddabb27e3ae1298c36bfe",
+  "retrieval_note": "Hash identifies saved official web retrieval JSON, not raw source bytes.",
+  "checks": {
+    "python_compile_files": 5,
+    "utf8": "passed",
+    "scoped_diff_check": "passed"
+  },
+  "limits": [
+    "No customer-router installation performed",
+    "No native Debian 12 execution verified",
+    "No new software ZIP built"
+  ]
+}

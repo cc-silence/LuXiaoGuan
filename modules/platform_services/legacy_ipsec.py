@@ -3,35 +3,51 @@ import hashlib
 from threading import Event
 import time
 from .process_capture import capture_process
-from .legacy_ipsec_plan import IPsecPlan, target_values, verify_dump
+from .legacy_ipsec_plan import IPsecPlan, target_values
 from .legacy_ipsec_store import read_snapshot, preserved, object_keys
+from .legacy_ipsec_snapshot_verification import verify_snapshot
 from .windows_network_services import require_legacy_services
 from .legacy_ipsec_backup import create_backup_directory, windows_directory, write_result
+from .ipsec_command_diagnostics import LIMIT, operation_name, safe_commands
 
 BACKUP_LIMIT=16*1024*1024
 
 
 class NativeStore:
     def __init__(self):
+        self.command_diagnostics=[]
         self.deadline=time.monotonic()+90
         self.executable=windows_directory()/'System32'/'netsh.exe'
 
     def command(self,args):
-        remaining=self.deadline-time.monotonic()
-        if remaining<=0:raise TimeoutError('IPsec transaction deadline exceeded')
-        result=capture_process([str(self.executable),'ipsec',*args],Event(),
-                               timeout=min(10,remaining),output_limit=4*1024*1024)
-        if result.returncode:
-            error=OSError('IPsec command failed: '+str(result.returncode))
-            error.ipsec_exit_code=result.returncode
-            raise error
-        return result.stdout
+        started=time.monotonic()
+        row=dict(operation=operation_name(args),outcome='capture_failed')
+        try:
+            remaining=self.deadline-started
+            if remaining<=0:raise TimeoutError('IPsec transaction deadline exceeded')
+            result=capture_process([str(self.executable),'ipsec',*args],Event(),
+                                   timeout=min(10,remaining),output_limit=4*1024*1024)
+            row.update(returncode=result.returncode,output_bytes=len(result.stdout),
+                       outcome='failed' if result.returncode else 'completed')
+            if result.returncode:
+                error=OSError('IPsec command failed: '+str(result.returncode))
+                error.ipsec_exit_code=result.returncode
+                raise error
+            return result.stdout
+        except TimeoutError:
+            row['outcome']='timed_out'
+            raise
+        finally:
+            row['elapsed_ms']=min(180000,max(0,int((time.monotonic()-started)*1000)))
+            self.command_diagnostics.append(row)
+            del self.command_diagnostics[:-LIMIT]
 
     def snapshot(self):
         require_legacy_services()
         return read_snapshot()
 
-    def dump(self):return self.command(('dump',))
+    def verify(self,plan):
+        return verify_snapshot(plan,self.snapshot())
 
     def mutate(self,args):return self.command(('static',*args))
 
@@ -53,6 +69,18 @@ class NativeStore:
 def ensure_target(address,port,store=None):
     address,port=target_values(address,port)
     store=store or NativeStore()
+    try:
+        result=_ensure_target(address,port,store)
+    except Exception as exc:
+        commands=safe_commands(getattr(store,'command_diagnostics',None))
+        if commands:exc.ipsec_commands=commands
+        raise
+    commands=safe_commands(getattr(store,'command_diagnostics',None))
+    if commands:result['commands']=commands
+    return result
+
+
+def _ensure_target(address,port,store):
     before=store.snapshot()
     if not before.active_id:
         return dict(success=True,status='no_assigned_policy',route='ipsec',address=address,port=port)
@@ -63,11 +91,12 @@ def ensure_target(address,port,store=None):
     plan=IPsecPlan(before.name,before.active_id,address,port)
     existing=object_keys(before,set(plan.names))
     if existing:
-        verify_dump(plan,store.dump())
+        store.verify(plan)
         if store.snapshot().digest!=before.digest:raise OSError('IPsec policy changed during verification')
         return dict(success=True,status='existing_verified',route='ipsec',address=address,port=port)
     directory,backup_hash=store.backup()
     result=dict(success=False,status='preparing',route='ipsec',address=address,port=port,backup=str(directory/'before.ipsec'),backup_sha256=backup_hash,completed_steps=0,policy_id=before.active_id,owned_names=list(plan.names),snapshot_before=before.digest)
+    if isinstance(store,NativeStore):result['commands']=store.command_diagnostics
     journal=directory/'result.json'
     last=before
     attempted=False
@@ -82,12 +111,15 @@ def ensure_target(address,port,store=None):
             preserved(before,last,set(plan.names))
             result['completed_steps']+=1
             write_result(journal,result)
-        verify_dump(plan,store.dump())
+        store.verify(plan)
         if store.snapshot().digest!=last.digest:raise OSError('IPsec policy changed during final verification')
         result.update(success=True,status='appended_verified')
         write_result(journal,result)
     except Exception as exc:
         result.update(success=False,error=str(exc),status='failed',rollback='not_needed')
+        from .ipsec_verification import safe_evidence
+        evidence=safe_evidence(getattr(exc,'verification',None))
+        if evidence:result['verification']=evidence
         code=getattr(exc,'ipsec_exit_code',None)
         if type(code) is int:result['native_error']=code
         if attempted:

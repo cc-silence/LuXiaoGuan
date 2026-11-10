@@ -1,0 +1,95 @@
+{
+  "checked_at": "2026-11-09",
+  "scope": "Read-only live log collection and local tool-error retention; no capture parameter or driver changes.",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/ubox/205defb597295a4a8966db3e618cfe41a29bed99/log/logread.c",
+      "sha256": "85cb25f1a42cc5910a89cd90c19ae0e05cfbcc02d52829b72e7c48753f8558dd",
+      "checks": {
+        "follow": true,
+        "lines": true,
+        "direct_stdout": true
+      }
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/ubox/4c7b720b9c63b826fb9404e454ae54f2ef5649d5/log/logread.c",
+      "sha256": "85cb25f1a42cc5910a89cd90c19ae0e05cfbcc02d52829b72e7c48753f8558dd",
+      "checks": {
+        "follow": true,
+        "lines": true,
+        "direct_stdout": true
+      }
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/ubox/4df34a4d0d5183135217fc8280faae8e697147bc/log/logread.c",
+      "sha256": "39070909bd8ef5d25495a36c2660325c6fc67516cd7668eddf9c43a8eaec9af9",
+      "checks": {
+        "follow": true,
+        "lines": true,
+        "direct_stdout": true
+      }
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/ubox/6f78fa496bf36c55864a41e353df7d13f04b1077/log/logread.c",
+      "sha256": "85cb25f1a42cc5910a89cd90c19ae0e05cfbcc02d52829b72e7c48753f8558dd",
+      "checks": {
+        "follow": true,
+        "lines": true,
+        "direct_stdout": true
+      }
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/ubox/85f1053019caf4cd333795760950235ee4529ba7/log/logread.c",
+      "sha256": "85cb25f1a42cc5910a89cd90c19ae0e05cfbcc02d52829b72e7c48753f8558dd",
+      "checks": {
+        "follow": true,
+        "lines": true,
+        "direct_stdout": true
+      }
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/ubox/9ef886819dd48303d8ced4cdbc9afbf32682535c/log/logread.c",
+      "sha256": "53ea7408c57b1f38b3ed0f56dce44899df8d542eab622150abc3e0a1812f2964",
+      "checks": {
+        "follow": true,
+        "lines": true,
+        "direct_stdout": true
+      }
+    }
+  ],
+  "command": "exec logread -f -l 40",
+  "notes": [
+    "Use a foreground PTY so cancellation interrupts only this logger; no background process, PID file, mount, install or flash writes.",
+    "One shared stream per authenticated SSH connection; no timer and no automatic reconnect/retry.",
+    "Retain bounded masked lines in the device journal and existing asynchronous on-disk history for auto-capture and regular capture.",
+    "Windows offline verification pending; native Debian and router verification pending."
+  ],
+  "implementation": {
+    "live_logs": "One foreground PTY logread stream per active authenticated connection, shared by auto and regular capture tasks. Open/close in existing task workers; no new remote polling loop or timer.",
+    "tool_failures": "Allowlisted failed capture commands retain sanitized stdout/stderr, exit code, timeout, cancellation and elapsed time; commands and credentials are excluded.",
+    "auto_exit": "Record radio, confirmed exit code or unexpected EOF, and connection state before normal cleanup.",
+    "persistence": "Bounded per-device diagnostic journal plus existing asynchronous SQLite history in both auto-capture and regular-capture categories; persisted evidence survives application restart.",
+    "limits": {
+      "tool_failure_rows": 16,
+      "system_line_rows": 128,
+      "stream_state_rows": 16,
+      "tool_output_characters_per_stream": 2048,
+      "system_line_characters": 512,
+      "startup_timeout_seconds": 4,
+      "maximum_stream_lifetime_seconds": 86400
+    },
+    "failure_isolation": "Logging channel refusal/timeout cannot invalidate shared login. Capture result and failure propagation remain unchanged. No auto retry/reconnect. Cancellation interrupts only the foreground logger and closes its owned PTY.",
+    "resource_release": "The last capture lease stops and joins the logging worker with a bounded wait and drops the manager-held run/connection reference."
+  },
+  "verification": {
+    "windows": "150 targeted offline tests passed in 20.270 seconds using the project .venv. UTF-8 decode, Python compilation and diff whitespace checks passed. Local POSIX shell syntax and missing-logread protocol tested. Includes history close/reopen/export, two-task shared stream ownership, cancellation, EOF/transport-loss tail, output redaction, and isolated channel timeout.",
+    "native_debian12": "Not run in this turn; shared Python/Paramiko implementation has no OS-specific branches.",
+    "live_router": "Not run; no router operations performed.",
+    "limitations": [
+      "A sudden power loss or kernel failure can prevent the very last message from reaching the PC; streamed logging cannot guarantee a crash cause.",
+      "logread and PTY availability depend on the actual device. Unsupported/failure states are retained; no packages installed.",
+      "The existing command queue remains unchanged; this change records the deauth tool failure instead of guessing its cause.",
+      "Changes are source-only and have not been packaged in this turn."
+    ]
+  }
+}

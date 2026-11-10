@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-07",
+  "scope": "Standalone Windows read-only customer evidence tool. No router settings, app UI or release changed.",
+  "tests_passed": 37,
+  "archive": "C:\\Users\\CC\\Desktop\\Work\\RouterManager\\RouterManager_python\\dist\\LuXiaoGuan_LoginDiagnostics_v1.0.0_20261107_141200.zip",
+  "bytes": 7449331,
+  "sha256": "6e16705da25f224fb987a0af6394fc5d6c88b33a86ae19e25f1c00d239163629",
+  "checks": [
+    "Policy/authentication redaction and unknown-layout omission",
+    "Report completeness and independent query failures",
+    "Real local fixture SSH server: collector sends zero bytes",
+    "Input validation, fixed read-only queries, process deadlines and output bounds",
+    "Source and frozen EXE real Windows read-only collection",
+    "Relocated frozen self-test with Python removed from PATH",
+    "Launcher PowerShell parse, matching packaged source hashes and ZIP CRC"
+  ],
+  "native_result": {
+    "required_network_sections": "all successful",
+    "missing": [
+      "administrator",
+      "policy_local"
+    ],
+    "policy_structure_consistent": true
+  },
+  "limits": [
+    "Real administrator policy collection was not exercised locally",
+    "Customer policy samples and actual authenticated router login remain unverified",
+    "IPv4 Windows collector only; no Linux or IPv6 support is claimed"
+  ],
+  "workflow": "Customer runs collector as administrator, enters router address and port, returns generated ZIP. Analyze actual policy evidence before choosing or shipping further system-policy changes.",
+  "sources": "build/windows-login-diagnostics/sources.json"
+}

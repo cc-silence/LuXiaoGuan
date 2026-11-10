@@ -89,6 +89,8 @@ class CaptureSettingsManager:
                 "pin_timeout": 5.0,
                 "attack_seconds": 0,
                 "attack_rounds": 1,
+                "quick_seconds": 60,
+                "quick_rounds": 1,
                 "additional_args": "-S -N -l 30",
                 "spoof_mac_enabled": False,
                 "rotate_mac_each_pin": False,
@@ -420,6 +422,8 @@ class CaptureSettingsManager:
         wps["pin_timeout"] = self._clamp_float(wps.get("pin_timeout"), 0.0, 100.0, 5.0)
         wps["attack_seconds"] = self._clamp_int(wps.get("attack_seconds"), 0, 3600, 0)
         wps["attack_rounds"] = self._clamp_int(wps.get("attack_rounds"), 1, 20, 1)
+        wps["quick_seconds"] = self._clamp_int(wps.get("quick_seconds"), 0, 3600, 60)
+        wps["quick_rounds"] = self._clamp_int(wps.get("quick_rounds"), 1, 20, 1)
         wps["additional_args"] = str(wps.get("additional_args", "")).strip()
         wps["spoof_mac_enabled"] = self._bool(wps.get("spoof_mac_enabled"), False)
         wps["spoof_mac"] = str(wps.get("spoof_mac", "")).strip()

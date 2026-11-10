@@ -1,0 +1,33 @@
+{
+  "date": "2026-11-07",
+  "input": "XM_LuXiaoGuan_\u8def\u7531\u5668\u767b\u5f55_20261107_114919.zip",
+  "customer_version": "1.0.50_alpha",
+  "evidence": {
+    "attempts": 2,
+    "service": "MpsSvc stopped and disabled; BFE and PolicyAgent running",
+    "commands": "Four additions completed; dump exit=0, stdout=2 bytes; rows=0; output_unrecognized; rollback=verified",
+    "ssh_attempts": 0,
+    "limit": "No original binary policy data in customer export. Native encoding and exact customer binary variant cannot be established from this ZIP."
+  },
+  "root_cause": "The native verification path required add-command rows from netsh ipsec dump. Customer output contains no such script, so every appended exemption is rolled back before SSH. Further text-decoding changes cannot make an empty script verifiable.",
+  "implementation": [
+    "Replace native dump verification with bounded MS-GPIPSEC binary decoding of the existing read-only policy snapshot",
+    "Use one verification interface for new exemptions and repeat login; no permissive empty-output fallback",
+    "Verify exact IPv4 endpoint, TCP port, mirrored filter, permit action, active transport rule and local policy associations; reject foreign references",
+    "Retain backup, concurrency checks, rollback and original policy assignment; no service enablement or UI change",
+    "Windows host-only change. Linux non-Windows route remains unchanged; no OpenWrt commands changed."
+  ],
+  "validation": {
+    "targeted_tests_passed": 131,
+    "utf8_and_py_compile_files": 8,
+    "native_probe": "Administrator launch was cancelled before fixture ran. Initial non-elevated read was access denied. No host policies were changed.",
+    "coverage": "Independent V1/V2/dual-format protocol fixtures; first/repeat login; malformed/broad filters; incorrect port rollback; authentication extensions; authorization cancellation; ordinary firewall path; log sanitization.",
+    "not_verified": [
+      "Customer native policy binary variant",
+      "Assigned-policy runtime activation and customer router login",
+      "Debian live desktop (Windows-only policy path)"
+    ]
+  },
+  "sources": "build/ipsec-native-verification-20261107/sources.json",
+  "delivery": "Source only. No packaging, publication, commit or push."
+}

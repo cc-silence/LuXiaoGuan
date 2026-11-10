@@ -319,6 +319,46 @@ class OpenWrtWpsCapture:
             tried[0] = elapsed_seconds()
             return pin, psk
 
+        remembered = str(options.get("remembered_pin", "") or "").strip()
+        if (remembered and remembered.isascii() and remembered.isdigit()
+                and len(remembered) == 8):
+            from .wps_quick import run_pin_process
+            session_path = str(PurePosixPath(workspace.remote_dir) / f"remembered-{index}.wpc")
+            remembered_base = self._base_args(
+                workspace, monitor_interface, target, "second", options,
+                workspace_manager, cancel_event, session_path=session_path)
+            try:
+                remembered_seconds = int(options.get("quick_seconds", 60))
+            except (TypeError, ValueError, OverflowError):
+                remembered_seconds = 60
+            remembered_seconds = max(0, min(remembered_seconds, 3600))
+
+            def remembered_report(phase, _current, _status, _started):
+                report(phase)
+
+            remembered_pin, remembered_psk, _rejected, remembered_terminal, _current, _status = run_pin_process(
+                # reaver 1.6.5 的 -p 不会自动限制尝试次数，必须显式 -g 1。
+                self.process_manager, f"{remembered_base} -p {quote_argument(remembered)} -g 1",
+                f"{session_id}-t{index}-remembered", workspace, remembered_seconds, cancel_event,
+                evidence=protocol_evidence, timing=timing, diagnostic=diagnostic,
+                report=remembered_report, phase="已记住的 PIN", attempt_number=0)
+            if remembered_psk or remembered_pin:
+                result_file = write_wps_result(
+                    local_output_dir, label, bssid, remembered_pin or remembered, remembered_psk)
+                timing.freeze()
+                return WpsTargetResult(
+                    bssid=bssid, ssid=label, mode=mode,
+                    pin_ok=bool(remembered_pin or remembered_psk), psk_ok=bool(remembered_psk),
+                    tried_seconds=max(0, int(time.monotonic() - started)),
+                    result_file=result_file,
+                    note=("已使用本机记住的 PIN 完成验证" if remembered_psk
+                          else "已记住的 PIN 已被目标接受，暂未取得密码"),
+                    pin=remembered_pin or remembered)
+            if remembered_terminal:
+                return WpsTargetResult(
+                    bssid=bssid, ssid=label, mode=mode,
+                    note=f"验证已记住的 PIN 时未完成：{remembered_terminal}")
+
         base = self._base_args(
             workspace, monitor_interface, target, mode, options, workspace_manager,
             cancel_event,
@@ -391,6 +431,7 @@ class OpenWrtWpsCapture:
             bssid=bssid, ssid=ssid, mode=mode,
             pin_ok=bool(pin), psk_ok=bool(psk), tried_seconds=tried[0],
             result_file=result_file, wpc_file=wpc_file, note=note,
+            pin=pin or "",
         )
 
     @staticmethod
