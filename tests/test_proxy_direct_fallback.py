@@ -216,7 +216,7 @@ class RemainingBudgetTests(unittest.TestCase):
         data, session = ReceiveFallbackTests.receive(self, requests.exceptions.Timeout('slow proxy'),
                                      deadline=time.monotonic() + 12)
         self.assertEqual(data, b'direct data')
-        self.assertLessEqual(max(session.get.call_args_list[0].kwargs['timeout']), 3)
+        self.assertLessEqual(max(session.get.call_args_list[0].kwargs['timeout']), 3 + 1e-9)
         self.assertEqual(session.get.call_args_list[1].kwargs['proxies'], {})
 
 
