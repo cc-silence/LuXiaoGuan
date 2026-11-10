@@ -16,6 +16,7 @@ def seed_assets(target):
         if not (ROOT/name).is_dir(): continue
         shutil.copytree(ROOT/name,target/name,ignore=shutil.ignore_patterns("__pycache__","*.pyc","*.log","*.tmp","update_launcher"))
     config=target/"config";config.mkdir()
+    (config/".portable-settings-v1").write_text("1\n",encoding="ascii")
     if (ROOT/"tools").is_dir():
         shutil.copytree(ROOT/"tools",target/"bin/tools",
                         ignore=shutil.ignore_patterns("__pycache__","*.pyc","*.log","*.tmp","hc_offline_pack"))

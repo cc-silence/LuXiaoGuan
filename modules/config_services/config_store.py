@@ -1,30 +1,15 @@
-"""配置存储：Windows 双份副本，Linux 使用用户配置目录。
+"""Atomic settings storage.
 
-背景：软件升级时软件目录 config/ 整包替换，用户保存在其中的设置会被覆盖；
-部分用户 C 盘启用冰点还原，软件目录或 AppData 中单一存放的配置也可能被还原。
-因此 Windows 设置类配置同时写入两处：
-
-- 主副本 primary：%LOCALAPPDATA%\LuXiaoGuan\config\文件名，升级或冰点还原后仍在。
-- 镜像 mirror：软件目录 config\文件名，随软件目录一起被替换或迁移。
-
-Linux 的主副本和镜像指向同一个用户配置文件，仅读写一次，不写安装目录。
-
-读取规则：按文件内嵌的写入时间戳取最新者；时间戳相同取主副本。两边都没有时
-返回 None，由调用方恢复默认值。写入规则：主副本必须成功（沿用现有 save 的
-报错约定），镜像失败静默降级，不影响正常运行。
-
-元信息：JSON 在顶层写 ``_winbox`` 键，INI 在末尾写 ``[winbox_meta]`` 段，
-都包含 last_write_ms（毫秒）与 schema_version。读取时剥离，不进入业务数据。
-
-注意：镜像路径在各管理器构造时按模块常量解析（支持测试 patch 常量）；
-主副本目录通过 user_config_dir() 解析，测试可通过环境变量 ROUTERMANAGER_USER_CONFIG_DIR
-把主副本指向临时目录，避免写入真实 AppData。
+Windows application settings use one portable copy via application_settings_pair.
+Linux keeps user-owned configuration paths. ConfigPair remains available for
+explicit dual-copy consumers and for reading legacy migration data.
 """
 
 from __future__ import annotations
 
 import configparser
 import json
+import os
 import time
 from configparser import ConfigParser
 from pathlib import Path
@@ -45,6 +30,15 @@ def now_ms() -> int:
 def user_config_dir() -> Path:
     """Return the user configuration location selected by the OS path policy."""
     return application_paths.user_config_dir()
+
+
+def application_settings_pair(primary, mirror):
+    """Use the portable application copy on Windows; retain Linux user paths."""
+    if application_paths.is_linux():
+        return ConfigPair(primary, mirror)
+    if os.environ.get("ROUTERMANAGER_USER_CONFIG_DIR"):
+        return ConfigPair(primary, primary)
+    return PortableConfigPair(mirror, mirror)
 
 
 def _read_json(text: str):
@@ -203,3 +197,17 @@ class ConfigPair:
         temp_path = path.with_suffix(path.suffix + ".tmp")
         temp_path.write_text(text, encoding="utf-8")
         temp_path.replace(path)
+
+
+class PortableConfigPair(ConfigPair):
+    """One Windows application copy; packaged defaults are not a first-run choice."""
+    def read_primary_ini_text(self):
+        try:
+            text = self.primary.read_text(encoding='utf-8')
+            parser = ConfigParser()
+            parser.read_string(text)
+        except (OSError, UnicodeDecodeError, configparser.Error):
+            return None
+        if not parser.has_section(META_INI_SECTION):
+            return None
+        return _read_ini(text)[0]

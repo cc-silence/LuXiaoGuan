@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from modules.config_manager import APP_DIR_TOKEN, CONFIG_DIR, USER_DOWNLOADS_TOKEN, make_portable_path, portable_path_roots, resolve_portable_path
-from modules.config_services.config_store import ConfigPair, user_config_dir
+from modules.config_services.config_store import ConfigPair, user_config_dir, application_settings_pair
 from modules.release_identity import DISPLAY_NAME
 from modules.platform_services.application_paths import ensure_directory
 from modules.config_services.verified_result_paths import PATH_FIELDS, bounded_paths
@@ -56,6 +56,7 @@ class CaptureSettingsManager:
             "band": "2.4G",
             "scan_seconds": 24,
             "skip_scan_confirmation": False,
+            "skip_scan_takeover_confirmation": False,
             "skip_radio_takeover_confirmation": False,
             "skip_handshake_confirmation": False,
             "access_point_column_widths": [],
@@ -108,9 +109,7 @@ class CaptureSettingsManager:
         }}
 
     def __init__(self, path=None):
-        # 默认构造使用拆分后的多文件：4 个设置/状态文件双份存储（用户级主副本 +
-        # 软件目录镜像），2 个界面偏好仅放软件目录；显式传入路径（测试等）退化为
-        # 老单文件模式，行为与拆分前完全一致。
+        # Default settings use the platform storage policy; explicit paths stay independent.
         if path is None:
             self.path = CAPTURE_SETTINGS_FILE
             self._split = True
@@ -126,7 +125,7 @@ class CaptureSettingsManager:
 
         if name not in CAPTURE_DUAL_FILES:
             return None
-        return ConfigPair(self._primary_dir / f"{name}.json", self._mirror_dir / f"{name}.json")
+        return application_settings_pair(self._primary_dir / f"{name}.json", self._mirror_dir / f"{name}.json")
 
     def _split_single_path(self, name):
         """单存文件的软件目录路径（按需建目录）。"""
@@ -166,6 +165,8 @@ class CaptureSettingsManager:
 
         if not self._split:
             return str(self.path)
+        if self._split_pair("openwrt_settings").primary == self._mirror_dir / "openwrt_settings.json":
+            return str(self._mirror_dir)
         return f"主副本：{self._primary_dir}；镜像：{self._mirror_dir}"
 
     @staticmethod
@@ -364,6 +365,9 @@ class CaptureSettingsManager:
         openwrt["skip_scan_confirmation"] = self._bool(
             openwrt.get("skip_scan_confirmation"),
             False,
+        )
+        openwrt["skip_scan_takeover_confirmation"] = self._bool(
+            openwrt.get("skip_scan_takeover_confirmation"), False,
         )
         openwrt["skip_radio_takeover_confirmation"] = self._bool(
             openwrt.get("skip_radio_takeover_confirmation"),

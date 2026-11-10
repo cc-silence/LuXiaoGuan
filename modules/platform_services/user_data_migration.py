@@ -91,4 +91,7 @@ def prepare_user_directories():
         targets = tuple(dict.fromkeys(Path(paths.linux_user_directory(kind)) for kind in ("config", "state", "data")))
     else:
         targets = (paths.user_state_dir(),)
-    return tuple(migrate_directory(target.with_name(LEGACY_DIRECTORY), target) for target in targets)
+    result = tuple(migrate_directory(target.with_name(LEGACY_DIRECTORY), target) for target in targets)
+    from modules.config_services.portable_settings_migration import prepare
+    prepare()
+    return result
