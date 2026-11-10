@@ -21,7 +21,7 @@ NOW = '2026-10-28T12:00:00+00:00'
 def row(mode='sta', interface='phy1-sta0'):
     return dict(interface=interface, section='uplink' if mode == 'sta' else 'home', radio='radio1',
                 mode=mode, ssid='Upstream' if mode == 'sta' else 'My Wi-Fi', bssid='02:11:22:33:44:55',
-                associated=True, peers_available=True, channel=36, frequency=5180, signal=-56, noise=-91,
+                associated=True, connection_state='connected', peers_available=True, channel=36, frequency=5180, signal=-56, noise=-91,
                 probe_interface=interface if mode == 'sta' else '', source_ips=['192.168.8.2'] if mode == 'sta' else [],
                 rx_bytes=10000, tx_bytes=20000, peers=[dict(mac='02:11:22:33:44:55', name='Phone', ip='192.168.8.3',
                 signal=4294967240, noise=4294967205, rx=dict(rate=866700,mhz=80,bytes=5000),
@@ -263,7 +263,7 @@ class ContinuousCounterTests(unittest.TestCase):
 
 
 class RuntimeCollectorLuaTests(unittest.TestCase):
-    def collect(self, *, bridge=False, legacy=False, missing_station_info=False, station_peers=None, station_bssid="02:11:22:33:44:55"):
+    def collect(self, *, bridge=False, legacy=False, missing_station_info=False, station_peers=None, station_bssid="02:11:22:33:44:55", authentication=None, configured_ssid="Configured stale name", locked_bssid="", enriched=False):
         from tests.test_wireless_setup import LuaRuntime
         from modules.capture_services.openwrt.wireless_status_commands import STATUS_LUA
         self.assertIsNotNone(LuaRuntime, 'Lua 5.1 runtime is required for collector verification')
@@ -290,6 +290,7 @@ class RuntimeCollectorLuaTests(unittest.TestCase):
             calls.append((object,method))
             if (object,method) in fixtures:return to_lua(fixtures[(object,method)])
             if object.startswith('hostapd.') and method=='get_status':return to_lua(dict(status='ENABLED',ssid='AP'))
+            if object=='wpa_supplicant' and method=='bss_info' and authentication is not None:return to_lua(authentication)
             if object=='network.device':return to_lua(dict(up=True))
             if object=='iwinfo' and missing_station_info and args['device']=='phy1-sta0':
                 raise RuntimeError('unsupported')
@@ -307,7 +308,7 @@ class RuntimeCollectorLuaTests(unittest.TestCase):
         lua.globals().py_call=call
         lua.globals().py_json=lambda value:json.dumps(to_python(value))
         lua.globals().py_write=lambda value:output.append(value)
-        lua.globals().configs=to_lua([dict(**{'.name':'uplink'},mode='sta',ssid='Configured stale name'),
+        lua.globals().configs=to_lua([dict(**{'.name':'uplink'},mode='sta',ssid=configured_ssid,bssid=locked_bssid),
                                      dict(**{'.name':'home'},mode='ap',ssid='AP')])
         lua.execute(r"""
             package.preload['luci.jsonc']=function() return {stringify=py_json} end
@@ -332,6 +333,11 @@ class RuntimeCollectorLuaTests(unittest.TestCase):
         """)
         lua.execute(STATUS_LUA)
         envelope=json.loads(''.join(output));self.assertTrue(envelope['ok'])
+        if enriched:
+            from modules.capture_services.openwrt.station_connection import enrich
+            runner=Mock()
+            runner.run.return_value=NS(exit_code=127,cancelled=False,timed_out=False)
+            envelope['result']=enrich(envelope['result'],runner,Event())
         result=parse_wireless_status(envelope['result'])
         self.assertTrue(all(method not in ('set','commit','down','up','reload') for _,method in calls))
         return result
@@ -368,8 +374,8 @@ class RuntimeCollectorLuaTests(unittest.TestCase):
             manager,runner,cancel=StatusManagerTests.manager(self,[row()])
             manager._sample=Mock(side_effect=[result,result])
             measured=manager.read(cancel)
-            self.assertEqual(next(n for n in measured.networks if n.mode=='sta').internet.state,'online')
-            self.assertEqual(runner.run.call_count,2)
+            self.assertEqual(next(n for n in measured.networks if n.mode=='sta').internet.state,'unknown')
+            runner.run.assert_not_called()
 
     def test_empty_station_details_without_bssid_is_unknown_not_a_failed_connection(self):
         for bssid in (None,'','ff:ff:ff:ff:ff:ff'):

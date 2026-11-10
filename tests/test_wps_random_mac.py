@@ -113,12 +113,14 @@ class WpsRandomMacTests(unittest.TestCase):
                 results = capture.run_targets(NS(local_dir=Path(folder), remote_dir="/tmp/owned"), "ownedmon", "owned", targets, "second", {"spoof_mac_enabled": True, "spoof_mac": "", "partial_pin": "12345670"}, folder, Mock())
             generator.assert_called_once()
             self.assertEqual(len(results), 19)
-            self.assertEqual(manager.start.call_count, 19)
+            self.assertEqual(manager.start.call_count, 38)
             for call in manager.start.call_args_list:
                 args = shlex.split(call.args[1])
                 self.assertEqual(args[args.index("-m")+1], SOURCE)
-                self.assertNotIn("-K", args)
-                self.assertEqual(args[args.index("-p")+1], "12345670")
+                if "-K" in args:
+                    self.assertNotIn("-p", args)
+                else:
+                    self.assertEqual(args[args.index("-p")+1], "12345670")
 
     def test_page_passes_generated_address_to_preflight_for_old_empty_settings(self):
         from modules.main_pages.packet_capture_page import PacketCapturePage

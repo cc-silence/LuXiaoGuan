@@ -1,0 +1,88 @@
+{
+  "date": "2026-11-09",
+  "scope": "Two source-backed reviews of bidirectional offline bundle reuse",
+  "round1": {
+    "finding": "A newer same-named IPK dependency in the donor could not satisfy a version requirement because only missing names were merged",
+    "reproduction": "Primary shared-lib 1, donor shared-lib 2, tmux requires shared-lib >= 2",
+    "fix": "Primary first, then missing names, then a bounded donor dependency snapshot; preserve requested root packages, installed packages and protected base/kernel components",
+    "regression": "Exact donor version is materialized; installed old version is not replaced; primary profile remains unchanged"
+  },
+  "round2": {
+    "finding": "No additional defect found in reviewed lifecycle boundaries",
+    "regression": "An active read lease blocks signed resource replacement. After release and activation, the next task loads the new signed revision and reuses its exact package."
+  },
+  "official_sources": [
+    "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.10/package/system/opkg/Makefile",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.7/package/system/opkg/Makefile",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.7/package/system/opkg/Makefile",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/system/opkg/Makefile",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.8/package/system/opkg/Makefile",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/system/apk/Makefile",
+    "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk.8.scd",
+    "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk-repositories.5.scd"
+  ],
+  "apk_source_commit": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866",
+  "source_retrievals": {
+    "official-legacy-retrieval.json": "0f0ad779c984a33ac737c89ecd57cc065e4dafbadad760206e7a1242116b2392",
+    "official-web-retrieval.json": "fbf0205cdbaa022544e61c1a4b84ee429478830eb2480830d3826245de9b963f"
+  },
+  "retrieval_note": "Hashes identify the saved web retrieval JSON, not original raw source bytes. Exact opkg implementation URL was inaccessible; inspected precise OpenWrt build recipes and retained native version comparison/dry-run guards.",
+  "validation": {
+    "modules": [
+      "test_other_dependency_install_fix",
+      "test_other_dependencies",
+      "test_dependency_providers",
+      "test_firmware_dependency_support",
+      "test_dependency_install_review",
+      "test_dependency_install_followup",
+      "test_dependency_install_finalaudit",
+      "test_dependency_partial_install",
+      "test_dependency_mixed_install",
+      "test_dependency_compatibility_audit",
+      "test_dependency_two_round_audit",
+      "test_protected_dependency_candidates",
+      "test_common_offline_bundle",
+      "test_offline_dependency_fallback",
+      "test_signal_dependency_source",
+      "test_wireless_dependency_source",
+      "test_package_install_guards",
+      "test_opkg_repeated_plan",
+      "test_offline_cleanup",
+      "test_installation_added_regressions",
+      "test_dependency_download_messages",
+      "test_dependency_diagnostic_paths",
+      "test_installation_source_failures",
+      "test_dependency_install_boundary_review",
+      "test_package_mirror_policy",
+      "test_package_mirror_three_passes",
+      "test_mirror_task_preference",
+      "test_package_download_diagnostics",
+      "test_package_error_classification",
+      "test_dependency_weak_network",
+      "test_dependency_socks",
+      "test_package_space_queries",
+      "test_shared_bundle_packages",
+      "test_bundle_layout"
+    ],
+    "run": 331,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "success": true
+  },
+  "checks": {
+    "python_compile_files": 5,
+    "utf8_scan": "passed",
+    "scoped_diff_check": "passed"
+  },
+  "limits": [
+    "No live router validation performed",
+    "No native Debian 12 validation performed",
+    "No new software ZIP built",
+    "Unresolvable version or index differences still stop safely; no forced dependency or signature bypass"
+  ],
+  "source_sha256": {
+    "modules/capture_services/openwrt/shared_bundle_packages.py": "2ab2739aa91fa8b68735ae2940aa1b66591d4ad04cd91eeb1cf05d858a7e50b2",
+    "tests/test_shared_bundle_packages.py": "1a0fa50ac6c1face1f9050a9dd864832fe494704f8db81d3ed269302723723ee"
+  }
+}

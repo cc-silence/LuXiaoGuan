@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-09",
+  "scope": "LAN editor presentation and inverse conversion; router save/apply/rollback executors unchanged",
+  "root_cause": "Raw CIDR addresses were copied directly to an editor with a separate mask control.",
+  "behavior": [
+    "Uniform CIDR addresses display bare IPv4 addresses with the derived shared netmask.",
+    "Untouched address and mask restore their exact original scalar/list and missing/empty mask representation.",
+    "Edited addresses and mask serialize back to the original CIDR storage family; legacy separate fields remain separate.",
+    "Independent per-address prefixes and invalid original values stay intact instead of losing information."
+  ],
+  "compatibility_sources": {
+    "record": "build/common-settings-25-three-pass-20261109/verified-local-sources.json",
+    "source_directory": "build/factory-static-sources-20261103",
+    "exact_config_generate_files_rehashed_and_read": 50,
+    "range": "19.07,21.02,22.03,23.05,24.10,25.12",
+    "finding": "Old releases use address and netmask; 25.12 uses CIDR lists. Conversion follows actual values, not a guessed version or hardware."
+  },
+  "validation": {
+    "windows_targeted_unique_tests": 41,
+    "result": "passed",
+    "suites": [
+      "test_lan_ipv4_form",
+      "test_common_settings_ui",
+      "test_lan_cidr_policy",
+      "test_lan_feedback",
+      "test_boot_boolean_semantics"
+    ],
+    "real_lua_persistence": "passed for legacy and modern device bindings and both address storage families",
+    "syntax_encoding_diff": "passed",
+    "rendering": "dark and light screenshots inspected; no geometry or styling changes",
+    "screenshots": "build/review/lan-ipv4-form",
+    "debian12": "Shared core imported and executed successfully; PySide6 absent, GUI acceptance pending."
+  },
+  "limits": [
+    "No live router configuration changed.",
+    "No full all-device acceptance claimed.",
+    "Running app must restart to load the source change."
+  ]
+}

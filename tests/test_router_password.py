@@ -45,6 +45,18 @@ class RouterPasswordTests(unittest.TestCase):
         self.assertNotIn("secret-123",str(manager.runner.mock_calls)+str(manager.ssh.exec_command.call_args))
         factory.return_value.connect.assert_called_once_with(password="secret-123",expected_fingerprint="PIN",timeout=8)
         factory.return_value.close.assert_called_once()
+    def test_six_character_password_is_submitted_and_verified(self):
+        manager,old_request,channel,stdin=self.fixture()
+        request=PasswordChange.create("abc123",dict(host="router",port=22,user="root"))
+        self.addCleanup(request.clear)
+        with patch("modules.capture_services.openwrt.router_password.OpenWrtSshClient") as factory,patch("modules.capture_services.openwrt.router_password.time.sleep"):
+            result=change_password(manager,request,threading.Event())
+        self.assertTrue(result["changed"])
+        self.assertTrue(result["verified"])
+        self.assertEqual([call.args[0] for call in stdin.write.call_args_list],[b"abc123\n",b"abc123\n"])
+        factory.return_value.connect.assert_called_once_with(password="abc123",expected_fingerprint="PIN",timeout=8)
+        self.assertTrue(channel.closed)
+
     def test_auth_verification_failure_reports_saved_but_unverified(self):
         manager,request,channel,_=self.fixture()
         with patch("modules.capture_services.openwrt.router_password.OpenWrtSshClient") as factory,patch("modules.capture_services.openwrt.router_password.time.sleep"):
@@ -102,7 +114,7 @@ class RouterPasswordTests(unittest.TestCase):
         self.assertTrue(channel.closed)
 
     def test_invalid_secret_and_clear(self):
-        for value in ("short","secret\n123","a"*129):
+        for value in ("", "short", "secret\n123", "a"*129):
             with self.assertRaises(ValueError):PasswordChange.create(value,{})
         request=PasswordChange.create("secret-123",{})
         self.assertNotIn("secret-123",repr(request))

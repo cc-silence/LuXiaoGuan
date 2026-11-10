@@ -196,6 +196,9 @@ def cleanup_releases(root=ROOT,keep_stage=None,apply=True):
     candidates,keep=release_candidates(root,keep_stage)
     result=remove_candidates(root,candidates,apply)
     result['retained']=str(keep) if keep else None
+    if apply:
+        from scripts.workspace_build_retention import cleanup_workspace_build
+        result['workspace_build']=cleanup_workspace_build(root)
     return result
 
 
@@ -238,6 +241,8 @@ def main():
     obsolete=ROOT/'build/compatibility-audit/superseded'
     if obsolete.is_dir():candidates.append(obsolete)
     result=remove_candidates(ROOT,candidates,args.apply)
+    from scripts.workspace_build_retention import cleanup_workspace_build
+    result['workspace_build']=cleanup_workspace_build(ROOT,apply=args.apply)
     result.update(retained_build=str(keep),retained_publication_cache=str(published))
     target=ROOT/'build/local-cleanup.json'
     target.write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')

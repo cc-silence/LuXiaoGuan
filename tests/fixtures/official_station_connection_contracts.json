@@ -1,0 +1,518 @@
+{
+  "checked_at": "2026-11-09",
+  "scope": "Available official package and exact native source contracts; installed capability must still be detected. Synthetic responses are not device certification.",
+  "releases": [
+    {
+      "release": "19.07.0",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.0/package/network/services/hostapd/Makefile",
+      "package_sha256": "545f83fc999d4281a2e1d3c1459f51cb07271c447f75e3cc934b1430bc207855",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "19.07.1",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.1/package/network/services/hostapd/Makefile",
+      "package_sha256": "c56e36c56306ed78649a93b10291e7ca0a0cc21c76a70f58e22a880ae241a71a",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "19.07.2",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.2/package/network/services/hostapd/Makefile",
+      "package_sha256": "b95ee656839518ed3a0df6122343a0e89c08da3015dbdceefcba37c505b200ae",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "19.07.3",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.3/package/network/services/hostapd/Makefile",
+      "package_sha256": "9567331aed3213820cd2d1ba4599e4e4a71adeea4dae824b407f9a839ff70d4c",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "19.07.4",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.4/package/network/services/hostapd/Makefile",
+      "package_sha256": "4f68401ddbd8ed3b19fd134e681ad9564a1d986c67659fa59abbcfb735d88df4",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "19.07.5",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.5/package/network/services/hostapd/Makefile",
+      "package_sha256": "4f68401ddbd8ed3b19fd134e681ad9564a1d986c67659fa59abbcfb735d88df4",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "19.07.6",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.6/package/network/services/hostapd/Makefile",
+      "package_sha256": "4f68401ddbd8ed3b19fd134e681ad9564a1d986c67659fa59abbcfb735d88df4",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "19.07.7",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.7/package/network/services/hostapd/Makefile",
+      "package_sha256": "7c22a15954a3d196f7de7485f7e7c4b5727ef32f50c1206cff75e284df85dc7c",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "19.07.8",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.8/package/network/services/hostapd/Makefile",
+      "package_sha256": "7ead288b47248f97c2173a13c6560fbd760cfef42db994f16e7900c34493ebdc",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "19.07.9",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.9/package/network/services/hostapd/Makefile",
+      "package_sha256": "b352fbc9966ef9ab6a66604a66824463129dc6718fdbbce844a81404c1d2bcc9",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "19.07.10",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.10/package/network/services/hostapd/Makefile",
+      "package_sha256": "b352fbc9966ef9ab6a66604a66824463129dc6718fdbbce844a81404c1d2bcc9",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "21.02.0",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.0/package/network/services/hostapd/Makefile",
+      "package_sha256": "081f3383badcb6b47d2174fd557a954b89937bb4805e8166fcd1e4d6d21527c2",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "21.02.1",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.1/package/network/services/hostapd/Makefile",
+      "package_sha256": "081f3383badcb6b47d2174fd557a954b89937bb4805e8166fcd1e4d6d21527c2",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "21.02.2",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.2/package/network/services/hostapd/Makefile",
+      "package_sha256": "43419e0a3c4006caf2680e8b38be9826fade33e410565485354e0a5b355de389",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "21.02.3",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.3/package/network/services/hostapd/Makefile",
+      "package_sha256": "fa953948cf21d2efb1b07867772900da020f651c29cc76e486bd82ab47b69a62",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "21.02.4",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.4/package/network/services/hostapd/Makefile",
+      "package_sha256": "7d294c1d860b9a7ed1077fe7d70e880aaf6f44c598e54343ac54691bc94c2570",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "21.02.5",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.5/package/network/services/hostapd/Makefile",
+      "package_sha256": "7d294c1d860b9a7ed1077fe7d70e880aaf6f44c598e54343ac54691bc94c2570",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "21.02.6",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.6/package/network/services/hostapd/Makefile",
+      "package_sha256": "7d294c1d860b9a7ed1077fe7d70e880aaf6f44c598e54343ac54691bc94c2570",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "21.02.7",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.7/package/network/services/hostapd/Makefile",
+      "package_sha256": "7d294c1d860b9a7ed1077fe7d70e880aaf6f44c598e54343ac54691bc94c2570",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "22.03.0",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.0/package/network/services/hostapd/Makefile",
+      "package_sha256": "750d31933fac268e078ebf60f080c6764d37451a7a6a735cdd5b38e8e61a56df",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "22.03.1",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.1/package/network/services/hostapd/Makefile",
+      "package_sha256": "019813138308d62280eb8e6a46ea01844f72465efa7126831fb2ee8009817c1f",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "22.03.2",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.2/package/network/services/hostapd/Makefile",
+      "package_sha256": "019813138308d62280eb8e6a46ea01844f72465efa7126831fb2ee8009817c1f",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "22.03.3",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.3/package/network/services/hostapd/Makefile",
+      "package_sha256": "521f4767ab57b64065d6c50d6a0e70e531f39b40dc77a5a1093a39893c294b5b",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "22.03.4",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.4/package/network/services/hostapd/Makefile",
+      "package_sha256": "521f4767ab57b64065d6c50d6a0e70e531f39b40dc77a5a1093a39893c294b5b",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "22.03.5",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.5/package/network/services/hostapd/Makefile",
+      "package_sha256": "521f4767ab57b64065d6c50d6a0e70e531f39b40dc77a5a1093a39893c294b5b",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "22.03.6",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.6/package/network/services/hostapd/Makefile",
+      "package_sha256": "119889a828609536ca6b992960f50a4019eb8184bb92b1b8afa0d78921cc05a4",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "22.03.7",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.7/package/network/services/hostapd/Makefile",
+      "package_sha256": "119889a828609536ca6b992960f50a4019eb8184bb92b1b8afa0d78921cc05a4",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "23.05.0",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.0/package/network/services/hostapd/Makefile",
+      "package_sha256": "d80587e931429a595faeb77d0d599ab17fe0f7b87781c2d2e1c6db65b25c5b98",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "23.05.1",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.1/package/network/services/hostapd/Makefile",
+      "package_sha256": "563f2001f877e51b73755d981ecd8720b6dacea1299fcd70228e2d73231cffec",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "23.05.2",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.2/package/network/services/hostapd/Makefile",
+      "package_sha256": "563f2001f877e51b73755d981ecd8720b6dacea1299fcd70228e2d73231cffec",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "23.05.3",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.3/package/network/services/hostapd/Makefile",
+      "package_sha256": "563f2001f877e51b73755d981ecd8720b6dacea1299fcd70228e2d73231cffec",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "23.05.4",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/network/services/hostapd/Makefile",
+      "package_sha256": "af14f13e6b29ac0440b6be5e4a22c092d18bb4ba30d66977531a58db5445d618",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "23.05.5",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.5/package/network/services/hostapd/Makefile",
+      "package_sha256": "8bb7c26534709d66ee1a5e55a655ed7a7a4c640ac460ab8e3c0dbf542970461a",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "23.05.6",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.6/package/network/services/hostapd/Makefile",
+      "package_sha256": "8bb7c26534709d66ee1a5e55a655ed7a7a4c640ac460ab8e3c0dbf542970461a",
+      "wpa_cli_package_available": true,
+      "native_status_verified": false,
+      "native_source": null
+    },
+    {
+      "release": "24.10.0",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.0/package/network/services/hostapd/Makefile",
+      "package_sha256": "ced526243558cfd7a76d65cf897d7399999025d92896b545cae53365ddf0dfec",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "24.10.0",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v24.10.0",
+        "path": "build\\station-connection-review-20261109\\24.10.0-wpa_supplicant.uc",
+        "sha256": "14976851e2326ba1d370a6b99ca0a4490dbb077a2eaf43a3e0391d39b7749e85",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    },
+    {
+      "release": "24.10.1",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.1/package/network/services/hostapd/Makefile",
+      "package_sha256": "ced526243558cfd7a76d65cf897d7399999025d92896b545cae53365ddf0dfec",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "24.10.1",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v24.10.1",
+        "path": "build\\station-connection-review-20261109\\24.10.1-wpa_supplicant.uc",
+        "sha256": "14976851e2326ba1d370a6b99ca0a4490dbb077a2eaf43a3e0391d39b7749e85",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    },
+    {
+      "release": "24.10.2",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.2/package/network/services/hostapd/Makefile",
+      "package_sha256": "ced526243558cfd7a76d65cf897d7399999025d92896b545cae53365ddf0dfec",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "24.10.2",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v24.10.2",
+        "path": "build\\station-connection-review-20261109\\24.10.2-wpa_supplicant.uc",
+        "sha256": "14976851e2326ba1d370a6b99ca0a4490dbb077a2eaf43a3e0391d39b7749e85",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    },
+    {
+      "release": "24.10.3",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.3/package/network/services/hostapd/Makefile",
+      "package_sha256": "ced526243558cfd7a76d65cf897d7399999025d92896b545cae53365ddf0dfec",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "24.10.3",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v24.10.3",
+        "path": "build\\station-connection-review-20261109\\24.10.3-wpa_supplicant.uc",
+        "sha256": "14976851e2326ba1d370a6b99ca0a4490dbb077a2eaf43a3e0391d39b7749e85",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    },
+    {
+      "release": "24.10.4",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.4/package/network/services/hostapd/Makefile",
+      "package_sha256": "ced526243558cfd7a76d65cf897d7399999025d92896b545cae53365ddf0dfec",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "24.10.4",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v24.10.4",
+        "path": "build\\station-connection-review-20261109\\24.10.4-wpa_supplicant.uc",
+        "sha256": "14976851e2326ba1d370a6b99ca0a4490dbb077a2eaf43a3e0391d39b7749e85",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    },
+    {
+      "release": "24.10.5",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.5/package/network/services/hostapd/Makefile",
+      "package_sha256": "ced526243558cfd7a76d65cf897d7399999025d92896b545cae53365ddf0dfec",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "24.10.5",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v24.10.5",
+        "path": "build\\station-connection-review-20261109\\24.10.5-wpa_supplicant.uc",
+        "sha256": "14976851e2326ba1d370a6b99ca0a4490dbb077a2eaf43a3e0391d39b7749e85",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    },
+    {
+      "release": "24.10.6",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.6/package/network/services/hostapd/Makefile",
+      "package_sha256": "ced526243558cfd7a76d65cf897d7399999025d92896b545cae53365ddf0dfec",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "24.10.6",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v24.10.6",
+        "path": "build\\station-connection-review-20261109\\24.10.6-wpa_supplicant.uc",
+        "sha256": "14976851e2326ba1d370a6b99ca0a4490dbb077a2eaf43a3e0391d39b7749e85",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    },
+    {
+      "release": "24.10.7",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.7/package/network/services/hostapd/Makefile",
+      "package_sha256": "ced526243558cfd7a76d65cf897d7399999025d92896b545cae53365ddf0dfec",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "24.10.7",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v24.10.7",
+        "path": "build\\station-connection-review-20261109\\24.10.7-wpa_supplicant.uc",
+        "sha256": "14976851e2326ba1d370a6b99ca0a4490dbb077a2eaf43a3e0391d39b7749e85",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    },
+    {
+      "release": "24.10.8",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.8/package/network/services/hostapd/Makefile",
+      "package_sha256": "a3d8815e5980f0cbbad6c3093066da2ced8740e216ea71d9e75d6ef280538b06",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "24.10.8",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v24.10.8",
+        "path": "build\\station-connection-review-20261109\\24.10.8-wpa_supplicant.uc",
+        "sha256": "14976851e2326ba1d370a6b99ca0a4490dbb077a2eaf43a3e0391d39b7749e85",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    },
+    {
+      "release": "25.12.0",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.0/package/network/services/hostapd/Makefile",
+      "package_sha256": "19f88079dd4eccd092eeba3f0582b9e8d37c92f213cee8e880080085be7e6577",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "25.12.0",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v25.12.0",
+        "path": "build\\station-connection-review-20261109\\25.12.0-wpa_supplicant.uc",
+        "sha256": "d6726b52e3825489ce267e3aaea2fa0c3aa23daad5b6affcc7384e68d6bf0b66",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    },
+    {
+      "release": "25.12.1",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.1/package/network/services/hostapd/Makefile",
+      "package_sha256": "19f88079dd4eccd092eeba3f0582b9e8d37c92f213cee8e880080085be7e6577",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "25.12.1",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v25.12.1",
+        "path": "build\\station-connection-review-20261109\\25.12.1-wpa_supplicant.uc",
+        "sha256": "d6726b52e3825489ce267e3aaea2fa0c3aa23daad5b6affcc7384e68d6bf0b66",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    },
+    {
+      "release": "25.12.2",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.2/package/network/services/hostapd/Makefile",
+      "package_sha256": "19f88079dd4eccd092eeba3f0582b9e8d37c92f213cee8e880080085be7e6577",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "25.12.2",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v25.12.2",
+        "path": "build\\station-connection-review-20261109\\25.12.2-wpa_supplicant.uc",
+        "sha256": "d6726b52e3825489ce267e3aaea2fa0c3aa23daad5b6affcc7384e68d6bf0b66",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    },
+    {
+      "release": "25.12.3",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.3/package/network/services/hostapd/Makefile",
+      "package_sha256": "19f88079dd4eccd092eeba3f0582b9e8d37c92f213cee8e880080085be7e6577",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "25.12.3",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v25.12.3",
+        "path": "build\\station-connection-review-20261109\\25.12.3-wpa_supplicant.uc",
+        "sha256": "d6726b52e3825489ce267e3aaea2fa0c3aa23daad5b6affcc7384e68d6bf0b66",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    },
+    {
+      "release": "25.12.4",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.4/package/network/services/hostapd/Makefile",
+      "package_sha256": "19f88079dd4eccd092eeba3f0582b9e8d37c92f213cee8e880080085be7e6577",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "25.12.4",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v25.12.4",
+        "path": "build\\station-connection-review-20261109\\25.12.4-wpa_supplicant.uc",
+        "sha256": "d6726b52e3825489ce267e3aaea2fa0c3aa23daad5b6affcc7384e68d6bf0b66",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    },
+    {
+      "release": "25.12.5",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.5/package/network/services/hostapd/Makefile",
+      "package_sha256": "19f88079dd4eccd092eeba3f0582b9e8d37c92f213cee8e880080085be7e6577",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "25.12.5",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v25.12.5",
+        "path": "build\\station-connection-review-20261109\\25.12.5-wpa_supplicant.uc",
+        "sha256": "d6726b52e3825489ce267e3aaea2fa0c3aa23daad5b6affcc7384e68d6bf0b66",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    },
+    {
+      "release": "25.12.6",
+      "package_source": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/network/services/hostapd/Makefile",
+      "package_sha256": "6dc3c9ec4b8b974e67fbdde57a413db722dce50873e17413b975c26f4986bc06",
+      "wpa_cli_package_available": true,
+      "native_status_verified": true,
+      "native_source": {
+        "release": "25.12.6",
+        "url": "https://api.github.com/repos/openwrt/openwrt/contents/package/network/services/hostapd/files/wpa_supplicant.uc?ref=v25.12.6",
+        "path": "build\\station-connection-review-20261109\\25.12.6-wpa_supplicant.uc",
+        "sha256": "d6726b52e3825489ce267e3aaea2fa0c3aa23daad5b6affcc7384e68d6bf0b66",
+        "bss_info": true,
+        "ctrl_status": true
+      }
+    }
+  ]
+}

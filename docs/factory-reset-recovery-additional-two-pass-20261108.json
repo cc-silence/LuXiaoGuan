@@ -1,0 +1,72 @@
+{
+  "date": "2026-11-08",
+  "scope": "Additional two passes requested after the first 179-test review; local post-reset networking and credential ordering only",
+  "first_pass": {
+    "subject": "Interface presence versus IPv4 address readiness",
+    "finding": "Windows inventory discarded addressless interfaces, so a newly connected wired DHCP interface could not be selected before receiving a lease",
+    "fix": "Opt-in include_unaddressed for factory recovery only; ordinary inspection retains its previous filter; no automatic selection of ambiguous interfaces",
+    "verification": [
+      "Mock native adapter enumeration with zero addresses",
+      "Verify default facade call unchanged",
+      "Real Qt dialog selects addressless wired interface and starts explicit renewal"
+    ]
+  },
+  "second_pass": {
+    "subject": "Pending asynchronous delete versus synchronous new saved password",
+    "finding": "A synchronous Windows save could precede an already pending asynchronous deletion of the same generic credential target",
+    "fix": "Shared password-preference write entry rejects writes to pending-reset targets until deletion completes; canonical identity matches the existing credential key normalization",
+    "verification": [
+      "New write rejected before deletion callback and permitted afterward",
+      "Whitespace, port string and username case cannot bypass target match",
+      "Other login targets and unrelated normal password writes remain available"
+    ]
+  },
+  "tests": {
+    "targeted_passed": 49,
+    "final_passed": 184,
+    "final_failed": 0,
+    "final_elapsed_seconds": 36.806,
+    "syntax_check": "passed",
+    "diff_check": "passed",
+    "runtime": "Windows project venv; PySide6 6.3.2"
+  },
+  "official_sources": [
+    {
+      "url": "https://doc.qt.io/qt-6/qnetworkinterface.html",
+      "supports": "An interface may have zero or more IP addresses; interface identity and address presence are separate facts"
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/netioapi/nf-netioapi-getbestroute2",
+      "supports": "Routes are destination-specific; interface indexes are not persistent identities"
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credwritew",
+      "supports": "Writes replace the credential with the same TargetName and Type"
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-creddeletew",
+      "supports": "Deletes by TargetName and Type without a credential-generation condition"
+    },
+    {
+      "url": "https://networkmanager.pages.freedesktop.org/NetworkManager/NetworkManager/nmcli.html",
+      "supports": "Connection UUID with ifname selects the intended NetworkManager profile and device"
+    }
+  ],
+  "boundaries": [
+    "No real router factory reset",
+    "No real adapter or credential-store mutation",
+    "Debian/Linux branches simulated, not native acceptance",
+    "Qt current public documentation checked; version-specific archive/source unavailable in prior review, installed 6.3.2 behavior tested offline",
+    "Existing unrelated working-tree changes preserved"
+  ],
+  "source_sha256": {
+    "modules/capture_services/factory_recovery_refresh.py": "4356a65a9df9131486b09f4f1be62ee0463e66dacdfb657e300ef1114c8b74b9",
+    "modules/capture_services/factory_reset_credentials.py": "0b4e7f93c5e9a8827a556cd96d8cd4bdf138ccf085a53bad4bde91a512c0f9a0",
+    "modules/capture_services/capture_service.py": "d098c50eb93e6761da82c4861a6754850dc032dffc2ec218a97a5c840f40e869",
+    "modules/platform_services/lan_network.py": "37bd3805c7990754146d930dfb7253a17b90c59267a588253296c276667109b9",
+    "modules/platform_services/lan_network_windows.py": "7908ef952448563023dfb38e0b1001fbabb5adce108e7f494a3c6ae241908c39",
+    "tests/test_factory_adapter_inspection.py": "9d3b2708653bec66fa6215b878c385ba3e1eeb526b3634ca2c2166563892b69f",
+    "tests/test_factory_recovery_refresh.py": "bd7f53d9e34b08b1816be3c9627ce526a8ea199a873a78cb115f5f64ddd840e6",
+    "tests/test_factory_reset_credentials.py": "3f31182db15585d4317616ec431d0ea811ece393e0d61b4ad621f7cbfc656dd2"
+  }
+}

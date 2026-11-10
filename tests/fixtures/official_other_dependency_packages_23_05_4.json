@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-07",
+  "release": "23.05.4",
+  "target": "mediatek/filogic",
+  "architecture": "aarch64_cortex-a53",
+  "kernel_abi": "5.15.162-1-03ba5b5fee47f2232a088e3cd9832aec",
+  "kernel_index_url": "https://downloads.openwrt.org/releases/23.05.4/targets/mediatek/filogic/kmods/5.15.162-1-03ba5b5fee47f2232a088e3cd9832aec/Packages.gz",
+  "kernel_index_sha256": "ef1c1f5cdc5287202b1de21152b0c632a4c883225ba7966704c10c53c0f3f7a9",
+  "kernel_stanza": "Package: kmod-tun\nVersion: 5.15.162-1\nDepends: kernel (=5.15.162-1-03ba5b5fee47f2232a088e3cd9832aec)\nLicense: GPL-2.0-only\nSection: kernel\nArchitecture: aarch64_cortex-a53\nInstalled-Size: 25127\nFilename: kmod-tun_5.15.162-1_aarch64_cortex-a53.ipk\nSize: 25803\nSHA256sum: 091df04dd0ac276ba6a5409f008bd6bc8c2f107443af80e35589151fc17273ef\nDescription:  Kernel support for the TUN/TAP tunneling device",
+  "dnscrypt_index_url": "https://downloads.openwrt.org/releases/23.05.4/packages/aarch64_cortex-a53/packages/Packages.gz",
+  "dnscrypt_index_sha256": "98a4b1b9150ca13c1ab4a5597c607a50c69604ae60f183e3b2ddd2c759dc259d",
+  "dnscrypt_stanzas": [
+    "Package: dnscrypt-proxy2\nVersion: 2.1.5-1\nDepends: libc, ca-bundle\nConflicts: dnscrypt-proxy\nLicense: ISC\nSection: net\nArchitecture: aarch64_cortex-a53\nInstalled-Size: 3973456\nFilename: dnscrypt-proxy2_2.1.5-1_aarch64_cortex-a53.ipk\nSize: 3963285\nSHA256sum: afed4308da9661cbed31237404a0ffc0654be0b57da5f50e6236a4c0fbd1b437\nDescription:  A flexible DNS proxy, with support for modern encrypted DNS protocols\n such as DNSCrypt v2 and DNS-over-HTTPS.",
+    "Package: dnscrypt-proxy\nVersion: 2019-08-20-07ac3825-3\nDepends: libc, libsodium, dnscrypt-proxy-resolvers\nLicense: ISC\nSection: net\nArchitecture: aarch64_cortex-a53\nInstalled-Size: 72285\nFilename: dnscrypt-proxy_2019-08-20-07ac3825-3_aarch64_cortex-a53.ipk\nSize: 73046\nSHA256sum: 3e9fa20758f3fadcc256efb7cf56d3dbee101dc997d5d4905df970da551b68cc\nDescription:  dnscrypt-proxy provides local service which can be used directly as your\n local resolver or as a DNS forwarder, encrypting and authenticating requests\n using the DNSCrypt protocol and passing them to an upstream server.\n The DNSCrypt protocol uses high-speed high-security elliptic-curve cryptography\n and is very similar to DNSCurve, but focuses on securing communications between\n a client and its first-level resolver."
+  ],
+  "legacy_kernel_stanzas": [
+    {
+      "release": "19.07.10",
+      "target": "ramips/mt7621",
+      "architecture": "mipsel_24kc",
+      "kernel_abi": "4.14.275-1-6c891a3fd685a3ff23be7c2e98ea800e",
+      "stanza": "Package: kmod-tun\nVersion: 4.14.275-1\nDepends: kernel (=4.14.275-1-6c891a3fd685a3ff23be7c2e98ea800e)\nLicense: GPL-2.0\nSection: kernel\nArchitecture: mipsel_24kc\nInstalled-Size: 17456\nFilename: kmod-tun_4.14.275-1_mipsel_24kc.ipk\nSize: 18176\nSHA256sum: fef04a109561e1abcf112502e2917fcdb67a863f055bd0d32c4123e4c73338ab\nDescription:  Kernel support for the TUN/TAP tunneling device",
+      "url": "https://downloads.openwrt.org/releases/19.07.10/targets/ramips/mt7621/packages/Packages.gz",
+      "sha256": "da6b7283ddadfb8ba0627b592f7045f87d179013ac37ebf9e74b54165f22e257"
+    },
+    {
+      "release": "21.02.7",
+      "target": "ramips/mt7621",
+      "architecture": "mipsel_24kc",
+      "kernel_abi": "5.4.238-1-9075b32d59737ae13839f94851acafe7",
+      "stanza": "Package: kmod-tun\nVersion: 5.4.238-1\nDepends: kernel (=5.4.238-1-9075b32d59737ae13839f94851acafe7)\nLicense: GPL-2.0\nSection: kernel\nArchitecture: mipsel_24kc\nInstalled-Size: 24091\nFilename: kmod-tun_5.4.238-1_mipsel_24kc.ipk\nSize: 24772\nSHA256sum: 4c3d7c2d5e84f21abcf39a0e40ba8dd00867e549707a4bad601d8006c71aefe4\nDescription:  Kernel support for the TUN/TAP tunneling device",
+      "url": "https://downloads.openwrt.org/releases/21.02.7/targets/ramips/mt7621/packages/Packages.gz",
+      "sha256": "be894c4f14d2cea2842b5515ce32119c8f02d838377c76c6b719157e01d2c2c6"
+    },
+    {
+      "release": "22.03.7",
+      "target": "ramips/mt7621",
+      "architecture": "mipsel_24kc",
+      "kernel_abi": "5.10.221-1-ac287f05a112998f5334732fa009dfc4",
+      "stanza": "Package: kmod-tun\nVersion: 5.10.221-1\nDepends: kernel (=5.10.221-1-ac287f05a112998f5334732fa009dfc4)\nLicense: GPL-2.0\nSection: kernel\nArchitecture: mipsel_24kc\nInstalled-Size: 24593\nFilename: kmod-tun_5.10.221-1_mipsel_24kc.ipk\nSize: 25295\nSHA256sum: df9a1679f2bab42a9173c8321e7375fdd3887aa1627aaffd004edaa985f169de\nDescription:  Kernel support for the TUN/TAP tunneling device",
+      "url": "https://downloads.openwrt.org/releases/22.03.7/targets/ramips/mt7621/packages/Packages.gz",
+      "sha256": "fdad002bb506b3b07c167e77974ae4a480bc72c3ebf6dd8aaa6883ebbdeb2d27"
+    }
+  ]
+}

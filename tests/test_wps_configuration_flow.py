@@ -134,3 +134,115 @@ class WpsConfigurationFlowTests(unittest.TestCase):
         with TemporaryDirectory() as folder:
             result, _ = self.run_actual_builder(folder, False, "", ["saved.wpc", ""])
         self.assertEqual(result.wpc_file, "saved.wpc")
+
+    def test_quick_settings_defaults_clamp_and_dialog_round_trip(self):
+        from tests.test_standalone import APP
+        from modules.main_pages.packet_capture.openwrt.quick_wps_dialog import QuickWpsDialog
+        with TemporaryDirectory() as folder:
+            manager = CaptureSettingsManager(Path(folder) / "settings.json")
+            data = manager.load()
+            self.assertEqual(data["openwrt"]["wps_defaults"]["quick_seconds"], 60)
+            self.assertEqual(data["openwrt"]["wps_defaults"]["quick_rounds"], 1)
+            data["openwrt"]["wps_defaults"]["quick_seconds"] = 9999
+            data["openwrt"]["wps_defaults"]["quick_rounds"] = 0
+            manager.save(data)
+            saved = manager.load()["openwrt"]["wps_defaults"]
+            self.assertEqual(saved["quick_seconds"], 3600)
+            self.assertEqual(saved["quick_rounds"], 1)
+            calls = []
+            dialog = QuickWpsDialog(saved, None, clear_callback=lambda: calls.append(True))
+            try:
+                self.assertEqual(dialog.get_settings(),
+                                 {"quick_seconds": 3600, "quick_rounds": 1})
+                dialog.seconds.setValue(0)
+                dialog.rounds.setValue(20)
+                self.assertEqual(dialog.get_settings(),
+                                 {"quick_seconds": 0, "quick_rounds": 20})
+                dialog.clear_button.click()
+                self.assertTrue(calls)
+            finally:
+                dialog.deleteLater()
+                APP.processEvents()
+
+    def test_remembered_pin_is_tried_before_generated_candidates(self):
+        from modules.capture_services.openwrt.wps_defaults import DefaultPinCandidate
+        manager = Mock(); manager.is_running.return_value = False
+        manager.read_log_tail.return_value = "[+] Quitting after 1 crack attempts"
+        capture = OpenWrtWpsCapture(Mock(), manager)
+        candidates = (DefaultPinCandidate("11111111", "a"), DefaultPinCandidate("22222222", "b"))
+        with TemporaryDirectory() as folder, patch(
+                "modules.capture_services.openwrt.wps_quick.default_pin_candidates",
+                return_value=candidates):
+            capture.run_targets(
+                NS(local_dir=Path(folder), remote_dir="/tmp/owned"), "mon", "s",
+                (AccessPointInfo(MAC, channel=1, wps_supported=True),), "second",
+                {"remembered_pin": "99999999"}, folder, Mock())
+        first = shlex.split(manager.start.call_args_list[0].args[1])
+        self.assertEqual(first[first.index("-p")+1], "99999999")
+        self.assertEqual(first[first.index("-g")+1], "1")
+        second = shlex.split(manager.start.call_args_list[1].args[1])
+        self.assertEqual(second[second.index("-p")+1], "11111111")
+        self.assertEqual(second[second.index("-g")+1], "1")
+
+    def test_remembered_pin_is_verified_first_in_normal_mode(self):
+        manager = Mock(); manager.is_running.return_value = False
+        manager.read_log_tail.return_value = "WPS PIN: '99999999'\nWPA PSK: 'Secret'"
+        capture = OpenWrtWpsCapture(Mock(), manager)
+        with TemporaryDirectory() as folder:
+            result = capture.run_targets(
+                NS(local_dir=Path(folder), remote_dir="/tmp/owned"), "mon", "s",
+                (AccessPointInfo(MAC, channel=1, wps_supported=True),), "normal",
+                {"remembered_pin": "99999999", "attack_seconds": 30}, folder, Mock())[0]
+        self.assertTrue(result.psk_ok)
+        self.assertEqual(manager.start.call_count, 1)
+        first = shlex.split(manager.start.call_args.args[1])
+        self.assertEqual(first[first.index("-p")+1], "99999999")
+        self.assertNotIn("-K", first)
+
+    def test_pin_only_result_is_saved_and_callback_carries_pin(self):
+        from modules.capture_services.backends.openwrt_backend import _remember_wps_pin
+        from modules.capture_services.openwrt.wps_models import WpsTargetResult
+        result = WpsTargetResult(MAC, "fixture", mode="second", pin_ok=True, pin="12345670")
+        messages, pins = [], []
+        with patch("modules.capture_services.openwrt.wps_remembered_pin.write_pin") as write:
+            saved = _remember_wps_pin(
+                result, lambda text, level: messages.append((text, level)), pins.append)
+        write.assert_called_once_with(MAC, "12345670")
+        self.assertTrue(saved.pin_saved)
+        self.assertEqual(pins[0]["pin"], "12345670")
+        self.assertTrue(pins[0]["saved"])
+        self.assertNotIn("12345670", repr(messages))
+
+    def test_credential_failure_still_hands_pin_to_user(self):
+        from modules.capture_services.backends.openwrt_backend import _remember_wps_pin
+        from modules.capture_services.openwrt.wps_models import WpsTargetResult
+        result = WpsTargetResult(MAC, "fixture", mode="second", pin_ok=True, pin="12345670")
+        messages, pins = [], []
+        with patch("modules.capture_services.openwrt.wps_remembered_pin.write_pin",
+                   side_effect=RuntimeError("locked")):
+            saved = _remember_wps_pin(
+                result, lambda text, level: messages.append((text, level)), pins.append)
+        self.assertFalse(saved.pin_saved)
+        self.assertEqual(pins[0]["pin"], "12345670")
+        self.assertFalse(pins[0]["saved"])
+        self.assertTrue(any("保存失败" in text for text, _level in messages))
+
+    def test_password_success_does_not_store_a_pin(self):
+        from modules.capture_services.backends.openwrt_backend import _remember_wps_pin
+        from modules.capture_services.openwrt.wps_models import WpsTargetResult
+        result = WpsTargetResult(MAC, "fixture", mode="second",
+                                 pin_ok=True, psk_ok=True, pin="12345670")
+        pins = []
+        with patch("modules.capture_services.openwrt.wps_remembered_pin.write_pin") as write:
+            saved = _remember_wps_pin(result, None, pins.append)
+        write.assert_not_called()
+        self.assertFalse(saved.pin_saved)
+        self.assertEqual(pins, [])
+
+    def test_remembered_pin_credential_target_is_keyed_by_bssid(self):
+        from modules.capture_services.openwrt import wps_remembered_pin as remembered
+        with patch.object(remembered, "read_generic_password", return_value="12345670") as read:
+            self.assertEqual(remembered.read_pin("54:a0:50:75:d2:40"), "12345670")
+        read.assert_called_once_with("RouterManager WPS PIN|54:A0:50:75:D2:40")
+        with self.assertRaises(ValueError):
+            remembered.write_pin(MAC, "1234")

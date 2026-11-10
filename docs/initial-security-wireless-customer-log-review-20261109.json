@@ -1,0 +1,206 @@
+{
+  "date": "2026-11-09",
+  "inputs": [
+    {
+      "file": "XRJ_LuXiaoGuan_\u5e38\u7528\u8bbe\u7f6e_20261109_145220.zip",
+      "sha256": "a2eb477babad71c1f726e8b62f0dfd952d516eeda47a3fdd59b046ae238ab6ce",
+      "version": "1.0.56_alpha",
+      "device": {
+        "model": "Xiaomi Mi Router 3G",
+        "board_name": "xiaomi,mi-router-3g",
+        "distribution": "OpenWrt",
+        "version": "25.12.6",
+        "revision": "r33311-981c978eff",
+        "target": "ramips/mt7621",
+        "architecture": "mips",
+        "package_architecture": "mipsel_24kc",
+        "package_manager": "apk",
+        "kernel_version": "6.12.112",
+        "memory_mb": 242,
+        "free_memory_mb": 173,
+        "free_storage_mb": 86,
+        "sftp_available": true,
+        "radios": [
+          {
+            "name": "radio0",
+            "driver": "mt7603e",
+            "channel": 0,
+            "free": false,
+            "monitor_supported": true,
+            "interface_count": 0,
+            "bands": [
+              "2.4G"
+            ]
+          },
+          {
+            "name": "radio1",
+            "driver": "mt76x2e",
+            "channel": 0,
+            "free": true,
+            "monitor_supported": true,
+            "interface_count": 0,
+            "bands": [
+              "5G"
+            ]
+          }
+        ]
+      },
+      "save_failures": [
+        {
+          "operation": "wireless_save_only",
+          "stage": "execute",
+          "reason": "unconfirmed",
+          "timestamp": "2026-11-09T06:50:20.067712+00:00",
+          "elapsed_seconds": 3.813000000001921
+        },
+        {
+          "operation": "wireless_save_only",
+          "stage": "execute",
+          "reason": "unconfirmed",
+          "timestamp": "2026-11-09T06:50:44.502637+00:00",
+          "elapsed_seconds": 3.702999999997701
+        },
+        {
+          "operation": "wireless_save_only",
+          "stage": "execute",
+          "reason": "unconfirmed",
+          "timestamp": "2026-11-09T06:51:01.815429+00:00",
+          "elapsed_seconds": 3.687000000001717
+        }
+      ]
+    },
+    {
+      "file": "XRJ_LuXiaoGuan_\u8def\u7531\u5668\u767b\u5f55_20261109_143239.zip",
+      "sha256": "91cceeeddead38ff82951310a1761f0f3d1a1651194f5e0d2b9718238bf15dd4",
+      "version": "1.0.56_alpha",
+      "device": {
+        "model": "Xiaomi Mi Router 3G",
+        "board_name": "xiaomi,mi-router-3g",
+        "distribution": "OpenWrt",
+        "version": "25.12.6",
+        "revision": "r33311-981c978eff",
+        "target": "ramips/mt7621",
+        "architecture": "mips",
+        "package_architecture": "mipsel_24kc",
+        "package_manager": "apk",
+        "kernel_version": "6.12.112",
+        "memory_mb": 242,
+        "free_memory_mb": 173,
+        "free_storage_mb": 86,
+        "sftp_available": true,
+        "radios": [
+          {
+            "name": "radio0",
+            "driver": "mt7603e",
+            "channel": 0,
+            "free": true,
+            "monitor_supported": true,
+            "interface_count": 0,
+            "bands": [
+              "2.4G"
+            ]
+          },
+          {
+            "name": "radio1",
+            "driver": "mt76x2e",
+            "channel": 0,
+            "free": true,
+            "monitor_supported": true,
+            "interface_count": 0,
+            "bands": [
+              "5G"
+            ]
+          }
+        ]
+      },
+      "save_failures": []
+    },
+    {
+      "file": "XRJ_LuXiaoGuan_\u4fe1\u53f7\u7ba1\u7406_20261109_145213.zip",
+      "sha256": "b4e2380506a0b46b70293bc9cb3eb71db6bb9168981f651e9fa7fba468561922",
+      "version": "1.0.56_alpha",
+      "device": {
+        "model": "Xiaomi Mi Router 3G",
+        "board_name": "xiaomi,mi-router-3g",
+        "distribution": "OpenWrt",
+        "version": "25.12.6",
+        "revision": "r33311-981c978eff",
+        "target": "ramips/mt7621",
+        "architecture": "mips",
+        "package_architecture": "mipsel_24kc",
+        "package_manager": "apk",
+        "kernel_version": "6.12.112",
+        "memory_mb": 242,
+        "free_memory_mb": 173,
+        "free_storage_mb": 86,
+        "sftp_available": true,
+        "radios": [
+          {
+            "name": "radio0",
+            "driver": "mt7603e",
+            "channel": 0,
+            "free": false,
+            "monitor_supported": true,
+            "interface_count": 0,
+            "bands": [
+              "2.4G"
+            ]
+          },
+          {
+            "name": "radio1",
+            "driver": "mt76x2e",
+            "channel": 0,
+            "free": true,
+            "monitor_supported": true,
+            "interface_count": 0,
+            "bands": [
+              "5G"
+            ]
+          }
+        ]
+      },
+      "save_failures": [
+        {
+          "operation": "wireless_save_only",
+          "stage": "execute",
+          "reason": "unconfirmed",
+          "timestamp": "2026-11-09T06:50:20.067712+00:00",
+          "elapsed_seconds": 3.813000000001921
+        },
+        {
+          "operation": "wireless_save_only",
+          "stage": "execute",
+          "reason": "unconfirmed",
+          "timestamp": "2026-11-09T06:50:44.502637+00:00",
+          "elapsed_seconds": 3.702999999997701
+        },
+        {
+          "operation": "wireless_save_only",
+          "stage": "execute",
+          "reason": "unconfirmed",
+          "timestamp": "2026-11-09T06:51:01.815429+00:00",
+          "elapsed_seconds": 3.687000000001717
+        }
+      ]
+    }
+  ],
+  "findings": [
+    "Three logged failures occur in save_only_commit verification, not runtime driver startup; transport commands return exit 0 and application raises unconfirmed",
+    "Initial security operation options and before/after configuration are absent from retained logs",
+    "Cannot establish causal link between initial security and failure, or identify exact failing field from supplied archives",
+    "No radio mapping, security plan, channel policy, validation condition, commit or rollback behavior changed",
+    "Added allowlisted verification field evidence and preserved existing unconfirmed error code and rollback"
+  ],
+  "compatibility_scope": "Diagnostic-only: no new router commands or changed write semantics; Lua 5.1 execution tested. Official UCI/rpcd source consulted as structural reference, not exact vendor firmware proof",
+  "references": [
+    "https://raw.githubusercontent.com/openwrt/uci/master/lua/uci.c",
+    "https://raw.githubusercontent.com/openwrt/rpcd/master/uci.c"
+  ],
+  "tests": {
+    "windows": 64,
+    "passed": true,
+    "real_router": false,
+    "debian_current_run": false
+  },
+  "next_evidence": "Customer reproduce using build containing new field evidence, export common settings and signal management logs immediately; obtain initial security selections if available"
+}

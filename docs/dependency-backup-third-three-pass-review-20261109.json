@@ -1,0 +1,92 @@
+{
+  "date": "2026-11-09",
+  "previous_review": "dependency-backup-additional-three-pass-review-20261109.json",
+  "new_confirmed_defects": 0,
+  "production_code_changed": false,
+  "rounds": [
+    {
+      "round": "original-and-identity",
+      "total": 22,
+      "failures": 0,
+      "errors": 0,
+      "passed": true
+    },
+    {
+      "round": "archive-and-configurations",
+      "total": 45,
+      "failures": 0,
+      "errors": 0,
+      "passed": true
+    },
+    {
+      "round": "failure-and-lifetime",
+      "total": 28,
+      "failures": 0,
+      "errors": 0,
+      "passed": true
+    }
+  ],
+  "total": 95,
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk-package.5.scd",
+      "commit": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk-query.8.scd",
+      "commit": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk-verify.8.scd",
+      "commit": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866"
+    }
+  ],
+  "reviewed_guards": [
+    "exact official profile/version plus source archive SHA256; native APK signature checks before extraction",
+    "installed APK hooks identified by installed content identity rather than name alone",
+    "schema 1/2 integrity validation, protected path rejection and configuration metadata checks",
+    "configuration staging before install, package postconditions before settings, affected version mismatch blocked",
+    "truncated transfer/cancellation/changed connection/uncertain install cannot become successful completion; private install files retained if exit unconfirmed"
+  ],
+  "limitations": [
+    "Local and official exact-version archives are authenticated, but their APK metadata identity C is not separately compared with installed C during missing-file recovery; exact-version availability does not prove byte-identical historical builds",
+    "No real router backup or restore and no native Debian 12 verification",
+    "Different firmware, missing exact originals and unpreservable attributes still stop explicitly",
+    "No claim every supported firmware/hardware combination has been exercised",
+    "No packaging or publication performed"
+  ],
+  "files": [
+    {
+      "path": "modules\\capture_services\\openwrt\\snapshot_original_packages.py",
+      "sha256": "12102e47b72b7b478287763e4542afbe7c60e9ab7ee322cea337452ee9703b8b"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\snapshot_configuration.py",
+      "sha256": "50e7f91059ed097449ba367f2632898781d4f26d1e10300b43237f7b781ab13f"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\installed_dependency_backup.py",
+      "sha256": "3358a60944b018b82130aab671a913dc268b55dd4a03a40d607ee84b6aaf513e"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\installed_dependency_reader.py",
+      "sha256": "8b5be07fff78273f18ed16aaaefea95846fb7334cfbce65590ee9f756d6dbe4a"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\dependency_snapshot_archive.py",
+      "sha256": "7a975b5833574d037b1feb2d39564a8ad6c62994173413ce128b7c3eacd961d9"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\dependency_snapshot_package_check.py",
+      "sha256": "11b0589fc82451a4cbe845819302e0e327bff70789cec08a902c6e7f91b39df1"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\dependency_snapshot_permissions.py",
+      "sha256": "3eccc87f5c2d1e1303dcb7e9cbb2350fb903141f760716ac044f306712b9b976"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\dependency_snapshot_transfer.py",
+      "sha256": "357f6e084518a8059ab33524d6624eae7e48f3c8196350a5b8de4113eadbd17f"
+    }
+  ]
+}

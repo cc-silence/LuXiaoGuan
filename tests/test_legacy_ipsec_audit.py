@@ -137,7 +137,7 @@ class RoundTwoTests(unittest.TestCase):
             self.assertEqual(run.call_args.kwargs['output_limit'],4*1024*1024)
             self.assertLessEqual(run.call_args.kwargs['timeout'],10)
         with patch.object(policy,'capture_process',return_value=subprocess.CompletedProcess([],87,b'secret output')):
-            with self.assertRaises(OSError) as error:store.dump()
+            with self.assertRaises(OSError) as error:store.command(('dump',))
             self.assertEqual(error.exception.ipsec_exit_code,87)
             self.assertNotIn('secret',str(error.exception))
     def test_bounded_runner_reaps_noisy_child(self):
@@ -161,7 +161,9 @@ class RoundThreeTests(unittest.TestCase):
         from modules.platform_services.startup_firewall import AuditMessages
         c=self.controller('ipsec')
         with patch('modules.platform_services.windows_network_services.firewall_route',return_value='firewall'),patch('modules.desktop_shell.startup_firewall_controller.ensure_startup_firewall_rules',return_value=AuditMessages(['ok'],'firewall')) as ensure,patch('modules.platform_services.network_policy.prepare_target') as prepare:
-            c.prepare_connection(PLAN.address,22,Event())
+            repair=c.prepare_connection(PLAN.address,22,Event())
+            ensure.assert_not_called();prepare.assert_not_called()
+            repair()
             ensure.assert_called_once();prepare.assert_called_once();self.assertEqual(c._audit_route,'firewall')
     def test_same_mode_login_reuses_audit(self):
         c=self.controller('firewall')
@@ -170,7 +172,7 @@ class RoundThreeTests(unittest.TestCase):
     def test_failed_reaudit_prevents_ssh_policy_preparation(self):
         c=self.controller('ipsec')
         with patch('modules.platform_services.windows_network_services.firewall_route',return_value='firewall'),patch('modules.desktop_shell.startup_firewall_controller.ensure_startup_firewall_rules',return_value=['\u5931\u8d25']),patch('modules.platform_services.network_policy.prepare_target') as prepare:
-            with self.assertRaises(OSError):c.prepare_connection(PLAN.address,22,Event())
+            with self.assertRaises(OSError):c.prepare_connection(PLAN.address,22,Event())()
             prepare.assert_not_called()
     def test_native_exit_code_and_receipt_error_reach_diagnostics(self):
         from modules.platform_services import network_policy as policy

@@ -26,6 +26,7 @@ class Store:
         self.nodes={'':{'activepolicy':(1,LOCAL+'\\'+ID)},ID:{'ipsecname':(1,PLAN.policy),'ipsecnfareference':(7,[])}}
     def snapshot(self):return PolicySnapshot(copy.deepcopy(self.nodes),ID,PLAN.policy)
     def dump(self):return dump()
+    def verify(self,plan):return verify_dump(plan,self.dump())
     def backup(self):return self.directory,'fixture-hash'
     def mutate(self,args):
         self.commands.append(args);self.count+=1

@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-07",
+  "scope": "Finish host Windows login-policy diagnostic export validation",
+  "changes": [
+    "Added real ZIP integration regression for the existing host login-policy diagnostics",
+    "Verified current operation-diagnostics.json and history current-run/router-info.json retain structured failure fields, command metadata and rollback status",
+    "Verified injected policy names, raw output, key material, private backup paths and addresses are discarded",
+    "Verified cancelled export preserves the previous feedback file without temporary remnants"
+  ],
+  "validation": {
+    "tests_run": 127,
+    "passed": 127,
+    "process_exit_code": 0,
+    "host_policy_mutations": 0,
+    "router_operations": 0,
+    "ui_changes": 0
+  },
+  "limits": [
+    "Customer-machine login success remains unverified",
+    "No Debian 12 execution environment used; existing non-Windows branch regressions only",
+    "No application build or publication requested or performed"
+  ],
+  "prior_review": "docs/ipsec-three-pass-review-20261106.json"
+}

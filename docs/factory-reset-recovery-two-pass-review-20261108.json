@@ -1,0 +1,108 @@
+{
+  "date": "2026-11-08",
+  "scope": "Local post-factory-reset adapter recovery and credential invalidation; remote reset commands unchanged",
+  "round_one": {
+    "method": "Trace actual entrypoints; reproduce counterexamples before fixing",
+    "reproduced_failures": [
+      "Expired post-reset offer returned False without UI feedback",
+      "Fresh ambiguous inventory dropped proven original static recovery when a second adapter existed"
+    ],
+    "fixes": [
+      "Publish an explicit expiry/reconfirmation message without starting network work",
+      "Retain proven static migration only on the same id, MAC, addresses and static mode; do not guess another adapter"
+    ],
+    "targeted_regression": {
+      "passed": 27,
+      "failed": 0
+    }
+  },
+  "round_two": {
+    "method": "Independent reverse trace from UI/password reload, exception injection, then broader offline regression",
+    "fault_injection": [
+      "Inspection timeout",
+      "Worker could not start or raised at startup",
+      "Offer expires while inspection runs",
+      "Close during inspection",
+      "Credential process startup failure",
+      "Deletion pending while login page is rebuilt",
+      "New login supersedes reset session",
+      "Unrelated default or VPN route"
+    ],
+    "fault_injection_tests": {
+      "passed": 19,
+      "failed": 0
+    },
+    "final_regression": {
+      "passed": 179,
+      "failed": 0,
+      "elapsed_seconds": 84.926
+    },
+    "runtime": "Windows project venv, PySide6 6.3.2"
+  },
+  "official_sources": [
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/renewdhcplease-method-in-class-win32-networkadapterconfiguration",
+      "checked": "Per-instance DHCP renewal and native failure codes; revalidate live addresses rather than assuming success"
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-creddeletew",
+      "checked": "Delete only specified TargetName and generic credential type; missing target is already absent"
+    },
+    {
+      "url": "https://doc.qt.io/qt-6/qobject.html",
+      "checked": "Thread affinity and queued delivery; existing completion broker owns GUI callbacks",
+      "attempted_archive_url": "https://doc.qt.io/archives/qt-6.3/qobject.html",
+      "archive_status": "not accessible via browser tool"
+    },
+    {
+      "url": "https://doc.qt.io/qt-6/qnetworkinterface.html",
+      "checked": "Read current interface inventory, id, MAC and addresses; no mutation during inspection",
+      "attempted_archive_url": "https://doc.qt.io/archives/qt-6.3/qnetworkinterface.html",
+      "archive_status": "not accessible via browser tool"
+    },
+    {
+      "url": "https://doc.qt.io/qt-6/qprocess.html",
+      "checked": "Asynchronous process lifecycle and failure signals for existing credential helper",
+      "attempted_archive_url": "https://doc.qt.io/archives/qt-6.3/qprocess.html",
+      "archive_status": "not accessible via browser tool"
+    },
+    {
+      "url": "https://networkmanager.pages.freedesktop.org/NetworkManager/NetworkManager/nmcli.html",
+      "checked": "Existing renewal uses connection UUID plus explicit ifname; keep NetworkManager as owner"
+    }
+  ],
+  "limitations": [
+    "No real router reset or physical Wi-Fi-to-Ethernet retest",
+    "No mutation of real PC adapter or real saved router credentials",
+    "Linux branches mocked; native Debian 12 not validated",
+    "OpenWrt documentation page blocked by access protection; remote reset implementation was not changed"
+  ],
+  "source_sha256": {
+    "modules/capture_services/factory_recovery_refresh.py": "c9bd995542abcd134526f0abf8d8f7d71b3042c8c421682365f0fe31d85e128a",
+    "modules/capture_services/factory_reset_credentials.py": "0f3a79d5aa38aac41f30aaad2ae1163c13afd0b141e20b9559fcdf7c34d216fb",
+    "modules/capture_services/lan_recovery_service.py": "346fb38ded60417b692de64b35eb52579eb33054a150b7824b6a89df85b3aada",
+    "modules/capture_services/lan_client_recovery.py": "e517d2474706f3ff17ebbab3de22bc13d56930682f94f5b03fbed23215f19f92",
+    "modules/capture_services/router_management_service.py": "20b4135f7f5f45a54c2ab2eef031c667f14f0ef5d60b3e8720ea97503383887d",
+    "modules/main_pages/packet_capture/openwrt/factory_reset_result_dialog.py": "fa3ed2de8592bc69dddb2a363293309525adbff90546049efdcc47ddd94d8791",
+    "modules/main_pages/packet_capture/openwrt/router_login_page.py": "8e71bff585ab18e0cdc121abb5b52683d24baa1f62016d6346ec42ad7c69e619",
+    "tests/test_factory_recovery_refresh.py": "7e38fd25cf0bc5afa50774fe758e5137de50fc8d04fd9937540f61f4be186c9c",
+    "tests/test_factory_reset_credentials.py": "02b4dcbd01e4dc5f6ba000e8b0267ce3a09f85bd544d1a4919be911cef29d66a"
+  },
+  "qt_6_3_2_source_checks": [
+    {
+      "url": "https://raw.githubusercontent.com/qt/qtbase/v6.3.2/src/network/kernel/qnetworkinterface.cpp",
+      "status": "unavailable",
+      "error": "URLError"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/qt/qtbase/v6.3.2/src/corelib/kernel/qobject.cpp",
+      "status": "unavailable",
+      "error": "URLError"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/qt/qtbase/v6.3.2/src/corelib/io/qprocess.cpp",
+      "status": "unavailable",
+      "error": "URLError"
+    }
+  ]
+}

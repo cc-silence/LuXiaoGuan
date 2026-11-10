@@ -1,0 +1,105 @@
+{
+  "date": "2026-11-09",
+  "previous_review": "dependency-backup-three-pass-review-20261109.json",
+  "rounds": [
+    {
+      "round": 1,
+      "focus": "Ownership and permissions after extraction",
+      "finding": "BusyBox 1.36.1 data_extract_all.c does not propagate chmod/chown return values. A content hash alone cannot prove metadata restoration.",
+      "fix": "Clear account names/PAX overrides in per-package configuration archives; preserve numeric uid/gid/mode. Verify regular file type plus numeric permissions and ownership after content verification. Detect stat capability and fall back to stock numeric ls."
+    },
+    {
+      "round": 2,
+      "focus": "Memory limits and unrepresentable configuration attributes",
+      "finding": "Builtin ownership metadata used the general 512 MiB tar limit; extended attributes on builtin configuration owners were not checked by addon enrichment.",
+      "fix": "Add optional early size limit to common tar iterator; installed metadata readers enforce 32 MiB during header iteration. Refuse configuration recapture if package extended attributes cannot be preserved."
+    },
+    {
+      "round": 3,
+      "focus": "Failure reporting, cancellation and permission parsing boundaries",
+      "finding": "No further defect identified within reviewed scope after fixes.",
+      "validation": "95 targeted tests passed and 8192 independently generated permission parser cases passed; prior additive-only restore, signature checks, staging and uncertain-install cleanup guards retained."
+    }
+  ],
+  "tests": {
+    "targeted_tests": 95,
+    "failures": 0,
+    "errors": 0,
+    "added_tests": 6,
+    "permission_matrix": {
+      "passed": true,
+      "permission_values": 4096,
+      "stat_cases": 4096,
+      "stock_ls_cases": 4096,
+      "generator": "Python standard library stat.filemode",
+      "checks": "all ordinary and setuid/setgid/sticky permission combinations with numeric ownership"
+    }
+  },
+  "exact_cached_sources": {
+    "date": "2026-11-09",
+    "sources": [
+      {
+        "source": "https://www.busybox.net/downloads/busybox-1.36.1.tar.bz2",
+        "archive_sha256": "b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314",
+        "member": "archival/tar.c",
+        "sha256": "498bd41168d1297603b731df2a1d71dc5c2986f97febbedfeb85dc23cf5b504c"
+      },
+      {
+        "source": "https://www.busybox.net/downloads/busybox-1.36.1.tar.bz2",
+        "archive_sha256": "b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314",
+        "member": "archival/libarchive/data_extract_all.c",
+        "sha256": "b9770bbdde551ebdce64c22cbccb1e4b073b8c678d7249c100fe510e7ba852d1"
+      },
+      {
+        "source": "https://www.busybox.net/downloads/busybox-1.36.1.tar.bz2",
+        "archive_sha256": "b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314",
+        "member": "archival/libarchive/get_header_tar.c",
+        "sha256": "e2695123b05f6f022045d6a19c93fdf7bdd9e076f129fe1249634ef43f03f6c9"
+      }
+    ],
+    "verified_cached_configurations": 50
+  },
+  "live_sources_read": [
+    "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.8/package/utils/busybox/Makefile",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/utils/busybox/Makefile",
+    "https://docs.python.org/3.10/library/tarfile.html",
+    "https://docs.python.org/3.10/library/stat.html",
+    "https://raw.githubusercontent.com/alpinelinux/apk-tools/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/doc/apk-extract.8.scd",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/base-files/files/lib/functions.sh"
+  ],
+  "discovery_note": "This pass found an existing exact BusyBox 1.36.1 archive and 50 pinned official BusyBox default configurations. Earlier web retrieval unavailability did not establish absence of local sources. No current BusyBox master behavior was used as proof for a fixed release.",
+  "limitations": [
+    "No live customer router backup or restore",
+    "No native Debian 12 desktop verification",
+    "50 checks are cached configuration/source checks, not 50 real firmware runs",
+    "Exact BusyBox 1.37.0 archive was not inspected here; runtime postconditions avoid assuming successful chown/chmod across versions",
+    "Extended file attributes remain unsupported and are refused when known; no all-system compatibility claim",
+    "No packaging or publication performed"
+  ],
+  "files": [
+    {
+      "path": "modules\\capture_services\\openwrt\\dependency_snapshot_permissions.py",
+      "sha256": "3eccc87f5c2d1e1303dcb7e9cbb2350fb903141f760716ac044f306712b9b976"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\snapshot_configuration.py",
+      "sha256": "50e7f91059ed097449ba367f2632898781d4f26d1e10300b43237f7b781ab13f"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\dependency_snapshot_archive.py",
+      "sha256": "7a975b5833574d037b1feb2d39564a8ad6c62994173413ce128b7c3eacd961d9"
+    },
+    {
+      "path": "modules\\capture_services\\openwrt\\installed_dependency_reader.py",
+      "sha256": "8b5be07fff78273f18ed16aaaefea95846fb7334cfbce65590ee9f756d6dbe4a"
+    },
+    {
+      "path": "tests\\test_snapshot_configuration.py",
+      "sha256": "d521a04818c582d0240c6105474f2c3b35676e3628b4dd5a49088cfade939c9b"
+    },
+    {
+      "path": "tests\\test_dependency_snapshot_permissions.py",
+      "sha256": "19826165edc76b760af38334d3761cb11e0ccc49b5ae979eaee22b3e8d1936bd"
+    }
+  ]
+}

@@ -30,6 +30,7 @@ package.loaded.uci.cursor=function(confdir,savedir)
  get_confdir=function() return confdir or "/etc/config" end,
  get_savedir=function() return savedir or "/tmp/.uci" end,
  load=function(self,c) return save_load(sid,c) end,
+ unload=function(self,c) return true end,
  changes=function(self,c) return save_changes(sid,c) end,
  get=function(self,c,s,k) return save_get(sid,c,s,k,false) end,
  get_all=function(self,c,s) return save_get(sid,c,s,nil,true) end,
@@ -61,6 +62,8 @@ end
         return True
 
     def read(self,command):
+        if "for d in /tmp/run/rpcd/uci-*" in command:
+            return "".join("/tmp/run/rpcd/uci-"+sid+"\n" for sid in self.sessions)
         if command.startswith("umask 077; mktemp") and "rouxiaoguan-save" in command:
             return "/tmp/rouxiaoguan-save.TEST01\n"
         return super().read(command)

@@ -1,0 +1,276 @@
+{
+  "date": "2026-11-09",
+  "scope": "Second official-source audit of the randomized rpcd save-directory fix and unchanged checked-apply path. Router operations require exact upstream API review; this is shared code independent of desktop OS and radio model.",
+  "findings": {
+    "new_product_defects_identified": [],
+    "confirmed": [
+      "Session ID and runtime dirname independent in newer rpcd",
+      "Named temporary section is staged through own UCI session and removed before libuci commit",
+      "Direct libuci commit retains save-only semantics without rpcd config.change event",
+      "Native UCI retains marker delta history after deleting the marker, validating existing no-op snapshot comparison",
+      "Foreign session delta bytes preserved in native file proof",
+      "Checked apply still uses native apply/confirm/rollback; not replaced by save-only logic"
+    ],
+    "limits": [
+      "Customer save-and-apply failure remains unconfirmed; no customer router or running AP tested",
+      "No claim of complete Debian desktop or every hardware model validation",
+      "Native proof used official UCI core CLI, not a full rpcd process or Lua binding"
+    ]
+  },
+  "source_inventory": {
+    "exact_releases": 50,
+    "distinct_rpcd_sources": 14,
+    "verified_manifest": "build/initial-reconnect-verification/sources/manifest.json",
+    "rpcd_checks": {
+      "77ad0de09247b9bdce50f4cecf3e5beb5636f57f": {
+        "checks": {
+          "RPC_A_NAME": true,
+          "RPC_A_VALUES": true,
+          "RPC_D_SECTION": true,
+          "uci_save(cursor": true,
+          "rpc_uci_trigger_event": true,
+          "RPC_UCI_SAVEDIR_PREFIX": true
+        },
+        "randomized_dir": false,
+        "sha256": "5431f40ae631a1ca2649df4cc0f25e05bc00357f66e4a9fa4a67d672195daafd"
+      },
+      "aaa08366e6384d9933a405d1218b03c1b167f9e5": {
+        "checks": {
+          "RPC_A_NAME": true,
+          "RPC_A_VALUES": true,
+          "RPC_D_SECTION": true,
+          "uci_save(cursor": true,
+          "rpc_uci_trigger_event": true,
+          "RPC_UCI_SAVEDIR_PREFIX": true
+        },
+        "randomized_dir": false,
+        "sha256": "5431f40ae631a1ca2649df4cc0f25e05bc00357f66e4a9fa4a67d672195daafd"
+      },
+      "67c8a3fda26e441d3ec4a19f50ac72eca8deb14b": {
+        "checks": {
+          "RPC_A_NAME": true,
+          "RPC_A_VALUES": true,
+          "RPC_D_SECTION": true,
+          "uci_save(cursor": true,
+          "rpc_uci_trigger_event": true,
+          "RPC_UCI_SAVEDIR_PREFIX": true
+        },
+        "randomized_dir": false,
+        "sha256": "0fc96e74be35956bdb5b90f3a8e31f1609e31106d4173c3969fca44757495dbb"
+      },
+      "ccb75178cf6a726896729c6904bd623636aa0b29": {
+        "checks": {
+          "RPC_A_NAME": true,
+          "RPC_A_VALUES": true,
+          "RPC_D_SECTION": true,
+          "uci_save(cursor": true,
+          "rpc_uci_trigger_event": true,
+          "RPC_UCI_SAVEDIR_PREFIX": true
+        },
+        "randomized_dir": false,
+        "sha256": "84e8e3ecc502476dda227df4671473a64c22a78f34849c1987b5e064cdedfe6f"
+      },
+      "8d26a1ba3a175016b342cc5e25d340c08ae20eed": {
+        "checks": {
+          "RPC_A_NAME": true,
+          "RPC_A_VALUES": true,
+          "RPC_D_SECTION": true,
+          "uci_save(cursor": true,
+          "rpc_uci_trigger_event": true,
+          "RPC_UCI_SAVEDIR_PREFIX": true
+        },
+        "randomized_dir": false,
+        "sha256": "84e8e3ecc502476dda227df4671473a64c22a78f34849c1987b5e064cdedfe6f"
+      },
+      "82904bd4f92e5928d047db6396cc14ca2b07d89f": {
+        "checks": {
+          "RPC_A_NAME": true,
+          "RPC_A_VALUES": true,
+          "RPC_D_SECTION": true,
+          "uci_save(cursor": true,
+          "rpc_uci_trigger_event": true,
+          "RPC_UCI_SAVEDIR_PREFIX": true
+        },
+        "randomized_dir": false,
+        "sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+      },
+      "8c852b656bf1622dee1ae2cfa4c083f730c1c539": {
+        "checks": {
+          "RPC_A_NAME": true,
+          "RPC_A_VALUES": true,
+          "RPC_D_SECTION": true,
+          "uci_save(cursor": true,
+          "rpc_uci_trigger_event": true,
+          "RPC_UCI_SAVEDIR_PREFIX": true
+        },
+        "randomized_dir": false,
+        "sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+      },
+      "7de4820c87437033f6b7716018f3bfa60a3f7b12": {
+        "checks": {
+          "RPC_A_NAME": true,
+          "RPC_A_VALUES": true,
+          "RPC_D_SECTION": true,
+          "uci_save(cursor": true,
+          "rpc_uci_trigger_event": true,
+          "RPC_UCI_SAVEDIR_PREFIX": true
+        },
+        "randomized_dir": false,
+        "sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+      },
+      "c07ab2f91061ad64209e9aaa1fb1b77061a1af25": {
+        "checks": {
+          "RPC_A_NAME": true,
+          "RPC_A_VALUES": true,
+          "RPC_D_SECTION": true,
+          "uci_save(cursor": true,
+          "rpc_uci_trigger_event": true,
+          "RPC_UCI_SAVEDIR_PREFIX": true
+        },
+        "randomized_dir": false,
+        "sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+      },
+      "9f4b86e70352ab9ca6aa272d096419acc53e2390": {
+        "checks": {
+          "RPC_A_NAME": true,
+          "RPC_A_VALUES": true,
+          "RPC_D_SECTION": true,
+          "uci_save(cursor": true,
+          "rpc_uci_trigger_event": true,
+          "RPC_UCI_SAVEDIR_PREFIX": true
+        },
+        "randomized_dir": false,
+        "sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+      },
+      "bba95191ff2f22c9118a1ba1355b83afaa277ae3": {
+        "checks": {
+          "RPC_A_NAME": true,
+          "RPC_A_VALUES": true,
+          "RPC_D_SECTION": true,
+          "uci_save(cursor": true,
+          "rpc_uci_trigger_event": true,
+          "RPC_UCI_SAVEDIR_PREFIX": true
+        },
+        "randomized_dir": false,
+        "sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+      },
+      "ffb9961c1f8bc50830fdd4e144570f11062c2601": {
+        "checks": {
+          "RPC_A_NAME": true,
+          "RPC_A_VALUES": true,
+          "RPC_D_SECTION": true,
+          "uci_save(cursor": true,
+          "rpc_uci_trigger_event": true,
+          "RPC_UCI_SAVEDIR_PREFIX": true
+        },
+        "randomized_dir": false,
+        "sha256": "7def24c17fe0add17512bc1a16279598875ac6c76b668374eda17722969b5d1b"
+      },
+      "28faf6403792d25b9826043aaf37880624c19568": {
+        "checks": {
+          "RPC_A_NAME": true,
+          "RPC_A_VALUES": true,
+          "RPC_D_SECTION": true,
+          "uci_save(cursor": true,
+          "rpc_uci_trigger_event": true,
+          "RPC_UCI_SAVEDIR_PREFIX": true
+        },
+        "randomized_dir": false,
+        "sha256": "8fa99ea940d1a2c799a975d0e4d56019ec753f5011e6a793276a74f782c54620"
+      },
+      "d99f703e4035d03fbcfbada3cb697db346c2b984": {
+        "checks": {
+          "RPC_A_NAME": true,
+          "RPC_A_VALUES": true,
+          "RPC_D_SECTION": true,
+          "uci_save(cursor": true,
+          "rpc_uci_trigger_event": true,
+          "RPC_UCI_SAVEDIR_PREFIX": true
+        },
+        "randomized_dir": true,
+        "sha256": "bc3ca56c0a190621f9b14fb930a132494d2d28c5e7b6ffe498604a4d59769f22"
+      }
+    },
+    "new_uci_sources": [
+      {
+        "file": "libuci.c",
+        "url": "https://raw.githubusercontent.com/openwrt/uci/66127cd76c5d0bd46d5a90302cc6110f53a4e2f8/libuci.c",
+        "sha256": "bbc34ea5f391abc3b27416dc3c96b0f71f852c44210faf1cde0990218f68b13a"
+      },
+      {
+        "file": "file.c",
+        "url": "https://raw.githubusercontent.com/openwrt/uci/66127cd76c5d0bd46d5a90302cc6110f53a4e2f8/file.c",
+        "sha256": "15a038fe217cd8579ceade1f6d174a5a86706a5878f743bec771a5f5b5ba510f"
+      },
+      {
+        "file": "util.c",
+        "url": "https://raw.githubusercontent.com/openwrt/uci/66127cd76c5d0bd46d5a90302cc6110f53a4e2f8/util.c",
+        "sha256": "8bf96f02e0f1716a98e04cd4cad62a1f97544f8571c15a0aaeb940c8fc85c5a7"
+      },
+      {
+        "file": "delta.c",
+        "url": "https://raw.githubusercontent.com/openwrt/uci/66127cd76c5d0bd46d5a90302cc6110f53a4e2f8/delta.c",
+        "sha256": "b9d38644110d956005d9ca1bc11b9726c370eb7e75abe061819ec29ca3775086"
+      },
+      {
+        "file": "parse.c",
+        "url": "https://raw.githubusercontent.com/openwrt/uci/66127cd76c5d0bd46d5a90302cc6110f53a4e2f8/parse.c",
+        "sha256": "1747563f1a50096fea154fa8489b810b7fa7fd0eeee74cbc2b215047aa1c7c66"
+      },
+      {
+        "file": "list.c",
+        "url": "https://raw.githubusercontent.com/openwrt/uci/66127cd76c5d0bd46d5a90302cc6110f53a4e2f8/list.c",
+        "sha256": "e2eb3dc06cdf40e3c991869cdd843a999cd32f0ce68e8b195ea697655ea1896c"
+      },
+      {
+        "file": "uci.h",
+        "url": "https://raw.githubusercontent.com/openwrt/uci/66127cd76c5d0bd46d5a90302cc6110f53a4e2f8/uci.h",
+        "sha256": "8501ac75239f86bcc7d43223ced8d4f091f8be5bb5bb564b5ced2a5f0761fe0b"
+      },
+      {
+        "file": "uci_internal.h",
+        "url": "https://raw.githubusercontent.com/openwrt/uci/66127cd76c5d0bd46d5a90302cc6110f53a4e2f8/uci_internal.h",
+        "sha256": "8050f5504ae32baee4026717559337923c23061ae715ae9fcfbe601468a57f9b"
+      },
+      {
+        "file": "uci_config.h.in",
+        "url": "https://raw.githubusercontent.com/openwrt/uci/66127cd76c5d0bd46d5a90302cc6110f53a4e2f8/uci_config.h.in",
+        "sha256": "b33115731bee980a906be27b29829121b7fa1f6eaa507d2e56d80d07a47b32be"
+      },
+      {
+        "file": "cli.c",
+        "url": "https://raw.githubusercontent.com/openwrt/uci/66127cd76c5d0bd46d5a90302cc6110f53a4e2f8/cli.c",
+        "sha256": "5bb12361838b588bb263ade8537f5ae1a5e62d54b0a8f0640489db8cc29831d8"
+      }
+    ]
+  },
+  "native_file_proof": {
+    "passed": true,
+    "implementation": "Unmodified official UCI core and CLI at 66127cd76c5d0bd46d5a90302cc6110f53a4e2f8; blob conversion and Lua binding not built",
+    "checks": [
+      "marker only visible in own savedir",
+      "delete removes section but preserves delta history",
+      "no disk mutation before commit",
+      "own staged values survive marker removal and commit",
+      "marker absent from committed file",
+      "foreign pending delta bytes unchanged",
+      "own committed delta empty"
+    ],
+    "boundaries": [
+      "isolated Debian files only; no router or rpcd process involved",
+      "does not validate customer radio or running access point"
+    ]
+  },
+  "package": "1.0.58_alpha",
+  "packaged_fixed_modules_match_current_source": true,
+  "tests": {
+    "existing_targeted_suite": 141,
+    "existing_result": "passed",
+    "expanded_randomized_directory_suite": 11,
+    "expanded_result": "passed",
+    "new_boundary_case": "Malformed or overflow directory list refuses commit and cleans owned session",
+    "final_targeted_suite": 142,
+    "final_result": "passed"
+  },
+  "hardware_scope": "No driver, radio selection, wireless options or platform-specific command changed by this fix. Source API coverage is not live model certification."
+}

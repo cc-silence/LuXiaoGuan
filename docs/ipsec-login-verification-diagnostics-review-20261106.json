@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-06",
+  "trigger": "XM login report: all three attempts failed IPsec final verification after four additions; rollback verified; no SSH authentication attempt",
+  "scope": "Windows host network-policy verification; no router command changes",
+  "changes": [
+    "Differentiate decode, unrecognized output, parse and semantic verification failures",
+    "Retain only whitelisted reason/field names and bounded counts in exported diagnostics",
+    "Keep failures from existing-rule checks across administrator IPC",
+    "Accept the documented tunnel=no spelling as equivalent to disabled tunnel; continue rejecting real tunnel endpoints",
+    "Show specific verification failure in the existing login error message",
+    "Keep only strongest decoding error without retaining all failed candidate tracebacks"
+  ],
+  "safety": [
+    "No endpoint/port widening",
+    "No bypass of failed verification",
+    "No firewall-service enablement",
+    "No import or replacement of whole IPsec policy",
+    "Existing backup, strict association checks and ownership-limited rollback retained",
+    "No system policy was changed during this work"
+  ],
+  "tests": {
+    "run": 74,
+    "passed": 74,
+    "syntax_utf8_files": 6
+  },
+  "source": {
+    "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/netsh-ipsec",
+    "local": "build\\ipsec-review-20261104\\sources\\netsh-ipsec.md",
+    "sha256": "f10d3957029685b82bbd02e966f40497f5d44726b6d5bfc305a9fb68ce0ae871",
+    "evidence": "Documented static add rule example uses tunnel=no"
+  },
+  "limits": [
+    "Original customer ZIP contains no raw netsh dump or specific failing field, so the customer root cause remains unconfirmed",
+    "Only offline transaction/parser/export tests; no customer policy mutation or successful customer login verification",
+    "Read-only local netsh dump returned no recognized add rows; not a reproduction of the customer scenario",
+    "Source changed only; no new application package or publication"
+  ]
+}

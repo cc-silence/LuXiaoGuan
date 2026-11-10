@@ -1,0 +1,328 @@
+{
+  "date": "2026-11-09",
+  "scope": "Bidirectional shared dependency reuse across authenticated common and capture offline resources",
+  "compatibility_reason": "Package selection affects router installation. Existing opkg and apk commands, native no-network simulation, version and installed-package guards remain unchanged; only exact signed local package lookup is extended.",
+  "policy": [
+    "Load the donor only when the primary resource lacks a required package",
+    "Require the same official release, target, architecture and package manager",
+    "Keep primary roots and indexes; do not merge APK indexes or change requested roots",
+    "APK resolves the exact native planned package version; IPK resolves each unsatisfied dependency while preserving other selected versions, roots and installed packages",
+    "Do not borrow kernel modules or firmware-owned base packages",
+    "Hold both resource read leases through installation; route every object through its own signed repository and hash check",
+    "No package or index fetches added; no UI visuals changed",
+    "Candidate firmware behavior retains its original route; reuse is limited to exact official profiles"
+  ],
+  "customer_case": {
+    "release": "25.12.6",
+    "target": "ramips/mt7621",
+    "architecture": "mipsel_24kc",
+    "manager": "apk",
+    "missing": "libpthread 1.2.5-r5",
+    "common_object_verified": true,
+    "primary_and_donor_index_snapshots_differ": true
+  },
+  "official_metadata_sources": {
+    "capture": {
+      "archive": "RouterManager_OpenWrt_Capture_Offline_20261105_220825.zip",
+      "archive_sha256": "e71b3248df65df6f499d8d209bfc81c95802dfa2d9cb5280cc57602a8e608389",
+      "identity": {
+        "release": "25.12.6",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "apk"
+      },
+      "firmware_required": [
+        "libc",
+        "libpthread"
+      ],
+      "packages": [
+        {
+          "name": "aircrack-ng",
+          "version": "1.7-r1",
+          "architecture": "mipsel_24kc",
+          "size": 394027,
+          "filename": "aircrack-ng-1.7-r1.apk",
+          "depends": [
+            {
+              "name": "libc",
+              "version": "",
+              "match": 0
+            },
+            {
+              "name": "libnl-core200",
+              "version": "",
+              "match": 0
+            },
+            {
+              "name": "libnl-genl200",
+              "version": "",
+              "match": 0
+            },
+            {
+              "name": "libopenssl3",
+              "version": "",
+              "match": 0
+            },
+            {
+              "name": "libpcap1",
+              "version": "",
+              "match": 0
+            },
+            {
+              "name": "libpcre2",
+              "version": "",
+              "match": 0
+            },
+            {
+              "name": "libpthread",
+              "version": "",
+              "match": 0
+            },
+            {
+              "name": "libstdcpp6",
+              "version": "",
+              "match": 0
+            },
+            {
+              "name": "zlib",
+              "version": "",
+              "match": 0
+            }
+          ],
+          "provides": [
+            {
+              "name": "aircrack-ng-any",
+              "version": "",
+              "match": 0
+            }
+          ],
+          "install_if": [],
+          "sha256": "f026885ee6fab6068298affbe4f30161e52fd91ac819108b364a86fa771e6e3e",
+          "feed": "packages",
+          "url": "https://downloads.openwrt.org/releases/25.12.6/packages/mipsel_24kc/packages/aircrack-ng-1.7-r1.apk",
+          "blob": "objects/f026885ee6fab6068298affbe4f30161e52fd91ac819108b364a86fa771e6e3e"
+        }
+      ],
+      "indexes": [
+        {
+          "blob": "objects/4271f84cfa9ba5d1351d8bae95c0eebc560b6aa9409d851907743fe20da94b50",
+          "sha256": "4271f84cfa9ba5d1351d8bae95c0eebc560b6aa9409d851907743fe20da94b50",
+          "size": 14401,
+          "filename": "packages.adb",
+          "feed": "target",
+          "url": "https://downloads.openwrt.org/releases/25.12.6/targets/ramips/mt7621/packages/packages.adb"
+        },
+        {
+          "blob": "objects/61ac97b84fe6ca1dcbe6b2d3893896e962b59495918b2bba69b0f5fe94211834",
+          "sha256": "61ac97b84fe6ca1dcbe6b2d3893896e962b59495918b2bba69b0f5fe94211834",
+          "size": 109937,
+          "filename": "packages.adb",
+          "feed": "base",
+          "url": "https://downloads.openwrt.org/releases/25.12.6/packages/mipsel_24kc/base/packages.adb"
+        },
+        {
+          "blob": "objects/dbf5e07567ed73eef587fc40815d7567ca0ab19ce7f3379a023a3244487062c0",
+          "sha256": "dbf5e07567ed73eef587fc40815d7567ca0ab19ce7f3379a023a3244487062c0",
+          "size": 738074,
+          "filename": "packages.adb",
+          "feed": "packages",
+          "url": "https://downloads.openwrt.org/releases/25.12.6/packages/mipsel_24kc/packages/packages.adb"
+        },
+        {
+          "blob": "objects/a79a6b06d338ff3f89ae6444d65b4455e35018d8fa85ba5f5c7bb8e69fc8a38f",
+          "sha256": "a79a6b06d338ff3f89ae6444d65b4455e35018d8fa85ba5f5c7bb8e69fc8a38f",
+          "size": 378307,
+          "filename": "packages.adb",
+          "feed": "luci",
+          "url": "https://downloads.openwrt.org/releases/25.12.6/packages/mipsel_24kc/luci/packages.adb"
+        }
+      ]
+    },
+    "common": {
+      "archive": "RouterManager_OpenWrt_Common_Offline_20261106_101557.zip",
+      "archive_sha256": "8a00895b0687c96564c06f9f9724ba38154d9e72ab5db32677c2a80bbbd63532",
+      "identity": {
+        "release": "25.12.6",
+        "target": "ramips/mt7621",
+        "architecture": "mipsel_24kc",
+        "package_manager": "apk"
+      },
+      "firmware_required": [
+        "libc",
+        "librt"
+      ],
+      "packages": [
+        {
+          "name": "tmux",
+          "version": "3.6a-r1",
+          "architecture": "mipsel_24kc",
+          "size": 291741,
+          "filename": "tmux-3.6a-r1.apk",
+          "depends": [
+            {
+              "name": "libc",
+              "version": "",
+              "match": 0
+            },
+            {
+              "name": "libevent2-core7",
+              "version": "",
+              "match": 0
+            },
+            {
+              "name": "libncurses6",
+              "version": "",
+              "match": 0
+            },
+            {
+              "name": "libpthread",
+              "version": "",
+              "match": 0
+            },
+            {
+              "name": "librt",
+              "version": "",
+              "match": 0
+            }
+          ],
+          "provides": [
+            {
+              "name": "tmux-any",
+              "version": "",
+              "match": 0
+            }
+          ],
+          "install_if": [],
+          "sha256": "dbab88eb547259f90f36c8374ab13f1291af172a2aa46ec5614091bea4c44a18",
+          "feed": "packages",
+          "url": "https://downloads.openwrt.org/releases/25.12.6/packages/mipsel_24kc/packages/tmux-3.6a-r1.apk",
+          "blob": "objects/dbab88eb547259f90f36c8374ab13f1291af172a2aa46ec5614091bea4c44a18"
+        },
+        {
+          "name": "libpthread",
+          "version": "1.2.5-r5",
+          "architecture": "mipsel_24kc",
+          "size": 644,
+          "filename": "libpthread-1.2.5-r5.apk",
+          "depends": [
+            {
+              "name": "libgcc1",
+              "version": "",
+              "match": 0
+            }
+          ],
+          "provides": [
+            {
+              "name": "libpthread-any",
+              "version": "",
+              "match": 0
+            }
+          ],
+          "install_if": [],
+          "sha256": "86f4abf3c6456206c61aabf530f8dfa4dc7c2e07d55bb8524186a4b25e4d0d22",
+          "feed": "target",
+          "url": "https://downloads.openwrt.org/releases/25.12.6/targets/ramips/mt7621/packages/libpthread-1.2.5-r5.apk",
+          "blob": "objects/86f4abf3c6456206c61aabf530f8dfa4dc7c2e07d55bb8524186a4b25e4d0d22"
+        }
+      ],
+      "indexes": [
+        {
+          "blob": "objects/4271f84cfa9ba5d1351d8bae95c0eebc560b6aa9409d851907743fe20da94b50",
+          "sha256": "4271f84cfa9ba5d1351d8bae95c0eebc560b6aa9409d851907743fe20da94b50",
+          "size": 14401,
+          "filename": "packages.adb",
+          "feed": "target",
+          "url": "https://downloads.openwrt.org/releases/25.12.6/targets/ramips/mt7621/packages/packages.adb"
+        },
+        {
+          "blob": "objects/fdeb9a149e4a7a118e243f65ffeef567866e0687be9a7317d0543e9cb7b78aba",
+          "sha256": "fdeb9a149e4a7a118e243f65ffeef567866e0687be9a7317d0543e9cb7b78aba",
+          "size": 109939,
+          "filename": "packages.adb",
+          "feed": "base",
+          "url": "https://downloads.openwrt.org/releases/25.12.6/packages/mipsel_24kc/base/packages.adb"
+        },
+        {
+          "blob": "objects/6b949f641b826534de52e32e54fbdfbe05047f2f6f53354a4564a83becbcb364",
+          "sha256": "6b949f641b826534de52e32e54fbdfbe05047f2f6f53354a4564a83becbcb364",
+          "size": 738509,
+          "filename": "packages.adb",
+          "feed": "packages",
+          "url": "https://downloads.openwrt.org/releases/25.12.6/packages/mipsel_24kc/packages/packages.adb"
+        },
+        {
+          "blob": "objects/83bc4acf32885cb7f8438dfc392f91195f3f2573db566d799f4b49d3adef8f69",
+          "sha256": "83bc4acf32885cb7f8438dfc392f91195f3f2573db566d799f4b49d3adef8f69",
+          "size": 378308,
+          "filename": "packages.adb",
+          "feed": "luci",
+          "url": "https://downloads.openwrt.org/releases/25.12.6/packages/mipsel_24kc/luci/packages.adb"
+        }
+      ]
+    }
+  },
+  "validation": {
+    "modules": [
+      "test_other_dependency_install_fix",
+      "test_other_dependencies",
+      "test_dependency_providers",
+      "test_firmware_dependency_support",
+      "test_dependency_install_review",
+      "test_dependency_install_followup",
+      "test_dependency_install_finalaudit",
+      "test_dependency_partial_install",
+      "test_dependency_mixed_install",
+      "test_dependency_compatibility_audit",
+      "test_dependency_two_round_audit",
+      "test_protected_dependency_candidates",
+      "test_common_offline_bundle",
+      "test_offline_dependency_fallback",
+      "test_signal_dependency_source",
+      "test_wireless_dependency_source",
+      "test_package_install_guards",
+      "test_opkg_repeated_plan",
+      "test_offline_cleanup",
+      "test_installation_added_regressions",
+      "test_dependency_download_messages",
+      "test_dependency_diagnostic_paths",
+      "test_installation_source_failures",
+      "test_dependency_install_boundary_review",
+      "test_package_mirror_policy",
+      "test_package_mirror_three_passes",
+      "test_mirror_task_preference",
+      "test_package_download_diagnostics",
+      "test_package_error_classification",
+      "test_dependency_weak_network",
+      "test_dependency_socks",
+      "test_package_space_queries",
+      "test_shared_bundle_packages",
+      "test_bundle_layout"
+    ],
+    "run": 329,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "success": true
+  },
+  "source_sha256": {
+    "modules/capture_services/openwrt/shared_bundle_packages.py": "2dd2d67a998a393f6d1d501b428c9444eb2aee513f5fea8f4c39a1483bbf8cd4",
+    "modules/capture_services/openwrt/common_bundle_installer.py": "e4aded89b5f0f6d0b9444377e41e691a73985a057fb485b8b7e39f841b4944a8",
+    "modules/capture_services/openwrt/common_bundle_repository.py": "b36e6237ed233457b955592f1370efba10379dae54e13373981e2c07b05f4a6a",
+    "modules/capture_services/openwrt/apk_offline.py": "ee974283c7cc5ce2184a0c67fe48193d811ae000e155a7d6910740cc166a9ae4",
+    "tests/test_shared_bundle_packages.py": "18f158b22dc365df319c5fe970dbb87a34b8af3e00390e263992b8b920d90905"
+  },
+  "checks": {
+    "python_compile": true,
+    "utf8_scan": true,
+    "scoped_diff_check": true
+  },
+  "limits": [
+    "No live customer-router installation performed",
+    "No native Debian 12 execution verified",
+    "No new software ZIP built; old ZIPs do not contain this change",
+    "No offline archive contents or publication changed"
+  ],
+  "review_followup": "Initial extended regressions found an interface compatibility issue. Fixed with explicit optional package_lookup injection; original tests were retained and final 329 regressions passed.",
+  "followup_review": "docs/shared-offline-bundle-two-pass-review-20261109.json",
+  "latest_followup_review": "docs/shared-offline-bundle-additional-two-pass-review-20261109.json"
+}

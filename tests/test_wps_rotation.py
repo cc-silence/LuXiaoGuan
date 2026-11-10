@@ -133,12 +133,19 @@ class WpsRotationTests(unittest.TestCase):
             capture=OpenWrtWpsCapture(Mock(),manager)
             with patch.object(capture,'skipped_result',return_value=None), patch('modules.capture_services.openwrt.wps_capture.prepare_session',side_effect=AssertionError('normal resume must not run')):
                 capture.run_targets(NS(local_dir=Path(folder),remote_dir='/tmp/owned'),'ownmon','owned',(AccessPointInfo(MAC,channel=1,wps_supported=True),),'second',dict(spoof_mac_enabled=True,rotate_mac_each_pin=True),folder,Mock(),source_rotation=rotation)
-        self.assertEqual(manager.start.call_count,2)
-        for index,call in enumerate(manager.start.call_args_list):
-            args=shlex.split(call.args[1])
-            self.assertEqual(args[args.index('-m')+1],ADDRESSES[index])
-            self.assertIn('quick-0-'+str(index)+'.wpc',args[args.index('-s')+1])
-            self.assertEqual(args[args.index('-g')+1],'1')
+        self.assertEqual(manager.start.call_count,3)
+        first=shlex.split(manager.start.call_args_list[0].args[1])
+        self.assertEqual(first[first.index('-m')+1],ADDRESSES[0])
+        self.assertIn('quick-0-0.wpc',first[first.index('-s')+1])
+        self.assertEqual(first[first.index('-g')+1],'1')
+        offline=shlex.split(manager.start.call_args_list[1].args[1])
+        self.assertIn('-K',offline)
+        self.assertNotIn('-g',offline)
+        self.assertIn('quick-0-offline.wpc',offline[offline.index('-s')+1])
+        second=shlex.split(manager.start.call_args_list[2].args[1])
+        self.assertEqual(second[second.index('-m')+1],ADDRESSES[1])
+        self.assertIn('quick-0-1.wpc',second[second.index('-s')+1])
+        self.assertEqual(second[second.index('-g')+1],'1')
 
     def test_enabled_no_reply_timeout_stops_without_rotating_again_and_cancel_stops(self):
         from threading import Event

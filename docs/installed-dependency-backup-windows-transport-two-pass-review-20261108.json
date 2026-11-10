@@ -1,0 +1,172 @@
+{
+  "date": "2026-11-08",
+  "scope": "Two-pass review after Windows CRLF false-missing production feedback",
+  "pass_one": {
+    "references": [
+      "https://docs.python.org/3.10/library/functions.html#open",
+      "https://raw.githubusercontent.com/mirror/busybox/1_33_stable/shell/shell_common.c",
+      "https://raw.githubusercontent.com/mirror/busybox/1_33_stable/archival/tar.c"
+    ],
+    "source_boundary": "BusyBox 1.33 stable branch reference; not a verified exact vendor firmware source build",
+    "finding": "Windows default text output translates LF into CRLF; read -r with empty IFS retains carriage returns in paths",
+    "fixed_inputs": [
+      "capture file list",
+      "directory metadata list",
+      "private opkg configuration"
+    ],
+    "evidence": {
+      "passed": true,
+      "checks": [
+        "actual-Windows-path-and-directory-lists-executed-in-Linux-chroot",
+        "opkg-rebuild-inspect-ZIP-roundtrip-real-captured-payload",
+        "apk-rebuild-inspect-ZIP-roundtrip-real-captured-payload",
+        "old-CRLF-input-reproduces-false-missing-on-existing-file"
+      ],
+      "boundary": "real Windows generation, real Linux chroot shell; no SSH/router/native-install acceptance; disk-space mocked"
+    },
+    "new_additional_production_defects": 0
+  },
+  "pass_two": {
+    "references": [
+      "https://raw.githubusercontent.com/openwrt/opkg-lede/c09fe2098718807ddbca13ee36e3e38801822946/libopkg/opkg_conf.c",
+      "https://raw.githubusercontent.com/openwrt/opkg-lede/c09fe2098718807ddbca13ee36e3e38801822946/libopkg/opkg_install.c",
+      "https://raw.githubusercontent.com/alpinelinux/apk-tools/v3.0.2/doc/apk.8.scd",
+      "https://raw.githubusercontent.com/alpinelinux/apk-tools/v3.0.5/doc/apk.8.scd"
+    ],
+    "native_opkg": {
+      "passed": true,
+      "logs": [
+        {
+          "simulate": true,
+          "code": 0,
+          "stdout": "Installing curl (1-r0) to root...\n",
+          "stderr": ""
+        },
+        {
+          "simulate": false,
+          "code": 0,
+          "stdout": "Installing curl (1-r0) to root...\nConfiguring curl.\n",
+          "stderr": ""
+        }
+      ],
+      "checks": [
+        "production-install-command",
+        "Windows-generated-conf",
+        "Windows-captured-rebuilt-IPK",
+        "native-simulate",
+        "native-install",
+        "binary-content",
+        "symlink",
+        "hardlink-content",
+        "directory-mode-0700",
+        "repeat-restore-skips-installed"
+      ]
+    },
+    "native_apk_windows_package": [
+      {
+        "version": "3.0.2",
+        "ref": "d093f7c198a64bff0cd58afeaf638909fda24ca8",
+        "passed": true,
+        "logs": [
+          {
+            "simulate": true,
+            "code": 0,
+            "stdout": "(1/1) Installing curl (1-r0)\nOK: 59 B in 1 packages\n",
+            "stderr": ""
+          },
+          {
+            "simulate": false,
+            "code": 0,
+            "stdout": "(1/1) Installing curl (1-r0)\nOK: 59 B in 1 packages\n",
+            "stderr": ""
+          }
+        ]
+      },
+      {
+        "version": "3.0.5",
+        "ref": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866",
+        "passed": true,
+        "logs": [
+          {
+            "simulate": true,
+            "code": 0,
+            "stdout": "(1/1) Installing curl (1-r0)\nOK: 59 B in 1 packages\n",
+            "stderr": ""
+          },
+          {
+            "simulate": false,
+            "code": 0,
+            "stdout": "(1/1) Installing curl (1-r0)\nOK: 59 B in 1 packages\n",
+            "stderr": ""
+          }
+        ]
+      }
+    ],
+    "native_apk_hooks": [
+      {
+        "passed": true,
+        "version": "3.0.2",
+        "ref": "d093f7c198a64bff0cd58afeaf638909fda24ca8",
+        "apk": "/tmp/luxiaoguan-exact-apk-rb2cav5v/out-3.0.2/src/apk",
+        "root": "/tmp/luxiaoguan-apk-install-tvn2x9sk/target",
+        "checks": [
+          "native-v2-reader",
+          "baseline-skip",
+          "virtual-dependency",
+          "simulate",
+          "install",
+          "permissions",
+          "symlink",
+          "repeat-restore",
+          "chrooted-post-install",
+          "chrooted-trigger"
+        ]
+      },
+      {
+        "passed": true,
+        "version": "3.0.5",
+        "ref": "b5a31c0d865342ad80be10d68f1bb3d3ad9b0866",
+        "apk": "/tmp/luxiaoguan-exact-apk-rb2cav5v/out-3.0.5/src/apk",
+        "root": "/tmp/luxiaoguan-apk-install-esocdsge/target",
+        "checks": [
+          "native-v2-reader",
+          "baseline-skip",
+          "virtual-dependency",
+          "simulate",
+          "install",
+          "permissions",
+          "symlink",
+          "repeat-restore",
+          "chrooted-post-install",
+          "chrooted-trigger"
+        ]
+      }
+    ],
+    "new_additional_production_defects": 0
+  },
+  "regressions": {
+    "windows": {
+      "tests": 53,
+      "passed": true
+    },
+    "debian12_pure_core": {
+      "tests": 46,
+      "passed": true
+    }
+  },
+  "boundaries": [
+    "No real SSH router was contacted",
+    "No real factory reset or offline restore performed",
+    "Windows-to-Linux capture used a local byte-copy transfer adapter, not Paramiko",
+    "Capture integration disk-space gate was mocked",
+    "Native installers used isolated roots; opkg native build is not the customer firmware binary",
+    "GUI acceptance not repeated for this nonvisual audit"
+  ],
+  "production_sha256": {
+    "modules/capture_services/openwrt/installed_dependency_backup.py": "2f71f3f28fdba020e61635511d3dd412f4559b24aa4b51b8671749f752ec3ebd",
+    "modules/capture_services/openwrt/dependency_snapshot_transfer.py": "357f6e084518a8059ab33524d6624eae7e48f3c8196350a5b8de4113eadbd17f",
+    "modules/capture_services/openwrt/dependency_snapshot_plan.py": "32bc831994c6f3dc06536196ebbe893be7016d1edef4cd69befa24981356ddde",
+    "modules/capture_services/openwrt/dependency_snapshot_archive.py": "2bd09161fe9445bc597af060bf65ac30725df57727b384ed08466e144a5d5a7c",
+    "tests/test_dependency_snapshot.py": "6bd6cc6b3d921ef5d4cf11cc7aacdc96cfe8c6104c9ea8f9f3f580a577b39790"
+  }
+}

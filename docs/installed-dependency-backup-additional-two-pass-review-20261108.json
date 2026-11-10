@@ -1,0 +1,147 @@
+{
+  "date": "2026-11-08",
+  "scope": "Additional two-pass official-source audit after prior exact firmware review",
+  "pass_one": {
+    "focus": "Unrelated incomplete opkg packages and configuration side effects",
+    "finding": "opkg install configures every unpacked package, not only private restore targets; previous inventory silently skipped pending records",
+    "fixes": [
+      "Strict live opkg inventory rejects incomplete or malformed states before backup/restore",
+      "Native plan rejects Configuring actions for unrelated package names"
+    ],
+    "official_exact_commits": [
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/1bf042dd06751b693a8544d2317e5b969d666b69/libopkg/opkg_cmd.c",
+        "ref": "1bf042dd06751b693a8544d2317e5b969d666b69",
+        "sha256": "f0ca344442c1d608b837bd3201f1750744ac1f14b778a2668cfe1849991364de",
+        "checks": {
+          "install_configures_all_pending": true,
+          "unpacked_scripts": true
+        }
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/38eccbb1fd694d4798ac1baf88f9ba83d1eac616/libopkg/opkg_cmd.c",
+        "ref": "38eccbb1fd694d4798ac1baf88f9ba83d1eac616",
+        "sha256": "54edbf36b3d3813f29c67d3de459fc9854d6cfc178501eb3278e201b721322ec",
+        "checks": {
+          "install_configures_all_pending": true,
+          "unpacked_scripts": true
+        }
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/c09fe2098718807ddbca13ee36e3e38801822946/libopkg/opkg_cmd.c",
+        "ref": "c09fe2098718807ddbca13ee36e3e38801822946",
+        "sha256": "bc2e82557f5c9d615f77bd04ada211c06ad10cad1e4f282002649e51de999c92",
+        "checks": {
+          "install_configures_all_pending": true,
+          "unpacked_scripts": true
+        }
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/c5dccea956b8be14eabf6ff69b331a3e9ac36749/libopkg/opkg_cmd.c",
+        "ref": "c5dccea956b8be14eabf6ff69b331a3e9ac36749",
+        "sha256": "1e9b3fb6f600ab36def2bf513cbc7804f46f46f934900de34559a3874b7cd324",
+        "checks": {
+          "install_configures_all_pending": true,
+          "unpacked_scripts": true
+        }
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/d038e5b6d155784575f62a66a8bb7e874173e92e/libopkg/opkg_cmd.c",
+        "ref": "d038e5b6d155784575f62a66a8bb7e874173e92e",
+        "sha256": "54edbf36b3d3813f29c67d3de459fc9854d6cfc178501eb3278e201b721322ec",
+        "checks": {
+          "install_configures_all_pending": true,
+          "unpacked_scripts": true
+        }
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/dcbc142e51f5f5f2fb9e4e44657e013d3c36a52b/libopkg/opkg_cmd.c",
+        "ref": "dcbc142e51f5f5f2fb9e4e44657e013d3c36a52b",
+        "sha256": "bc2e82557f5c9d615f77bd04ada211c06ad10cad1e4f282002649e51de999c92",
+        "checks": {
+          "install_configures_all_pending": true,
+          "unpacked_scripts": true
+        }
+      },
+      {
+        "url": "https://raw.githubusercontent.com/openwrt/opkg-lede/f2166a89b7e96e2c60002959731eebc5f45fa318/libopkg/opkg_cmd.c",
+        "ref": "f2166a89b7e96e2c60002959731eebc5f45fa318",
+        "sha256": "1e9b3fb6f600ab36def2bf513cbc7804f46f46f934900de34559a3874b7cd324",
+        "checks": {
+          "install_configures_all_pending": true,
+          "unpacked_scripts": true
+        }
+      }
+    ],
+    "verification": "All seven opkg commits used across the supported official release catalog confirm the global pending-configuration behavior"
+  },
+  "pass_two": {
+    "focus": "Approval-bound preview content and failure/cleanup paths",
+    "finding": "Preview could inspect one file then hash a replacement after router inventory, binding approval to a different file",
+    "fix": "Hash before preview and compare after inventory; reject source changes before returning approval data",
+    "error_guidance": "Partial installation message now asks to repair abnormal installed state before retry instead of implying retry always works",
+    "scenarios": [
+      "Actual source replacement during preview",
+      "Dirty live inventory stops before other probes",
+      "Unrelated pending configuration in native plan",
+      "Package database changes after plan",
+      "Replacement plan rejected",
+      "Cancellation before commit",
+      "Install timeout reported uncertain with cancellation token restored",
+      "Unexpected existing-package version change reported incomplete"
+    ]
+  },
+  "validation": {
+    "windows_related_regressions": 94,
+    "debian12_pure_business_regressions": 39,
+    "syntax": "Changed Python sources compile",
+    "encoding": "UTF-8 and no replacement characters; changed source whitespace clean"
+  },
+  "limits": [
+    "No actual router factory reset/offline restore acceptance",
+    "Debian execution covers production pure business modules with capture_services initializer bypassed due to missing PySide6; no desktop acceptance",
+    "Prior exact APK native installation and official hook tests were not repeated in this additional audit; package encoding unchanged",
+    "Deleted initialization payload and non-reconstructable extended attributes remain explicit unsupported capture cases",
+    "Existing installed-state health checks do not constitute an exhaustive byte-for-byte audit of every installed file"
+  ],
+  "source_files": {
+    "modules/capture_services/openwrt/installed_dependency_catalog.py": {
+      "sha256": "41f36013cabd7b0721221daeedec089c338e60d5574edf62c52b61d671ff4619",
+      "lines": 198
+    },
+    "modules/capture_services/openwrt/installed_dependency_reader.py": {
+      "sha256": "6f16eb68561cd35145324649d98e7802be1eb407a7d83fe09ec1b007ebe64c2c",
+      "lines": 184
+    },
+    "modules/capture_services/openwrt/installed_dependency_backup.py": {
+      "sha256": "4fd35427b51c8ed5024ed6a5c25f72c62e1fb512160cd793d8c5bebc56686225",
+      "lines": 297
+    },
+    "modules/capture_services/openwrt/dependency_snapshot_plan.py": {
+      "sha256": "32bc831994c6f3dc06536196ebbe893be7016d1edef4cd69befa24981356ddde",
+      "lines": 48
+    },
+    "modules/capture_services/dependency_backup_service.py": {
+      "sha256": "6d1fab9ed76633b32303a04d091d121771b4caf367a00afee3b395041411fc5e",
+      "lines": 116
+    },
+    "tests/test_installed_dependency_catalog.py": {
+      "sha256": "cea906c629db5b61be86dede6fa3e18f05450a02e182938979541675a273754b",
+      "lines": 62
+    },
+    "tests/test_dependency_snapshot.py": {
+      "sha256": "ae7b964d16844ca49a9529e52f30274d80df3efa4559976054ed96dfc9901ca9",
+      "lines": 306
+    },
+    "tests/test_dependency_restore_failure_paths.py": {
+      "sha256": "17a774a508842aaae622bac39b0618ec4fc8b7f0660e6a8d7eaf0418cebcfbe7",
+      "lines": 82
+    }
+  },
+  "primary_sources": [
+    "https://github.com/openwrt/opkg-lede/blob/38eccbb1fd694d4798ac1baf88f9ba83d1eac616/libopkg/opkg_cmd.c",
+    "https://github.com/openwrt/opkg-lede/blob/38eccbb1fd694d4798ac1baf88f9ba83d1eac616/libopkg/opkg_configure.c",
+    "https://github.com/alpinelinux/apk-tools/blob/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/commit.c",
+    "https://docs.python.org/3/library/hashlib.html"
+  ]
+}

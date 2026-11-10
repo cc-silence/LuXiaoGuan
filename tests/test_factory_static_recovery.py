@@ -58,7 +58,9 @@ class FactoryStaticPlanTests(unittest.TestCase):
 
     def test_dhcp_path_is_unchanged(self):
         state=inventory(dhcp=True,renewable=True)
-        self.assertEqual(factory_reset_plan(state),factory_reset_plan(state,DEFAULTS))
+        expected = factory_reset_plan(state)
+        expected['new_addresses'] = ['192.168.1.1/24']
+        self.assertEqual(expected, factory_reset_plan(state, DEFAULTS))
 
 
 class FactoryDefaultsMaskTests(unittest.TestCase):
@@ -211,10 +213,15 @@ class FactoryStaticWorkerTests(unittest.TestCase):
             self.assertEqual(dialog.panel.adapters.count(),1)
             self.assertIn('IP',dialog.panel.button.text())
             key=dialog.offer;identity=dialog.panel.adapters.currentData()
-            with patch('modules.platform_services.local_static_recovery.recover') as static,patch('modules.platform_services.lan_network.renew') as dhcp:
+            with patch('modules.platform_services.local_static_recovery.recover') as static,patch('modules.platform_services.lan_network.renew') as dhcp, patch(
+                    'modules.platform_services.lan_network.inspect', return_value=dict(inventory(), error='')):
                 static.return_value=adapter(dhcp=False,renewable=False,addresses=['192.168.1.123/24'],local_settings_updated=True)
                 self.assertFalse(owner.lan_recovery.request(key,identity))
                 dialog.ready.setChecked(True)
+                deadline=time.monotonic()+3
+                while owner._openwrt_workers and time.monotonic()<deadline:
+                    APP.processEvents();time.sleep(.01)
+                self.assertFalse(owner._openwrt_workers)
                 self.assertTrue(dialog.panel.button.isEnabled())
                 dialog.panel.button.click()
                 deadline=time.monotonic()+3

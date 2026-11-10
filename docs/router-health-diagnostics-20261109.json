@@ -1,0 +1,479 @@
+{
+  "checked_at": "2026-11-09",
+  "scope": "Read-only health diagnostics for the reported Xiaomi Mi Router 3G / OpenWrt 25.12.6 disconnection; shared capability-based implementation.",
+  "releases": [
+    {
+      "release": "19.07.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.0/package/system/ubox/Makefile",
+      "sha256": "3cd8bb2fe832ccad993a3e0c3a079a490edc5f59c13d1a08d6f89f2e7b807343",
+      "ubox_commit": "4df34a4d0d5183135217fc8280faae8e697147bc",
+      "logread_installed": true
+    },
+    {
+      "release": "19.07.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.1/package/system/ubox/Makefile",
+      "sha256": "3cd8bb2fe832ccad993a3e0c3a079a490edc5f59c13d1a08d6f89f2e7b807343",
+      "ubox_commit": "4df34a4d0d5183135217fc8280faae8e697147bc",
+      "logread_installed": true
+    },
+    {
+      "release": "19.07.10",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.10/package/system/ubox/Makefile",
+      "sha256": "d81dd29b88e41c01fbbea7416736d4bff4fa4a6cced397fa9eec6a7f6432e874",
+      "ubox_commit": "4df34a4d0d5183135217fc8280faae8e697147bc",
+      "logread_installed": true
+    },
+    {
+      "release": "19.07.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.2/package/system/ubox/Makefile",
+      "sha256": "3cd8bb2fe832ccad993a3e0c3a079a490edc5f59c13d1a08d6f89f2e7b807343",
+      "ubox_commit": "4df34a4d0d5183135217fc8280faae8e697147bc",
+      "logread_installed": true
+    },
+    {
+      "release": "19.07.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.3/package/system/ubox/Makefile",
+      "sha256": "3cd8bb2fe832ccad993a3e0c3a079a490edc5f59c13d1a08d6f89f2e7b807343",
+      "ubox_commit": "4df34a4d0d5183135217fc8280faae8e697147bc",
+      "logread_installed": true
+    },
+    {
+      "release": "19.07.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.4/package/system/ubox/Makefile",
+      "sha256": "3cd8bb2fe832ccad993a3e0c3a079a490edc5f59c13d1a08d6f89f2e7b807343",
+      "ubox_commit": "4df34a4d0d5183135217fc8280faae8e697147bc",
+      "logread_installed": true
+    },
+    {
+      "release": "19.07.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.5/package/system/ubox/Makefile",
+      "sha256": "3cd8bb2fe832ccad993a3e0c3a079a490edc5f59c13d1a08d6f89f2e7b807343",
+      "ubox_commit": "4df34a4d0d5183135217fc8280faae8e697147bc",
+      "logread_installed": true
+    },
+    {
+      "release": "19.07.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.6/package/system/ubox/Makefile",
+      "sha256": "3cd8bb2fe832ccad993a3e0c3a079a490edc5f59c13d1a08d6f89f2e7b807343",
+      "ubox_commit": "4df34a4d0d5183135217fc8280faae8e697147bc",
+      "logread_installed": true
+    },
+    {
+      "release": "19.07.7",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.7/package/system/ubox/Makefile",
+      "sha256": "3cd8bb2fe832ccad993a3e0c3a079a490edc5f59c13d1a08d6f89f2e7b807343",
+      "ubox_commit": "4df34a4d0d5183135217fc8280faae8e697147bc",
+      "logread_installed": true
+    },
+    {
+      "release": "19.07.8",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.8/package/system/ubox/Makefile",
+      "sha256": "d81dd29b88e41c01fbbea7416736d4bff4fa4a6cced397fa9eec6a7f6432e874",
+      "ubox_commit": "4df34a4d0d5183135217fc8280faae8e697147bc",
+      "logread_installed": true
+    },
+    {
+      "release": "19.07.9",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.9/package/system/ubox/Makefile",
+      "sha256": "d81dd29b88e41c01fbbea7416736d4bff4fa4a6cced397fa9eec6a7f6432e874",
+      "ubox_commit": "4df34a4d0d5183135217fc8280faae8e697147bc",
+      "logread_installed": true
+    },
+    {
+      "release": "21.02.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.0/package/system/ubox/Makefile",
+      "sha256": "6fad11cf4cb2be06405e6b40b7c4343683d0485aa416541ab0447eea997e705e",
+      "ubox_commit": "9ef886819dd48303d8ced4cdbc9afbf32682535c",
+      "logread_installed": true
+    },
+    {
+      "release": "21.02.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.1/package/system/ubox/Makefile",
+      "sha256": "6fad11cf4cb2be06405e6b40b7c4343683d0485aa416541ab0447eea997e705e",
+      "ubox_commit": "9ef886819dd48303d8ced4cdbc9afbf32682535c",
+      "logread_installed": true
+    },
+    {
+      "release": "21.02.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.2/package/system/ubox/Makefile",
+      "sha256": "6fad11cf4cb2be06405e6b40b7c4343683d0485aa416541ab0447eea997e705e",
+      "ubox_commit": "9ef886819dd48303d8ced4cdbc9afbf32682535c",
+      "logread_installed": true
+    },
+    {
+      "release": "21.02.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.3/package/system/ubox/Makefile",
+      "sha256": "6fad11cf4cb2be06405e6b40b7c4343683d0485aa416541ab0447eea997e705e",
+      "ubox_commit": "9ef886819dd48303d8ced4cdbc9afbf32682535c",
+      "logread_installed": true
+    },
+    {
+      "release": "21.02.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.4/package/system/ubox/Makefile",
+      "sha256": "6fad11cf4cb2be06405e6b40b7c4343683d0485aa416541ab0447eea997e705e",
+      "ubox_commit": "9ef886819dd48303d8ced4cdbc9afbf32682535c",
+      "logread_installed": true
+    },
+    {
+      "release": "21.02.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.5/package/system/ubox/Makefile",
+      "sha256": "6fad11cf4cb2be06405e6b40b7c4343683d0485aa416541ab0447eea997e705e",
+      "ubox_commit": "9ef886819dd48303d8ced4cdbc9afbf32682535c",
+      "logread_installed": true
+    },
+    {
+      "release": "21.02.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.6/package/system/ubox/Makefile",
+      "sha256": "6fad11cf4cb2be06405e6b40b7c4343683d0485aa416541ab0447eea997e705e",
+      "ubox_commit": "9ef886819dd48303d8ced4cdbc9afbf32682535c",
+      "logread_installed": true
+    },
+    {
+      "release": "21.02.7",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.7/package/system/ubox/Makefile",
+      "sha256": "6fad11cf4cb2be06405e6b40b7c4343683d0485aa416541ab0447eea997e705e",
+      "ubox_commit": "9ef886819dd48303d8ced4cdbc9afbf32682535c",
+      "logread_installed": true
+    },
+    {
+      "release": "22.03.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.0/package/system/ubox/Makefile",
+      "sha256": "249272659e2ca74c6bf1c9dac9db9cd95eb6e487960093cc6e8521fdb1dc8dc0",
+      "ubox_commit": "205defb597295a4a8966db3e618cfe41a29bed99",
+      "logread_installed": true
+    },
+    {
+      "release": "22.03.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.1/package/system/ubox/Makefile",
+      "sha256": "249272659e2ca74c6bf1c9dac9db9cd95eb6e487960093cc6e8521fdb1dc8dc0",
+      "ubox_commit": "205defb597295a4a8966db3e618cfe41a29bed99",
+      "logread_installed": true
+    },
+    {
+      "release": "22.03.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.2/package/system/ubox/Makefile",
+      "sha256": "249272659e2ca74c6bf1c9dac9db9cd95eb6e487960093cc6e8521fdb1dc8dc0",
+      "ubox_commit": "205defb597295a4a8966db3e618cfe41a29bed99",
+      "logread_installed": true
+    },
+    {
+      "release": "22.03.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.3/package/system/ubox/Makefile",
+      "sha256": "249272659e2ca74c6bf1c9dac9db9cd95eb6e487960093cc6e8521fdb1dc8dc0",
+      "ubox_commit": "205defb597295a4a8966db3e618cfe41a29bed99",
+      "logread_installed": true
+    },
+    {
+      "release": "22.03.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.4/package/system/ubox/Makefile",
+      "sha256": "249272659e2ca74c6bf1c9dac9db9cd95eb6e487960093cc6e8521fdb1dc8dc0",
+      "ubox_commit": "205defb597295a4a8966db3e618cfe41a29bed99",
+      "logread_installed": true
+    },
+    {
+      "release": "22.03.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.5/package/system/ubox/Makefile",
+      "sha256": "249272659e2ca74c6bf1c9dac9db9cd95eb6e487960093cc6e8521fdb1dc8dc0",
+      "ubox_commit": "205defb597295a4a8966db3e618cfe41a29bed99",
+      "logread_installed": true
+    },
+    {
+      "release": "22.03.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.6/package/system/ubox/Makefile",
+      "sha256": "249272659e2ca74c6bf1c9dac9db9cd95eb6e487960093cc6e8521fdb1dc8dc0",
+      "ubox_commit": "205defb597295a4a8966db3e618cfe41a29bed99",
+      "logread_installed": true
+    },
+    {
+      "release": "22.03.7",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.7/package/system/ubox/Makefile",
+      "sha256": "249272659e2ca74c6bf1c9dac9db9cd95eb6e487960093cc6e8521fdb1dc8dc0",
+      "ubox_commit": "205defb597295a4a8966db3e618cfe41a29bed99",
+      "logread_installed": true
+    },
+    {
+      "release": "23.05.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.0/package/system/ubox/Makefile",
+      "sha256": "246890994d3d87cfcb3b554663654c438124c9e38296a9b5aa8a5a82ed60fabb",
+      "ubox_commit": "4c7b720b9c63b826fb9404e454ae54f2ef5649d5",
+      "logread_installed": true
+    },
+    {
+      "release": "23.05.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.1/package/system/ubox/Makefile",
+      "sha256": "246890994d3d87cfcb3b554663654c438124c9e38296a9b5aa8a5a82ed60fabb",
+      "ubox_commit": "4c7b720b9c63b826fb9404e454ae54f2ef5649d5",
+      "logread_installed": true
+    },
+    {
+      "release": "23.05.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.2/package/system/ubox/Makefile",
+      "sha256": "246890994d3d87cfcb3b554663654c438124c9e38296a9b5aa8a5a82ed60fabb",
+      "ubox_commit": "4c7b720b9c63b826fb9404e454ae54f2ef5649d5",
+      "logread_installed": true
+    },
+    {
+      "release": "23.05.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.3/package/system/ubox/Makefile",
+      "sha256": "246890994d3d87cfcb3b554663654c438124c9e38296a9b5aa8a5a82ed60fabb",
+      "ubox_commit": "4c7b720b9c63b826fb9404e454ae54f2ef5649d5",
+      "logread_installed": true
+    },
+    {
+      "release": "23.05.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/system/ubox/Makefile",
+      "sha256": "246890994d3d87cfcb3b554663654c438124c9e38296a9b5aa8a5a82ed60fabb",
+      "ubox_commit": "4c7b720b9c63b826fb9404e454ae54f2ef5649d5",
+      "logread_installed": true
+    },
+    {
+      "release": "23.05.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.5/package/system/ubox/Makefile",
+      "sha256": "246890994d3d87cfcb3b554663654c438124c9e38296a9b5aa8a5a82ed60fabb",
+      "ubox_commit": "4c7b720b9c63b826fb9404e454ae54f2ef5649d5",
+      "logread_installed": true
+    },
+    {
+      "release": "23.05.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.6/package/system/ubox/Makefile",
+      "sha256": "246890994d3d87cfcb3b554663654c438124c9e38296a9b5aa8a5a82ed60fabb",
+      "ubox_commit": "4c7b720b9c63b826fb9404e454ae54f2ef5649d5",
+      "logread_installed": true
+    },
+    {
+      "release": "24.10.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.0/package/system/ubox/Makefile",
+      "sha256": "43ab1489be9d564a98556464fd0b5eb356697b1641a8aa3020266c77285ef656",
+      "ubox_commit": "85f1053019caf4cd333795760950235ee4529ba7",
+      "logread_installed": true
+    },
+    {
+      "release": "24.10.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.1/package/system/ubox/Makefile",
+      "sha256": "43ab1489be9d564a98556464fd0b5eb356697b1641a8aa3020266c77285ef656",
+      "ubox_commit": "85f1053019caf4cd333795760950235ee4529ba7",
+      "logread_installed": true
+    },
+    {
+      "release": "24.10.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.2/package/system/ubox/Makefile",
+      "sha256": "43ab1489be9d564a98556464fd0b5eb356697b1641a8aa3020266c77285ef656",
+      "ubox_commit": "85f1053019caf4cd333795760950235ee4529ba7",
+      "logread_installed": true
+    },
+    {
+      "release": "24.10.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.3/package/system/ubox/Makefile",
+      "sha256": "43ab1489be9d564a98556464fd0b5eb356697b1641a8aa3020266c77285ef656",
+      "ubox_commit": "85f1053019caf4cd333795760950235ee4529ba7",
+      "logread_installed": true
+    },
+    {
+      "release": "24.10.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.4/package/system/ubox/Makefile",
+      "sha256": "43ab1489be9d564a98556464fd0b5eb356697b1641a8aa3020266c77285ef656",
+      "ubox_commit": "85f1053019caf4cd333795760950235ee4529ba7",
+      "logread_installed": true
+    },
+    {
+      "release": "24.10.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.5/package/system/ubox/Makefile",
+      "sha256": "43ab1489be9d564a98556464fd0b5eb356697b1641a8aa3020266c77285ef656",
+      "ubox_commit": "85f1053019caf4cd333795760950235ee4529ba7",
+      "logread_installed": true
+    },
+    {
+      "release": "24.10.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.6/package/system/ubox/Makefile",
+      "sha256": "43ab1489be9d564a98556464fd0b5eb356697b1641a8aa3020266c77285ef656",
+      "ubox_commit": "85f1053019caf4cd333795760950235ee4529ba7",
+      "logread_installed": true
+    },
+    {
+      "release": "24.10.7",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.7/package/system/ubox/Makefile",
+      "sha256": "43ab1489be9d564a98556464fd0b5eb356697b1641a8aa3020266c77285ef656",
+      "ubox_commit": "85f1053019caf4cd333795760950235ee4529ba7",
+      "logread_installed": true
+    },
+    {
+      "release": "24.10.8",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.8/package/system/ubox/Makefile",
+      "sha256": "43ab1489be9d564a98556464fd0b5eb356697b1641a8aa3020266c77285ef656",
+      "ubox_commit": "85f1053019caf4cd333795760950235ee4529ba7",
+      "logread_installed": true
+    },
+    {
+      "release": "25.12.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.0/package/system/ubox/Makefile",
+      "sha256": "04932a8c0add12bc020bd152834cbca5c845db09159e0ff20ec3e38b87a88b24",
+      "ubox_commit": "6f78fa496bf36c55864a41e353df7d13f04b1077",
+      "logread_installed": true
+    },
+    {
+      "release": "25.12.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.1/package/system/ubox/Makefile",
+      "sha256": "04932a8c0add12bc020bd152834cbca5c845db09159e0ff20ec3e38b87a88b24",
+      "ubox_commit": "6f78fa496bf36c55864a41e353df7d13f04b1077",
+      "logread_installed": true
+    },
+    {
+      "release": "25.12.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.2/package/system/ubox/Makefile",
+      "sha256": "04932a8c0add12bc020bd152834cbca5c845db09159e0ff20ec3e38b87a88b24",
+      "ubox_commit": "6f78fa496bf36c55864a41e353df7d13f04b1077",
+      "logread_installed": true
+    },
+    {
+      "release": "25.12.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.3/package/system/ubox/Makefile",
+      "sha256": "04932a8c0add12bc020bd152834cbca5c845db09159e0ff20ec3e38b87a88b24",
+      "ubox_commit": "6f78fa496bf36c55864a41e353df7d13f04b1077",
+      "logread_installed": true
+    },
+    {
+      "release": "25.12.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.4/package/system/ubox/Makefile",
+      "sha256": "04932a8c0add12bc020bd152834cbca5c845db09159e0ff20ec3e38b87a88b24",
+      "ubox_commit": "6f78fa496bf36c55864a41e353df7d13f04b1077",
+      "logread_installed": true
+    },
+    {
+      "release": "25.12.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.5/package/system/ubox/Makefile",
+      "sha256": "04932a8c0add12bc020bd152834cbca5c845db09159e0ff20ec3e38b87a88b24",
+      "ubox_commit": "6f78fa496bf36c55864a41e353df7d13f04b1077",
+      "logread_installed": true
+    },
+    {
+      "release": "25.12.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/system/ubox/Makefile",
+      "sha256": "04932a8c0add12bc020bd152834cbca5c845db09159e0ff20ec3e38b87a88b24",
+      "ubox_commit": "6f78fa496bf36c55864a41e353df7d13f04b1077",
+      "logread_installed": true
+    }
+  ],
+  "components": [
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/ubox/205defb597295a4a8966db3e618cfe41a29bed99/log/logread.c",
+      "sha256": "85cb25f1a42cc5910a89cd90c19ae0e05cfbcc02d52829b72e7c48753f8558dd",
+      "commit": "205defb597295a4a8966db3e618cfe41a29bed99",
+      "follow_opt_in": true,
+      "has_log_follow": true,
+      "notes": "No options: one snapshot; no follow mode is requested. Runtime command presence is checked."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/ubox/4c7b720b9c63b826fb9404e454ae54f2ef5649d5/log/logread.c",
+      "sha256": "85cb25f1a42cc5910a89cd90c19ae0e05cfbcc02d52829b72e7c48753f8558dd",
+      "commit": "4c7b720b9c63b826fb9404e454ae54f2ef5649d5",
+      "follow_opt_in": true,
+      "has_log_follow": true,
+      "notes": "No options: one snapshot; no follow mode is requested. Runtime command presence is checked."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/ubox/4df34a4d0d5183135217fc8280faae8e697147bc/log/logread.c",
+      "sha256": "39070909bd8ef5d25495a36c2660325c6fc67516cd7668eddf9c43a8eaec9af9",
+      "commit": "4df34a4d0d5183135217fc8280faae8e697147bc",
+      "follow_opt_in": true,
+      "has_log_follow": true,
+      "notes": "No options: one snapshot; no follow mode is requested. Runtime command presence is checked."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/ubox/6f78fa496bf36c55864a41e353df7d13f04b1077/log/logread.c",
+      "sha256": "85cb25f1a42cc5910a89cd90c19ae0e05cfbcc02d52829b72e7c48753f8558dd",
+      "commit": "6f78fa496bf36c55864a41e353df7d13f04b1077",
+      "follow_opt_in": true,
+      "has_log_follow": true,
+      "notes": "No options: one snapshot; no follow mode is requested. Runtime command presence is checked."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/ubox/85f1053019caf4cd333795760950235ee4529ba7/log/logread.c",
+      "sha256": "85cb25f1a42cc5910a89cd90c19ae0e05cfbcc02d52829b72e7c48753f8558dd",
+      "commit": "85f1053019caf4cd333795760950235ee4529ba7",
+      "follow_opt_in": true,
+      "has_log_follow": true,
+      "notes": "No options: one snapshot; no follow mode is requested. Runtime command presence is checked."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/ubox/9ef886819dd48303d8ced4cdbc9afbf32682535c/log/logread.c",
+      "sha256": "53ea7408c57b1f38b3ed0f56dce44899df8d542eab622150abc3e0a1812f2964",
+      "commit": "9ef886819dd48303d8ced4cdbc9afbf32682535c",
+      "follow_opt_in": true,
+      "has_log_follow": true,
+      "notes": "No options: one snapshot; no follow mode is requested. Runtime command presence is checked."
+    }
+  ],
+  "kernels": [
+    {
+      "url": "https://raw.githubusercontent.com/torvalds/linux/v4.14/Documentation/filesystems/proc.txt",
+      "sha256": "c299e17897045f7ee3dbf72e8b37a660f8bf6e6c40a283567b3761307b05e529",
+      "version": "v4.14",
+      "checked_terms": [
+        "uptime",
+        "MemAvailable",
+        "MemFree",
+        "MemTotal"
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/torvalds/linux/v6.12/Documentation/filesystems/proc.rst",
+      "sha256": "4577fa50db8fadbce338af1b64535608da42316208c962aeb08f4d91fe68636e",
+      "version": "v6.12",
+      "checked_terms": [
+        "uptime",
+        "MemAvailable",
+        "MemFree",
+        "MemTotal"
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/torvalds/linux/v6.12/Documentation/admin-guide/sysctl/kernel.rst",
+      "sha256": "8733456c53fef4d62489e6464b7e893282d67bd791fa89b33caeb630738dff38",
+      "version": "v6.12",
+      "checked_terms": [
+        "boot_id"
+      ]
+    }
+  ],
+  "decisions": [
+    "No capture engine, channels, driver, dependency, wireless restore, resource thresholds, UI or timer changes.",
+    "Use existing background resource probe; add bounded proc reads, no extra timer or polling thread.",
+    "After authenticated host-key identity binding: read health once; after unexpected disconnect read fault logs on same-device reconnect. Regular-capture failure also reads fault logs while still connected.",
+    "Boot ID changed means another kernel boot. Same boot ID means same kernel boot, not proof of driver health. Uptime decrease without boot ID is supporting evidence only.",
+    "Missing proc fields, logread, dmesg or pstore stay unknown; no installs or mount operations.",
+    "Sources present only records command/path presence, not proof that the log is readable. Completed means collection protocol completed, not a diagnosis or proof of no fault.",
+    "pstore reads at most two existing ramoops files with 4096 bytes per file; never clears kernel logs or removes crash records.",
+    "Samples and incidents are bounded and exported through the existing masked ZIP journal.",
+    "History compares within the running application session. Application restart loses the in-memory baseline; existing exported contexts remain evidence.",
+    "Architecture/model-independent proc ABI; no radio, chipset, package manager or target-specific dispatch. No claim of per-model live acceptance.",
+    "Regular capture: sample before hcxdumptool/airodump-ng process starts; piggyback proc reads on existing read-only PID verification commands. No new recheck interval or supervisor traffic.",
+    "The PID-check shell wrapper preserves original exit codes, including resource exits 80/81, and strips diagnostic output before returning to the original caller.",
+    "Regular capture common failure finalization also collects filtered kernel/system/pstore evidence while connected; disconnected collection stays local and the next same-device login gathers post-loss evidence."
+  ],
+  "verification": {
+    "native_windows": "138 targeted offline tests passed in 26.822 seconds using the pinned project .venv; Python compilation, UTF-8 decode and local POSIX-shell syntax/exit-code checks passed. No full-repository or live-router acceptance claim.",
+    "native_debian12": "not run: no native environment used",
+    "live_router": "not run: no device operation performed",
+    "required_live_steps": [
+      "Run the updated application, connect to the same router and start capture once.",
+      "Repeat with regular capture; verify capture_start/capture_check/capture_failure evidence and original task results/cleanup behavior.",
+      "After unexpected loss, reconnect to the same router in this application session and export the diagnostic ZIP.",
+      "Inspect router_health samples, connection_lost/reconnected incidents, boot_comparison and filtered fault lines."
+    ],
+    "test_modules": [
+      "test_router_health_evidence",
+      "test_operation_diagnostics",
+      "test_capture_channel_recovery",
+      "test_auto_capture_feature",
+      "test_ssh_channel_isolation",
+      "test_capture_start_preflight",
+      "test_capture_initialization_evidence",
+      "test_process_recovery_boundaries",
+      "test_capture_integration_safety",
+      "test_capture_compatibility_fixes",
+      "test_handshake_rounds",
+      "test_capture_artifact_retention",
+      "test_alternate_tool_removal"
+    ]
+  }
+}

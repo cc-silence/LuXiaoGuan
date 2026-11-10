@@ -1,0 +1,70 @@
+{
+  "date": "2026-11-07",
+  "scope": "Two further reviews after the unknown installed version fix",
+  "round1": {
+    "scope": "Independent adversarial conflict and kernel identity matrix",
+    "cases": 285,
+    "success": true,
+    "router_access": false
+  },
+  "round2": {
+    "modules": [
+      "test_other_dependency_install_fix",
+      "test_other_dependencies",
+      "test_dependency_providers",
+      "test_firmware_dependency_support",
+      "test_dependency_install_review",
+      "test_dependency_install_followup",
+      "test_dependency_install_finalaudit",
+      "test_dependency_partial_install",
+      "test_dependency_mixed_install",
+      "test_dependency_compatibility_audit",
+      "test_dependency_two_round_audit",
+      "test_protected_dependency_candidates",
+      "test_common_offline_bundle",
+      "test_offline_dependency_fallback",
+      "test_signal_dependency_source",
+      "test_wireless_dependency_source",
+      "test_package_install_guards",
+      "test_opkg_repeated_plan",
+      "test_offline_cleanup",
+      "test_installation_added_regressions",
+      "test_dependency_download_messages",
+      "test_dependency_diagnostic_paths",
+      "test_installation_source_failures",
+      "test_dependency_install_boundary_review",
+      "test_package_mirror_policy",
+      "test_package_mirror_three_passes",
+      "test_mirror_task_preference",
+      "test_package_download_diagnostics",
+      "test_package_error_classification",
+      "test_dependency_weak_network",
+      "test_dependency_socks",
+      "test_package_space_queries"
+    ],
+    "run": 311,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "success": true
+  },
+  "new_defects_found": 0,
+  "production_code_changed_in_this_review": false,
+  "syntax_utf8_check_files": 10,
+  "git_diff_check": "passed",
+  "source_sha256": {
+    "dependency_resolution.py": "d4457f83b0132cbcf48be96719484786c60420d11c2d23e302dbd9898d229798",
+    "package_conflicts.py": "c9519dd7c6d36eb2088df76e838993bd932bc79669eeb65d0bdcc246943c7d80",
+    "kernel_package_feed.py": "b327c1d1c941ad2aeeaa614b255dd27b5563b47996667eb9f69d8a5a6b3ba927",
+    "signal_package_feed.py": "aa595c27711e69fad17ad71e632c4b15f84a3ab77e397f72ed644ff607d653a1",
+    "dependency_manager.py": "62b4ac95e99431b7f1c9dc014f0d5d263af945318049613c4074711e0d302600",
+    "package_manager.py": "3f7546a7c3fda976e698b55007a0f8bbb757eaebe73846522fa5dc6468b11c29",
+    "installation_sources.py": "faa7324b1af606b31bc3259c7561e885029b9435a6a34f04b65a099fe9faf7c9",
+    "temporary_package_sources.py": "fbc981fafa3375be45ccb5b7ad4cbca10d7e63470db5d7e4e7ad084e5b26d47f"
+  },
+  "limits": [
+    "No customer router installation performed",
+    "No native Debian 12 validation performed",
+    "No new binary package generated"
+  ]
+}

@@ -275,3 +275,22 @@ class WirelessStatusUiTests(unittest.TestCase):
             self.assertNotIn('\u8fde\u63a5\u6210\u529f',sta.state_label.text())
             self.assertFalse(sta.detail_label.isVisible())
             owner.hide()
+
+    def test_authentication_unknown_or_in_progress_never_reuses_connection_success(self):
+        for light in (False,True):
+            page,service,owner=self.create(light)
+            original=service.snapshot
+            for state in ('unknown','connecting','disconnected'):
+                networks=tuple(replace(n,connection_state=state) if n.mode=='sta' else n
+                               for n in original.wireless_status.networks)
+                page.apply_snapshot(replace(original,wireless_status=replace(original.wireless_status,networks=networks)))
+                sta=page._row_widgets['uplink']
+                self.assertNotIn('\u8fde\u63a5\u6210\u529f',sta.state_label.text())
+                self.assertNotIn('\u7f51\u7edc\u5df2\u901a',sta.network_label.text())
+                if state=='connecting':self.assertIn('\u8fde\u63a5\u4e2d',sta.network_label.text())
+                folder=Path('build/review/station-connection');folder.mkdir(parents=True,exist_ok=True)
+                sta.grab().save(str(folder/(('light' if light else 'dark')+'-'+state+'.png')))
+            rows=tuple(replace(r,ssid='Changed target') if r.mode=='sta' else r for r in original.inventory.rows)
+            page.apply_snapshot(replace(original,inventory=replace(original.inventory,rows=rows)))
+            self.assertNotIn('\u8fde\u63a5\u6210\u529f',page._row_widgets['uplink'].state_label.text())
+            owner.hide()

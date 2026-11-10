@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-07",
+  "round": 2,
+  "tool_version": "1.0.3",
+  "sources": "build/windows-login-diagnostics/second-official-review-20261107/sources.json",
+  "source_conclusions": [
+    "Microsoft specifies that a nonzero Number-Of-Filters11 overrides Number-Of-Filters1. Collector now withholds binary layouts it cannot verify instead of silently accepting a mismatch.",
+    "Microsoft specifies table alignment may exist. Reader now uses declared ctypes structures and table field offsets, checks returned length, and handles one bounded size-growth retry.",
+    "Microsoft specifies Select-Object -First can stop upstream enumeration. Collector now reads at most limit+1, reports truncation, and caps exported arrays for both direct and batch paths."
+  ],
+  "validation": {
+    "targeted_tests_passed": 60,
+    "new_tests": 9,
+    "real_powershell_boundary_cases": true,
+    "native_network_inventory": true,
+    "frozen_end_to_end": true,
+    "frozen_modules_matched": 16,
+    "entrypoint_matched": true,
+    "chinese_portable_path": true,
+    "launcher_syntax": true,
+    "zip_crc": true,
+    "missing_required": [
+      "administrator",
+      "policy_local"
+    ]
+  },
+  "archive": "C:\\Users\\CC\\Desktop\\Work\\RouterManager\\RouterManager_python\\dist\\LuXiaoGuan_LoginDiagnostics_v1.0.3_20261107_145413.zip",
+  "bytes": 7454020,
+  "sha256": "1acf3ede32481cf6e67bf70a5f9bd990b5aecc760985a8f21041cf316cc078ce",
+  "limitations": [
+    "Administrator read-only native run remains unverified; no elevation retried in this source-review round.",
+    "No authenticated customer router login is claimed.",
+    "Windows IPv4 collector only; no router operation or UI changes."
+  ],
+  "supersedes_versions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ]
+}

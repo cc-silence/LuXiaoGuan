@@ -1,0 +1,126 @@
+{
+  "date": "2026-11-07",
+  "scope": "Local desktop connection admission only; no remote OpenWrt commands, algorithms, host identity or authentication semantics changed.",
+  "behavior": [
+    "Startup retains conditional background firewall audit and rule creation; neither is required before a reachable SSH login.",
+    "Firewall audit and application allow rules are no longer login prerequisites.",
+    "The actual connected TCP socket is handed to Paramiko, without a second probe.",
+    "Only local access denial invokes deferred existing policy preparation, followed by one TCP retry.",
+    "Refusal, timeout, DNS errors, authentication failure and host key change do not invoke policy preparation.",
+    "Existing backup, native snapshot verification, preservation and rollback are retained."
+  ],
+  "tests": {
+    "passed": 162,
+    "new_policy_tests": 15,
+    "real_loopback_ssh": true,
+    "customer_updated_application_login": false,
+    "debian12_native_run": false,
+    "additional_review_tests": 7,
+    "second_review_tests": 5
+  },
+  "sources": [
+    {
+      "url": "https://docs.paramiko.org/en/stable/api/client.html",
+      "reviewed_via": "web tool",
+      "retrieved": "2026-11-07",
+      "local_html_cache": "Direct download returned HTTP 403; official documentation was read via web tool."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-connect",
+      "reviewed_via": "web tool",
+      "retrieved": "2026-11-07",
+      "local_html_cache": "Direct download returned HTTP 403; official documentation was read via web tool."
+    }
+  ],
+  "paramiko": {
+    "version": "5.0.0",
+    "client_sha256": "d2ec094ad635ad2c8d0274afa02c3e913ef199d60fef3dab1eb2187b3c034cc7",
+    "signature": "(self, hostname, port=22, username=None, password=None, pkey=None, key_filename=None, timeout=None, allow_agent=True, look_for_keys=True, compress=False, sock=None, banner_timeout=None, auth_timeout=None, channel_timeout=None, passphrase=None, disabled_algorithms=None, transport_factory=None, auth_strategy=None)"
+  },
+  "source_sha256": {
+    "modules/desktop_shell/startup_firewall_controller.py": "5f36b77e6a6acefd52893f5a297b5ebd03070d551fa98115b598b7947400cf8f",
+    "modules/capture_services/login_operation.py": "546e34a0e6dd8f94008435e937e8565880c28813140fb1806efc7f414d57fc4a",
+    "modules/capture_services/backends/openwrt_backend.py": "f8d6e98e0371c57487ddee6f6c9258dd42b9a157e80b9a97c2c7246caf2510de",
+    "modules/capture_services/openwrt/ssh_client.py": "34befd7fa662197c129f65b2f4242f596a9f2593e7a3fb8b7df52b97e00f0db2",
+    "modules/capture_services/openwrt/ssh_connect_control.py": "80fcca96c35473077b116d639d7e2a36c1931e48d414f817105759310421b749",
+    "modules/capture_services/openwrt/login_diagnostics.py": "b746a94c16c03ee6c09c6fbc9ed40d252092c667f975fda0aa40b89d361b91fc",
+    "tests/test_login_policy_repair.py": "3913f00662cdc12f7faa95bb36b2bff3d9819e95ce200b36da782a865d3e3cac",
+    "tests/test_legacy_ipsec_audit.py": "54597b81ab9288bb64730cfbe15f0b7180260c5980dd45f6629fde006af1d49e",
+    "modules/platform_services/startup_firewall.py": "f1ece8899b076e41a413f7db62497f1a148c0e18a8cac1663c420c8ea07683f7",
+    "modules/capture_services/openwrt/ssh_login_probe.py": "c351bd50a0898a6d81a667dc8675674bab2d4486196ca097177218cc4460d917",
+    "tests/test_login_policy_repair_review.py": "728ac6af7569a7ce3642bb6f4d84b0921076970cac29bf429bb5846a15a0bf2b",
+    "tests/test_login_policy_repair_concurrency.py": "77987e57de4f664c269d3c71ee4c810fd426b5b5d805793d90ea4056913a6db6"
+  },
+  "delivery": "Source updated; application not packaged or published.",
+  "official_review": {
+    "date": "2026-11-07",
+    "findings_fixed": [
+      "Wrapped NoValidConnectionsError has errno None; unwrap its errors to retain native access-denial code and show a non-secret actionable message.",
+      "If cancellation watcher Thread.start raises, close the established socket and never join an unstarted thread."
+    ],
+    "confirmed": [
+      "No firewall audit or allow-rule prerequisite for a reachable interactive login.",
+      "Paramiko accepts an already connected sock and still validates host identity and authenticates.",
+      "Only an access-denial result can invoke existing policy preparation; one TCP retry; no authentication retry.",
+      "10013 alone does not identify the blocking policy or application.",
+      "Startup conditional audit is retained independently."
+    ],
+    "sources": [
+      {
+        "url": "https://docs.paramiko.org/en/stable/api/client.html#paramiko.client.SSHClient.connect",
+        "reviewed_via": "web tool",
+        "supports": "Connected sock reuse with normal host-key checks and authentication."
+      },
+      {
+        "url": "https://docs.paramiko.org/en/stable/api/ssh_exception.html#paramiko.ssh_exception.NoValidConnectionsError",
+        "reviewed_via": "web tool",
+        "supports": "Wrapper errno None; actual errors are exposed via errors dict."
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows/win32/winsock/windows-sockets-error-codes-2",
+        "reviewed_via": "web tool",
+        "supports": "10013 WSAEACCES means permission denied, with more than one possible cause."
+      },
+      {
+        "url": "https://docs.python.org/3.10/library/socket.html#socket.socket.connect_ex",
+        "reviewed_via": "web tool",
+        "supports": "connect_ex returns native connection error code instead of raising for C connect errors."
+      },
+      {
+        "url": "https://docs.python.org/3.10/library/threading.html#threading.Thread.join",
+        "reviewed_via": "web tool",
+        "supports": "Joining a thread before start raises RuntimeError."
+      }
+    ]
+  },
+  "second_official_review": {
+    "date": "2026-11-07",
+    "new_production_defects_found": false,
+    "production_changes_in_this_review": false,
+    "additional_evidence": [
+      "A real SSH login completes while the actual startup audit thread remains blocked on an Event.",
+      "A subsequent audit failure leaves that authenticated connection active.",
+      "Windows asynchronous exception completion reads SO_ERROR=10013, closes the first socket, requests repair once and returns the second socket.",
+      "Asynchronous success uses the original socket; SO_ERROR=10061 does not request policy repair.",
+      "Cancellation immediately after TCP denial prevents policy repair."
+    ],
+    "sources": [
+      {
+        "url": "https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-select",
+        "reviewed_via": "web tool",
+        "supports": "Nonblocking connect success appears in writefds; failure appears in exceptfds and requires getsockopt SO_ERROR."
+      },
+      {
+        "url": "https://docs.python.org/3.10/library/threading.html#event-objects",
+        "reviewed_via": "web tool",
+        "supports": "Event.wait blocks until set; used to exercise actual concurrent audit and login without timer-based synchronization."
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/rules",
+        "reviewed_via": "web tool",
+        "supports": "Explicit Windows Firewall block rules take precedence over conflicting allow rules; adding allow rules is not a universal unblock guarantee."
+      }
+    ],
+    "boundary": "Windows local loopback SSH tested. Windows asynchronous failures injected through native socket API boundary. Customer application login, actual privileged policy mutation, and native Debian 12 runtime remain unverified."
+  }
+}

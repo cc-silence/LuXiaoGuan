@@ -1,0 +1,101 @@
+{
+  "date": "2026-11-07",
+  "scope": "Optional online-only dependency installation; no UI visual or capture execution changes",
+  "customer": "erw dependency-management ZIP; OpenWrt 23.05.4 / mediatek/filogic / aarch64_cortex-a53",
+  "changes": [
+    "Parse official Conflicts declarations and reject incompatible installed or planned packages before downloads",
+    "Differentiate missing verified source packages from unmet installed versions and native file clashes",
+    "On a missing kmod-tun requirement, probe the actual running kernel, use installed kernel full ABI and exact device target, then query official kmods and legacy target repositories",
+    "Allow only the newly verified kmod-tun with an exact kernel dependency; keep all other kernel and candidate package restrictions",
+    "Keep proxy/direct/mirror route policy, TLS verification, package size/hash checks, no-feed native simulation and installed-package protection",
+    "Report proxy-configured router-route skipping separately from an actual router network failure",
+    "Preserve cancellation from the live kernel probe instead of converting it into a download failure"
+  ],
+  "sources": [
+    {
+      "file": "build\\other-dependency-fix-20261107\\sources\\luci-23.05.4-Packages.gz",
+      "sha256": "70ff979ea4effaeac4e0145c78ecdade103f32e5f4944538a29ddc25351bcbac"
+    },
+    {
+      "file": "build\\other-dependency-fix-20261107\\sources\\packages-23.05.4-Packages.gz",
+      "sha256": "98a4b1b9150ca13c1ab4a5597c607a50c69604ae60f183e3b2ddd2c759dc259d"
+    },
+    {
+      "file": "build\\other-dependency-fix-20261107\\sources\\target-19.07.10-Packages.gz",
+      "sha256": "da6b7283ddadfb8ba0627b592f7045f87d179013ac37ebf9e74b54165f22e257"
+    },
+    {
+      "file": "build\\other-dependency-fix-20261107\\sources\\target-21.02.7-Packages.gz",
+      "sha256": "be894c4f14d2cea2842b5515ce32119c8f02d838377c76c6b719157e01d2c2c6"
+    },
+    {
+      "file": "build\\other-dependency-fix-20261107\\sources\\target-22.03.7-Packages.gz",
+      "sha256": "fdad002bb506b3b07c167e77974ae4a480bc72c3ebf6dd8aaa6883ebbdeb2d27"
+    },
+    {
+      "file": "build\\other-dependency-fix-20261107\\sources\\target-24.10.0-Packages.gz",
+      "sha256": "8e51e7c88df343580a0d5c8c2527e5f9e909763cfa51635084232df1bffb66b2"
+    },
+    {
+      "file": "build\\other-dependency-fix-20261107\\sources\\tun-23.05.4-Packages.gz",
+      "sha256": "ef1c1f5cdc5287202b1de21152b0c632a4c883225ba7966704c10c53c0f3f7a9"
+    }
+  ],
+  "official_documentation": [
+    "https://raw.githubusercontent.com/openwrt/packages/openwrt-23.05/net/dnscrypt-proxy2/Makefile",
+    "https://raw.githubusercontent.com/openwrt/luci/openwrt-23.05/applications/luci-app-dnscrypt-proxy/Makefile",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.10/include/kernel.mk",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.7/include/kernel.mk",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/include/kernel.mk",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.0/include/kernel.mk"
+  ],
+  "source_limits": "Raw GitHub download failed on this host; listed documentation was read through official web retrieval. Exact official package indexes and hashes were saved locally. v21.02.7 behavior was verified with its actual official target index.",
+  "validation": {
+    "modules": [
+      "test_other_dependency_install_fix",
+      "test_other_dependencies",
+      "test_dependency_providers",
+      "test_firmware_dependency_support",
+      "test_dependency_install_review",
+      "test_dependency_install_followup",
+      "test_dependency_install_finalaudit",
+      "test_dependency_partial_install",
+      "test_dependency_mixed_install",
+      "test_dependency_compatibility_audit",
+      "test_dependency_two_round_audit",
+      "test_protected_dependency_candidates",
+      "test_common_offline_bundle",
+      "test_offline_dependency_fallback",
+      "test_signal_dependency_source",
+      "test_wireless_dependency_source",
+      "test_package_install_guards",
+      "test_opkg_repeated_plan",
+      "test_offline_cleanup",
+      "test_installation_added_regressions",
+      "test_dependency_download_messages",
+      "test_dependency_diagnostic_paths",
+      "test_installation_source_failures"
+    ],
+    "run": 210,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "success": true
+  },
+  "syntax_utf8_python_files": 9,
+  "official_fixture": "tests\\fixtures\\official_other_dependency_packages_23_05_4.json",
+  "legacy_real_index_replays": [
+    "19.07.10",
+    "21.02.7",
+    "22.03.7"
+  ],
+  "performance": "No kernel query when no missing kmod-tun; one read-only uname query when needed; reuse version comparison cache; bounded index and package downloads.",
+  "limits": [
+    "No customer router installations or other router state changes were performed",
+    "Exact kernel-PC-download expansion is limited to stable official opkg firmware with verified identity; APK retains its existing native solver route and is covered by regressions, no new APK kmods downloader added",
+    "Third-party/RC/snapshot candidate kernel restrictions remain enforced",
+    "Native Debian 12 and customer-device installation remain unverified",
+    "No replacement third-party file-browser or ZeroTier UI package invented or installed",
+    "Source only; no build, publication, or offline package rebuild in this request"
+  ]
+}
