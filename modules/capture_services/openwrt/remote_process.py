@@ -121,6 +121,9 @@ class RemoteProcessManager:
         不会无限跑下去撑爆 /tmp；正常结束时看门狗因身份对不上空转退出，无残留。
         """
 
+        from .router_health_evidence import CAPTURE_PROGRAMS, collect_capture
+        if program in CAPTURE_PROGRAMS:
+            collect_capture(self.command_runner, 'capture_start', cancel_event)
         log_path = f"{str(remote_work_dir).rstrip('/')}/{program}.log"
         watchdog_limit = 0
         try:
@@ -361,11 +364,11 @@ class RemoteProcessManager:
         from modules.capture_services.openwrt.ssh_client import SshChannelTimeout
 
         try:
-            result = self.command_runner.run(
-                f"poll_{handle.program}",
+            from .router_health_evidence import run_process_probe
+            result = run_process_probe(
+                self.command_runner, handle.program,
                 (resource_check_command(handle.remote_work_dir) if handle.program in BOUNDED_PROGRAMS else "") + self._identity_test(handle),
-                timeout=5,
-                cancel_event=cancel_event,
+                cancel_event,
             )
         except SshChannelTimeout as exc:
             if getattr(exc, "ssh_stage", "") != "exec_request":

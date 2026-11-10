@@ -29,6 +29,7 @@ class WirelessEnvironment:
     issues: tuple[str, ...] = ()
     data: dict = field(default_factory=dict)
     fingerprint: str = ""
+    dependencies: tuple = ()
 
     @property
     def ready(self):

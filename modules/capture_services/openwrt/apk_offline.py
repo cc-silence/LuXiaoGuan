@@ -30,7 +30,7 @@ def _check_cancel(cancel_event):
 class ApkOfflineInstaller:
     """用注入的远程执行/上传/下载回调完成 apk 离线安装；自身不直接连设备。"""
 
-    def __init__(self, stage, tell=None, uploader=None, fetch=feed.fetch_bytes, space_check=None, *, cleanup_execute=None):
+    def __init__(self, stage, tell=None, uploader=None, fetch=feed.fetch_bytes, space_check=None, *, cleanup_execute=None, package_lookup=None):
         """stage(command_name, command, timeout, label) -> stdout；uploader(local_path, remote_path)。"""
         self.stage = stage
         self.tell = tell or (lambda _text, _level: None)
@@ -38,6 +38,7 @@ class ApkOfflineInstaller:
         self.fetch = fetch
         self.space_check = space_check
         self.cleanup_execute = cleanup_execute
+        self.package_lookup = package_lookup
 
     def install(self, wanted, device, cache_dir, cancel_event=None):
         """安装 wanted（包名序列）；返回 apk 计划中的 (name, version) 列表。"""
@@ -97,7 +98,8 @@ class ApkOfflineInstaller:
                 rows = {row["name"]: row for row in profile["packages"]}
                 resolved = []
                 for name, version in planned:
-                    row = rows.get(name)
+                    row = (self.package_lookup(profile, name, version)
+                           if self.package_lookup is not None else rows.get(name))
                     if row is None or row["version"] != version:
                         raise ValueError("\u79bb\u7ebf\u5305\u4e0d\u5305\u542b\u8bbe\u5907\u8ba1\u5212\u9700\u8981\u7684\u51c6\u786e\u7248\u672c\uff1a" + name + " " + version)
                     resolved.append(row)

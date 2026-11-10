@@ -85,6 +85,8 @@ class OpenWrtCommandRunner:
         from .operation_diagnostics import OperationDiagnostics
         self.operation_diagnostics = OperationDiagnostics(getattr(ssh_client, "login_diagnostics", None))
         self._command_lock = threading.RLock()
+        from .capture_live_logs import CaptureLogManager
+        self.capture_logs = CaptureLogManager(self)
 
     def run(self, command_name, command, timeout, cancel_event=None, *, output_limit=None):
         if timeout <= 0:
@@ -94,6 +96,7 @@ class OpenWrtCommandRunner:
         started = time.monotonic()
         connected_before = bool(self.ssh_client.connected)
         journal = self.operation_diagnostics
+        epoch = journal.epoch
         request_bytes = len(command.encode("utf-8"))
         operation_id = journal.record("command", operation=command_name, status="started",
             connected_before=connected_before, request_bytes=request_bytes,
@@ -120,7 +123,7 @@ class OpenWrtCommandRunner:
                             time.sleep(0.3)
                             continue
                         reason = "channel_closed" if is_chan_closed else "exception"
-                        journal.record("command", operation=command_name, operation_id=operation_id,
+                        journal.record("command", expected_epoch=epoch, operation=command_name, operation_id=operation_id,
                             status="failed", stage=getattr(exc, "ssh_stage", "unknown"),
                             kind=getattr(exc, "ssh_kind", "command"), exception_type=type(exc).__name__,
                             reason=reason, elapsed_seconds=time.monotonic() - started,
@@ -133,13 +136,18 @@ class OpenWrtCommandRunner:
                 self._command_lock.release()
         status = "cancelled" if result.cancelled else "timeout" if result.timed_out else (
             "completed" if result.exit_code == 0 else "failed")
-        journal.record("command", operation=command_name, operation_id=operation_id, status=status,
+        journal.record("command", expected_epoch=epoch, operation=command_name, operation_id=operation_id, status=status,
             stage=result.failure_stage or ("execute" if result.timed_out else "result"),
             exception_type=result.exception_type, reason=result.failure_reason, exit_code=result.exit_code,
             timed_out=result.timed_out, cancelled=result.cancelled,
             elapsed_seconds=time.monotonic() - started, connected_before=connected_before,
             connected_after=bool(self.ssh_client.connected),request_bytes=request_bytes,
             transport="stdin" if request_bytes>8192 else "exec")
+        from .capture_evidence import TOOL_NAMES
+        if command_name in TOOL_NAMES and status != "completed":
+            journal.capture_evidence("tool_failures", dict(operation=command_name,
+                exit_code=result.exit_code, timed_out=result.timed_out, cancelled=result.cancelled,
+                elapsed_seconds=time.monotonic() - started, stdout=result.stdout, stderr=result.stderr), epoch)
         if tracked:
             diagnostics.query(command_name, command, result=result, elapsed_seconds=time.monotonic() - started)
         return result

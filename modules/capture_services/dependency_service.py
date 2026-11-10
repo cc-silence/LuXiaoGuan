@@ -136,6 +136,12 @@ class OpenWrtDependencyService(QObject):
         if self._active or self.owner.task_controller.busy or self.owner.is_busy:
             return reject("\u5df2\u6709\u4efb\u52a1\u8fd0\u884c\uff0c\u8bf7\u7b49\u5f85\u5b8c\u6210\u6216\u505c\u6b62\u540e\u518d\u64cd\u4f5c\u3002")
         backend = self.owner.openwrt_backend
+        if action in {'install', 'uninstall'}:
+            from .openwrt.password_recovery_admission import require_ready
+            try:
+                require_ready(backend)
+            except RuntimeError as error:
+                return reject(str(error))
         if backend.snapshot.connection_state.value != "connected" or not backend.ssh_client.connected:
             return reject("\u8def\u7531\u5668\u672a\u8fde\u63a5\uff0c\u8bf7\u5148\u767b\u5f55\u540e\u518d\u64cd\u4f5c\u3002")
         if not backend.ssh_client.host_fingerprint:
@@ -208,6 +214,7 @@ class OpenWrtDependencyService(QObject):
         verb={"install":"安装","uninstall":"卸载","check":"检查"}[action]
         self.task=DependencyTask(session,group,items,action,"正在"+verb+label+"…")
         self.taskChanged.emit(self.task)
+        previous_dependencies = backend.snapshot
         device=backend.snapshot.device
         removal_packages=set(packages if packages is not None else
             self.installed_packages(backend.snapshot.dependencies,include_sftp=group in {"all","common","common_all","login_all","auto_capture"}))
@@ -325,7 +332,17 @@ class OpenWrtDependencyService(QObject):
                 if uncertain:
                     error = "以下项目状态无法确认：" + "；".join(
                         item.display_name + "：" + (item.detail or "请重新检查") for item in uncertain)
-            return dict(checked=tuple(checked),error=error,diagnostic_path=diagnostic_path)
+            related = ()
+            if action in {"install", "uninstall"} and self._same_connection(binding):
+                from .dependency_state_sync import refresh_related
+                changed = removal_packages if action == "uninstall" else {
+                    package for key, enabled in features.items() if enabled
+                    for package in OpenWrtDependencyManager.FEATURE_PACKAGES.get(key, ())}
+                if action == "install" and group in {"all", "common", "common_all", "login_all", "auto_capture"}:
+                    changed = set(changed) | {"openssh-sftp-server"}
+                related = refresh_related(self.manager, changed, previous_dependencies, cancel,
+                                          checked=checked, message=message, include_capture=group != "capture")
+            return dict(checked=tuple(checked),related_checked=related,error=error,diagnostic_path=diagnostic_path)
 
         def confirmed_operation(cancel,message):
             from .openwrt.hcx_candidate import candidate_confirmation
@@ -341,6 +358,15 @@ class OpenWrtDependencyService(QObject):
         except Exception as exc:
             self._complete(session,dict(checked=(),error="无法启动依赖任务："+str(exc)))
             return False
+        return True
+
+    def publish_verified(self, checked, binding, *, notify=False):
+        """Publish fresh cross-entrypoint results only to the originating connection."""
+        if not self._same_connection(binding):
+            return False
+        self._merge(checked, "all", binding)
+        if notify:
+            self.owner.openwrtSnapshotChanged.emit(self.owner.openwrt_backend.snapshot)
         return True
 
     def _merge(self,checked,group,binding):
@@ -391,6 +417,7 @@ class OpenWrtDependencyService(QObject):
             if task.group in TOOL_KEYS and not any(item.key==task.group for item in checked):
                 checked=tuple(checked)+(DependencyInfo(task.group,TOOL_BY_KEY[task.group].title,DependencyState.UNKNOWN,detail=error),)
             self._merge(checked,task.group,self._binding)
+            self.publish_verified(result.get("related_checked", ()), self._binding)
         else:error=error or "连接已变化，结果未应用到其他设备。"
         success=not error
         from .workflow_diagnostics import record_workflow

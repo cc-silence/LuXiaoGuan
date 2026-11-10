@@ -9,6 +9,8 @@ from .lan_client_recovery import RenewalGate
 class LanRecoveryService(QObject):
     def __init__(self,owner):
         super().__init__(owner);self.owner=owner;self.offers={};self.standalone=set();self.adapter_jobs={}
+        from .factory_recovery_refresh import FactoryRecoveryRefresh
+        self.factory_refresh = FactoryRecoveryRefresh(self)
     def create_offer(self,plan,*,ready=True):
         """Post-task recovery stays available while its result dialog is open."""
         if len(self.offers)>=32:raise RuntimeError("Too many network recovery offers")
@@ -26,6 +28,8 @@ class LanRecoveryService(QObject):
             if gate.busy:return
             gate.armed=bool(ready)
             if ready:gate.deadline=time.monotonic()+600
+        if ready and "factory_refresh_defaults" in gate.plan:
+            self.factory_refresh.refresh(key)
 
     def payload(self,key):
         item=self.offers.get(key)
@@ -43,6 +47,7 @@ class LanRecoveryService(QObject):
                 identity=gate.take_automatic()
                 if identity is not None:self.request(key,identity,automatic=True)
     def release(self,key):
+        self.factory_refresh.release(key)
         self.standalone.discard(key)
         item=self.offers.pop(key,None)
         if item:item[0].close()
@@ -56,10 +61,12 @@ class LanRecoveryService(QObject):
                 if current is None or current[0] is not gate:continue
                 self.owner.configurationProgressChanged.emit(key,dict(current[1],network_recovery=self.payload(key)))
 
-    def request(self,key,identity,*,automatic=False):
+    def request(self,key,identity,*,automatic=False,inventory_checked=False):
         item=self.offers.get(key)
         if getattr(self.owner,"_shutting_down",False):return False
         if item is None or (key not in self.standalone and key not in self.owner._openwrt_workers):return False
+        if key in self.standalone and "factory_refresh_defaults" in item[0].plan and not inventory_checked:
+            return self.factory_refresh.refresh(key, requested=str(identity))
         identity=str(identity)
         gate,value=item
         if identity in self.adapter_jobs:

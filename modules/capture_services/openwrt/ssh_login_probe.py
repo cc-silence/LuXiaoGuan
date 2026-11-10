@@ -67,7 +67,10 @@ def connection_message(error, evidence, port):
         return ""
     if isinstance(error, socket.gaierror):
         return "无法解析填写的路由器地址。请核对地址；未进入 SSH 登录。"
-    errors = list(error.errors.values()) if isinstance(error, paramiko.ssh_exception.NoValidConnectionsError) else [error]
+    from .ssh_connect_control import access_denied, connection_errors
+    if evidence.get('tcp_connected') is not True and access_denied(error):
+        return '本机拒绝了本次网络连接，尚未进入 SSH 认证。请检查本机 IP 安全策略、防火墙或安全软件的连接限制；仅凭此错误不能确定具体原因，也不能判断密码是否正确。'
+    errors = connection_errors(error)
     if errors and all(isinstance(item, ConnectionRefusedError) for item in errors):
         return f"目标明确拒绝了 {port} 端口连接。请确认 SSH 服务已开启且端口正确；未进入密码验证。"
     if evidence.get("tcp_connected") is True:

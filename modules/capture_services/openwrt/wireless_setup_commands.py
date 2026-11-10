@@ -307,34 +307,42 @@ local function stage()
  if req.save_only~=true then unchanged=apply_staged() end
  return {section=section,network=network,expected_mac=expected_mac,unchanged=unchanged}
 end
+local function saved_fail(field,actual,expected)
+ error({code="unconfirmed",verification=field,actual_type=type(actual),expected_type=type(expected)},0)
+end
 local function saved_status()
  local c=clean();local before=revision();local v=req.values or {};local opts=v.options or {}
  local row=c:get_all("wireless",req.section)
- if not row or row.mode~=v.mode or row.device~=v.radio or row.ssid~=v.ssid or row.disabled~=(req.save_only==true and "1" or "0") then fail("unconfirmed") end
- if v.password~="" and row.key~=v.password then fail("unconfirmed") end
+ if not row then saved_fail("iface.exists",row,{}) end
+ if row.mode~=v.mode then saved_fail("iface.mode",row.mode,v.mode) end
+ if row.device~=v.radio then saved_fail("iface.device",row.device,v.radio) end
+ if row.ssid~=v.ssid then saved_fail("iface.ssid",row.ssid,v.ssid) end
+ if row.disabled~=(req.save_only==true and "1" or "0") then saved_fail("iface.disabled",row.disabled,req.save_only==true and "1" or "0") end
+ if v.password~="" and row.key~=v.password then saved_fail("iface.key",row.key,v.password) end
  local keys=v.mode=="ap" and {"macaddr","encryption","hidden","isolate","maxassoc","wmm","ieee80211w","dtim_period",__IFACE_KEYS__} or {"encryption","bssid"}
  for _,key in ipairs(keys) do
-  if opts[key]~=nil and not (key=="bssid" and opts[key]=="") and key~="maclist" and row[key]~=opts[key] then fail("unconfirmed") end
+  if opts[key]~=nil and not (key=="bssid" and opts[key]=="") and key~="maclist" and row[key]~=opts[key] then saved_fail("iface."..key,row[key],opts[key]) end
  end
  if v.mode=="ap" then
-  if opts.network and row.network~=opts.network then fail("unconfirmed") end
+  if opts.network and row.network~=opts.network then saved_fail("iface.network",row.network,opts.network or req.network) end
   if opts.maclist then
    local wanted={};for address in opts.maclist:gmatch("%S+") do wanted[#wanted+1]=address:lower() end
    local actual=type(row.maclist)=="table" and row.maclist or {row.maclist}
-   if #wanted~=#actual then fail("unconfirmed") end
-   for i,address in ipairs(wanted) do if type(actual[i])~="string" or actual[i]:lower()~=address then fail("unconfirmed") end end
+   if #wanted~=#actual then saved_fail("iface.maclist",row.maclist,{}) end
+   for i,address in ipairs(wanted) do if type(actual[i])~="string" or actual[i]:lower()~=address then saved_fail("iface.maclist",row.maclist,{}) end end
   end
  end
  if v.mode=="sta" then
   local shared_station=identity_shared_edit(c,row,req.section,opts)
-  if row.description~=v.label or row.network~=req.network then fail("unconfirmed") end
-  if opts.bssid=="" and row.bssid then fail("unconfirmed") end
-  if req.expected_mac and row.macaddr~=req.expected_mac then fail("unconfirmed") end
-  if opts.identity_action=="default" and row.macaddr then fail("unconfirmed") end
-  if opts.hostname and c:get("network",req.network,"hostname")~=opts.hostname then fail("unconfirmed") end
+  if row.description~=v.label then saved_fail("iface.description",row.description,v.label) end
+  if row.network~=req.network then saved_fail("iface.network",row.network,req.network) end
+  if opts.bssid=="" and row.bssid then saved_fail("iface.bssid",row.bssid,nil) end
+  if req.expected_mac and row.macaddr~=req.expected_mac then saved_fail("iface.macaddr",row.macaddr,req.expected_mac or opts.macaddr) end
+  if opts.identity_action=="default" and row.macaddr then saved_fail("iface.macaddr",row.macaddr,nil) end
+  if opts.hostname and c:get("network",req.network,"hostname")~=opts.hostname then saved_fail("network.hostname",c:get("network",req.network,"hostname"),opts.hostname) end
   if opts.bridge_mode~="wds" then
    for _,key in ipairs({"proto","ipaddr","netmask","gateway","metric"}) do
-    if opts[key]~=nil and c:get("network",req.network,key)~=opts[key] then fail("unconfirmed") end
+    if opts[key]~=nil and c:get("network",req.network,key)~=opts[key] then saved_fail("network."..key,c:get("network",req.network,key),opts[key]) end
    end
 
    local member,invalid=false,false
@@ -350,24 +358,24 @@ local function saved_status()
      end
     end
    end)
-   if not member or invalid then fail("unconfirmed") end
+   if not member or invalid then saved_fail("firewall.zone",member,true) end
    if opts.dns~=nil and not shared_station then
     local net=c:get_all("network",req.network) or {}
-    if net.peerdns~=(opts.dns=="" and "1" or "0") then fail("unconfirmed") end
+    if net.peerdns~=(opts.dns=="" and "1" or "0") then saved_fail("network.peerdns",net.peerdns,opts.dns=="" and "1" or "0") end
     local wanted,actual={},{}
     for address in opts.dns:gmatch("%S+") do wanted[#wanted+1]=address end
     if type(net.dns)=="table" then actual=net.dns
     elseif type(net.dns)=="string" then
      for address in net.dns:gmatch("%S+") do actual[#actual+1]=address end
-    elseif net.dns~=nil then fail("unconfirmed") end
-    if #wanted==0 and net.dns~=nil then fail("unconfirmed") end
-    if #wanted~=#actual then fail("unconfirmed") end
-    for i,address in ipairs(wanted) do if actual[i]~=address then fail("unconfirmed") end end
+    elseif net.dns~=nil then saved_fail("network.dns",net.dns,{}) end
+    if #wanted==0 and net.dns~=nil then saved_fail("network.dns",net.dns,{}) end
+    if #wanted~=#actual then saved_fail("network.dns",net.dns,{}) end
+    for i,address in ipairs(wanted) do if actual[i]~=address then saved_fail("network.dns",net.dns,{}) end end
    end
   end
  end
  for _,key in ipairs({"channel","htmode","country","txpower",__RADIO_KEYS__}) do
-  if opts[key]~=nil and c:get("wireless",v.radio,key)~=opts[key] then fail("unconfirmed") end
+  if opts[key]~=nil and c:get("wireless",v.radio,key)~=opts[key] then saved_fail("radio."..key,c:get("wireless",v.radio,key),opts[key]) end
  end
  clean()
  if before~=revision() then fail("changed") end
@@ -478,7 +486,7 @@ end
 local ok,result=pcall(run)
 bus:close()
 if ok then io.write(json.stringify({ok=true,result=result}))
-else io.write(json.stringify({ok=false,code=type(result)=="table" and result.code or "internal"})) end
+else io.write(json.stringify({ok=false,code=type(result)=="table" and result.code or "internal",verification=type(result)=="table" and result.verification or nil,actual_type=type(result)=="table" and result.actual_type or nil,expected_type=type(result)=="table" and result.expected_type or nil})) end
 '''
 
 BOOT = BOOT.replace("__CHECKED_APPLY__", CHECKED_APPLY).replace("__CHECKED_ACTIONS__", CHECKED_ACTIONS).replace("__CAPABILITIES__", NETIFD_BOOL_LUA + CAPABILITIES_LUA).replace("__DEVICE_OPTIONS__", ",".join(json.dumps(k) for k in RADIO_SETTINGS)).replace("__INTERFACE_OPTIONS__", ",".join(json.dumps(k) for k in IFACE_SETTINGS)).replace("__SCAN__", SCAN).replace("__ORPHANS__", ORPHANS).replace("__RELOCATION__", RELOCATION).replace("__PENDING__", PENDING).replace("__WIRELESS_RUNTIME__", WIRELESS_RUNTIME).replace("__SAVE_ONLY__", SAVE_ONLY).replace("__COMMON_SETTINGS__", COMMON_SETTINGS).replace("__IDENTITY__", IDENTITY).replace("__BRIDGE_HELPERS__", BRIDGE).replace("__BRIDGE_STATUS__", STATUS).replace("__BRIDGE_TOGGLE__", TOGGLE).replace("__DELETE__", DELETE).replace("__IFACE_KEYS__", ",".join(json.dumps(k) for k in IFACE_KEYS)).replace("__RADIO_KEYS__", ",".join(json.dumps(k) for k in RADIO_KEYS))
@@ -512,5 +520,7 @@ def wireless_command(action, lua_bin="lua", **values):
     """JSON 与 shell 双层隔离请求；长脚本由公共执行器经标准输入传输。"""
     if lua_bin not in _LUA_BINS:
         raise ValueError("不支持的 Lua 解释器。")
+    import secrets
+    values.setdefault("save_nonce", secrets.token_hex(16))
     payload = json.dumps(dict(action=action, **values), ensure_ascii=True)
     return lua_bin + " - " + quote_argument(payload) + " <<'WINBOX_WIRELESS_SETUP'\n" + BOOT + "\nWINBOX_WIRELESS_SETUP"

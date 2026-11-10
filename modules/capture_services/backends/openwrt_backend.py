@@ -1,3 +1,4 @@
+from modules.capture_services.openwrt.capture_live_logs import with_capture_logs
 from modules.capture_services.openwrt.radio_diagnostics import record_scan_selection, record_takeover_probe
 from modules.capture_services.openwrt.password_verification import dictionary_paths
 """OpenWrt 远程抓包后端骨架。"""
@@ -270,6 +271,37 @@ def _emit_wps_message(message_callback, entry, mask_ssid=False, mask_bssid=False
     message_callback(f"{name}：{text}", level)
 
 
+def _remember_wps_pin(outcome, message_callback=None, pin_callback=None):
+    """Persist a PIN-only WPS result and hand the PIN to the main thread.
+
+    The PIN never enters messages or snapshots; the popup payload is the only
+    channel that carries it, and credential failures never abort the task.
+    """
+
+    if not (outcome.pin_ok and not outcome.psk_ok and outcome.pin):
+        return outcome
+    try:
+        from modules.capture_services.openwrt.wps_remembered_pin import write_pin
+        write_pin(outcome.bssid, outcome.pin)
+        outcome = replace(outcome, pin_saved=True)
+        if message_callback is not None:
+            message_callback("PIN 已保存到本机凭据库，下次会优先尝试。", "info")
+    except Exception as exc:
+        if message_callback is not None:
+            message_callback(
+                f"PIN 已找到，但本机凭据库保存失败：{exc}。请先手动保存。",
+                "warning")
+    if pin_callback is not None:
+        pin_callback({
+            "ssid": outcome.ssid,
+            "bssid": outcome.bssid,
+            "pin": outcome.pin,
+            "saved": outcome.pin_saved,
+            "note": outcome.note,
+        })
+    return outcome
+
+
 def _fail_with_site(exc, workspace):
     """把本地会话现场目录附到失败信息中；该目录失败时保留、成功时清理。"""
     try:
@@ -435,7 +467,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         )
         return self.set_access_points(points)
 
-    def connect(self, settings, password, expected_fingerprint="", cancel_event=None, progress_callback=None):
+    def connect(self, settings, password, expected_fingerprint="", cancel_event=None, progress_callback=None, network_repair=None):
         """建立 SSH，随后执行设备、SFTP 和依赖只读探测。
 
         参数：settings 是标准化 OpenWrt 配置；password 仅用于本次认证；expected_fingerprint
@@ -451,6 +483,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         )
         if cancel_event is not None and cancel_event.is_set():
             raise RuntimeError("OpenWrt 登录已取消。")
+        network_options = {'network_repair': network_repair} if network_repair is not None else {}
         try:
             key_info = self.ssh_client.connect(
                 password=password,
@@ -459,6 +492,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 auth_method=settings.get("auth_method", "password"),
                 private_key_path=settings.get("private_key_path", ""),
                 cancel_event=cancel_event,
+                **network_options,
             )
         except HostKeyConfirmationRequired as exc:
             return OpenWrtConnectionResult(
@@ -477,18 +511,26 @@ class OpenWrtCaptureBackend(CaptureBackend):
             )
         self.command_runner.radio_diagnostics.bind_connection(key_info.fingerprint)
         self.command_runner.operation_diagnostics.bind_connection(key_info.fingerprint)
+        from ..openwrt.router_health_evidence import collect_connection
+        collect_connection(self.command_runner, cancel_event)
         if progress_callback is not None:
             try:
                 progress_callback("正在读取路由器信息...")
             except Exception:
                 pass
         try:
-            from ..openwrt.password_recovery import recover_pending
-            password_recovered = recover_pending(self.password_recovery_store, self.command_runner,
-                                                 key_info.fingerprint, cancel_event, progress_callback=progress_callback)
-            recovery_note = self.reconnect_cleanup.recover(key_info.fingerprint, cancel_event)
-            from ..openwrt.monitor_residuals import login_monitor_cleanup
-            recovery_note += login_monitor_cleanup(self, cancel_event)
+            from ..openwrt.password_recovery_admission import prepare_login
+            password_recovered, recovery_warning = prepare_login(
+                self, key_info.fingerprint, cancel_event, progress_callback)
+            recovery_note = recovery_warning
+            if not recovery_warning:
+                recovery_note, cleanup_deferred = self.reconnect_cleanup.recover_for_login(
+                    key_info.fingerprint, cancel_event)
+                if cleanup_deferred:
+                    recovery_warning = recovery_note
+                else:
+                    from ..openwrt.monitor_residuals import login_monitor_cleanup
+                    recovery_note += login_monitor_cleanup(self, cancel_event)
             if password_recovered:
                 recovery_note += "\u4e0a\u6b21\u5bc6\u7801\u9a8c\u8bc1\u7684\u4e34\u65f6\u914d\u7f6e\u5df2\u81ea\u52a8\u6062\u590d\u5e76\u6838\u5b9e\u6e05\u7406\u3002"
             device = self.device_probe.probe(cancel_event)
@@ -514,16 +556,17 @@ class OpenWrtCaptureBackend(CaptureBackend):
             detail = "OpenWrt SSH 登录和设备探测完成."
             if recovery_note:
                 detail += recovery_note
-            reaped_procs = self.process_manager.reap_stale_processes(
-                cancel_event, force_sids=self._finished_sessions)
-            if reaped_procs > 0:
-                detail += f"另停止了{reaped_procs}个残留抓包进程。"
-            residual_note = self._recycle_remote_residuals(cancel_event)
-            if residual_note:
-                detail += residual_note
-            recover_note = self._recover_crashed_takeovers(cancel_event)
-            if recover_note:
-                detail += recover_note
+            if not recovery_warning:
+                reaped_procs = self.process_manager.reap_stale_processes(
+                    cancel_event, force_sids=self._finished_sessions)
+                if reaped_procs > 0:
+                    detail += f"另停止了{reaped_procs}个残留抓包进程。"
+                residual_note = self._recycle_remote_residuals(cancel_event)
+                if residual_note:
+                    detail += residual_note
+                recover_note = self._recover_crashed_takeovers(cancel_event)
+                if recover_note:
+                    detail += recover_note
             if cancel_event is not None and cancel_event.is_set():
                 raise InterruptedError("SSH login cancelled")
             return OpenWrtConnectionResult(
@@ -852,6 +895,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         finally:
             self._finish_capture_task(workspace, primary_error)
 
+    @with_capture_logs
     def capture_pmkid(
         self,
         session_id,
@@ -1000,6 +1044,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 return safe_result_stem(only, first)
         return f"pmkid-{band}-{str(session_id)[:8]}"
 
+    @with_capture_logs
     def capture_handshake_passive(
         self,
         session_id,
@@ -1221,6 +1266,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         cancel_event=None,
         progress_callback=None,
         message_callback=None,
+        pin_callback=None,
     ):
         """对多个已扫描目标逐个跑 Pin，返回结局元组。
 
@@ -1319,6 +1365,18 @@ class OpenWrtCaptureBackend(CaptureBackend):
                     if options.get("rotate_mac_each_pin"):
                         from modules.capture_services.openwrt.wps_options import random_source_mac
                         target_options = dict(options, spoof_mac=random_source_mac())
+                    try:
+                        from modules.capture_services.openwrt.wps_remembered_pin import read_pin
+                        remembered_pin = read_pin(target.bssid)
+                    except Exception as exc:
+                        remembered_pin = ""
+                        if message_callback is not None:
+                            message_callback(
+                                f"读取本机记住的 PIN 失败：{exc}；本次仍会正常尝试。", "warning")
+                    if remembered_pin:
+                        target_options = dict(target_options, remembered_pin=remembered_pin)
+                        if message_callback is not None:
+                            message_callback("已读取本机记住的 PIN，将优先验证。", "info")
                     source_verified = ensure_wps_source(self.command_runner, record, target_options, cancel_event)
                     if message_callback is not None and source_verified:
                         message_callback("Pin \u4f2a\u88c5 MAC \u5df2\u8bbe\u7f6e\u5230\u4e34\u65f6\u63a5\u53e3\u5e76\u8bfb\u56de\u6838\u5b9e\u3002", "info")
@@ -1368,7 +1426,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                         session_id,
                         (target,),
                         mode,
-                        options,
+                        target_options,
                         Path(local_root),
                         self.workspace_manager,
                         cancel_event,
@@ -1395,6 +1453,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                         outcome,
                         note="；".join(filter(None, [outcome.note] + errors)),
                     )
+                outcome = _remember_wps_pin(outcome, message_callback, pin_callback)
                 results.append(outcome)
                 _emit_wps_message(message_callback, outcome, mask_ssid=_mask_on(settings, "ssid"),
                       mask_bssid=_mask_on(settings, "bssid"))
@@ -1406,6 +1465,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         finally:
             self._finish_capture_task(workspace, primary_error, None, message_callback)
 
+    @with_capture_logs
     def capture_handshakes_passive(
         self,
         session_id,
@@ -1939,6 +1999,9 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 except Exception:
                     pass
 
+        if primary_error is not None:
+            from ..openwrt.router_health_evidence import collect_capture
+            collect_capture(self.command_runner, 'capture_failure', self.shutdown_event, failed=True)
         _say("正在清理路由器临时资源…")
         journal = self.command_runner.operation_diagnostics
         journal.record("cleanup", operation="restore_wireless", status="started",

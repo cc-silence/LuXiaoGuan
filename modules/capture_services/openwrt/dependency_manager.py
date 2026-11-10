@@ -560,7 +560,12 @@ class OpenWrtDependencyManager:
                     profile, parse_installed(installed_text),
                     cache_dir or default_cache_dir(), cancel_event=cancel_event,
                     wanted=tuple(wanted), message=tell,
-                    version_check=lambda a, op, b: compare_opkg_versions(self.command_runner, a, op, b, cancel_event))
+                    version_check=lambda a, op, b: compare_opkg_versions(self.command_runner, a, op, b, cancel_event),
+                    target=getattr(device,'target',''),
+                    kernel_probe=lambda: self._execute_stage('dependency_running_kernel','uname -r',
+                        10,cancel_event,'\u6838\u5bf9\u8fd0\u884c\u4e2d\u5185\u6838').strip())
+            except SignalError:
+                raise
             except ValueError as exc:
                 raise SignalError("environment", str(exc)) from None
             except RuntimeError as exc:

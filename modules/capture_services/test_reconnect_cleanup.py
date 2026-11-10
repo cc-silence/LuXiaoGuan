@@ -153,15 +153,19 @@ class ReconnectCleanupTests(unittest.TestCase):
         b.ssh_client.open_sftp.assert_called_once_with(timeout=10, cancel_event=None)
         self.assertIn("清理完成",result.detail)
 
-    def test_login_cleanup_failure_closes_new_connection_without_losing_pending(self):
+    def test_login_cleanup_failure_keeps_authenticated_connection_and_pending(self):
         b=self.backend;self._set_ssh_client(Mock(connected=True))
         b.ssh_client.connect.return_value=SimpleNamespace(fingerprint="device-A",key_type="fixture")
-        b.device_probe.probe=Mock()
+        b.device_probe.probe=Mock(return_value=OpenWrtDeviceInfo())
+        b.dependency_manager.check=Mock(return_value=())
         b.workspace_manager.cleanup_remote.return_value=False
-        with self.assertRaises(RuntimeError):b.connect({"host":"router.example","user":"root","port":22},"mock-password")
-        b.ssh_client.close.assert_called_once()
-        b.device_probe.probe.assert_not_called()
-        b.ssh_client.open_sftp.assert_not_called()
+        b.process_manager.reap_stale_processes=Mock(return_value=0)
+        with patch("modules.capture_services.openwrt.tool_catalog.check_tools",return_value=()):
+            result=b.connect({"host":"router.example","user":"root","port":22},"mock-password")
+        self.assertEqual(result.status,"connected")
+        b.ssh_client.close.assert_not_called()
+        b.device_probe.probe.assert_called_once()
+        b.process_manager.reap_stale_processes.assert_not_called()
         self.assertIsNotNone(b.reconnect_cleanup.pending)
 
     def test_recovery_budget_stops_before_further_cleanup(self):

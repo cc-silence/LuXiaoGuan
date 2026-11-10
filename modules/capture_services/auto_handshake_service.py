@@ -53,6 +53,8 @@ class AutoHandshakeService(QObject):
     def _require_ready(self, settings=None):
         """只读主线程准入；不探测设备，不等待外部程序。"""
         owner = self.owner
+        from .openwrt.password_recovery_admission import require_ready
+        require_ready(owner.openwrt_backend)
         snapshot = owner.openwrt_snapshot
         if owner._shutting_down or owner.task_controller.busy:
             raise ValueError("已有任务运行或正在退出，请等待结束后再开始自动抓包。")

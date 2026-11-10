@@ -17,7 +17,10 @@ class RouterConnectionState(QObject):
         reference=weakref.ref(self)
         def callback(client):
             observer=reference()
-            if observer is not None and isValid(observer):observer.connectionLost.emit(client)
+            if observer is not None and isValid(observer):
+                if observer.ssh._client is None and not observer.ssh.connected:
+                    observer.owner.openwrt_backend.command_runner.operation_diagnostics.health_disconnected()
+                observer.connectionLost.emit(client)
         self.ssh.connection_lost_callback=callback
 
     @Slot(object)

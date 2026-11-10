@@ -53,6 +53,7 @@ class CaptureService(QObject):
     verifiedHistoryChanged = Signal(object)
     taskFinishedNotice = Signal(str, str)
     passwordFound = Signal(object)
+    wpsPinFound = Signal(object)
     takeoverProbeFinished = Signal(str, object, str, bool)
 
     def __init__(self, parent=None):
@@ -1378,6 +1379,7 @@ class CaptureService(QObject):
                 event,
                 progress,
                 message,
+                pin_callback=lambda payload: self.wpsPinFound.emit(payload),
             ),
             cancel_event,
             self._on_openwrt_wps_succeeded,
@@ -2185,6 +2187,9 @@ class CaptureService(QObject):
             write_generic_password,
         )
 
+        reset_credentials = getattr(getattr(self, "router_management", None), "factory_credentials", None)
+        if bool(settings.get("remember_password", False)) and reset_credentials is not None and reset_credentials.is_pending(settings) is True:
+            raise OSError("旧密码正在清理，请稍后再保存新密码或登录。")
         target = self._openwrt_credential_target(settings)
         if bool(settings.get("remember_password", False)) and self._openwrt_password:
             write_generic_password(target, settings.get("user", "root"), self._openwrt_password)
@@ -2223,7 +2228,7 @@ class CaptureService(QObject):
         shutdown_event=getattr(self.openwrt_backend,"shutdown_event",None)
         if shutdown_event is not None:
             shutdown_event.set()
-        for attribute in ("common_bundle_download", "capture_bundle_download", "common_bundle_export", "capture_bundle_export"):
+        for attribute in ("common_bundle_download", "capture_bundle_download", "common_bundle_export", "capture_bundle_export", "dependency_backup"):
             bundle = getattr(self, attribute, None)
             if bundle is not None:
                 bundle.cancel()

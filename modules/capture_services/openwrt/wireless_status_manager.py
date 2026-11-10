@@ -7,6 +7,7 @@ from .command_runner import require_command_completion
 from .signal_manager import SignalError
 from .signal_commands import _LUA_BINS
 from .wireless_status_commands import status_command
+from .station_connection import enrich
 from .wireless_status_models import InternetStatus, measured_status, parse_wireless_status, internet_status_recent
 from .uplink_connectivity import HTTPS_TARGETS, PORTAL_TARGET, probe_command, probe_evidence, summarize_evidence
 
@@ -36,7 +37,7 @@ class WirelessStatusManager:
                 if not isinstance(data, dict):
                     raise ValueError()
                 if data.get('ok') is True:
-                    return parse_wireless_status(data['result'])
+                    return parse_wireless_status(enrich(data['result'],self.runner,cancel))
                 code = data.get('code', 'unsupported')
             except (ValueError, TypeError, KeyError):
                 raise SignalError('internal', '\u65e0\u7ebf\u72b6\u6001\u6570\u636e\u4e0d\u5b8c\u6574\uff0c\u8bf7\u91cd\u8bd5\u3002') from None
@@ -61,10 +62,10 @@ class WirelessStatusManager:
         for row in uplinks:
             if cancel.is_set():
                 raise SignalError('cancelled', '\u65e0\u7ebf\u72b6\u6001\u68c0\u6d4b\u5df2\u53d6\u6d88\u3002')
-            if not row.association_known:
+            if row.connection_state in {'unknown','connecting'} or not row.association_known:
                 internet[row.interface] = InternetStatus(reason='association_unknown', checked_at=checked_at)
                 continue
-            if not row.associated:
+            if row.connection_state!='connected' or not row.associated:
                 internet[row.interface] = InternetStatus('disconnected', 'wifi_disconnected', checked_at)
                 continue
             if not row.probe_interface or not row.source_ips:

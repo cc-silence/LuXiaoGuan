@@ -21,7 +21,9 @@ def install_with_sources(local, online, computer, tell):
             tell("路由器在线安装未完成，已停止：" + str(exc), "error")
             raise
         online_error = exc
-        tell("路由器联网路线失败：" + str(exc), "warning")
+        skipped=getattr(exc,'route_skipped',False) is True
+        label='\u5df2\u6309\u4ee3\u7406\u8bbe\u7f6e\u8df3\u8fc7\u8def\u7531\u5668\u76f4\u8fde\u5b89\u88c5\uff1a' if skipped else '\u8def\u7531\u5668\u8054\u7f51\u8def\u7ebf\u5931\u8d25\uff1a'
+        tell(label+str(exc),'info' if skipped else 'warning')
     tell(("安装路线 3/3：" if local is not None else "联网路线 2/2：") + "改由当前电脑下载和校验缺少的依赖，再传到路由器安装。", "warning")
     try:
         computer()
@@ -29,8 +31,10 @@ def install_with_sources(local, online, computer, tell):
         diagnostic = _failed_routes_diagnostic(online_error, exc)
         # Keep cancellation and non-SignalError semantics for existing callers.
         if isinstance(exc, SignalError) and exc.code != "cancelled":
-            failure = SignalError(exc.code, "路由器联网安装失败：" + str(online_error)
-                                  + "\n电脑下载转装失败：" + str(exc))
+            label=('\u8def\u7531\u5668\u76f4\u8fde\u5b89\u88c5\u5df2\u6309\u4ee3\u7406\u8bbe\u7f6e\u8df3\u8fc7\uff1a'
+                if getattr(online_error,'route_skipped',False) is True else '\u8def\u7531\u5668\u8054\u7f51\u5b89\u88c5\u5931\u8d25\uff1a')
+            failure = SignalError(exc.code,label+str(online_error)
+                                  + '\n\u7535\u8111\u4e0b\u8f7d\u8f6c\u88c5\u5931\u8d25\uff1a'+str(exc))
             failure.package_diagnostic = diagnostic
             raise failure from exc
         exc.package_diagnostic = diagnostic
@@ -61,6 +65,7 @@ def _failed_routes_diagnostic(online_error, computer_error):
     parts = []
     for label, error in (("router_online", online_error), ("computer_download", computer_error)):
         detail = getattr(error, "package_diagnostic", "") or str(error)
+        if getattr(error,'route_skipped',False) is True:label+='_skipped'
         parts.append(label + "\n" + str(detail)[-8192:])
     return sanitized_text("\n\n".join(parts), Masker())
 

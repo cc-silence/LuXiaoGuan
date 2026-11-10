@@ -25,6 +25,7 @@ class ManagementReadiness(QObject):
         self._dependency_action=None
         self.install_session=None
         self._dependency_session=None
+        self._dependency_key=None
         self._requested.connect(self._start,Qt.QueuedConnection)
         self.owner.openwrtSnapshotChanged.connect(self._connection_changed)
         self.owner.task_controller.stateChanged.connect(self._task_changed)
@@ -66,6 +67,11 @@ class ManagementReadiness(QObject):
         if state in ('idle','failed') and self.pending:self._requested.emit()
 
     def _connection_changed(self,*args):
+        snapshot = self.owner.openwrt_backend.snapshot
+        dependency = next((row for row in getattr(snapshot, "dependencies", ()) if row.key == "signal"), None)
+        key = (dependency.state.value, tuple(dependency.missing_packages)) if dependency is not None else None
+        changed = key != self._dependency_key
+        self._dependency_key = key
         current=self.binding()
         if current!=self.connection:
             self.connection=current
@@ -77,6 +83,13 @@ class ManagementReadiness(QObject):
             self.service.dependencies_missing=False
             self.service.snapshotChanged.emit(self.service.snapshot)
             self.changed.emit()
+        elif changed and current is not None and (self.probe is not None or self.error or self.pending or self.checking):
+            self.probe = None
+            self.error = ''
+            self.pending = True
+            self._announced = False
+            self.changed.emit()
+            self._requested.emit()
 
     def request(self):
         self._connection_changed()

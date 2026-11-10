@@ -175,9 +175,18 @@ class LoginDiagnostics:
             elif isinstance(exc, FileNotFoundError) and getattr(self._local, 'row', {}).get('auth_method') == 'private_key':
                 fields.update(stage='configuration', reason='key_file_unavailable')
             elif isinstance(exc, paramiko.ssh_exception.NoValidConnectionsError):
-                errors = list(exc.errors.values())
-                fields.update(reason='connection_refused'
+                from .ssh_connect_control import connection_errors, access_denied
+                errors = connection_errors(exc)
+                denied = access_denied(exc)
+                windows_denied = denied and any(getattr(item, 'winerror', None) == 10013
+                                                or item.errno == 10013 for item in errors)
+                fields.update(reason='windows_access_denied' if windows_denied else 'connection_refused'
                               if errors and all(isinstance(e, ConnectionRefusedError) for e in errors) else 'connection_error')
+                if denied:
+                    for key in ('errno', 'winerror'):
+                        codes = {getattr(item, key, None) for item in errors}
+                        if len(codes) == 1 and type(next(iter(codes))) is int:
+                            fields[key] = next(iter(codes))
             elif isinstance(exc, OSError):
                 reason = ('authentication_interrupted' if fields['stage'] == 'authentication'
                           and isinstance(exc, ConnectionError) else
@@ -212,13 +221,14 @@ class LoginDiagnostics:
 
 def record_login(operation):
     @wraps(operation)
-    def wrapped(self, password='', expected_fingerprint='', timeout=15, auth_method='password', private_key_path='', cancel_event=None):
+    def wrapped(self, password='', expected_fingerprint='', timeout=15, auth_method='password', private_key_path='', cancel_event=None, network_repair=None):
         journal = self.login_diagnostics
         reused = self.connected
         journal.begin(self, password, timeout, auth_method, private_key_path)
         started = time.monotonic()
         try:
-            result = operation(self, password, expected_fingerprint, timeout, auth_method, private_key_path, cancel_event=cancel_event)
+            network_options = {'network_repair': network_repair} if network_repair is not None else {}
+            result = operation(self, password, expected_fingerprint, timeout, auth_method, private_key_path, cancel_event=cancel_event, **network_options)
         except Exception as exc:
             journal.finish(time.monotonic() - started, exc)
             raise

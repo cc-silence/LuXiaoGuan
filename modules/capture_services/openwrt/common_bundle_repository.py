@@ -179,6 +179,11 @@ class CommonBundleRepository:
         shutil.copyfile(source, target)
         return target
 
+    def package_row(self, profile, name, version):
+        """Resolve only an exact package version from this authenticated profile."""
+        return next((row for row in profile['packages']
+                     if row['name'] == name and row['version'] == version), None)
+
     def ipk_selection(self, profile, wanted, installed, version_check=None):
         """\u5229\u7528\u672c\u5730\u5143\u6570\u636e\u8ba1\u7b97\u7f3a\u5931\u4f9d\u8d56\uff0c\u4e0d\u8054\u7f51\u4e5f\u4e0d\u66ff\u6362\u5df2\u88c5\u7ec4\u4ef6\u3002"""
         from .signal_package_feed import FeedPackage

@@ -162,6 +162,12 @@ def factory_reset_plan(inventory,defaults=None):
         guide='未找到可自动获取地址的网卡。请等路由器重启后，在系统网络设置中重新连接；手动 IP 需自行调整到默认地址所在网段。'
     plan=dict(guide=guide,adapters=selected,selection_required=len(routed)!=1)
     if defaults is not None:
+        try:
+            if defaults.get('address') and defaults.get('netmask'):
+                target = ipaddress.IPv4Interface(defaults['address'] + '/' + defaults['netmask'])
+                plan['new_addresses'] = [str(target)]
+        except (ValueError, TypeError):
+            pass
         from .factory_client_recovery import add_static_recovery
         plan=add_static_recovery(plan,inventory,defaults)
     return plan

@@ -1,10 +1,12 @@
-"""Local, prefix-matched default PIN candidates; candidates are not successes."""
+"""Local default-PIN candidates; candidates are not successes."""
 from functools import lru_cache
 from dataclasses import dataclass
 from .command_builder import normalize_bssid
 
 MAX_CANDIDATES = 8
-QUICK_TARGET_SECONDS = 15
+MAX_FALLBACK_CANDIDATES = 17
+DEFAULT_QUICK_SECONDS = 60
+DEFAULT_QUICK_ROUNDS = 1
 
 
 @dataclass(frozen=True)
@@ -26,27 +28,45 @@ def _generator():
     return WPSpin()
 
 
-def default_pin_candidates(bssid, options=None):
-    """Use matched vendor profiles only; never try all algorithms or brute force."""
-    address = normalize_bssid(bssid)
-    partial = validate_quick_options(options)
-    if partial:
-        return (DefaultPinCandidate(partial, "手动指定"),)
+def _ordered_candidates(entries, limit):
+    """Put the common pin24 formula first, then keep the vendor order."""
     result = []
     seen = set()
-    for entry in _generator().getSuggested(address):
-        pin = entry["pin"]
-        if pin and pin not in seen and pin.isascii() and pin.isdigit() and len(pin) == 8:
-            seen.add(pin)
-            result.append(DefaultPinCandidate(pin, entry["name"]))
-        if len(result) == MAX_CANDIDATES:
+    ordered = sorted(entries, key=lambda item: 0 if item.get("id") == "pin24" else 1)
+    for entry in ordered:
+        pin = entry.get("pin")
+        if not (pin and pin.isascii() and pin.isdigit() and len(pin) == 8):
+            continue
+        if pin in seen:
+            continue
+        seen.add(pin)
+        result.append(DefaultPinCandidate(pin, entry.get("name", "")))
+        if len(result) >= limit:
             break
     return tuple(result)
 
 
+def default_pin_candidates(bssid, options=None):
+    """Known OUI: matched formulas only; unknown OUI: all MAC formulas once."""
+    address = normalize_bssid(bssid)
+    partial = validate_quick_options(options)
+    if partial:
+        # 用户已给出完整 PIN 时只验证它，不再喷洒自动公式。
+        return (DefaultPinCandidate(partial, "手动指定"),)
+    suggested = _generator().getSuggested(address)
+    if suggested:
+        entries, limit = suggested, MAX_CANDIDATES
+    else:
+        entries = [entry for entry in _generator().getAll(address, get_static=False)
+                   if entry.get("pin")]
+        limit = MAX_FALLBACK_CANDIDATES
+    return _ordered_candidates(entries, limit)
+
+
 def wps_mode_description(mode):
     if mode == "second":
-        return f"默认 PIN 速测：本地匹配厂商算法，无匹配立即跳过；匹配后仅验证少量候选，每个目标验证预算 {QUICK_TARGET_SECONDS} 秒（另需接口准备和清理），不进入穷举。"
+        return (f"默认 PIN 速测：先试 pin24，再试一次离线 Pin，最后按厂商公式补试；"
+                f"每个候选默认 {DEFAULT_QUICK_SECONDS} 秒，可设轮数；不进入穷举。")
     if mode == "offline":
         return "离线 Pin 使用 Pixie Dust，需要先与目标交换 WPS 数据；仅对存在相应弱点的设备有效，不保证成功。"
     return "逐个尝试 Pin 可能耗时较长（分钟到小时级）。"

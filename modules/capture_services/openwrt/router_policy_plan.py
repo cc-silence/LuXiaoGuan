@@ -145,7 +145,16 @@ class Builder:
                     raise ValueError("路由器返回的路由地址或前缀无效，无法核对登录地址冲突，未修改。") from None
                 if route_network.version==4 and route_network.prefixlen and net.overlaps(route_network):
                     raise ValueError("\u65b0\u767b\u5f55\u5730\u5740\u4e0e\u5f53\u524d\u5176\u4ed6\u7f51\u7edc\u8def\u7ebf\u51b2\u7a81\uff0c\u8bf7\u6362\u4e00\u4e2a\u7f51\u6bb5\u3002")
-        if isinstance(lan.get("ipaddr"),list) or lan.get("gateway"):raise ValueError("\u5f53\u524d LAN \u662f\u591a\u5730\u5740\u6216\u5e26\u4e0a\u7ea7\u7f51\u5173\u7684\u7279\u6b8a\u914d\u7f6e\uff0c\u8bf7\u5148\u5728 LAN \u8bbe\u7f6e\u4e2d\u6838\u5bf9\u3002")
+        addresses=lan.get("ipaddr")
+        multiple=not addresses or (isinstance(addresses,list) and len(addresses)!=1)
+        if isinstance(addresses,list) and not multiple:
+            value=addresses[0]
+            try:
+                if not isinstance(value,str):raise ValueError()
+                ipaddress.IPv4Interface(value if "/" in value else value+"/"+lan["netmask"])
+            except (ValueError,KeyError,TypeError):
+                raise ValueError("当前 LAN 的 IPv4 地址或子网掩码无效，未修改配置。") from None
+        if multiple or lan.get("gateway"):raise ValueError("\u5f53\u524d LAN \u662f\u591a\u5730\u5740\u6216\u5e26\u4e0a\u7ea7\u7f51\u5173\u7684\u7279\u6b8a\u914d\u7f6e\uff0c\u8bf7\u5148\u5728 LAN \u8bbe\u7f6e\u4e2d\u6838\u5bf9\u3002")
         dhcp=self.s["configs"].get("dhcp",{}).get("lan",{})
         if not shell_bool(dhcp.get("ignore"),default=False):
             try:

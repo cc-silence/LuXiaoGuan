@@ -52,7 +52,7 @@ end
 local configs={}
 local cursor=uci.cursor()
 cursor:foreach('wireless','wifi-iface',function(s)
-    configs[s['.name']]={mode=s.mode,ssid=s.ssid,device=s.device}
+    configs[s['.name']]={mode=s.mode,ssid=s.ssid,device=s.device,bssid=s.bssid}
 end)
 local runtime=call('network.wireless','status')
 if not runtime then io.write(json.stringify({ok=false,code='unsupported'})); bus:close(); return end
@@ -129,7 +129,14 @@ for radio,state in pairs(runtime) do
                     local probe,ips,nroutes='',{},0
                     for dev,addresses in pairs(routes) do probe,ips,nroutes=dev,addresses,nroutes+1 end
                     if nroutes~=1 then probe,ips='',{} end
-                    networks[#networks+1]={interface=device,section=text(iface.section),radio=text(radio),mode=cfg.mode,
+                    local authentication=nil
+                    if cfg.mode=='sta' then
+                        local result=call('wpa_supplicant','bss_info',{iface=device})
+                        if type(result)=='table' then
+                            authentication={wpa_state=text(result.wpa_state),ssid=text(result.ssid),bssid=text(result.bssid)}
+                        end
+                    end
+                    networks[#networks+1]={authentication=authentication,configured_ssid=text(cfg.ssid),configured_bssid=text(cfg.bssid),interface=device,section=text(iface.section),radio=text(radio),mode=cfg.mode,
                         ssid=text(info.ssid or cfg.ssid),bssid=bssid,channel=info.channel,frequency=info.frequency,
                         signal=info.signal,noise=info.noise,associated=associated,association_known=association_known,peers_available=available,peers=peers,
                         probe_interface=probe,source_ips=ips,rx_bytes=counter(device,'rx'),tx_bytes=counter(device,'tx')}

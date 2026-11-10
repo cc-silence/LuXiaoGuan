@@ -130,10 +130,8 @@ class PasswordRecoveryJournal:
 
 
 def recover_pending(store,runner,fingerprint,cancel=None,*,progress_callback=None):
-    try:
-        records=store.records(fingerprint)
-    except (OSError,ValueError,TypeError) as error:
-        raise RuntimeError("\u4e0a\u6b21\u5bc6\u7801\u9a8c\u8bc1\u7684\u6062\u590d\u8bb0\u5f55\u65e0\u6cd5\u6838\u5b9e\uff0c\u672a\u81ea\u52a8\u4fee\u6539\u8def\u7531\u5668\uff1b\u8bb0\u5f55\u5df2\u4fdd\u7559\u3002") from error
+    from .password_recovery_admission import read_records
+    records=read_records(store,fingerprint)
     deadline=time.monotonic()+120
     if records and progress_callback is not None:
         try:

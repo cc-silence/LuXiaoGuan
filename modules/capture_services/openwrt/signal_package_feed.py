@@ -159,6 +159,7 @@ class FeedPackage:
     url: str
     depends: tuple = ()
     provides: tuple = ()
+    conflicts: tuple = ()
 
 
 def is_safe_filename(name):
@@ -236,6 +237,7 @@ def parse_packages_index(text, base_url):
             sha256.lower(), size, base_url.rsplit("/", 1)[0] + "/" + filename,
             tuple(depends),
             tuple(part.strip() for part in fields.get("Provides", "").split(",") if part.strip()),
+            tuple(part.strip() for part in fields.get("Conflicts", "").split(",") if part.strip()),
         )
         for chunk in fields.get("Provides", "").split(","):
             provided = chunk.strip().split(" ")[0].strip()
@@ -252,9 +254,9 @@ def parse_installed(text):
     return parse_package_listing(text, "opkg", allow_names_only=True)
 
 
-def resolve_closure(index, wanted=_WANTED, installed=frozenset(), version_check=None):
+def resolve_closure(index, wanted=_WANTED, installed=frozenset(), version_check=None, *, allowed_kernel=()):
     """核对候选依赖和版本，安装顺序为依赖优先。"""
-    return resolve_packages(index, wanted, installed, version_check)
+    return resolve_packages(index, wanted, installed, version_check, allowed_kernel=allowed_kernel)
 
 
 def _proxy_candidates():
@@ -589,26 +591,36 @@ def fetch_index(profile, fetch=fetch_bytes, cancel_event=None, *, feeds=_FEEDS, 
 
 
 def download_profile_packages(profile, installed, cache_dir, fetch=fetch_bytes,
-                               cancel_event=None, wanted=_WANTED, message=None, version_check=None):
+                               cancel_event=None, wanted=_WANTED, message=None, version_check=None, *, target="", kernel_probe=None):
     """解析缺失闭包并下载验收入缓存；返回依赖优先的本地路径列表。
 
     message 为播报回调 (text, level)；无回调时静默，逻辑不变。
     """
     with download_session(message):
         return _download_profile_packages(profile, installed, cache_dir, fetch, cancel_event,
-                                          wanted, message, version_check)
+                                          wanted, message, version_check, target, kernel_probe)
 
 
 def _download_profile_packages(profile, installed, cache_dir, fetch, cancel_event,
-                               wanted, message, version_check):
+                               wanted, message, version_check, target="", kernel_probe=None):
     """\u5728\u5f53\u524d\u4e0b\u8f7d\u4f1a\u8bdd\u4e2d\u89e3\u6790\u548c\u6821\u9a8c\u4f9d\u8d56\u3002"""
     tell = message or (lambda _text, _level: None)
     tell("正在解析软件源…", "info")
     # require_complete：任一 feed 读失败就带真实原因报错，避免后续把它误报成“缺某个依赖包”。
     index = fetch_index(profile, fetch, cancel_event, require_complete=True)
-    missing = resolve_closure(
-        index, [package for package in wanted if package not in installed],
-        installed, version_check)
+    requested=[package for package in wanted if package not in installed]
+    from .dependency_resolution import UnsatisfiedDependency,KernelModuleRequired
+    try:
+        missing=resolve_closure(index,requested,installed,version_check)
+    except (UnsatisfiedDependency,KernelModuleRequired) as exc:
+        if exc.expression!='kmod-tun':raise
+        if kernel_probe is None:
+            raise ValueError('\u7f3a\u5c11\u8fd0\u884c\u4e2d\u5185\u6838\u7684\u5b9e\u673a\u6838\u5bf9\u4fe1\u606f\uff0c\u672a\u5b89\u88c5 kmod-tun\u3002') from None
+        from .kernel_package_feed import fetch_tun_index
+        tell('\u6b63\u5728\u6838\u5bf9\u5b8c\u6574\u5185\u6838\u6784\u5efa\u53f7\u5e76\u8bfb\u53d6\u5bf9\u5e94\u5b98\u65b9\u6a21\u5757\u6e90\u2026','info')
+        index=dict(index)
+        index.update(fetch_tun_index(profile,target,installed,kernel_probe(),fetch,cancel_event))
+        missing=resolve_closure(index,requested,installed,version_check,allowed_kernel=('kmod-tun',))
     if profile.compatibility_trial or "SNAPSHOT" in profile.release.upper():
         from .candidate_policy import verify_candidate_packages
         verify_candidate_packages(missing, installed, kwrt=profile.compatibility_trial == "kwrt")

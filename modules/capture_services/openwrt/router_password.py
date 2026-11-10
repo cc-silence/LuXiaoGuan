@@ -12,8 +12,8 @@ class PasswordChange:
 
     @classmethod
     def create(cls, password, settings):
-        if not isinstance(password, str) or not 8 <= len(password.encode("utf-8")) <= 128 or any(ord(c) < 32 or ord(c) == 127 for c in password):
-            raise ValueError("新密码需要 8～128 字节，不能包含换行或控制字符。")
+        if not isinstance(password, str) or not 6 <= len(password.encode("utf-8")) <= 128 or any(ord(c) < 32 or ord(c) == 127 for c in password):
+            raise ValueError("新密码需要 6～128 字节，不能包含换行或控制字符。")
         return cls(dict(settings), bytearray(password.encode("utf-8")))
 
     def clear(self):

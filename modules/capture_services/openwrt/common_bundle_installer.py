@@ -71,6 +71,9 @@ def _install_downloaded(manager, wanted, device, cache_dir, sftp_available, canc
                  "。请检查并更新离线依赖包；若最新版仍不匹配，需要补齐该固件的依赖。不会强行安装其他固件的离线包。", "info")
             return False
         tell("\u4f7f\u7528\u5df2\u4e0b\u8f7d\u7684\u79bb\u7ebf\u4f9d\u8d56\u5305\uff0c\u65e0\u9700\u8054\u7f51\u8bfb\u53d6\u8f6f\u4ef6\u6e90\u3002", "info")
+        if not requires_candidate(device):
+            from .shared_bundle_packages import SharedBundlePackages
+            repository = SharedBundlePackages(repository, profile, device, retain, cancel, tell)
         root = Path(cache_dir or default_cache_dir())
         root.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix="common-local-", dir=root) as directory:
@@ -96,8 +99,8 @@ def _install_downloaded(manager, wanted, device, cache_dir, sftp_available, canc
                              + '\n已读取的系统基础包记录（<missing> 表示未找到已安装记录）：' + base
                              + '\n继续尝试其他安装来源；仍先预演并禁止替换已安装的包。', 'warning')
                         return False
-                    rows = {row["name"]: row for row in profile["packages"]}
-                    paths = tuple(repository.materialize(rows[p.name], directory, cancel) for p in selected)
+                    paths = tuple(repository.materialize(
+                        repository.package_row(profile, p.name, p.version), directory, cancel) for p in selected)
                     if paths:
                         manager._install_offline(wanted, device, cache_dir, sftp_available, cancel, tell,
                                                  uploader, local_paths=paths,
@@ -118,7 +121,7 @@ def _install_downloaded(manager, wanted, device, cache_dir, sftp_available, canc
                 from .candidate_installer import install_local_candidates
                 install_local_candidates(
                     ApkOfflineInstaller(stage, tell=tell, uploader=push, space_check=check_space,
-                                        cleanup_execute=manager._execute),
+                                        cleanup_execute=manager._execute, package_lookup=repository.package_row),
                     wanted, device, profile, repository, directory, cancel, tell)
 
         from .bundle_archive_cleanup import cleanup_repository_archive

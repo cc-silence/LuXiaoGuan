@@ -17,6 +17,7 @@ class RouterManagementService(QObject):
     progress = Signal(str, object)
     status = Signal(str, str)
     passwordChanged = Signal(object)
+    passwordInvalidated = Signal(object)
     policyStatusChanged = Signal(object)
     initialVerificationCompleted = Signal(object)
 
@@ -33,6 +34,8 @@ class RouterManagementService(QObject):
         self._publishing_key = None
         from .lan_force_retry import LanForceRetry
         self._force_retry = LanForceRetry()
+        from .factory_reset_credentials import FactoryResetCredentials
+        self.factory_credentials = FactoryResetCredentials(self)
         owner.activityChanged.connect(self._drain, Qt.QueuedConnection)
         owner.openwrtSnapshotChanged.connect(self._connection_changed)
 
@@ -84,6 +87,7 @@ class RouterManagementService(QObject):
         key = uuid4().hex
         from .management_diagnostics import ManagementTrace
         self._diagnostic_tasks[key] = ManagementTrace(self.manager.runner, action, arguments, len(self.queue))
+        self.factory_credentials.capture(key, action, arguments, ssh)
         self.queue.append((key, action, arguments, ssh.host_fingerprint, ssh._client, Event()))
         self.status.emit(key, '已排队')
         self._drain()
@@ -131,6 +135,8 @@ class RouterManagementService(QObject):
             authenticated=getattr(ssh,"authenticated_settings",None)
             if isinstance(authenticated,dict) and authenticated:connection_settings=dict(authenticated)
         def operation(event, report):
+            from .openwrt.password_recovery_admission import require_ready
+            require_ready(self.owner.openwrt_backend, action, args)
             if action == 'capture_monitor_preview':
                 from .openwrt.monitor_cleanup import inspect
                 return inspect(self.owner.openwrt_backend,event)
