@@ -1,12 +1,12 @@
 """One persistent destination preference shared by every diagnostic exporter."""
 from pathlib import Path
 import logging
-from modules.config_services.config_store import ConfigPair, user_config_dir
+from modules.config_services.config_store import application_settings_pair, user_config_dir
 
 
 def _store():
     from modules.config_manager import CONFIG_DIR
-    return ConfigPair(user_config_dir() / "log_export.json", CONFIG_DIR / "log_export.json")
+    return application_settings_pair(user_config_dir() / "log_export.json", CONFIG_DIR / "log_export.json")
 
 
 def export_directory():

@@ -102,4 +102,4 @@ class InactiveScanUiTests(unittest.TestCase):
             self.assertTrue(page.setup_panels.scan_buttons["radio0"].isEnabled())
             page.grab().save(str(output/("light.png" if light else "dark.png")))
             button.click()
-            setup.scan.assert_called_once_with(10,"radio1")
+            setup.scan.assert_called_once_with(30,"radio1")

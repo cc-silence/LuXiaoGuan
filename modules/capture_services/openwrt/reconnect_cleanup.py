@@ -28,13 +28,20 @@ class ReconnectCleanup:
             from .password_recovery_admission import WARNING
             raise RuntimeError(WARNING)
 
-    def require_ready(self):
+    def require_ready(self, *, allow_unavailable_password_record=False):
         """新任务只在旧任务已确认清理后放行，不执行远端命令。"""
-        self.require_password_check_ready()
+        if not allow_unavailable_password_record:
+            self.require_password_check_ready()
         store = getattr(self.backend, 'password_recovery_store', None)
         fingerprint = getattr(self.backend.ssh_client, 'host_fingerprint', '')
-        from .password_recovery_admission import read_records
-        if store is not None and read_records(store, fingerprint):
+        from .password_recovery_admission import read_records, RecoveryRecordsUnavailable
+        try:
+            records = read_records(store, fingerprint) if store is not None else []
+        except RecoveryRecordsUnavailable:
+            if not allow_unavailable_password_record:
+                raise
+            records = []
+        if records:
             raise RuntimeError("\u4e0a\u6b21\u5bc6\u7801\u9a8c\u8bc1\u7684\u914d\u7f6e\u6062\u590d\u5c1a\u672a\u786e\u8ba4\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55\u540c\u4e00\u8def\u7531\u5668\uff0c\u8f6f\u4ef6\u4f1a\u5148\u81ea\u52a8\u6062\u590d\u5e76\u6838\u5b9e\u3002")
         if self.pending is not None:
             raise RuntimeError("上次任务的临时资源还没有清理完成。请到路由器登录页重新登录原设备，软件会先自动清理再允许新任务。")

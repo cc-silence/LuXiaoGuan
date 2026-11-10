@@ -68,9 +68,9 @@ def rollback(root,stage,stage_progress=lambda *_:None):
 def migrate_defaults(root,catalog,current):
     """\u6309\u7248\u672c\u987a\u5e8f\u8865\u5145\u7f3a\u5c11\u7684\u8bbe\u7f6e\uff0c\u4fdd\u7559\u7528\u6237\u503c\u548c\u672a\u77e5\u9009\u9879\u3002"""
     import io
-    from modules.config_services.config_store import ConfigPair,user_config_dir
+    from modules.config_services.config_store import application_settings_pair,user_config_dir
     for name in ("settings.ini","download.ini"):
-        pair=ConfigPair(user_config_dir()/name,Path(root)/"config"/name)
+        pair=application_settings_pair(user_config_dir()/name,Path(root)/"config"/name)
         for path in (pair.primary,pair.mirror):
             if path.is_file() and pair._read_single_ini(path)[0] is None:
                 raise ValueError("Configuration is damaged; preserve and repair before updating: "+str(path))
@@ -107,8 +107,15 @@ def apply(root,stage,catalog,validate=lambda:None,progress=lambda *_:None,stage_
             raise ValueError("Staged file is missing or damaged: "+item["path"])
     entries=[{"path":i["path"],"before":i["before"]} for i in plan["files"]+plan["removed"]]
     entries.append({"path":"baseline","before":None})
-    for scope in ("primary","mirror"):
-        for name in ("settings.ini","download.ini"): entries.append({"path":scope+":"+name,"before":None})
+    from modules.config_services.config_store import application_settings_pair, user_config_dir
+    for name in ("settings.ini", "download.ini"):
+        paths = {"primary": user_config_dir() / name, "mirror": root / "config" / name}
+        pair = application_settings_pair(paths["primary"], paths["mirror"])
+        tracked = set()
+        for scope, path in paths.items():
+            if path in (pair.primary, pair.mirror) and path not in tracked:
+                entries.append({"path": scope + ":" + name, "before": None})
+                tracked.add(path)
     backup=stage/"backup"; backup.mkdir(exist_ok=True)
     current="0.0"
     baseline=root/BASELINE

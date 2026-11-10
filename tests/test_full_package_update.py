@@ -27,6 +27,22 @@ class FullPackageTests(unittest.TestCase):
   self.assertEqual((self.root/'LuXiaoGuan.exe').read_bytes(),b'new app')
   self.assertEqual((self.root/'notes.txt').read_bytes(),b'private')
   self.assertEqual((self.root/'config/settings.ini').read_bytes(),b'[user]\nx=1\n')
+ def test_rollback_does_not_delete_unrelated_legacy_settings(self):
+  from modules.platform_services import application_paths
+  import os
+  stage,release=self.archive();(self.root/'LuXiaoGuan.exe').write_bytes(b'old app')
+  legacy=self.root/'unrelated-appdata';target=legacy/'settings.ini'
+  catalog=prepare_package(stage/'package.zip',release,stage,self.root)
+  def fail():
+   legacy.mkdir(exist_ok=True);target.write_bytes(b'created-during-update')
+   raise ValueError('startup failed')
+  with patch.object(application_paths,'is_linux',return_value=False), \
+       patch.dict(os.environ,{'ROUTERMANAGER_USER_CONFIG_DIR':''}), \
+       patch('modules.config_services.config_store.user_config_dir',return_value=legacy), \
+       patch('modules.app_update_services.transaction.migrate_defaults'):
+   with self.assertRaises(ValueError):apply(self.root,stage,catalog,fail)
+  self.assertEqual(target.read_bytes(),b'created-during-update')
+
  def test_startup_failure_rolls_back_existing_files(self):
   stage,release=self.archive();(self.root/'LuXiaoGuan.exe').write_bytes(b'old app')
   catalog=prepare_package(stage/'package.zip',release,stage,self.root)

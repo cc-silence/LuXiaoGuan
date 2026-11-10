@@ -69,6 +69,8 @@ class OpenWrtCapturePage(QWidget):
             root.addWidget(left_splitter, 3)
         from .capture_tool_panel import CaptureToolPanel
         self.tools = CaptureToolPanel(settings, self)
+        from .scan_default_band_controller import ScanDefaultBandController
+        self.scan_default_band = ScanDefaultBandController(self)
         # The narrow action panel opens detailed settings in a shared dialog.
         self.tools_scroll = ActionScrollArea(self.tools, self)
         root.addWidget(self.tools_scroll)
@@ -303,6 +305,8 @@ class OpenWrtPage(QWidget):
         return self._current_page_name
 
     def show_page(self, name):
+        if "capture" in self._created_pages:
+            self._created_pages["capture"].scan_default_band.cancel()
         if isinstance(name, int):
             if 0 <= name < len(self._page_names):
                 name = self._page_names[name]
@@ -319,6 +323,8 @@ class OpenWrtPage(QWidget):
             self._current_page_name = name
             if name in ("files", "terminal", "auto_capture"):
                 page.enter()
+            elif name == "capture":
+                page.scan_default_band.enter()
             self.pageChanged.emit(name)
             self.settingsChanged.emit()
             return page
@@ -486,6 +492,7 @@ class OpenWrtPage(QWidget):
         self.service.router_management.passwordChanged.disconnect(self._password_changed)
         for name, page in self._created_pages.items():
             if name == "capture":
+                page.scan_default_band.cancel()
                 page.signal_export.dispose()
                 self.service.openwrtSnapshotChanged.disconnect(page.apply_snapshot)
             elif name == "settings":

@@ -4,7 +4,7 @@ import sys
 from configparser import ConfigParser
 from pathlib import Path
 
-from modules.config_services.config_store import ConfigPair, user_config_dir
+from modules.config_services.config_store import ConfigPair, user_config_dir, application_settings_pair
 from modules.release_identity import DISPLAY_NAME
 from modules.platform_services import application_paths
 
@@ -258,7 +258,7 @@ class ConfigManager:
         # 镜像仍是软件目录 config/settings.ini；显式传入路径（测试等）退化为单文件。
         if path is None:
             self.path = SETTINGS_FILE
-            self._pair = ConfigPair(user_config_dir() / "settings.ini", SETTINGS_FILE)
+            self._pair = application_settings_pair(user_config_dir() / "settings.ini", SETTINGS_FILE)
         else:
             self.path = Path(path)
             self._pair = None
@@ -369,7 +369,7 @@ class DownloadConfigManager:
         # 正常运行时 path 为 None：使用双份存储，镜像仍是软件目录 config/download.ini。
         if path is None:
             self.path = DOWNLOAD_FILE
-            self._pair = ConfigPair(user_config_dir() / "download.ini", DOWNLOAD_FILE)
+            self._pair = application_settings_pair(user_config_dir() / "download.ini", DOWNLOAD_FILE)
         else:
             self.path = Path(path)
             self._pair = None

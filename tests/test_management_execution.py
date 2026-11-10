@@ -92,8 +92,36 @@ class ManagementExecutionTests(unittest.TestCase):
                 else:
                     self.assertEqual(backend.scan_wifi("session", settings).csv_path, "scanned")
                     backend.radio_session.create.assert_called_once()
-                self.assertEqual([call.args[0] for call in backend.command_runner.run.call_args_list],
+                calls = [call.args[0] for call in backend.command_runner.run.call_args_list]
+                self.assertEqual([name for name in calls if name == "management_link_probe"],
                                  ["management_link_probe", "management_link_probe"])
+                self.assertEqual(calls.count("scan_channel_capability"), 0 if blocked else 2)
+
+    def test_scan_continues_when_password_recovery_record_is_unavailable(self):
+        from modules.capture_services.openwrt.reconnect_cleanup import PendingCleanup
+        for failure in (ValueError('private-record-data'), PermissionError(13, 'private-path')):
+            with self.subTest(failure=type(failure).__name__):
+                backend = OpenWrtCaptureBackend()
+                backend.ssh_client = NS(connected=True, host_fingerprint='fingerprint')
+                backend.password_recovery_store = Mock()
+                backend.password_recovery_store.records.side_effect = failure
+                backend.reconnect_cleanup.set_password_check_issue('fingerprint', {'reason': 'recovery_record_validation'})
+                backend.command_runner = runner(report(port='eth0.1'))
+                backend._check_remote_tmp = Mock(return_value=50)
+                backend._find_scan_radio = Mock(return_value='phy0')
+                backend.workspace_manager.create = Mock()
+                backend.radio_session.create = Mock(return_value=NS(interface='wbmonfixture'))
+                backend.wifi_scanner.scan = Mock(return_value=WifiScanResult((), 'scanned'))
+                backend._finish_capture_task = Mock()
+                options = dict(band='2.4G', management_scan_phy='phy0',
+                               management_scan_fingerprint='fingerprint')
+                self.assertEqual(backend.scan_wifi('session', options).csv_path, 'scanned')
+                backend.password_recovery_store.remove.assert_not_called()
+                backend.reconnect_cleanup.pending = PendingCleanup(Mock(), None, 'fingerprint')
+                with self.assertRaises(RuntimeError):
+                    backend.scan_wifi('session', options)
+                with self.assertRaises(RuntimeError):
+                    backend.reconnect_cleanup.require_ready()
 
     def test_changed_phy_or_router_identity_invalidates_scan_confirmation(self):
         backend = OpenWrtCaptureBackend()
@@ -133,7 +161,7 @@ class ScanPreflightWorkerTests(unittest.TestCase):
                 owner._openwrt_workers[probe_id][0].isRunning(),plan,error,cancelled))
         service.finished.connect(done)
         try:
-            with patch.object(backend,"ssh_client",NS(host_fingerprint="fingerprint")), \
+            with patch.object(backend,"ssh_client",NS(host_fingerprint="fingerprint", connected=False, _client=None)), \
                  patch.object(backend,"_find_scan_radio",return_value="phy0"), \
                  patch.object(backend,"command_runner",runner(report())):
                 probe_id = service.start({"band":"2.4G"})

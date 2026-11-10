@@ -139,7 +139,7 @@ class SignalActionTests(unittest.TestCase):
         panels.apply_snapshot(service.snapshot)
         self.assertTrue(panels.scan_buttons["radio0"].isEnabled())
         panels.scan_buttons["radio0"].click()
-        setup.scan.assert_called_once_with(10, "radio0")
+        setup.scan.assert_called_once_with(30, "radio0")
         setup.active = True
         setup.snapshot = WirelessState(busy=True, action="scan", detail="Scanning", scan_radio="radio0")
         service.snapshot = replace(service.snapshot, busy=True)
@@ -168,7 +168,7 @@ class SignalActionTests(unittest.TestCase):
         self.assertTrue(original["radio1"].isEnabled())
         self.assertTrue(original["radio2"].isEnabled())
         original["radio2"].click()
-        setup.scan.assert_called_once_with(10, "radio2")
+        setup.scan.assert_called_once_with(30, "radio2")
         setup.active = True
         setup.snapshot = replace(setup.snapshot, action="scan", busy=True, scan_radio="radio2")
         service.snapshot = replace(service.snapshot, busy=True)

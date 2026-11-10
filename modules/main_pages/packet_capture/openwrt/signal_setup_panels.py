@@ -1,6 +1,8 @@
 """信号设置入口和公共中继表格，真实操作委托常驻服务。"""
 from collections import Counter
-from PySide6.QtCore import Qt
+import math
+import time
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QAbstractItemView, QHBoxLayout, QHeaderView, QSizePolicy, QPushButton, QVBoxLayout, QWidget
 from modules.common_widgets.auto_hide_scroll_bar import AutoHideScrollBar
 from modules.common_widgets.spaced_item_delegate import SpacedItemDelegate
@@ -66,13 +68,16 @@ class SignalSetupPanels:
         toolbar = QHBoxLayout()
         toolbar.setSpacing(8)
         self.scan_buttons = {}
+        self._scan_clock = QTimer(self.relay_page)
+        self._scan_clock.setInterval(1000)
+        self._scan_clock.timeout.connect(self._refresh_scan_countdown)
         self.scan_buttons_layout = QHBoxLayout()
         self.scan_buttons_layout.setContentsMargins(0, 0, 0, 0)
         UiScaleManager.for_widget(page).bind_layout(self.scan_buttons_layout, margins=(0, 0, 0, 0), spacing=8)
         toolbar.addWidget(hint("扫描时间", self.relay_page))
         self.scan_seconds = CommonSpinBox(self.relay_page)
         self.scan_seconds.setRange(5, 120)
-        self.scan_seconds.setValue(10)
+        self.scan_seconds.setValue(30)
         self.scan_seconds.setSuffix(" 秒")
         self.scan_seconds.setToolTip("只用点击的无线网卡扫描；不会启用监听模式。")
         toolbar.addWidget(self.scan_seconds)
@@ -181,6 +186,26 @@ class SignalSetupPanels:
             self.empty_hint.setText("扫描未开始，请等待其他任务结束并检查连接。")
             self.empty_hint.show()
 
+    def _refresh_scan_countdown(self):
+        state = self.setup.snapshot if self.setup is not None else None
+        if not (self.setup and self.setup.active and state.action == "scan" and state.scan_deadline is not None):
+            self._scan_clock.stop()
+            return
+        button = self.scan_buttons.get(state.scan_radio)
+        if button is not None:
+            text = self._scan_title(state) + "\n" + state.scan_radio
+            if button.text() != text:
+                button.setText(text)
+
+    @staticmethod
+    def _scan_title(state):
+        deadline = state.scan_deadline
+        if deadline is None:
+            return "\u505c\u6b62\u626b\u63cf \u00b7 \u51c6\u5907\u4e2d"
+        left = max(0, math.ceil(deadline - time.monotonic()))
+        return ("\u505c\u6b62\u626b\u63cf \u00b7 %d \u79d2" % left if left else
+                "\u505c\u6b62\u626b\u63cf \u00b7 \u7b49\u5f85\u5b8c\u6210")
+
     def _sync_scan_buttons(self, choices, snapshot):
         names = {name for name, _band in choices}
         for name in self.scan_buttons.keys() - names:
@@ -193,6 +218,11 @@ class SignalSetupPanels:
         detected = {r["name"]: r for r in env.data.get("radios", ())} if env else None
         scanning = bool(self.setup and self.setup.active and state.action == "scan")
         idle = bool(self.setup and snapshot.connected and not snapshot.busy and not self.setup.active)
+        if scanning and state.scan_deadline is not None:
+            if not self._scan_clock.isActive():
+                self._scan_clock.start()
+        else:
+            self._scan_clock.stop()
         for index, (name, band) in enumerate(choices):
             button = self.scan_buttons.get(name)
             if button is None:
@@ -206,7 +236,11 @@ class SignalSetupPanels:
             selected = scanning and state.scan_radio == name
             radio = detected.get(name, {}) if detected is not None else None
             available = radio is None or bool(radio and not radio.get("runtime_pending"))
-            text = ("停止扫描" if selected else "扫描 " + band) + "\n" + name
+            if selected:
+                label = self._scan_title(state)
+            else:
+                label = "\u626b\u63cf " + band
+            text = label + "\n" + name
             if button.text() != text:
                 button.setText(text)
             button.setEnabled(bool(selected or idle and available))

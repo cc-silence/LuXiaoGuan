@@ -108,8 +108,9 @@ class ScanFormatTests(unittest.TestCase):
                 else:
                     with self.assertRaises(SignalError): manager.scan(5, event, Mock(), radio="radio9")
             data = journal.snapshot()
-            self.assertEqual(data["events"][-1]["legacy_rows"], 1)
-            self.assertEqual(data["events"][-1]["status"], "completed" if valid else "failed")
+            parse = next(row for row in data["events"] if row.get("operation") == "wireless_scan_parse")
+            self.assertEqual(parse["legacy_rows"], 1)
+            self.assertEqual(parse["status"], "completed" if valid else "failed")
             self.assertNotIn("fixture-private-name", str(data))
 
 

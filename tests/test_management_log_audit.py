@@ -98,8 +98,10 @@ class ManagementLogAuditTests(unittest.TestCase):
             run=state.owner._start_openwrt_worker.call_args.args[1]
             result=run(threading.Event(),Mock())
             self.assertFalse(result.error)
-            self.assertEqual(len(operation.call_args.args),3 if action=='scan' else 2)
-            if action=='scan':self.assertTrue(callable(operation.call_args.args[2]))
+            self.assertEqual(len(operation.call_args.args),4 if action=='scan' else 2)
+            if action=='scan':
+                self.assertTrue(callable(operation.call_args.args[2]))
+                self.assertTrue(callable(operation.call_args.args[3]))
             final=self.journal.snapshot()['management'][-1]
             self.assertEqual(final['operation'],'wireless_'+action)
             self.assertEqual(final['status'],'completed')

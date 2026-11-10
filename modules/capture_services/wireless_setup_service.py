@@ -14,6 +14,7 @@ class WirelessSetupService(QObject):
     completed = Signal(object)
     _checkRequested = Signal()
     _scanBatch = Signal(str, object, object)
+    _scanStarted = Signal(str, object, float)
 
     def __init__(self, signals):
         super().__init__(signals)
@@ -26,6 +27,7 @@ class WirelessSetupService(QObject):
         self._inspection_revision = None
         self._scan_session = None
         self._scanBatch.connect(self._scan_results, Qt.QueuedConnection)
+        self._scanStarted.connect(self._scan_started, Qt.QueuedConnection)
         self._checkRequested.connect(self._auto_check, Qt.QueuedConnection)
         self.owner.openwrtSnapshotChanged.connect(self._connection_changed)
         self.owner.task_controller.stateChanged.connect(self._task_changed)
@@ -154,8 +156,15 @@ class WirelessSetupService(QObject):
     def scan(self, seconds, radio):
         if not valid_radio_name(radio):
             return False
-        return self._start("scan", lambda cancel, message, on_results=None: self.manager.scan(seconds, cancel, message, radio=radio, on_results=on_results),
+        return self._start("scan", lambda cancel, message, on_results=None, on_started=None: self.manager.scan(seconds, cancel, message, radio=radio, on_results=on_results, on_started=on_started),
                            scan_radio=radio)
+
+    @Slot(str, object, float)
+    def _scan_started(self, session, identity, deadline):
+        if (self.active and self.snapshot.action == "scan" and session == self._scan_session
+                and self._connection_identity() is identity and self.signals.snapshot.connected):
+            self.snapshot = replace(self.snapshot, scan_deadline=deadline)
+            self.snapshotChanged.emit(self.snapshot)
 
     @Slot(str, object, object)
     def _scan_results(self, session, identity, networks):
@@ -189,7 +198,7 @@ class WirelessSetupService(QObject):
         accepted = self.owner.cancel_openwrt_task()
         if accepted:
             self._pending = False
-            self.signals._auto_refresh_blocked = True
+            self.signals._auto_refresh_blocked = self.snapshot.action != "scan"
             record_workflow(self.owner, "wireless_setup", "cancelled", stage=self.snapshot.action, reason="user_request")
         return accepted
 
@@ -232,7 +241,7 @@ class WirelessSetupService(QObject):
         record_workflow(self.owner, "wireless_setup", "started", stage=action)
         self._scan_session = session if action == "scan" else None
         self.snapshot = replace(self.snapshot, busy=True, action=action,
-            scan_radio=scan_radio if action == "scan" else self.snapshot.scan_radio,
+            scan_radio=scan_radio if action == "scan" else self.snapshot.scan_radio, scan_deadline=None,
             networks=() if action == "scan" else self.snapshot.networks, detail={
             "scan": "正在用 " + scan_radio + " 扫描上级信号，可点击停止扫描。",
             "inspect": "正在重新检测无线组件与配置。"}.get(action, self.snapshot.detail))
@@ -243,7 +252,8 @@ class WirelessSetupService(QObject):
                 report = message or (lambda *_: None)
                 if action == "scan":
                     value = operation(cancel, report,
-                        lambda rows: self._scanBatch.emit(session, identity, rows))
+                        lambda rows: self._scanBatch.emit(session, identity, rows),
+                        lambda deadline: self._scanStarted.emit(session, identity, deadline))
                 else:
                     value = operation(cancel, report)
                 return WirelessTaskResult(action, value)
@@ -267,9 +277,11 @@ class WirelessSetupService(QObject):
             if valid and action == "install" and not result.error and result.value.dependencies:
                 binding = (identity, result.value.fingerprint)
                 self.owner.dependency_service.publish_verified(result.value.dependencies, binding, notify=True)
+            if action == "scan" and not valid:
+                self.signals._auto_refresh_blocked = True
             self.owner.task_controller.finish(failed=bool(result.error))
             self.active = False
-            self.snapshot = replace(self.snapshot, busy=False, action="")
+            self.snapshot = replace(self.snapshot, busy=False, action="", scan_deadline=None)
             if valid:
                 if not result.error and action in ("inspect", "install"):
                     env = result.value
@@ -322,11 +334,13 @@ class WirelessSetupService(QObject):
                 elif result.error:
                     record_workflow(self.owner, "wireless_setup", "cancelled" if isinstance(result.error, str) and result.code == "cancelled" else "failed",
                                     stage=action, reason=result.code or "invalid_response")
-                    self.snapshot = replace(self.snapshot, detail=result.error, environment=None if action == "inspect" else self.snapshot.environment,
+                    scan_stopped = action == "scan" and result.code == "cancelled"
+                    detail = "\u626b\u63cf\u5df2\u505c\u6b62\uff0c\u6b63\u5728\u5237\u65b0\u5df2\u914d\u7f6e\u4fe1\u53f7\u3002" if scan_stopped else result.error
+                    self.snapshot = replace(self.snapshot, detail=detail, environment=None if action == "inspect" else self.snapshot.environment,
                         pending_changes=result.code == "pending" or self.snapshot.pending_changes)
                 self.snapshotChanged.emit(self.snapshot)
                 self.completed.emit(result)
-                if result.error:
+                if result.error and not (action == "scan" and result.code == "cancelled"):
                     self.signals._message(result.error, "error")
             else:
                 text = result.error or "连接已断开或路由器已变化，原任务结果不能用于当前设备，请重新读取。"

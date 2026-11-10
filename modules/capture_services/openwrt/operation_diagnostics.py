@@ -30,11 +30,11 @@ SAFE_VALUES["stage"] |= CONTROL_STAGES
 SAFE_VALUES["reason"] |= CONTROL_REASONS
 SAFE_VALUES["reason"] |= {"native_redraw_reply_recovered"}
 SAFE_VALUES["operation"] |= {"password_recovery_check"}
-SAFE_VALUES["reason"] |= {"recovery_record_io", "recovery_record_json", "recovery_record_validation"}
+SAFE_VALUES["reason"] |= {"recovery_record_io", "recovery_record_json", "recovery_record_validation", "recovery_directory"}
 SAFE_VALUES["reason"] |= {"native_"+mode+"_"+state for mode in ("pty","pipe") for state in ("ready","unavailable")}
 SAFE_VALUES["reason"] |= {"native_rpc_"+word+"_timeout" for word in ("ping","help","pmksa_flush","disconnect","add_network","remove_network","set_network","select_network","disable_network","status","unknown")}
 SAFE_VALUES["reason"] |= {"authenticated", "wrong_key", "authentication_unconfirmed", "native_control_ready", "native_control_unavailable"}
-SAFE_VALUES["operation"] |= ACTIONS | {"configuration_apply", "wireless_readiness", "wireless_scan_interface"}
+SAFE_VALUES["operation"] |= ACTIONS | {"configuration_apply", "wireless_readiness", "wireless_scan_interface", "wireless_scan_failure"}
 SAFE_VALUES["stage"] |= {"queue","progress","preflight","commit","download","publish","reboot","validation","connect","capabilities","session","stage","apply","verify","confirm","rollback","restore_verify","discard","finish"}
 SAFE_VALUES["reason"] |= {"accepted","unchanged","reply_lost","verified","verification_false","native_rpc_error","exception","restored","restore_unconfirmed","renewal_busy",
     "saved_values","runtime_missing","runtime_pending","runtime_up","runtime_proto","runtime_device","runtime_ipv4","runtime_ipv4_mask","runtime_gateway4","runtime_gateway6","runtime_ipv6","runtime_old_ipv6","runtime_prefix6","runtime_invalid"}
@@ -47,6 +47,8 @@ SAFE_VALUES["connection_reason"] = NETWORK_REASONS
 SAFE_VALUES["selection_source"] = frozenset({"ssh_socket","system_route","unknown"})
 SAFE_VALUES["source"] = frozenset({"session_apply", "direct_toggle", "repair"})
 SAFE_VALUES["interface_state"] = frozenset({"active", "inactive", "unknown", "missing"})
+SAFE_VALUES["scan_target"] = frozenset({"radio", "interface"})
+SAFE_VALUES["scan_error"] = frozenset({"scan_native", "scan_interface_read", "scan_no_interface", "scan_interface_busy", "scan_recovery", "radio", "response", "transport", "timeout", "disconnected", "scan_format", "rpc_iwinfo_scan", "other"})
 SAFE_VALUES["band"] = frozenset({"2g", "5g", "6g"})
 SAFE_VALUES["ap_failure"] = AP_FAILURES
 SAFE_VALUES["ap_state"] = frozenset({"UNINITIALIZED", "DISABLED", "COUNTRY_UPDATE", "ACS", "HT_SCAN", "DFS", "ENABLED"})
@@ -86,14 +88,14 @@ MAX_MANAGEMENT_FAILURES = 16
 MAX_CONFIGURATION = 128
 MAX_CONFIGURATION_FAILURES = 16
 STRING_FIELDS = frozenset({"timestamp", "event", "operation", "status", "stage", "kind",
-    "selection_source", "connection_reason", "exception_type", "cause_reason", "cause_type", "cause_site", "reason", "code_site", "last_stage", "last_reason", "outcome", "transport", "band", "source", "task_band", "ap_state", "ap_failure", "interface_state", "scan_interface"})
+    "selection_source", "connection_reason", "exception_type", "cause_reason", "cause_type", "cause_site", "reason", "code_site", "last_stage", "last_reason", "outcome", "transport", "band", "source", "task_band", "ap_state", "ap_failure", "interface_state", "scan_interface", "scan_radio", "scan_error", "scan_target"})
 STRING_FIELDS |= frozenset(CONTROL_ENUMS) | {"verification_field", "verification_actual_type", "verification_expected_type"}
 NUMBER_FIELDS = frozenset({"id", "errno", "winerror", "operation_id", "elapsed_seconds", "connected_before",
     "connected_after", "exit_code", "timed_out", "cancelled", "request_bytes",
     "force_apply", "rollback", "trace_id", "connect_attempts", "verify_attempts", "restore_attempts", "native_error", "candidate_index", "candidate_count", "unavailable_count", "original_target", "remaining_seconds", "restored",
     "task_id", "saved", "applied", "verified", "changed", "reboot_requested", "boot_state",
     "selected_count", "operation_count", "skipped_count", "identity_count",
-    "completed_count", "row_count", "target_count", "removed_count", "mac_count",
+    "completed_count", "row_count", "target_count", "removed_count", "mac_count", "bridge_active_count", "scan_temporary",
     "completed", "total", "uncancellable", "queue_depth", "queue_seconds",
     "channel", "pending_processes", "takeover", "blocked", "primary_failed",
     "wireless_cleanup_confirmed", "monitor_active", "result_rows", "accepted_rows",

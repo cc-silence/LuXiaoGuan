@@ -121,6 +121,31 @@ class StreamingTableTests(unittest.TestCase):
         self.assertEqual(table.rowCount(), 2)
         self.assertEqual({table.network_at(i).bssid for i in range(2)}, {network(1).bssid, network(3).bssid})
 
+    def test_countdown_uses_deadline_and_waits_after_zero(self):
+        setup = signal_ui.PendingSetup()
+        env = environment()
+        env.data["radios"][0]["name"] = "radio1"
+        setup.active = True
+        setup.snapshot = WirelessState(environment=env, busy=True, action="scan", scan_radio="radio1", scan_deadline=130.0)
+        page, service = self.create_page(setup=setup)
+        service.snapshot = replace(service.snapshot, busy=True)
+        with patch("modules.main_pages.packet_capture.openwrt.signal_setup_panels.time.monotonic", return_value=100.0):
+            setup.snapshotChanged.emit(setup.snapshot)
+            APP.processEvents()
+            button = page.setup_panels.scan_buttons["radio1"]
+            self.assertIn("30 \u79d2", button.text())
+            self.assertTrue(page.setup_panels._scan_clock.isActive())
+        with patch("modules.main_pages.packet_capture.openwrt.signal_setup_panels.time.monotonic", return_value=131.0):
+            with patch.object(page.setup_panels.table, "set_actions_enabled") as refresh_table:
+                page.setup_panels._refresh_scan_countdown()
+                refresh_table.assert_not_called()
+            self.assertIn("\u7b49\u5f85\u5b8c\u6210", button.text())
+        setup.active = False
+        setup.snapshot = replace(setup.snapshot, busy=False, action="", scan_deadline=None)
+        setup.snapshotChanged.emit(setup.snapshot)
+        APP.processEvents()
+        self.assertFalse(page.setup_panels._scan_clock.isActive())
+
     def test_live_batches_render_in_both_themes(self):
         output = Path("build/bridge-stream-review")
         output.mkdir(parents=True, exist_ok=True)

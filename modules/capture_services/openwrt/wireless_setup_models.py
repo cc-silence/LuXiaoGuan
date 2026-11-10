@@ -77,6 +77,7 @@ class WirelessState:
     detail: str = "登录后自动检测无线设置环境。"
     pending_changes: bool = False
     scan_radio: str = ""
+    scan_deadline: float | None = None
 
 
 _NAMES = re.compile(r"[A-Za-z0-9_]+")

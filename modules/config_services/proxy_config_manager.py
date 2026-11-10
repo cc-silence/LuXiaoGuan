@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from ..config_manager import CONFIG_DIR
-from .config_store import ConfigPair, user_config_dir
+from .config_store import ConfigPair, user_config_dir, application_settings_pair
 
 PROXY_CONFIG_FILE = CONFIG_DIR / 'proxy_config.json'
 DEFAULT_PROXY_DATA = {'enabled': True, 'http_host': '127.0.0.1', 'http_port': '1081', 'socks_host': '127.0.0.1', 'socks_port': '1080'}
@@ -51,7 +51,7 @@ class ProxyConfigManager:
     """按需读取单套代理，确定保存时才写入双份配置。"""
     def __init__(self, path: str | Path | None = None):
         self.path = Path(path) if path is not None else PROXY_CONFIG_FILE
-        self._pair = None if path is not None else ConfigPair(user_config_dir() / 'proxy_config.json', self.path)
+        self._pair = None if path is not None else application_settings_pair(user_config_dir() / 'proxy_config.json', self.path)
         self._data = None
         self.needs_migration = False
 

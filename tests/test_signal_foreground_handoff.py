@@ -119,6 +119,55 @@ class SignalForegroundTests(unittest.TestCase):
         self.assertIsNone(service._pending_foreground)
         self.assertTrue(service._auto_refresh_blocked)
 
+    def test_scan_cancel_refreshes_once_after_worker_finishes(self):
+        from modules.capture_services.openwrt.signal_manager import SignalError
+        owner, service = self.create()
+        service.manager.read = Mock(return_value=service.snapshot.inventory)
+        service.setup.manager.scan = Mock(side_effect=SignalError("cancelled", "cancelled scan"))
+        self.assertTrue(service.setup.scan(30, "radio7"))
+        operation, event, success, _failure = owner.workers.pop()
+        self.assertTrue(service.setup.cancel())
+        self.assertTrue(event.is_set())
+        self.assertEqual(owner.workers, [])
+        self.assertFalse(service._auto_refresh_blocked)
+        result = operation(event, lambda *_: None)
+        success(result)
+        for _ in range(5): APP.processEvents()
+        self.assertEqual(len(owner.workers), 1)
+        refresh, refresh_event, refresh_success, _ = owner.workers.pop()
+        refresh_success(refresh(refresh_event, lambda *_: None))
+        for _ in range(10): APP.processEvents()
+        service.manager.read.assert_called_once()
+        self.assertFalse(owner.workers)
+        self.assertFalse(any("cancelled scan" in row[0] for row in service.messages))
+
+    def test_scan_cleanup_error_is_still_reported(self):
+        from modules.capture_services.openwrt.signal_manager import SignalError
+        owner, service = self.create()
+        service.setup.manager.scan = Mock(side_effect=SignalError("scan_recovery", "cleanup unconfirmed"))
+        self.assertTrue(service.setup.scan(30, "radio7"))
+        operation, event, success, _failure = owner.workers.pop()
+        self.assertTrue(service.setup.cancel())
+        success(operation(event, lambda *_: None))
+        self.assertTrue(any("cleanup unconfirmed" in row[0] for row in service.messages))
+        service._auto_refresh_blocked = True
+        APP.processEvents()
+
+    def test_scan_cancel_does_not_refresh_new_connection(self):
+        from modules.capture_services.openwrt.signal_manager import SignalError
+        owner, service = self.create()
+        service.manager.read = Mock()
+        service.setup.manager.scan = Mock(side_effect=SignalError("cancelled", "cancelled scan"))
+        self.assertTrue(service.setup.scan(30, "radio7"))
+        operation, event, success, _failure = owner.workers.pop()
+        self.assertTrue(service.setup.cancel())
+        result = operation(event, lambda *_: None)
+        owner.ssh._client = object()
+        success(result)
+        for _ in range(10): APP.processEvents()
+        self.assertFalse(owner.workers)
+        service.manager.read.assert_not_called()
+
     def test_editor_cancel_releases_its_queued_request(self):
         owner, service = self.create()
         service.refresh_status(False)

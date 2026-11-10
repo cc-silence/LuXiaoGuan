@@ -13,6 +13,7 @@ class ScanManagementPlan:
     link: ManagementLink
     fingerprint: str
     business_modes: tuple[str, ...] = ()
+    scan_takeover_required: bool = False
 
     @property
     def at_risk(self):
@@ -59,7 +60,11 @@ class ScanManagementService(QObject):
         link = read_management_link(backend.command_runner, event)
         if event.is_set():
             raise InterruptedError("\u626b\u63cf\u9884\u68c0\u5df2\u53d6\u6d88\u3002")
-        return ScanManagementPlan(phy, link, fingerprint)
+        takeover = False
+        if link.status != "unknown" and not (link.status == "wireless" and link.phy == phy):
+            from .openwrt.scan_channel_policy import scan_takeover_needed
+            takeover = scan_takeover_needed(backend.command_runner, phy, event)
+        return ScanManagementPlan(phy, link, fingerprint, scan_takeover_required=takeover)
 
     def _complete(self, probe_id, plan, error, cancelled):
         if probe_id != self._probe_id:
