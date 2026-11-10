@@ -79,12 +79,6 @@ class ConnectionSection:
             "用上面的地址账号连接 OpenWrt，顺带查出版本、无线网卡和已装软件。\n"
             "连上后按钮变“登出”；抓包、装软件都必须先登录。"
         )
-        self.fingerprint_check = QCheckBox("保存此设备的主机指纹", self.card)
-        self.fingerprint_check.setObjectName("captureCheckBox")
-        self.fingerprint_check.setChecked(False)
-        self.fingerprint_check.setToolTip(
-            "指纹用于识别是不是同一台路由器。常用设备可勾选，首次确认后记住身份；以后身份变化会提醒你核对，确认前不连接。重装路由器系统后指纹可能改变。"
-        )
         self.layout.addLayout(create_form_row(self.card, "地址", self.host, "填写要连接的 OpenWrt 路由器地址，通常与打开路由器管理页面时使用的地址相同，不要填写 Wi-Fi 名称。"))
         self.layout.addLayout(create_form_row(self.card, "SSH 端口", self.port, "通常保留 22。只有在路由器上修改过 SSH 连接端口时，才填写修改后的数字；不是网页管理端口。"))
         self.layout.addLayout(create_form_row(self.card, "用户", self.user, "通常填写 root。若使用其他账号，需要让它具备管理无线网络和运行抓包软件的权限。"))
@@ -106,7 +100,6 @@ class ConnectionSection:
         self.layout.addLayout(self.password_row)
         self.layout.addWidget(self.remember_password)
         self.layout.addLayout(self.private_key_row)
-        self.layout.addWidget(self.fingerprint_check)
         login_actions = QHBoxLayout()
         login_actions.addWidget(self.login_button, 1)
         self.cancel_login_button = create_page_text_button(
@@ -124,7 +117,6 @@ class ConnectionSection:
         self.password_toggle.toggled.connect(self._toggle_password_visibility)
         self.auth_method.currentIndexChanged.connect(self._sync_authentication_fields)
         self.remember_password.toggled.connect(lambda _checked: self._remember_callback())
-        self.fingerprint_check.toggled.connect(lambda _checked: action_callback("fingerprint_preference_changed"))
         self.host.editingFinished.connect(self._identity_callback)
         self.port.lineEdit().editingFinished.connect(self._identity_callback)
         self.user.editingFinished.connect(self._identity_callback)
@@ -144,9 +136,6 @@ class ConnectionSection:
         self.remember_password.blockSignals(True)
         self.remember_password.setChecked(bool(settings.get("remember_password", False)))
         self.remember_password.blockSignals(False)
-        self.fingerprint_check.blockSignals(True)
-        self.fingerprint_check.setChecked(bool(settings.get("remember_host_fingerprint", False)))
-        self.fingerprint_check.blockSignals(False)
         self.private_key.setText(self._display_path(settings.get("private_key_path", "")))
         self._sync_authentication_fields()
 
@@ -160,7 +149,6 @@ class ConnectionSection:
             "auth_method": self.auth_method.currentData(),
             "remember_password": self.remember_password.isChecked(),
             "private_key_path": self.private_key.text().strip(),
-            "remember_host_fingerprint": self.fingerprint_check.isChecked(),
         }
 
     def password_text(self):

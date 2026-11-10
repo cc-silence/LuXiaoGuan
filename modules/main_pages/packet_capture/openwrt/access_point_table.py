@@ -95,7 +95,7 @@ class AccessPointTable(QTableWidget):
         self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
         self.horizontalHeaderItem(self.BSSID_COLUMN).setToolTip("点击表头右侧眼睛隐藏/显示本列内容")
         self.horizontalHeaderItem(self.SSID_COLUMN).setToolTip("点击表头右侧眼睛隐藏/显示本列内容")
-        for index, width in enumerate((48, 86, 150, 180, 88, 72, 80, 66, 100)):
+        for index, width in enumerate((48, 86, 155, 180, 88, 72, 80, 66, 100)):
             self.setColumnWidth(index, width)
         header.sortIndicatorChanged.connect(self._on_sort_indicator_changed)
         header.setSortIndicator(-1, Qt.AscendingOrder)

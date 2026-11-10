@@ -13,10 +13,13 @@ class UnsatisfiedDependency(ValueError):
 
 
 class UnavailablePackage(UnsatisfiedDependency):
-    def __init__(self,expression):
-        self.expression=expression
-        ValueError.__init__(self,'\u5f53\u524d\u5df2\u6838\u9a8c\u7684\u8f6f\u4ef6\u6e90\u6216\u4f9d\u8d56\u5305\u672a\u63d0\u4f9b\uff1a'+expression+
-            '\uff1b\u4e0d\u662f\u4e0b\u8f7d\u5931\u8d25\uff0c\u672a\u6dfb\u52a0\u5176\u4ed6\u56fa\u4ef6\u7684\u8f6f\u4ef6\u6e90\u3002')
+    def __init__(self, expression):
+        self.expression = expression
+        label = ("\u5f53\u524d\u8f6f\u4ef6\u6e90\u672a\u63d0\u4f9b\u6b64\u63d2\u4ef6\uff1a"
+                 if expression.startswith("luci-app-") else
+                 "\u5f53\u524d\u8f6f\u4ef6\u6e90\u6216\u4f9d\u8d56\u5305\u672a\u63d0\u4f9b\u6b64\u8f6f\u4ef6\u5305\uff1a")
+        ValueError.__init__(self, label + expression +
+            "\u3002\u672a\u83b7\u53d6\u5230\u5b89\u88c5\u5305\uff0c\u5c1a\u672a\u6267\u884c\u5b89\u88c5\uff1b\u9700\u8981\u4e0e\u5f53\u524d\u56fa\u4ef6\u914d\u5957\u7684\u8f6f\u4ef6\u6e90\u6216\u5b89\u88c5\u5305\u3002")
 
 
 class KernelModuleRequired(ValueError):

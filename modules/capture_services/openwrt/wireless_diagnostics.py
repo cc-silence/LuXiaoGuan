@@ -8,6 +8,7 @@
 _DIAG_COMMANDS = (
     ("capture-storage", "df -kP /tmp; du -k /tmp/winbox-capture 2>/dev/null | tail -n 12"),
     ("iw-dev", "iw dev 2>/dev/null"),
+    ("iw-phy", "iw phy 2>/dev/null"),
     ("ip-link", "ip -o link 2>/dev/null"),
     (
         "wireless-procs",

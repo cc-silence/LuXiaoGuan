@@ -34,7 +34,7 @@ SAFE_VALUES["reason"] |= {"recovery_record_io", "recovery_record_json", "recover
 SAFE_VALUES["reason"] |= {"native_"+mode+"_"+state for mode in ("pty","pipe") for state in ("ready","unavailable")}
 SAFE_VALUES["reason"] |= {"native_rpc_"+word+"_timeout" for word in ("ping","help","pmksa_flush","disconnect","add_network","remove_network","set_network","select_network","disable_network","status","unknown")}
 SAFE_VALUES["reason"] |= {"authenticated", "wrong_key", "authentication_unconfirmed", "native_control_ready", "native_control_unavailable"}
-SAFE_VALUES["operation"] |= ACTIONS | {"configuration_apply", "wireless_readiness", "wireless_scan_interface", "wireless_scan_failure"}
+SAFE_VALUES["operation"] |= ACTIONS | {"configuration_apply", "wireless_readiness", "wireless_scan_interface", "wireless_scan_failure", "wireless_scan_fallback"}
 SAFE_VALUES["stage"] |= {"queue","progress","preflight","commit","download","publish","reboot","validation","connect","capabilities","session","stage","apply","verify","confirm","rollback","restore_verify","discard","finish"}
 SAFE_VALUES["reason"] |= {"accepted","unchanged","reply_lost","verified","verification_false","native_rpc_error","exception","restored","restore_unconfirmed","renewal_busy",
     "saved_values","runtime_missing","runtime_pending","runtime_up","runtime_proto","runtime_device","runtime_ipv4","runtime_ipv4_mask","runtime_gateway4","runtime_gateway6","runtime_ipv6","runtime_old_ipv6","runtime_prefix6","runtime_invalid"}
@@ -48,7 +48,7 @@ SAFE_VALUES["selection_source"] = frozenset({"ssh_socket","system_route","unknow
 SAFE_VALUES["source"] = frozenset({"session_apply", "direct_toggle", "repair"})
 SAFE_VALUES["interface_state"] = frozenset({"active", "inactive", "unknown", "missing"})
 SAFE_VALUES["scan_target"] = frozenset({"radio", "interface"})
-SAFE_VALUES["scan_error"] = frozenset({"scan_native", "scan_interface_read", "scan_no_interface", "scan_interface_busy", "scan_recovery", "radio", "response", "transport", "timeout", "disconnected", "scan_format", "rpc_iwinfo_scan", "other"})
+SAFE_VALUES["scan_error"] = frozenset({"scan_native", "scan_interface_read", "scan_no_interface", "scan_interface_busy", "scan_recovery", "radio", "response", "transport", "timeout", "disconnected", "scan_format", "rpc_iwinfo_scan", "rpc_iwinfo_info", "other"})
 SAFE_VALUES["band"] = frozenset({"2g", "5g", "6g"})
 SAFE_VALUES["ap_failure"] = AP_FAILURES
 SAFE_VALUES["ap_state"] = frozenset({"UNINITIALIZED", "DISABLED", "COUNTRY_UPDATE", "ACS", "HT_SCAN", "DFS", "ENABLED"})

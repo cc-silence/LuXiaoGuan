@@ -89,7 +89,12 @@ class CompatibilityTests(unittest.TestCase):
         self.assertEqual([p.name for p in resolve_packages(index,('tool',),{'installed'})],['good','tool'])
 
     def test_missing_and_existing_version_mismatch_are_distinct(self):
-        with self.assertRaises(UnavailablePackage):resolve_packages({},('luci-app-filebrowser',),set())
+        for name in ('luci-app-filebrowser', 'luci-app-dnscrypt-proxy', 'luci-app-zerotier'):
+            with self.subTest(name=name), self.assertRaises(UnavailablePackage) as missing:
+                resolve_packages({}, (name,), set())
+            self.assertIn("\u5f53\u524d\u8f6f\u4ef6\u6e90\u672a\u63d0\u4f9b\u6b64\u63d2\u4ef6", str(missing.exception))
+            self.assertIn(name, str(missing.exception))
+            self.assertIn("\u5c1a\u672a\u6267\u884c\u5b89\u88c5", str(missing.exception))
         with self.assertRaises(UnsatisfiedDependency) as error:
             resolve_packages({'tool':package('tool')},('tool (>= 2)',),InstalledPackages({'tool':'1'}),satisfies)
         self.assertNotIsInstance(error.exception,UnavailablePackage)

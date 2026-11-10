@@ -23,9 +23,17 @@ from modules.capture_services.openwrt.wireless_diagnostics import (
 )
 
 # 单轮去认证帧数与轮间隔：小剂量、多间隔；客户端上限防止打成风暴。
-_DEAUTH_COUNT = 5
+_DEAUTH_COUNT = 10
 _DEAUTH_INTERVAL = 20
 _DEAUTH_MAX_CLIENTS = 8
+
+
+class TargetBeaconMissing(RuntimeError):
+    pass
+
+
+class ChannelTuneError(RuntimeError):
+    pass
 
 
 @dataclass(frozen=True)
@@ -52,6 +60,7 @@ class HandshakeCaptureResult:
     hccapx_note: str = ""
     content_fingerprint: str = ""
     has_usable_frames: bool = False
+    no_clients_observed: bool = False
 
 
 @dataclass(frozen=True)
@@ -83,6 +92,7 @@ class DownloadedHandshake:
     auxiliary_paths: tuple
     deauth_rounds: int
     grouped: bool
+    no_client_targets: tuple = ()
 
     def analyze(self):
         from .channel_capture import split_channel_cap
@@ -109,11 +119,15 @@ class DownloadedHandshake:
                     analysis, pairs = auxiliary_analysis, auxiliary_pairs
             if incomplete_tail:
                 analysis = replace(analysis, content_complete=False)
+            detail = analysis.detail
+            if key in self.no_client_targets and analysis.status in ("none", "partial"):
+                detail = "\u89c2\u5bdf\u671f\u95f4\u672a\u53d1\u73b0\u5ba2\u6237\u7aef\uff0c\u5df2\u7ed3\u675f\u672c\u8f6e\u3002"
             results.append(HandshakeCaptureResult(
                 str(paths[key]), key, str(item.ssid or ""), analysis.status,
-                analysis.detail, self.deauth_rounds,
+                detail, self.deauth_rounds,
                 has_usable_frames=bool(pairs),
-                content_fingerprint=handshake_content_fingerprint(analysis, pairs)))
+                content_fingerprint=handshake_content_fingerprint(analysis, pairs),
+                no_clients_observed=key in self.no_client_targets))
         return tuple(results) if self.grouped else results[0]
     def release(self):
         """Release only this downloaded group's known disposable files after successful saving."""
@@ -149,7 +163,9 @@ class OpenWrtHandshakeCapture:
         heal_link=None,
         *, group_targets=(),
         defer_analysis=False,
-        deauth_batches=5,
+        deauth_batches=10,
+        stop_on_missing_beacon=False,
+        no_client_observation_tenths=None,
     ):
         """采集单个目标的原始 CAP，默认被动等待。
 
@@ -176,8 +192,7 @@ class OpenWrtHandshakeCapture:
         tag = "".join(char for char in str(file_tag) if char.isalnum())[:32]
         prefix = PurePosixPath(workspace.remote_dir) / (f"handshake-{tag}" if tag else "handshake")
         remote_cap = PurePosixPath(f"{prefix}-01.cap")
-        # 同时写 CSV：扫描快照几分钟就过期（手机休眠/漫游），去认证必须打当前
-        # 在线的设备；每轮去认证前现读这份 CSV 刷新名单，读不到就沿用旧名单。
+        # Observe the current capture's CSV; incomplete input is unknown, not empty.
         remote_csv = PurePosixPath(f"{prefix}-01.csv")
         receive_filter = f"--bssid {quote_argument(bssid)} " if len(targets) == 1 else ""
         command = (
@@ -196,9 +211,22 @@ class OpenWrtHandshakeCapture:
             max_runtime=max(600, duration + 300),
         )
         try:
-            self._verify_tuned_channel(
-                handle, monitor_interface, channel, cancel_event, heal_link
-            )
+            try:
+                self._verify_tuned_channel(
+                    handle, monitor_interface, channel, cancel_event, heal_link
+                )
+            except ChannelTuneError as exc:
+                try:
+                    tool_detail = self.process_manager.early_exit_detail(handle, cancel_event)
+                except Exception:
+                    tool_detail = ""
+                diag_name = collect_tool_failure_diagnostics(
+                    self.command_runner, workspace, workspace_manager,
+                    f"tune-{tag}", cancel_event,
+                    tool_log=str(exc) + ("\n" + tool_detail if tool_detail else ""))
+                if diag_name:
+                    raise ChannelTuneError(str(exc) + "\uff1b\u65e0\u7ebf\u8bca\u65ad\u5df2\u4fdd\u5b58\u3002") from exc
+                raise
             started = time.monotonic()
             deadline = started + duration
             last_second = -1
@@ -209,6 +237,20 @@ class OpenWrtHandshakeCapture:
             deauth_rounds = 0
             deauth_index = 0
             clients_by_target = {t.bssid: self._ordered_client_macs(t) for t in targets}
+            unavailable = set()
+            no_client_targets = set()
+            observation = None
+            current_clients = {}
+            observed_clients = set()
+            if no_client_observation_tenths is not None:
+                from .client_observation import ClientObservation
+                observation = ClientObservation()
+                try:
+                    fraction = max(0, min(10, int(no_client_observation_tenths)))
+                except (TypeError, ValueError):
+                    fraction = 5
+                observation_deadline = started + duration * fraction / 10
+                next_observation = started
             while time.monotonic() < deadline:
                 if cancel_event is not None and cancel_event.is_set():
                     raise RuntimeError("定向握手抓包已取消。")
@@ -228,6 +270,20 @@ class OpenWrtHandshakeCapture:
                         + ("；无线诊断已一并保留。" if diag_name else "")
                     )
                 now = time.monotonic()
+                if observation is not None and now >= next_observation:
+                    current_clients = self._observe_live_clients(
+                        workspace, workspace_manager, remote_csv, tag, bssids,
+                        cancel_event, observation, now)
+                    for key, clients in current_clients.items():
+                        if clients:
+                            observed_clients.add(key)
+                        elif clients == () and now >= observation_deadline and key not in observed_clients:
+                            unavailable.add(key)
+                            no_client_targets.add(key)
+                    next_observation = time.monotonic() + 5
+                    if all(key in unavailable for key in bssids):
+                        break
+                    now = time.monotonic()
                 if now >= next_content_check:
                     completed = set()
                     exists = self.command_runner.run(
@@ -249,19 +305,35 @@ class OpenWrtHandshakeCapture:
                         break
                     next_content_check = time.monotonic() + 15
                 if next_deauth is not None and now >= next_deauth:
-                    active_target = targets[deauth_index % len(targets)]
+                    available = [t for t in targets if normalize_bssid(t.bssid) not in unavailable]
+                    if not available:
+                        break
+                    active_target = available[deauth_index % len(available)]
                     deauth_index += 1
                     active_bssid = normalize_bssid(active_target.bssid)
-                    client_macs = clients_by_target[active_target.bssid]
-                    live = self._refresh_live_clients(
-                        workspace, workspace_manager, remote_csv, tag, active_bssid, cancel_event
-                    )
-                    if live:
-                        client_macs = live
-                        clients_by_target[active_target.bssid] = live
-                    sent = self._deauth_clients(
-                        active_bssid, client_macs, monitor_interface, cancel_event, batches=deauth_batches
-                    )
+                    if observation is not None:
+                        client_macs = current_clients.get(active_bssid) or ()
+                    else:
+                        client_macs = clients_by_target[active_target.bssid]
+                        live = self._refresh_live_clients(
+                            workspace, workspace_manager, remote_csv, tag, active_bssid, cancel_event
+                        )
+                        if live:
+                            client_macs = live
+                            clients_by_target[active_target.bssid] = live
+                    try:
+                        sent = self._deauth_clients(
+                            active_bssid, client_macs, monitor_interface, cancel_event, batches=deauth_batches
+                        )
+                    except TargetBeaconMissing:
+                        if not stop_on_missing_beacon:
+                            next_deauth = time.monotonic() + _DEAUTH_INTERVAL
+                            continue
+                        unavailable.add(active_bssid)
+                        if len(unavailable) == len(targets):
+                            break
+                        next_deauth = time.monotonic()
+                        continue
                     # 只统计真正发出过帧的轮数，空转（无在线客户端）不计入。
                     if sent:
                         deauth_rounds += 1
@@ -293,6 +365,12 @@ class OpenWrtHandshakeCapture:
             cancel_event=cancel_event,
         )
         if exists.exit_code != 0:
+            if no_client_targets and set(bssids) == no_client_targets:
+                empty = tuple(HandshakeCaptureResult(
+                    "", normalize_bssid(item.bssid), str(item.ssid or ""), verdict="none",
+                    verdict_detail="\u89c2\u5bdf\u671f\u95f4\u672a\u53d1\u73b0\u5ba2\u6237\u7aef\uff0c\u5df2\u7ed3\u675f\u672c\u8f6e\u3002",
+                    no_clients_observed=True) for item in targets)
+                return empty if group_targets else empty[0]
             raise RuntimeError(
                 "定向抓包没有生成原始 CAP，请确认目标仍在当前信道并检查无线驱动。"
             )
@@ -309,7 +387,7 @@ class OpenWrtHandshakeCapture:
         if progress_callback is not None:
             progress_callback(HandshakeCaptureUpdate(duration, duration, stage="analyzing"))
         downloaded = DownloadedHandshake(local_cap, targets,
-            (), deauth_rounds, bool(group_targets))
+            (), deauth_rounds, bool(group_targets), tuple(sorted(no_client_targets)))
         return downloaded if defer_analysis else downloaded.analyze()
 
     def _monitor_lost_note(self, monitor_interface, cancel_event):
@@ -370,9 +448,9 @@ class OpenWrtHandshakeCapture:
                     continue
             time.sleep(1)
         if readable:
-            raise RuntimeError(
+            raise ChannelTuneError(
                 f"网卡未能切到目标信道 {channel}（当前在信道 {last_seen}）。"
-                "如该频段被路由器自身无线占用，请确认接管后重试，或改用与本机同信道目标。"
+                "信道切换未成功，具体原因需根据无线诊断核对。"
             )
 
     @staticmethod
@@ -400,6 +478,18 @@ class OpenWrtHandshakeCapture:
                 break
         return seen
 
+    def _observe_live_clients(self, workspace, workspace_manager, remote_csv, tag,
+                              bssids, cancel_event, observation, now):
+        from .client_observation import parse_snapshot
+        local = workspace.local_dir / (f"handshake-{tag}-live.csv" if tag else "handshake-live.csv")
+        try:
+            workspace_manager.download_atomic(remote_csv, local, cancel_event)
+        except FileNotFoundError:
+            snapshot = None
+        else:
+            snapshot = parse_snapshot(local)
+        return observation.update(snapshot, bssids, now)
+
     def _refresh_live_clients(
         self, workspace, workspace_manager, remote_csv, tag, bssid, cancel_event
     ):
@@ -425,7 +515,7 @@ class OpenWrtHandshakeCapture:
                 return self._ordered_client_macs(point)
         return ()
 
-    def _deauth_clients(self, bssid, client_macs, monitor_interface, cancel_event, *, batches=5):
+    def _deauth_clients(self, bssid, client_macs, monitor_interface, cancel_event, *, batches=10):
         """对给定客户端逐个发送定点去认证小包，返回成功轮数。
 
         每条都是打完即退的短命令，没有常驻进程可管理；轮与轮之间检查取消，
@@ -458,6 +548,8 @@ class OpenWrtHandshakeCapture:
             require_command_completion(result)
             if result.exit_code == 0:
                 sent += 1
+            elif "no such bssid available" in ((result.stdout or "") + "\n" + (result.stderr or "")).lower():
+                raise TargetBeaconMissing()
             # 与 Mint 原版一致：客户端之间间隔 1 秒，避免连续注入。
             time.sleep(1)
         return sent

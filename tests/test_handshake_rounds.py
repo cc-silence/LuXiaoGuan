@@ -40,10 +40,15 @@ class HandshakeRoundTests(unittest.TestCase):
         self.assertEqual(result.results[0].result.verdict,"complete")
         self.assertEqual(result.results[0].stop_reason,"")
 
-    def test_fixed_mode_retains_no_progress_stop(self):
+    def test_fixed_mode_retries_identical_content_until_success(self):
         calls,result=self.run_batch(infinite=False)
-        self.assertEqual(calls,[1,2])
-        self.assertEqual(result.results[0].stop_reason,"no_progress")
+        self.assertEqual(calls,[1,2,3,4])
+        self.assertEqual(result.results[0].result.verdict,"complete")
+
+    def test_fixed_mode_honors_round_limit_with_identical_content(self):
+        calls,result=self.run_batch(infinite=False, finish_round=99)
+        self.assertEqual(calls,[1,2,3,4,5])
+        self.assertEqual(result.results[0].result.verdict,"partial")
 
     def test_unlimited_remains_cancellable(self):
         calls,result=self.run_batch(infinite=True, finish_round=99, cancel_round=4)

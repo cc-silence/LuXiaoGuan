@@ -42,6 +42,7 @@ class CaptureSettingsDialogTests(unittest.TestCase):
             settings = host.settings_page
             self.assertFalse(hasattr(settings, "keep_raw"))
             self.assertTrue(settings.collect_settings()["keep_raw_capture"])
+            self.assertFalse(hasattr(settings, "generate_cap"))
             settings.handshake_rounds.setValue(7)
             settings.active_deauth.setChecked(not settings.active_deauth.isChecked())
             dialog.close_button.click()
@@ -58,7 +59,7 @@ class CaptureSettingsDialogTests(unittest.TestCase):
                     APP.processEvents()
                     self.assertGreaterEqual(button.width(), button.sizeHint().width())
                     self.assertGreater(settings.scroll_area.viewport().width(), 100)
-                    box = settings.generate_cap
+                    box = settings.auto_open
                     image = box.parentWidget().grab().toImage()
                     x = box.x() + box.width() - 4
                     self.assertEqual(image.pixelColor(x, box.y() + box.height() // 2),

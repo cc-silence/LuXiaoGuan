@@ -50,8 +50,6 @@ class CaptureSettingsManager:
             "remember_password": False,
             "auth_method": "password",
             "private_key_path": "",
-            "trusted_host_fingerprints": {},
-            "remember_host_fingerprint": False,
             "mode": "filter",
             "band": "2.4G",
             "scan_seconds": 24,
@@ -64,6 +62,7 @@ class CaptureSettingsManager:
             "idle_timeout_seconds": 180,
             "pmkid_idle_timeout_seconds": 180,
             "pmkid_duration_seconds": 0,
+            "no_client_observation_tenths": 5,
             "handshake_rounds": 3,
             "handshake_rounds_infinite": False,
             "remote_work_root": "/tmp/winbox-capture",
@@ -103,7 +102,7 @@ class CaptureSettingsManager:
                 "mode": "normal",
             },
             "password_dictionary_rounds": False,
-            "deauth_batches": 5,
+            "deauth_batches": 10,
             "password_dictionaries": None,
             "password_dictionary": f"{APP_DIR_TOKEN}\\bin\\crack_password.txt",
         }}
@@ -349,16 +348,6 @@ class CaptureSettingsManager:
         openwrt["remember_password"] = self._bool(openwrt.get("remember_password"), False)
         openwrt["auth_method"] = "private_key" if openwrt.get("auth_method") == "private_key" else "password"
         openwrt["private_key_path"] = self._portable_optional_path(openwrt.get("private_key_path"), roots=roots)
-        openwrt["remember_host_fingerprint"] = self._bool(
-            openwrt.get("remember_host_fingerprint"),
-            False,
-        )
-        fingerprints = openwrt.get("trusted_host_fingerprints")
-        openwrt["trusted_host_fingerprints"] = {
-            str(key): str(value)
-            for key, value in (fingerprints.items() if isinstance(fingerprints, dict) else ())
-            if str(key).strip() and str(value).strip()
-        }
         openwrt["mode"] = "global" if openwrt.get("mode") == "global" else "filter"
         openwrt["band"] = "5G" if openwrt.get("band") == "5G" else "2.4G"
         openwrt["scan_seconds"] = self._clamp_int(openwrt.get("scan_seconds"), 5, 120, 24)
@@ -386,6 +375,7 @@ class CaptureSettingsManager:
         openwrt["idle_timeout_seconds"] = self._clamp_int(openwrt.get("idle_timeout_seconds"), 0, 3600, 180)
         openwrt["pmkid_idle_timeout_seconds"] = self._clamp_int(openwrt.get("pmkid_idle_timeout_seconds"), 0, 3600, 180)
         openwrt["pmkid_duration_seconds"] = self._clamp_int(openwrt.get("pmkid_duration_seconds"), 0, 3600, 0)
+        openwrt["no_client_observation_tenths"] = self._clamp_int(openwrt.get("no_client_observation_tenths"), 0, 10, 5)
         openwrt["handshake_rounds"] = self._clamp_int(openwrt.get("handshake_rounds"), 1, 99, 3)
         openwrt["handshake_rounds_infinite"] = self._bool(openwrt.get("handshake_rounds_infinite"), False)
         remote_root = str(openwrt.get("remote_work_root", "/tmp/winbox-capture")).strip()
@@ -394,7 +384,7 @@ class CaptureSettingsManager:
         openwrt["auto_open_dir"] = self._bool(openwrt.get("auto_open_dir"), True)
         openwrt["keep_raw_capture"] = True
         openwrt.pop("generate_22000", None)
-        openwrt["generate_cap"] = True
+        openwrt["generate_cap"] = self._bool(openwrt.get("generate_cap"), True)
         openwrt["auto_capture_generate_cap"] = self._bool(openwrt.get("auto_capture_generate_cap"), False)
         openwrt["pmkid_active_beacon"] = self._bool(openwrt.get("pmkid_active_beacon"), False)
         openwrt.pop("auto_parallel_radios", None)
@@ -402,7 +392,7 @@ class CaptureSettingsManager:
         openwrt.pop("handshake_hotspot_assist", None)
         openwrt["active_deauth"] = self._bool(openwrt.get("active_deauth"), True)
         openwrt["password_dictionary_rounds"] = self._bool(openwrt.get("password_dictionary_rounds"), False)
-        openwrt["deauth_batches"] = self._clamp_int(openwrt.get("deauth_batches"), 1, 20, 5)
+        openwrt["deauth_batches"] = self._clamp_int(openwrt.get("deauth_batches"), 1, 20, 10)
         openwrt["online_dependency_install"] = self._bool(openwrt.get("online_dependency_install"), True)
         openwrt["memory_warning_mb"] = self._clamp_int(openwrt.get("memory_warning_mb"), 8, 4096, 32)
         openwrt["memory_stop_mb"] = self._clamp_int(openwrt.get("memory_stop_mb"), 1, 1024, 5)

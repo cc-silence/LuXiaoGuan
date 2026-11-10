@@ -74,7 +74,7 @@ class PasswordRoundsTests(unittest.TestCase):
     def test_deauth_batches_are_bounded_and_default_is_preserved(self):
         runner=Mock();runner.run.return_value=RemoteCommandResult('deauth',0)
         capture=OpenWrtHandshakeCapture(runner,Mock())
-        for value,expected in ((1,1),(20,20),(0,1),(1000,20),('bad',5)):
+        for value,expected in ((1,1),(20,20),(0,1),(1000,20),('bad',10)):
             with self.subTest(value=value),patch('modules.capture_services.openwrt.handshake_capture.time.sleep'):
                 capture._deauth_clients(TARGETS[0].bssid,['02:11:22:33:44:77'],'owned',None,batches=value)
                 self.assertIn(f'-0 {expected} ',runner.run.call_args.args[1])

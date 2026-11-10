@@ -4,7 +4,7 @@ from modules.capture_services.openwrt.password_verification import dictionary_pa
 from pathlib import Path
 from modules.capture_services.dependency_logging import LOGIN_CATEGORY, DEPENDENCY_CATEGORY, SCOPED_CATEGORIES
 
-from PySide6.QtCore import Qt, QUrl, QSignalBlocker
+from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QFrame, QHBoxLayout
 
@@ -14,8 +14,6 @@ from modules.main_pages.info_panel import InfoPanel
 from modules.main_pages.packet_capture.capture_page_styles import CapturePageStyleManager
 from modules.main_pages.packet_capture.openwrt.openwrt_page import OpenWrtPage
 from modules.common_widgets.common_dialogs import MessageDialog
-from modules.main_pages.packet_capture.openwrt.confirmation_helpers import confirm_host_fingerprint
-from modules.main_pages.packet_capture.openwrt.confirmation_helpers import confirm_fingerprint_change
 from modules.main_pages.packet_capture.openwrt.confirmation_helpers import confirm_radio_takeover
 from modules.common_widgets.common_dialogs import ConfirmDialog
 
@@ -112,9 +110,6 @@ class PacketCapturePage(QFrame):
         self.capture_service.takeoverProbeFinished.connect(self._on_takeover_probe_finished)
         # 射频预检的待认领请求（probe_id, 设置副本, 勾选快照），结果过期直接丢弃。
         self._pending_takeover_probe = None
-        self.capture_service.openwrtFingerprintRequired.connect(
-            self._confirm_openwrt_fingerprint
-        )
         self.capture_service.messageGenerated.connect(self.info_panel.append_info)
         if self.capture_service.openwrt_snapshot.auto_summary:
             self.info_panel.append_info(self.capture_service.openwrt_snapshot.auto_summary, "info")
@@ -248,31 +243,6 @@ class PacketCapturePage(QFrame):
     def _handle_openwrt_action(self, action):
         """在主线程处理 OpenWrt 页面动作，确认和配置保存都在 worker 启动前完成。"""
 
-        if action == "fingerprint_preference_changed":
-            # 用户取消“保存此设备的主机指纹”时，必须同时移除当前设备的旧记录。
-            # 否则连接器仍会读取旧指纹，把用户主动改为临时信任误判成主机指纹变化。
-            from copy import deepcopy
-            previous = deepcopy(self.settings["openwrt"])
-            connection = self.openwrt_tab.login_page.connection
-            cleared = False
-            if not connection.fingerprint_check.isChecked():
-                settings = self.openwrt_tab.connection_settings()
-                try:
-                    key = self._fingerprint_key(settings.get("host", ""), settings.get("port", 22))
-                    self.settings["openwrt"].setdefault("trusted_host_fingerprints", {}).pop(key, None)
-                    cleared = bool(str(settings.get("host", "")).strip())
-                except (TypeError, ValueError):
-                    # 地址或端口尚未填写完整时没有可删除的稳定键，保存普通偏好即可。
-                    pass
-            saved = self._save_openwrt_settings()
-            if not saved:
-                self.settings["openwrt"].clear()
-                self.settings["openwrt"].update(previous)
-                with QSignalBlocker(connection.fingerprint_check):
-                    connection.fingerprint_check.setChecked(bool(previous.get("remember_host_fingerprint", False)))
-            elif cleared:
-                self.openwrt_tab.login_page.show_storage_feedback("\u5df2\u5220\u9664\u672c\u673a\u4fdd\u5b58\u7684\u5f53\u524d\u8bbe\u5907\u6307\u7eb9")
-            return
         if action == "clear_verified_history":
             count = len(self.capture_service.verified_history_snapshot())
             if count <= 0:
@@ -405,15 +375,7 @@ class PacketCapturePage(QFrame):
         self._connect_with_saved_credentials(settings)
 
     def _connect_with_saved_credentials(self, settings):
-        fingerprint_key = self._fingerprint_key(settings["host"], settings["port"])
-        # 未勾选时只进行本次人工核对，绝不读取历史指纹；勾选时才启用长期自动校验。
-        expected = ""
-        if bool(settings.get("remember_host_fingerprint", False)):
-            expected = self.settings["openwrt"].get("trusted_host_fingerprints", {}).get(
-                fingerprint_key,
-                "",
-            )
-        if not self.capture_service.connect_openwrt_async(settings, expected):
+        if not self.capture_service.connect_openwrt_async(settings):
             self.info_panel.append_info("当前已有抓包或连接任务，请等待完成后重试。", "warning")
 
     def _require_feature_dependencies(self, feature, display):
@@ -941,64 +903,6 @@ class PacketCapturePage(QFrame):
         if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(directory))):
             self.info_panel.append_info(f"打开保存目录失败：{directory}", "error")
 
-    def _confirm_openwrt_fingerprint(self, result):
-        """Confirm this connection; persist identity only when explicitly enabled."""
-
-        settings = self.openwrt_tab.connection_settings()
-        host = str(settings.get("host", "")).strip()
-        port = int(settings.get("port", 22))
-        if getattr(result, "status", "") == "fingerprint_changed":
-            if not confirm_fingerprint_change(
-                self,
-                host,
-                port,
-                result.key_type,
-                getattr(result, "expected_fingerprint", ""),
-                result.fingerprint,
-            ):
-                self.capture_service.reject_openwrt_fingerprint()
-                return
-            if bool(settings.get("remember_host_fingerprint", False)):
-                if not self._persist_openwrt_fingerprint(host, port, result.fingerprint):
-                    self.capture_service.reject_openwrt_fingerprint()
-                    return
-            self.capture_service.connect_openwrt_async(settings, result.fingerprint)
-            return
-        accepted, _dialog_remember_fingerprint = confirm_host_fingerprint(
-            self,
-            host,
-            port,
-            result.key_type,
-            result.fingerprint,
-        )
-        if not accepted:
-            self.capture_service.reject_openwrt_fingerprint()
-            return
-        # 设置页的复选框是唯一的长期保存开关；弹窗仅负责让用户本次核对指纹。
-        if bool(settings.get("remember_host_fingerprint", False)):
-            if not self._persist_openwrt_fingerprint(host, port, result.fingerprint):
-                self.capture_service.reject_openwrt_fingerprint()
-                return
-        self.capture_service.connect_openwrt_async(settings, result.fingerprint)
-
-    def _persist_openwrt_fingerprint(self, host, port, fingerprint):
-        """Publish permanent trust only after the configuration write succeeds."""
-        settings = self.settings["openwrt"]
-        previous = dict(settings.get("trusted_host_fingerprints", {}))
-        settings["trusted_host_fingerprints"] = {
-            **previous, self._fingerprint_key(host, port): fingerprint,
-        }
-        if self._save_settings_with_feedback():
-            return True
-        settings["trusted_host_fingerprints"] = previous
-        return False
-
-    @staticmethod
-    def _fingerprint_key(host, port):
-        """生成稳定的主机指纹配置键，区分同地址不同 SSH 端口。"""
-
-        return f"{str(host).strip().casefold()}:{int(port)}"
-
     def _save_settings_with_feedback(self):
         """保存抓包配置，失败时说明文件、原因和建议处理方式。"""
 
@@ -1069,8 +973,5 @@ class PacketCapturePage(QFrame):
                 self.settings_info_panel.append_info
             )
             self.capture_service.dependencyMessageGenerated.disconnect(self.dependency_info_panel.append_info)
-            self.capture_service.openwrtFingerprintRequired.disconnect(
-                self._confirm_openwrt_fingerprint
-            )
         except (RuntimeError, TypeError):
             pass

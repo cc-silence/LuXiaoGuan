@@ -78,7 +78,7 @@ class HostKeyInfo:
 
 
 class _ConfirmingHostKeyPolicy:
-    """只接受调用方明确传入的指纹，未知或变化时中止连接。"""
+    """普通登录接受设备密钥；指定预期身份的内部连接仍需核对。"""
 
     def __init__(self, owner, expected_fingerprint=""):
         self.owner = owner
@@ -95,19 +95,14 @@ class _ConfirmingHostKeyPolicy:
             client.get_host_keys().add(hostname, key.get_name(), key)
             self.owner.login_diagnostics.host_key(key.get_name(), verified=True)
             return
-        raise HostKeyConfirmationRequired(
-            hostname,
-            self.owner._port,
-            fingerprint,
-            key.get_name(),
-        )
+        client.get_host_keys().add(hostname, key.get_name(), key)
+        self.owner.login_diagnostics.host_key(key.get_name(), verified=False)
 
 
 class OpenWrtSshClient:
     """隔离 Paramiko，并管理连接、主机指纹和 SFTP 生命周期。
 
-    参数：无。connect 在后台 worker 中调用；首次未知指纹抛出
-    HostKeyConfirmationRequired，调用方必须在主线程确认后再次传入 accepted_fingerprint。
+    参数：无。connect 在后台 worker 中调用；普通登录不需确认指纹。
     副作用：connect/open_sftp 会联网；close 会关闭 SSH/SFTP；不写配置、不记录密码。
     """
 
@@ -217,7 +212,7 @@ class OpenWrtSshClient:
     ):
         """建立 SSH 连接并校验主机指纹。
 
-        expected_fingerprint 为空时拒绝未知主机；已有指纹必须完全匹配，变化时抛出
+        expected_fingerprint 为空时不校验主机身份；指定时必须完全匹配，变化时抛出
         HostKeyChangedError。密码只作为本次调用参数传递，不写入对象或日志。
         """
 
