@@ -196,6 +196,8 @@ class OperationDiagnostics:
             scope=getattr(self._context,"management",None)
             if scope is not None:
                 fields.setdefault("task_id",scope[0])
+                if scope[1] != self._epoch:
+                    return None
                 if expected_epoch is None:expected_epoch=scope[1]
             if expected_epoch is not None and expected_epoch!=self._epoch:
                 return None

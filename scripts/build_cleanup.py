@@ -49,14 +49,17 @@ def digest(path):
 
 
 def guarded(root,path):
-    root=Path(root).resolve(strict=True)
+    input_root=Path(root).absolute()
+    root=input_root.resolve(strict=True)
     path=Path(path).absolute()
     resolved=path.resolve(strict=True)
     build=root/'build'
-    if resolved == build or not resolved.is_relative_to(build) or path != resolved:
+    if resolved == build or not resolved.is_relative_to(build):
         raise ValueError('Cleanup path escaped build or contains a link: '+str(path))
+    if not path.is_relative_to(input_root):
+        raise ValueError('Cleanup path is outside the requested root: '+str(path))
     for parent in (path,*path.parents):
-        if parent == root:
+        if parent == input_root:
             break
         info=parent.lstat()
         if stat.S_ISLNK(info.st_mode) or getattr(info,'st_file_attributes',0)&0x400:
