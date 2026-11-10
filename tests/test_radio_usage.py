@@ -171,6 +171,7 @@ class CaptureAdmissionTests(unittest.TestCase):
         runner=Mock()
         def run(name,*args,**kwargs):
             if name=='find_hcx_bin':return RemoteCommandResult(name,0,'/usr/sbin/hcxdumptool')
+            if name=='capture_channel_capabilities':return RemoteCommandResult(name,0,'* 5180 MHz [36] (20.0 dBm)')
             if name=='sweep_stale':raise RuntimeError('ADMISSION_PASSED')
             return RemoteCommandResult(name,0,'')
         runner.run.side_effect=run

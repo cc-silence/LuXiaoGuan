@@ -58,6 +58,7 @@ esac
         runner=Mock()
         def run(name,*args,**kwargs):
             if name=='find_hcx_bin':return RemoteCommandResult(name,0,'/usr/sbin/hcxdumptool')
+            if name=='capture_channel_capabilities':return RemoteCommandResult(name,0,'* 5180 MHz [36] (20.0 dBm)')
             if name=='radio_usage':return RemoteCommandResult(name,0,'__RM_USAGE_BEGIN__\nP|phy7\n__RM_USAGE_END__\n')
             if name=='sweep_stale':return RemoteCommandResult(name,44,'','permission denied')
             return RemoteCommandResult(name,0)

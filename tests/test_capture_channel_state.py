@@ -64,7 +64,7 @@ class CaptureChannelStateTests(unittest.TestCase):
         lane.ssh_client._client=Mock();lane.ssh_client._client.get_transport.return_value.is_active.return_value=True
         lane._bound_client=lane.ssh_client._client
         def run(name,*args,**kwargs):
-            return RemoteCommandResult(name,0,'/usr/sbin/hcxdumptool' if name=='find_hcx_bin' else 'ABSENT' if name=='sweep_stale' else '')
+            return RemoteCommandResult(name,0,'/usr/sbin/hcxdumptool' if name=='find_hcx_bin' else 'ABSENT' if name=='sweep_stale' else '* 5180 MHz [36] (20.0 dBm)' if name=='capture_channel_capabilities' else '')
         lane.runner.run.side_effect=run
         lane._build_attempt_commands=Mock(return_value=[('first','owned capture'),('second','owned capture')])
         with patch('modules.capture_services.openwrt.auto_capture_service.OpenWrtRadioTakeover') as takeover, \

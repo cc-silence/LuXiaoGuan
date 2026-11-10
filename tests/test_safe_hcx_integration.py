@@ -44,7 +44,10 @@ class SafeHcxIntegrationTests(unittest.TestCase):
 
     def test_empty_legacy_channel_list_does_not_emit_invalid_channel_option(self):
         session, _ = self.session("hcxdumptool 6.2.4")
-        for channels in ("", ",,", "b,b"):
+        for channels in (",,", "b,b"):
+            with self.subTest(channels=channels), self.assertRaises(ValueError):
+                session._build_attempt_commands(channels, "/tmp/bpf")
+        for channels in ("",):
             with self.subTest(channels=channels):
                 commands = session._build_attempt_commands(channels, "/tmp/bpf")
                 self.assertTrue(commands)
