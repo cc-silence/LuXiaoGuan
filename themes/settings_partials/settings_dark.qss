@@ -1080,3 +1080,13 @@ QLineEdit[passwordConfirmation="true"][inputError="true"]:focus,
 #settingsWindowFrame QLineEdit[passwordConfirmation="true"][inputError="true"]:focus {
     background-color: #482b30;
 }
+
+/* Shared primary input area for wireless setup dialogs. */
+QFrame#signalPrimaryInputCard { background: #1c242d; border: 1px solid #354354; border-radius: 8px; }
+QFrame#signalPrimaryInputCard QWidget#signalPrimaryInputRow { background: transparent; border: none; }
+QFrame#signalPrimaryInputCard QLabel { background: transparent; border: none; }
+QFrame#signalPrimaryInputCard QToolButton { background: transparent; }
+QFrame#signalPrimaryInputCard QLabel[signalPrimaryField="true"] { background: transparent; border: none; color: #f4f6f8; font-weight: 600; }
+QFrame#signalPrimaryInputCard QLineEdit#signalPrimaryLineEdit { background: #141b23; color: #f4f6f8; border: 1px solid #536980; border-radius: 6px; min-height: 28px; padding: 2px 10px; }
+QFrame#signalPrimaryInputCard QLineEdit#signalPrimaryLineEdit:focus { border-color: #1687e0; }
+QFrame#signalPrimaryInputCard QLineEdit#signalPrimaryLineEdit:disabled { color: #536980; border-color: #354354; }

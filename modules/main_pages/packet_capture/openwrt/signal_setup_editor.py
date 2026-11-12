@@ -88,6 +88,8 @@ def configure_ap(dialog, environment):
     dialog.save_button.setEnabled(can_save)
     if dialog.save_only_button is not None:
         dialog.save_only_button.setEnabled(can_save)
+    from .signal_setup_presets import bind_settings_profile
+    bind_settings_profile(dialog, environment, "ap")
 
 
 def configure_relay(dialog, environment):
@@ -139,6 +141,8 @@ def configure_relay(dialog, environment):
     dialog.save_button.setEnabled(True)
     if dialog.save_only_button is not None:
         dialog.save_only_button.setEnabled(True)
+    from .signal_setup_presets import bind_settings_profile
+    bind_settings_profile(dialog, environment, "relay")
 
 
 def ap_request(dialog):

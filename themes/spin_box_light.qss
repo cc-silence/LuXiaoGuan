@@ -47,3 +47,6 @@ QDoubleSpinBox::down-arrow {
 	width: 10px;
 	height: 10px;
 }
+
+QSpinBox[compactInput="true"] { padding-left: 2px; padding-right: 0px; }
+QSpinBox[compactInput="true"]::up-button, QSpinBox[compactInput="true"]::down-button { width: 12px; }

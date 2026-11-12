@@ -1,6 +1,6 @@
 """发射与中继设置窗口，默认简化，高级选项按设备能力装配。"""
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QFrame, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 from modules.common_widgets.bounce_scroll_area import BounceScrollArea
 from modules.common_widgets.config_fields import ConfigCheckBox, ConfigValueList
 from modules.common_widgets.collapsible_section import CollapsibleSection
@@ -27,7 +27,7 @@ class _SetupDialog(FramelessDialog):
         self.setStyleSheet(build_base_stylesheet(ConfigManager(), light_theme=light,
                                                scale_manager=UiScaleManager.for_widget(self)))
         self.set_scaled_size((460, 280) if compact else (620, 450),
-                             (540, 330) if compact else (780, 570))
+                             (540, 330) if compact else (780, 650))
         self.scroll_area = BounceScrollArea(self)
         self.scroll_area.setObjectName("settingsScrollArea")
         self.scroll_area.setWidgetResizable(True)
@@ -57,6 +57,16 @@ class _SetupDialog(FramelessDialog):
         self._busy = False
         self._close_pending = False
 
+    def _add_settings_profile(self, primary_group):
+        group, layout = self._basic("")
+        self.form.insertWidget(self.form.indexOf(primary_group) + 1, group)
+        self.settings_profile = choice(group, (
+            ("\u6cbf\u7528\u5df2\u6709\u8bbe\u7f6e", "existing"),
+            ("\u8def\u5c0f\u7ba1\u63a8\u8350\u8bbe\u7f6e", "recommended")))
+        add_field(layout, group, "\u8bbe\u7f6e\u65b9\u6848", self.settings_profile,
+                  "\u5207\u6362\u4f1a\u91cd\u65b0\u586b\u5165\u65b9\u6848\u53c2\u6570\uff0c\u4fdd\u7559\u540d\u79f0\u548c\u5bc6\u7801\u3002\u70b9\u51fb\u4fdd\u5b58\u540e\u624d\u4f1a\u751f\u6548\u3002")
+        self.settings_profile.setEnabled(False)
+
     def message(self, text, *, error=False):
         self._input_error_active = bool(error)
         name = "settingsValidationError" if error else "settingsHint"
@@ -84,11 +94,56 @@ class _SetupDialog(FramelessDialog):
             self._close_pending = False
             self.reject()
 
-    def _basic(self, title):
+    def _emphasize_input(self, control, editor):
+        control.setObjectName("signalPrimaryInputRow")
+        label = control._form_label
+        label.setProperty("signalPrimaryField", True)
+        label.style().unpolish(label)
+        label.style().polish(label)
+        editor.setObjectName("signalPrimaryLineEdit")
+        action = control.toggle if isinstance(control, PasswordInput) else control.random_button
+        metrics = getattr(action, "_winbox_base_metrics", {})
+        metrics.pop("fixed_size", None)
+        action.setMinimumSize(0, 0)
+        action.setMaximumSize(16777215, 16777215)
+        action.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        editor.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        slot = QWidget(control)
+        slot.setObjectName("signalPrimaryInputRow")
+        scale = UiScaleManager.for_widget(self)
+        scale.bind_metrics(slot, fixed_width=56)
+        slot_layout = QHBoxLayout(slot)
+        scale.bind_layout(slot_layout, margins=(0, 0, 0, 0), spacing=0)
+        control.layout().removeWidget(action)
+        slot_layout.addWidget(action)
+        control.layout().addWidget(slot)
+        control.primary_action_slot = slot
+
+
+    def _basic(self, title, *, primary=False):
         group = QFrame(self.body)
-        group.setObjectName("settingsInlinePage")
+        group.setObjectName("signalPrimaryInputCard" if primary else "settingsInlinePage")
         layout = QVBoxLayout(group)
-        UiScaleManager.for_widget(self).bind_layout(layout, margins=(16, 8, 16, 16), spacing=12)
+        scale = UiScaleManager.for_widget(self)
+        margins = (16, 20, 16, 24) if primary else (16, 8, 16, 16)
+        scale.bind_layout(layout, margins=margins, spacing=16 if primary else 12)
+        if primary:
+            scale.bind_metrics(group, min_height=192)
+            content = QWidget(group)
+            content.setObjectName("signalPrimaryInputRow")
+            content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+            scale.bind_metrics(content, max_width=560)
+            centered = QHBoxLayout()
+            scale.bind_layout(centered, margins=(0, 0, 0, 0), spacing=0)
+            centered.addStretch()
+            centered.addWidget(content, 1)
+            centered.addStretch()
+            layout.addLayout(centered)
+            layout = QVBoxLayout(content)
+            scale.bind_layout(layout, margins=(0, 0, 0, 0), spacing=16)
+            self.primary_input_card = group
+            self.primary_input_form = content
         if title:
             heading = hint(title, group)
             heading.setObjectName("settingsSectionTitle")
@@ -135,13 +190,16 @@ class AccessPointSetupDialog(_SetupDialog):
         self._summary_base = self.summary.text() if self.summary is not None else ""
         if self.summary is not None:
             self.form.addWidget(self.summary)
-        group, layout = self._basic("Wi-Fi \u540d\u79f0\u4e0e\u5bc6\u7801" if editing else "")
+        group, layout = self._basic("Wi-Fi \u540d\u79f0\u4e0e\u5bc6\u7801" if editing else "", primary=True)
         self.name_input = RandomNameInput(group, row.ssid if editing else "", "输入手机和电脑搜索到的 Wi-Fi 名称")
         self.name_edit = self.name_input.edit
         add_field(layout, group, "信号名称", self.name_input, "最多 32 字节，约 10 个汉字或 32 个英文字母。")
+        self._emphasize_input(self.name_input, self.name_edit)
         self.password = PasswordInput(group, "留空保留原密码" if editing else "至少 8 位，建议使用字母和数字")
         self.password_fields.append(self.password)
         add_field(layout, group, "连接密码", self.password, "编辑时自动读取已保存的密码，默认隐藏，点眼睛可查看。")
+        self._emphasize_input(self.password, self.password.edit)
+        self._add_settings_profile(group)
         self.common_section, self.common_tabs = self._section("常用设置", ("无线参数", "安全设置", "网络"))
         page, layout = self.common_tabs.pages["无线参数"]
         self.channel = add_field(layout, page, "信道", choice(page, ()), "同一块网卡的所有信号共用信道；中继时通常跟随上级。")
@@ -181,7 +239,6 @@ class AccessPointSetupDialog(_SetupDialog):
         from .signal_advanced_fields import AdvancedFields
         self.expert_fields = AdvancedFields(*self.expert_tabs.pages["兼容与漫游"])
         self.expert_fields.controls["maclist"].validationChanged.connect(self.input_validation_changed)
-        self.form.addWidget(hint("一般只需填写名称和密码，其余选项可沿用当前路由器设置。", self.body))
         self.form.addStretch(1)
 
 
@@ -191,7 +248,7 @@ class RelaySetupDialog(_SetupDialog):
         super().__init__("编辑中继信号" if row else "中继详细设置", parent)
         self.row = row
         self.radio_name = radio_name
-        group, layout = self._basic("中继连接")
+        group, layout = self._basic("中继连接", primary=True)
         self._basic_layout = layout
         self.name_edit = text_input(group, ssid, "例如：客厅上级网络")
         self.target_label = hint(ssid or "隐藏网络", group)
@@ -205,6 +262,8 @@ class RelaySetupDialog(_SetupDialog):
         self.password.edit.setText(password)
         self.password_fields.append(self.password)
         add_field(self._basic_layout, group, "连接密码", self.password, "编辑时自动读取已保存的密码，默认隐藏，点眼睛可查看；不写入日志或本机配置。")
+        self._emphasize_input(self.password, self.password.edit)
+        self._add_settings_profile(group)
         add_field(layout, page, "无线网卡", hint(radio_name or "尚未读取", page), "上级信道会影响这块网卡同时发射的信号。")
         self.lock_bssid = add_field(layout, page, "锁定到 BSSID", ConfigCheckBox(page),
             "BSSID 是接入点的无线地址。启用锁定时，只连接扫描选中的接入点；解除锁定后允许连接同名 Wi-Fi。")

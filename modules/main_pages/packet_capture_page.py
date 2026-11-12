@@ -562,6 +562,11 @@ class PacketCapturePage(QFrame):
         target_points = [
             point for point in snapshot.access_points if point.bssid in selected
         ]
+        from modules.capture_services.openwrt.models import AccessPointCaptureState
+        if all(point.capture_state == AccessPointCaptureState.CAPTURED for point in target_points):
+            self.info_panel.append_info(
+                "所选信号均已有可用包，本次无需重复抓取。", "info")
+            return
         if settings.get("idle_radio_only", False):
             # 严格模式由后台实时核实空闲，从不需要接管确认，直接进开始确认。
             self._launch_handshake_with_probe_result(dict(settings), selected, target_points, [])

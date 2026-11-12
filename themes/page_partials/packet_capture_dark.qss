@@ -74,7 +74,7 @@ QWidget#resizableListGripDot[gripHovered="true"] { background: #aeb8c6; }
 
 QWidget#openwrtCaptureUpperPanel { background: transparent; border: none; }
 QSplitter#captureContentSplitter::handle:hover { background: #0078d4; }
-QWidget#captureToolPanel QLineEdit#captureLineEdit, QWidget#captureToolPanel QComboBox#captureComboBox { min-height: 25px; padding-left: 4px; padding-right: 4px; }
+QWidget#captureToolPanel QLineEdit#captureLineEdit, QWidget#captureToolPanel QComboBox#captureComboBox { padding-left: 4px; padding-right: 4px; }
 QWidget#captureToolPanel QPushButton#downloadActionButton {
     min-height: 28px;
     padding: 3px 6px;

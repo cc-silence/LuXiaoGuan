@@ -15,6 +15,7 @@ class CommonSpinBox(QSpinBox):
     def set_compact_digits(self, digits):
         """按常用位数留宽；更长的当前数值自动扩展，不改变合法范围。"""
         self._compact_digits = max(1, int(digits))
+        self.setProperty("compactInput", True)
         self.updateGeometry()
 
     def _update_compact_geometry(self, *_args):

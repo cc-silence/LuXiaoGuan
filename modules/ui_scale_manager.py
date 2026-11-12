@@ -15,11 +15,13 @@ class UiScaleManager:
     GLOBAL_MIN = GLOBAL_LEVELS[0]
     GLOBAL_MAX = GLOBAL_LEVELS[-1]
     BASE_FONT_PT = 11
-    # 折叠导航宽度与标题栏高度共享基准，左上角 Logo 区域保持正方形。
+    # 导航栏与标题栏独立缩放，放大导航不改变标题栏高度。
     CHROME_EDGE = 56
-    NAV_EXPANDED_WIDTH = 88
-    NAV_BUTTON_SIZE = CHROME_EDGE - 12
-    NAV_BUTTON_HEIGHT = 60
+    NAV_COLLAPSED_WIDTH = 64
+    NAV_EXPANDED_WIDTH = 100
+    NAV_BUTTON_SIZE = NAV_COLLAPSED_WIDTH - 12
+    NAV_BUTTON_HEIGHT = 68
+    NAV_ICON_SIZE = 25
     NAV_MARGIN_Y = 2
     NAV_MARGIN_X = 6
     TREE_MIN = 80
@@ -359,7 +361,7 @@ QToolTip {{
         # PyDracula 模板把菜单宽度放在 Settings 静态属性里，动画展开时会读取这些值。
         # 这里按全局缩放更新运行时宽度；颜色和选中样式仍然由主题逻辑控制。
         Settings.MENU_WIDTH = self.px(self.NAV_EXPANDED_WIDTH)
-        Settings.MENU_COLLAPSED_WIDTH = self.px(self.CHROME_EDGE)
+        Settings.MENU_COLLAPSED_WIDTH = self.px(self.NAV_COLLAPSED_WIDTH)
         Settings.RIGHT_BOX_WIDTH = self.px(240)
 
     def apply_application_font(self, app, font_family=None):
@@ -421,7 +423,7 @@ QToolTip {{
             main_window.ui.styleSheet.setStyleSheet(f"{base_stylesheet}\n\n{self.scaled_main_stylesheet()}")
             sidebar = main_window.ui.leftMenuBg
             compact = getattr(main_window, "_sidebar_compact", True)
-            width = self.px(self.CHROME_EDGE if compact else self.NAV_EXPANDED_WIDTH)
+            width = self.px(self.NAV_COLLAPSED_WIDTH if compact else self.NAV_EXPANDED_WIDTH)
             sidebar.setFixedWidth(width)
             if sidebar.layout() is not None:
                 sidebar.layout().activate()

@@ -5,7 +5,6 @@ from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
 from modules.main_pages.page_action_buttons import create_page_icon_button
-from modules.common_widgets.combo_box import CommonComboBox
 from modules.main_pages.packet_capture.ui_helpers import create_capture_card, create_form_row, create_path_row
 from .resource_picker import OpenWrtResourcePicker
 from .password_dictionary_editor import PasswordDictionaryEditor
@@ -111,46 +110,28 @@ class CaptureSettingsPage(QWidget):
         """创建常规抓包专用设置：只管手动「常规抓包」按钮。"""
 
         card, layout = create_capture_card(parent, "常规抓包", "用于勾选目标后的常规抓包。")
-        self.handshake_rounds_mode = CommonComboBox(card)
-        self.handshake_rounds_mode.setObjectName("captureComboBox")
-        self.handshake_rounds_mode.addItem("按固定轮数", "fixed")
-        self.handshake_rounds_mode.addItem("不限轮数", "infinite")
-        self.handshake_rounds_mode.setToolTip(
-            "选“按固定轮数”时按下面的轮数尝试；选“不限轮数”时持续尝试，抓到可用包或手动停止时结束。执行故障会报出具体原因。此时轮数输入框隐藏，运行期间会占用网卡。"
-        )
-        self.handshake_rounds = QSpinBox(card)
-        self.handshake_rounds.setObjectName("captureSpinBox")
-        self.handshake_rounds.setRange(1, 99)
-        self.handshake_rounds.setSuffix(" 轮")
-        self.handshake_rounds.setToolTip(
-            "建议保留 3 轮。未抓到可用包的信号会再尝试，轮数越多等待越久。"
-            "已抓到可用包的信号会跳过，其他信号会按设定轮数继续尝试。"
-        )
         self.active_deauth = QCheckBox("允许主动断连（默认开启）", card)
         self.active_deauth.setObjectName("captureCheckBox")
         self.active_deauth.setToolTip(
             "只影响常规抓包。开启会让目标设备短暂断网并重新连接，以便抓到连接数据；不想影响正在上网的设备就关闭。仅用于自有或明确授权的网络，开始前会要求确认。部分路由器可能因此断开无线连接，遇到这种情况请关闭。"
         )
-        layout.addLayout(create_form_row(card, "抓包轮数模式", self.handshake_rounds_mode, self.handshake_rounds_mode.toolTip()))
-        self._rounds_number_row = create_form_row(card, "定向抓包轮数", self.handshake_rounds, self.handshake_rounds.toolTip())
-        layout.addLayout(self._rounds_number_row)
         layout.addWidget(self.active_deauth)
         self.no_client_observation = DiscreteTickSlider(Qt.Horizontal, card)
-        self.no_client_observation.setRange(0, 10)
-        self.no_client_observation.setSingleStep(1)
-        self.no_client_observation.set_tick_configuration(range(0, 11))
+        self.no_client_observation.setRange(20, 90)
+        self.no_client_observation.setSingleStep(5)
+        self.no_client_observation.set_tick_configuration(range(20, 91, 5))
         self.no_client_observation.setTracking(False)
         self.no_client_observation.set_light_theme(detect_light_theme(self))
-        self.no_client_observation.setValue(int(settings.get("no_client_observation_tenths", 5)))
-        self.no_client_value = QLabel(f"{self.no_client_observation.value() / 10:.1f} \u500d", card)
+        self.no_client_observation.setValue(int(settings.get("no_client_observation_seconds", 30)))
+        self.no_client_value = QLabel(f"{self.no_client_observation.value()} \u79d2", card)
         self.no_client_value.setObjectName("captureDescription")
         self.no_client_observation.valueChanged.connect(
-            lambda value: self.no_client_value.setText(f"{value / 10:.1f} \u500d"))
+            lambda value: self.no_client_value.setText(f"{value} \u79d2"))
         self.no_client_observation.sliderMoved.connect(
-            lambda value: self.no_client_value.setText(f"{value / 10:.1f} \u500d"))
+            lambda value: self.no_client_value.setText(f"{value} \u79d2"))
         self.no_client_observation.valueChanged.connect(lambda _value: self.settingsChanged.emit())
         self.no_client_observation.setToolTip(
-            "\u6309\u5355\u76ee\u6807\u8d85\u65f6\u7684\u500d\u6570\u89c2\u5bdf\u5ba2\u6237\u7aef\u3002\u6bcf 5 \u79d2\u8bfb\u53d6\u4e00\u6b21\u5f53\u524d\u6293\u5305\u8bb0\u5f55\uff1b\u8bb0\u5f55\u4e0d\u53ef\u7528\u65f6\u4e0d\u4f1a\u5224\u5b9a\u65e0\u5ba2\u6237\u7aef\u3002")
+            "\u6309\u8bbe\u5b9a\u79d2\u6570\u89c2\u5bdf\u5ba2\u6237\u7aef\uff0c\u6700\u957f\u4e0d\u8d85\u8fc7\u5355\u76ee\u6807\u65f6\u957f\u3002\u6bcf 5 \u79d2\u8bfb\u53d6\u4e00\u6b21\u5f53\u524d\u6293\u5305\u8bb0\u5f55\uff1b\u8bb0\u5f55\u4e0d\u53ef\u7528\u65f6\u4e0d\u4f1a\u5224\u5b9a\u65e0\u5ba2\u6237\u7aef\u3002")
         observation_row = QWidget(card)
         observation_layout = QHBoxLayout(observation_row)
         observation_layout.setContentsMargins(0, 0, 0, 0)
@@ -179,29 +160,9 @@ class CaptureSettingsPage(QWidget):
         self.active_deauth.toggled.connect(self.deauth_batches.setEnabled)
         self.deauth_batches.valueChanged.connect(lambda _value: self.settingsChanged.emit())
         root.addWidget(card)
-        self.handshake_rounds.setValue(int(settings.get("handshake_rounds", 3)))
-        self.handshake_rounds_mode.setCurrentIndex(1 if bool(settings.get("handshake_rounds_infinite", False)) else 0)
-        self._apply_rounds_mode_visible()
         self.active_deauth.setChecked(bool(settings.get("active_deauth", True)))
         self.deauth_batches.setEnabled(self.active_deauth.isChecked())
-        self.handshake_rounds.lineEdit().editingFinished.connect(self.settingsChanged)
-        self.handshake_rounds_mode.currentIndexChanged.connect(self._sync_rounds_mode)
         self.active_deauth.toggled.connect(lambda _checked: self.settingsChanged.emit())
-
-    def _apply_rounds_mode_visible(self):
-        """按当前轮数模式显示或隐藏轮数输入框整行，不触发保存。"""
-
-        infinite = self.handshake_rounds_mode.currentData() == "infinite"
-        for index in range(self._rounds_number_row.count()):
-            widget = self._rounds_number_row.itemAt(index).widget()
-            if widget is not None:
-                widget.setVisible(not infinite)
-
-    def _sync_rounds_mode(self, _index):
-        """轮数模式变化后同步输入框显隐，同时标记配置已改。"""
-
-        self._apply_rounds_mode_visible()
-        self.settingsChanged.emit()
 
     def _refresh_history_button(self):
         """按已抓名单条数刷新清除按钮文字与可用状态，无记录时禁用。"""
@@ -305,9 +266,7 @@ class CaptureSettingsPage(QWidget):
         result = {
             "output_dir": self.output_dir.text().strip(),
             "refresh_seconds": self.refresh_seconds.value(),
-            "no_client_observation_tenths": self.no_client_observation.value(),
-            "handshake_rounds": self.handshake_rounds.value(),
-            "handshake_rounds_infinite": self.handshake_rounds_mode.currentData() == "infinite",
+            "no_client_observation_seconds": self.no_client_observation.value(),
             "keep_raw_capture": True,
             "auto_open_dir": self.auto_open.isChecked(),
             "active_deauth": self.active_deauth.isChecked(),

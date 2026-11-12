@@ -10,12 +10,12 @@ from modules.icon_utils import get_theme_icon
 
 NAV_ITEMS = (
     ("login", "btn_packet_capture", "路由器登录", str(BASE_DIR / 'images/icons/router-login.svg')),
-    ("common", "btn_common_settings", "常用设置", str(BASE_DIR / 'images/icons/cil-options.png')),
-    ("signal", "btn_signal", "信号管理", str(BASE_DIR / 'images/icons/cil-rss.png')),
+    ("common", "btn_common_settings", "常用设置", str(BASE_DIR / 'images/icons/nav-common-settings.svg')),
+    ("signal", "btn_signal", "信号管理", str(BASE_DIR / 'images/icons/signal-management.svg')),
     ("files", "btn_files", "文件管理", str(BASE_DIR / 'images/icons/cil-folder.png')),
     ("terminal", "btn_terminal", "路由器终端", str(BASE_DIR / 'images/icons/cil-terminal.png')),
-    ("auto_capture", "btn_auto_capture", "自动抓包", str(BASE_DIR / 'images/icons/cil-media-play.png')),
-    ("capture", "btn_capture", "常规抓包", str(BASE_DIR / 'images/icons/cil-wifi-signal-2.png')),
+    ("auto_capture", "btn_auto_capture", "自动抓包", str(BASE_DIR / 'images/icons/auto-capture.svg')),
+    ("capture", "btn_capture", "常规抓包", str(BASE_DIR / 'images/icons/packet-capture.svg')),
 )
 
 
@@ -111,14 +111,14 @@ class RouterNavigation(QWidget):
     def refresh(self):
         """从原尺寸同步缩放、明暗图标和当前选中页面。"""
         scale = self.owner.scale_manager
-        width = scale.NAV_EXPANDED_WIDTH if self.expanded else scale.CHROME_EDGE
+        width = scale.NAV_EXPANDED_WIDTH if self.expanded else scale.NAV_COLLAPSED_WIDTH
         self.sidebar.setFixedWidth(scale.px(width))
         light = is_light_theme(self.owner.theme_name)
 
         btn_height = scale.NAV_BUTTON_HEIGHT if self.expanded else scale.NAV_BUTTON_SIZE
 
         # 展开/收起按钮
-        scale.bind_metrics(self.toggle_button, fixed_height=scale.NAV_BUTTON_SIZE, fixed_width=width, icon_size=20)
+        scale.bind_metrics(self.toggle_button, fixed_height=scale.NAV_BUTTON_SIZE, fixed_width=width, icon_size=scale.NAV_ICON_SIZE)
         self.toggle_button.setIcon(get_theme_icon(':/icons/images/icons/icon_menu.png', light))
 
         # 功能导航按钮
@@ -128,7 +128,7 @@ class RouterNavigation(QWidget):
                        self.stack.currentWidget() is self.settings_controller)
 
         for key, (button, icon) in self.page_buttons.items():
-            scale.bind_metrics(button, fixed_height=btn_height, fixed_width=width, icon_size=20)
+            scale.bind_metrics(button, fixed_height=btn_height, fixed_width=width, icon_size=scale.NAV_ICON_SIZE)
             button.setText(button.property('navigationLabel') if self.expanded else '')
             button.setIcon(get_theme_icon(icon, light))
             selected = (key == current_page) and not in_settings
@@ -138,7 +138,7 @@ class RouterNavigation(QWidget):
                 button.style().polish(button)
 
         # 设置按钮
-        scale.bind_metrics(self.settings_button, fixed_height=btn_height, fixed_width=width, icon_size=20)
+        scale.bind_metrics(self.settings_button, fixed_height=btn_height, fixed_width=width, icon_size=scale.NAV_ICON_SIZE)
         self.settings_button.setText(self.settings_button.property('navigationLabel') if self.expanded else '')
         self.settings_button.setIcon(get_theme_icon(':/icons/images/icons/icon_settings.png', light))
         if self.settings_button.property('sidebarSelected') != in_settings:
