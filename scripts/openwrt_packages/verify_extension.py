@@ -64,7 +64,7 @@ def verify_extension(archive, baseline_archive, baseline_sha256, baseline_proof,
         metadata, evidence = firmware_metadata(cache, p["release"], p["target"])
         if metadata["arch_packages"] != p["architecture"] or evidence != p["firmware_evidence"]:
             raise ValueError("New firmware platform evidence differs")
-        selected, provided = closure(p["packages"], p["roots"])
+        selected, provided = closure(p["packages"], p["roots"], runtime_supplements=p.get("runtime_supplements", ()))
         if {r["name"] for r in selected} != {r["name"] for r in p["packages"]}:
             raise ValueError("New dependency graph differs")
         if provided != p["firmware_required"]:
@@ -76,7 +76,7 @@ def verify_extension(archive, baseline_archive, baseline_sha256, baseline_proof,
         for r in p["packages"]:
             for alias in r.get("provides", []):
                 records.setdefault(alias.split(" ", 1)[0], records[r["name"]])
-        actual = resolve_packages(records, p["roots"], InstalledPackages({n: "device-provided" for n in provided}), satisfies)
+        actual = resolve_packages(records, tuple(p["roots"])+tuple(p.get("runtime_supplements",())), InstalledPackages({n: "device-provided" for n in provided}), satisfies)
         if {r.name for r in actual} != {r["name"] for r in p["packages"]}:
             raise ValueError("Runtime dependency resolver disagrees")
         sources.extend(evidence)

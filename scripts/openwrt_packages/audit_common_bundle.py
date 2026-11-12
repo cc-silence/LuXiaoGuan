@@ -72,7 +72,7 @@ def audit(archive, cache_root, kind="common", baseline_cache_root=None):
             evidence=cache.read_bytes();devices=json.loads(evidence)
         if devices.get("arch_packages")!=p["architecture"] or devices.get("target")!=p["target"]:
             raise ValueError("Official device architecture or target differs: "+url)
-        selected,_=closure(p["packages"],p["roots"])
+        selected,_=closure(p["packages"],p["roots"],runtime_supplements=p.get("runtime_supplements",()))
         if {r["name"] for r in selected}!={r["name"] for r in p["packages"]}:
             raise ValueError("Saved dependency closure is incomplete: "+url)
         if p["package_manager"]=="opkg":
@@ -81,7 +81,7 @@ def audit(archive, cache_root, kind="common", baseline_cache_root=None):
                 records[r["name"]]=FeedPackage(r["name"],r["version"],r["filename"],r["sha256"],r["size"],r["url"],tuple(r["depends"]),tuple(r.get("provides", [])))
             for r in p["packages"]:
                 for alias in r.get("provides",[]):records.setdefault(alias.split(" ",1)[0],records[r["name"]])
-            actual=resolve_packages(records,p["roots"],InstalledPackages({n:"device-provided" for n in p["firmware_required"]}),version_satisfies)
+            actual=resolve_packages(records,tuple(p["roots"])+tuple(p.get("runtime_supplements",())),InstalledPackages({n:"device-provided" for n in p["firmware_required"]}),version_satisfies)
             if {r.name for r in actual}!={r["name"] for r in p["packages"]}:
                 raise ValueError("Runtime dependency resolver disagrees with saved closure")
         source = dict(release=p["release"],target=p["target"],architecture=p["architecture"],

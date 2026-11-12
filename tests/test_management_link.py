@@ -39,6 +39,26 @@ def runner(text, code=0, **kwargs):
 
 
 class ManagementLinkTests(unittest.TestCase):
+    def test_unknown_path_retains_numeric_failure_evidence_without_addresses(self):
+        import json
+        text = report(fdb='',brctl='').replace('__MGLINK_INTERFACES__', '__MGLINK_TOOLS__\nip=1\nbridge=0\nbrctl=1\n__MGLINK_INTERFACES__')
+        backend = runner(text)
+        self.assertEqual(read_management_link(backend).status, 'unknown')
+        from modules.capture_services.openwrt.operation_diagnostics import sanitized_operation_evidence
+        from modules.log_history import HistoryMasker
+        data = sanitized_operation_evidence(backend.operation_diagnostics.snapshot(), HistoryMasker())
+        row = next(x for x in data['failures'] if x.get('operation')=='ssh_return_path')
+        self.assertEqual(row['link_fdb_rows'], 0)
+        self.assertEqual(row['link_neighbor_mac_count'], 1)
+        self.assertEqual(row['link_fdb_peer_rows'], 0)
+        self.assertEqual(row['link_brctl_peer_rows'], 0)
+        self.assertEqual(row['link_bridge_available'], 0)
+        self.assertEqual(row['link_brctl_available'], 1)
+        self.assertEqual(row['link_neighbor_usable'], 1)
+        self.assertGreater(row['link_interfaces_rows'], 0)
+        self.assertNotIn(MAC, json.dumps(data))
+        self.assertNotIn('192.168.1.2', json.dumps(data))
+
     def test_ethernet_over_bridge_and_vlan_is_safe_regardless_of_pc_wifi(self):
         link = parse_management_link(report())
         self.assertEqual((link.status, link.interface, link.phy), ("wired","eth0",""))

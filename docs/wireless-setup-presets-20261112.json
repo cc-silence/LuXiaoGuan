@@ -1,0 +1,162 @@
+{
+  "date": "2026-11-12",
+  "scope": "AP and relay editor profile selection; no new router commands, package install, driver changes or automatic apply.",
+  "defaults": "Existing profile remains default. Selecting a profile repopulates its managed parameters in memory only. Name, password, AP network membership, channel, country, transmit power and device identity remain untouched.",
+  "ap_recommendation": {
+    "standard_width": "Existing capability-gated default_htmode: 2.4 GHz prefers 20 MHz; 5/6 GHz prefer 80/40/20 MHz when confirmed. Unknown bands are not guessed.",
+    "security": "WPA2-PSK with optional PMF for confirmed 2/5 GHz; SAE with mandatory PMF only when 6 GHz and SAE support are confirmed.",
+    "values": {
+      "hidden": "0",
+      "isolate": "1",
+      "wmm": "1",
+      "dtim_period": "2",
+      "beacon_int": "100"
+    },
+    "scope": "Only individually confirmed options are submitted. Other advanced, identity, topology and regulatory options stay unchanged."
+  },
+  "relay_recommendation": "Routed client, DHCP and automatically supplied DNS. Existing masquerading-enabled wan zone preferred if present; no zones are created, no static IP or device identity guessed. Other parameters remain unchanged.",
+  "existing_flow": "Profile switching does no router I/O. Existing request validation, revision check, save-only/apply confirmation, management-link safety, rollback and startup verification are reused.",
+  "checks": {
+    "tests": 47,
+    "visual": "Actual Windows Qt dialogs, both themes, 100/125/150/175% scaling, select-disabled while busy.",
+    "native_save": "Real Lua interpreter with deterministic UCI fixture: recommended editor request confirmed; existing password/country/txpower/channel retained.",
+    "limitations": "No physical router or native Debian 12 verification; no firmware/hardware-wide success claim. Exact schema fixtures are synthetic, not device captures."
+  },
+  "source_review": {
+    "web_wiki": "Official wiki requests encountered Anubis; fallback to pinned official source contracts and live capability gates.",
+    "sources": [
+      {
+        "series": "19.07",
+        "commit": "1da2e82c1182a3fd681da5760be96821213afadd",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/1da2e82c1182a3fd681da5760be96821213afadd/package/network/services/hostapd/files/hostapd.sh",
+        "sha256": "9eb944eab3f7c24025b0a0c1fde3ba538415c25bb80c2c1db5f6067c9a8454f4",
+        "path": "build\\wireless-presets-sources\\19.07-1da2e82c1182-hostapd.sh",
+        "checked": [
+          "46: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-${auth_type_l}-SHA256\"",
+          "55: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-EAP-SHA256\"",
+          "64: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-PSK-SHA256\"",
+          "109: json_get_vars country country_ie beacon_int:100 doth require_mode legacy_rates acs_chan_bias",
+          "184: config_add_int ieee80211w",
+          "233: config_add_int ieee80211w_max_timeout ieee80211w_retry_timeout",
+          "272: set_default isolate 0",
+          "278: set_default wmm 1"
+        ]
+      },
+      {
+        "series": "21.02",
+        "commit": "78e4cffcd882389cb8f0bf818303f85f8d1e9c8e",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/78e4cffcd882389cb8f0bf818303f85f8d1e9c8e/package/network/services/hostapd/files/hostapd.sh",
+        "sha256": "2aaa7f48e0e2644ea98c0532233c3447ed4b9794dd907e269bfad7deea2a1d71",
+        "path": "build\\wireless-presets-sources\\21.02-78e4cffcd882-hostapd.sh",
+        "checked": [
+          "47: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-${auth_type_l}-SHA256\"",
+          "57: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-EAP-SHA256\"",
+          "66: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-PSK-SHA256\"",
+          "119: json_get_vars country country3 country_ie beacon_int:100 dtim_period:2 doth require_mode legacy_rates \\",
+          "248: config_add_int ieee80211w",
+          "307: config_add_int ieee80211w_max_timeout ieee80211w_retry_timeout",
+          "528: set_default isolate 0",
+          "535: set_default wmm 1"
+        ]
+      },
+      {
+        "series": "22.03",
+        "commit": "4e1d1b7df0ce6fa96d7462dc883917682f428046",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4e1d1b7df0ce6fa96d7462dc883917682f428046/package/network/services/hostapd/files/hostapd.sh",
+        "sha256": "a2215c9ccacdbe6bd6d5ff94c86dc9dcad5657578c3e4b3cd272121822a93acf",
+        "path": "build\\wireless-presets-sources\\22.03-4e1d1b7df0ce-hostapd.sh",
+        "checked": [
+          "47: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-${auth_type_l}-SHA256\"",
+          "60: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-EAP-SHA256\"",
+          "69: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-PSK-SHA256\"",
+          "134: json_get_vars country country3 country_ie beacon_int:100 doth require_mode legacy_rates \\",
+          "265: config_add_int ieee80211w",
+          "324: config_add_int ieee80211w_max_timeout ieee80211w_retry_timeout",
+          "552: set_default isolate 0",
+          "559: set_default wmm 1"
+        ]
+      },
+      {
+        "series": "23.05",
+        "commit": "33063b4ccf00d39393796499b23df55187b192dc",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/33063b4ccf00d39393796499b23df55187b192dc/package/network/services/hostapd/files/hostapd.sh",
+        "sha256": "3d8ddd69e00a3dcb384acceb843b9c2bdfb2ab73d6a9fae8eb8fa53ffff925dd",
+        "path": "build\\wireless-presets-sources\\23.05-33063b4ccf00-hostapd.sh",
+        "checked": [
+          "47: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-${auth_type_l}-SHA256\"",
+          "69: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-PSK-SHA256\"",
+          "139: json_get_vars country country3 country_ie beacon_int:100 doth require_mode legacy_rates \\",
+          "272: config_add_int ieee80211w",
+          "331: config_add_int ieee80211w_max_timeout ieee80211w_retry_timeout",
+          "575: set_default isolate 0",
+          "582: set_default wmm 1"
+        ]
+      },
+      {
+        "series": "24.10",
+        "commit": "f13f178df1c1be46d9a540ab5a6eb3fca6ca4f79",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/f13f178df1c1be46d9a540ab5a6eb3fca6ca4f79/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh",
+        "sha256": "108428f76006ff1152b72ece59338cab5caa4386b6c5ea3c89c50f7e7e5f8c88",
+        "path": "build\\wireless-presets-sources\\24.10-f13f178df1c1-hostapd.sh",
+        "checked": [
+          "47: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-${auth_type_l}-SHA256\"",
+          "69: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-PSK-SHA256\"",
+          "141: json_get_vars country country3 country_ie beacon_int:100 doth require_mode legacy_rates \\",
+          "282: config_add_int ieee80211w",
+          "341: config_add_int ieee80211w_max_timeout ieee80211w_retry_timeout",
+          "615: set_default isolate 0",
+          "622: set_default wmm 1"
+        ]
+      },
+      {
+        "series": "25.12",
+        "commit": "4a686570eb6495635279273f034caa2a0f37f36e",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh",
+        "sha256": "30f2e5a5241f471c590bc4498efa20c500673b99c584b7ccc5b02574d58f94b3",
+        "path": "build\\wireless-presets-sources\\25.12-4a686570eb64-hostapd.sh",
+        "checked": [
+          "47: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-${auth_type_l}-SHA256\"",
+          "75: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-PSK-SHA256\"",
+          "150: json_get_vars country country3 country_ie beacon_int:100 doth require_mode legacy_rates \\",
+          "292: config_add_int ieee80211w",
+          "351: config_add_int ieee80211w_max_timeout ieee80211w_retry_timeout",
+          "570: set_default isolate 0"
+        ]
+      },
+      {
+        "series": "25.12",
+        "commit": "4a686570eb6495635279273f034caa2a0f37f36e",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh",
+        "sha256": "30f2e5a5241f471c590bc4498efa20c500673b99c584b7ccc5b02574d58f94b3",
+        "path": "build\\wireless-presets-sources\\25.12-4a686570eb64-hostapd.sh",
+        "checked": [
+          "47: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-${auth_type_l}-SHA256\"",
+          "75: [ \"${ieee80211w:-0}\" -gt 0 ] && append wpa_key_mgmt \"WPA-PSK-SHA256\"",
+          "150: json_get_vars country country3 country_ie beacon_int:100 doth require_mode legacy_rates \\",
+          "292: config_add_int ieee80211w",
+          "351: config_add_int ieee80211w_max_timeout ieee80211w_retry_timeout",
+          "570: set_default isolate 0"
+        ]
+      }
+    ]
+  },
+  "files": {
+    "modules/capture_services/openwrt/wireless_setup_presets.py": "73bcb5e0ded0caad407e2911cd1418412f54e89ae433eb8d0ec9034c20d9068f",
+    "modules/main_pages/packet_capture/openwrt/signal_setup_presets.py": "e94a2bcb463f321682ef253efdc02d3e055a66540a1749159bdbbcadbd9751c6",
+    "modules/main_pages/packet_capture/openwrt/signal_setup_dialogs.py": "45ffeb44c628a818e31106b35f5ccb9c555f815e754afb04699c3af66199c0ab",
+    "modules/main_pages/packet_capture/openwrt/signal_setup_editor.py": "d834b7f4442288c393b7f744782b0aa95b6754b389a6ef9daf38222231d05a51",
+    "tests/test_wireless_setup_presets.py": "4ae2f3d019434693269cf06d2fa81bc06291079c0047682e9044bd291b0cae03",
+    "themes/settings_partials/settings_dark.qss": "4cff3592bd3cf9dc0ef03a792ff3bee02884834aa1c88cb2c115af2d899b8209",
+    "themes/settings_partials/settings_light.qss": "a847b826221cac40299257afb2f8721d947963e325e5f45b096ffc6d2c4e707a"
+  },
+  "primary_input_ui": {
+    "scope": "Shared _SetupDialog primary card used by AP and relay; AP name/password and relay password are semibold and taller. Settings profile sits outside the card. No new guidance labels or router behavior changes.",
+    "theme_selectors": [
+      "signalPrimaryInputCard",
+      "signalPrimaryInputRow",
+      "signalPrimaryField",
+      "signalPrimaryLineEdit"
+    ],
+    "validation": "9 focused interaction tests; actual dark/light card pixels and input geometry checked at 100/125/150/175 percent on Windows. Native Debian pending."
+  }
+}

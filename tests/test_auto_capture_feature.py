@@ -904,7 +904,8 @@ __WINBOX_KERNEL__=5.15.137
         self.assertIn("拉取握手包", page.pull_offline_btn.text())
         self.assertIn("分析日志", page.analyze_offline_btn.text())
         self.assertTrue(hasattr(page, "bg_open_output_dir_btn"))
-        self.assertIn("打开输出目录", page.bg_open_output_dir_btn.text())
+        self.assertIn("打开结果目录", page.bg_open_output_dir_btn.text())
+        self.assertIn("打开结果目录", page.open_output_dir_btn.text())
         self.assertTrue(hasattr(page, "exec_divider"))
 
         # 2. 模拟断开连接时，按钮被禁用

@@ -49,14 +49,14 @@ class ClientSnapshotTests(unittest.TestCase):
             path.write_text(csv_text([(C1,"2026-01-01 00:00:01"),(C2,"2026-01-01 00:00:05")]).replace("00:00:00,6,54", "00:00:26,6,54"), encoding="utf-8")
             self.assertEqual(tracker.update(parse_snapshot(path), (AP,), 26)[AP], ())
 
-    def test_ratio_default_and_bounds(self):
+    def test_seconds_default_and_bounds(self):
         with TemporaryDirectory() as folder:
             manager = CaptureSettingsManager(Path(folder)/"settings.json")
-            self.assertEqual(manager.normalize({})["openwrt"]["no_client_observation_tenths"], 5)
-            self.assertEqual(manager.normalize({"openwrt":{"no_client_observation_tenths": 20}})["openwrt"]["no_client_observation_tenths"], 10)
-            self.assertEqual(manager.normalize({"openwrt":{"no_client_observation_tenths": -1}})["openwrt"]["no_client_observation_tenths"], 0)
+            self.assertEqual(manager.normalize({})["openwrt"]["no_client_observation_seconds"], 30)
+            self.assertEqual(manager.normalize({"openwrt":{"no_client_observation_seconds": 120}})["openwrt"]["no_client_observation_seconds"], 90)
+            self.assertEqual(manager.normalize({"openwrt":{"no_client_observation_seconds": -1}})["openwrt"]["no_client_observation_seconds"], 20)
 
-    def run_capture(self, contents, *, seconds=10, ratio=5):
+    def run_capture(self, contents, *, seconds=40, observation_seconds=20):
         with TemporaryDirectory() as folder:
             workspace=NS(local_dir=Path(folder),remote_dir="/tmp/owned")
             runner=Mock();runner.run.return_value=RemoteCommandResult("offline",0)
@@ -75,23 +75,35 @@ class ClientSnapshotTests(unittest.TestCase):
             with patch("modules.capture_services.openwrt.handshake_capture.time.monotonic",side_effect=lambda:clock[0]), \
                  patch("modules.capture_services.openwrt.handshake_capture.time.sleep",side_effect=lambda value:clock.__setitem__(0,clock[0]+value)):
                 result=capture.capture_passive(workspace,"wbmon1","session",target,seconds,manager,
-                    defer_analysis=True,no_client_observation_tenths=ratio)
+                    defer_analysis=True,no_client_observation_seconds=observation_seconds)
             return clock[0],reads,result
 
-    def test_no_clients_stops_at_half_timeout(self):
-        elapsed,reads,result=self.run_capture(lambda _:csv_text())
-        self.assertEqual(elapsed,5)
-        self.assertEqual(reads,[0,5])
+    def test_no_clients_stops_after_twenty_seconds(self):
+        elapsed,reads,result=self.run_capture(
+            lambda now:csv_text().replace("00:00:00,6,54", f"00:00:{int(now):02d},6,54"))
+        self.assertEqual(elapsed,20)
+        self.assertEqual(reads,[0,5,10,15,20])
         self.assertEqual(result.no_client_targets,(AP,))
 
     def test_missing_record_does_not_count_as_no_clients(self):
-        elapsed,reads,result=self.run_capture(lambda _:None)
+        elapsed,reads,result=self.run_capture(lambda _:None, seconds=10)
         self.assertEqual(elapsed,10)
         self.assertEqual(reads,[0,5])
         self.assertEqual(result.no_client_targets,())
 
+    def test_single_valid_read_does_not_trigger_early_skip(self):
+        elapsed, reads, result = self.run_capture(
+            lambda now: csv_text() if now == 20 else None, seconds=30)
+        self.assertEqual(elapsed, 30)
+        self.assertEqual(result.no_client_targets, ())
+
+    def test_short_target_timeout_is_never_extended(self):
+        elapsed, reads, result = self.run_capture(lambda _: csv_text(), seconds=10)
+        self.assertEqual(elapsed, 10)
+        self.assertEqual(result.no_client_targets, ())
+
     def test_initial_client_keeps_capture_until_timeout(self):
-        elapsed,reads,result=self.run_capture(lambda _:csv_text([(C1,"2026-01-01 00:00:01")]))
+        elapsed,reads,result=self.run_capture(lambda _:csv_text([(C1,"2026-01-01 00:00:01")]), seconds=10)
         self.assertEqual(elapsed,10)
         self.assertEqual(result.no_client_targets,())
 

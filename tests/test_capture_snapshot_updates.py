@@ -72,6 +72,35 @@ class SnapshotUpdateTests(unittest.TestCase):
             if row==0:self.assertIsNone(background)
             else:self.assertEqual(background.color(),self.table._capturing_bg())
 
+    def test_default_client_sort_is_numeric_and_preserved_for_new_scan(self):
+        base = self.service.openwrt_snapshot.access_points
+        points = tuple(replace(base[i], clients=tuple(str(n) for n in range(count)))
+                       for i, count in enumerate((0, 2, 10, 1)))
+        self.table.set_access_points(points)
+        self.assertEqual([int(self.table.item(row, 5).text()) for row in range(4)], [10, 2, 1, 0])
+        identities = [self.table.item(row, 1).data(Qt.UserRole) for row in range(4)]
+        self.assertEqual(self.table.selected_bssids(), (points[0].bssid,))
+        updated = tuple(replace(point, clients=tuple(str(n) for n in range(12)))
+                        if point.bssid == points[0].bssid else point for point in points)
+        self.table.set_access_points(updated)
+        self.assertEqual([self.table.item(row, 1).data(Qt.UserRole) for row in range(4)], identities)
+        self.table.set_access_points(updated + (base[4],))
+        self.assertEqual([int(self.table.item(row, 5).text()) for row in range(5)], [12, 10, 2, 1, 0])
+        APP.processEvents()
+        self.assertEqual([self.table.item(row, 0).text() for row in range(5)], ['1', '2', '3', '4', '5'])
+
+    def test_manual_client_order_survives_refresh_and_new_scan(self):
+        base = self.service.openwrt_snapshot.access_points
+        points = tuple(replace(base[i], clients=tuple(str(n) for n in range(count)))
+                       for i, count in enumerate((10, 2, 0)))
+        self.table.set_access_points(points)
+        self.table.sortByColumn(5, Qt.AscendingOrder)
+        self.assertEqual([int(self.table.item(row, 5).text()) for row in range(3)], [0, 2, 10])
+        updated = tuple(replace(point, power=-50) for point in points)
+        self.table.set_access_points(updated)
+        self.table.set_access_points(updated + (base[3],))
+        self.assertEqual([int(self.table.item(row, 5).text()) for row in range(4)], [0, 0, 2, 10])
+
 
 if __name__=='__main__':
     unittest.main()

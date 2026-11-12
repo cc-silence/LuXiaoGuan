@@ -18,7 +18,8 @@ from .common_bundle_support import HttpCache, closure, json_bytes
 
 def extend_profile(profile, rows):
     previous = {row["name"]: row for row in profile["packages"]}
-    added, provided = closure(list(previous.values()) + rows, sorted(COMMON_ROOTS))
+    added, provided = closure(list(previous.values()) + rows, sorted(COMMON_ROOTS),
+                              runtime_supplements=profile.get("runtime_supplements", ()))
     result = copy.deepcopy(profile)
     selected = dict(previous)
     for row in added:
