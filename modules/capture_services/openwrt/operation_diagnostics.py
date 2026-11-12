@@ -101,6 +101,12 @@ NUMBER_FIELDS = frozenset({"id", "errno", "winerror", "operation_id", "elapsed_s
     "wireless_cleanup_confirmed", "monitor_active", "result_rows", "accepted_rows",
     "rejected_rows", "frequency_rows", "band_rows", "legacy_rows", "configured_radios", "identified_radios", "physical_radios"}) | NETWORK_NUMBERS | {"snapshot_cached", "rollback_seconds", "confirm_reserve_seconds", "radio_up", "runtime_pending", "interface_present", "interface_up", "configuration_pending", "identity_pending", "frequency", "radio_disabled", "retry_setup_failed", "cac_active", "cac_seconds", "requested_enabled", "configured_enabled", "ap_control_available", "kernel_ap_started", "ap_carrier"}
 
+NUMBER_FIELDS |= {"link_report_valid", "link_route_rows", "link_neigh_rows", "link_fdb_rows",
+                  "link_brctl_rows", "link_interfaces_rows", "link_neighbor_usable",
+                  "link_bridge_count", "link_port_count", "link_lower_count",
+                  "link_ip_available", "link_bridge_available", "link_brctl_available",
+                  "link_neighbor_mac_count", "link_fdb_peer_rows", "link_brctl_peer_rows"}
+
 NUMBER_FIELDS |= set(READINESS_FLAGS) | set(READINESS_NUMBERS) | CONTROL_NUMBERS
 
 

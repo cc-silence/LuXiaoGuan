@@ -1124,7 +1124,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 "",
                 lambda: self.radio_session.heal_link(cancel_event),
                 deauth_batches=settings.get("deauth_batches", 10),
-                no_client_observation_tenths=settings.get("no_client_observation_tenths", 5),
+                no_client_observation_seconds=settings.get("no_client_observation_seconds", 30),
             )
             if result.verdict in ("none", "partial"):
                 # 包里没有 EAPOL，或有 EAPOL 但凑不出可跑包组合，密码学上无价值，
@@ -1531,6 +1531,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         self._running = True
         primary_error = None
         latest = {}
+        tune_failures = {}
         retained = []
         cleanup_errors = []
         status = "completed"
@@ -1547,8 +1548,16 @@ class OpenWrtCaptureBackend(CaptureBackend):
             group_interruption = None
             for target, (entry, retry) in zip(group, entries):
                 previous = latest.get(target.bssid)
+                if entry.result is not None:
+                    tune_failures.pop(target.bssid, None)
                 if entry.result is not None and entry.result.verdict in _CONVERTIBLE_VERDICTS:
                     retry = False
+                elif entry.error_code == "channel_tune_failed" and group_same_channel:
+                    tune_failures[target.bssid] = tune_failures.get(target.bssid, 0) + 1
+                    retry = tune_failures[target.bssid] < 3
+                    suffix = (f"\uff1b\u4fe1\u9053\u5207\u6362\u5931\u8d25 {tune_failures[target.bssid]}/3 "
+                              + ("\uff0c\u4e0b\u4e00\u8f6e\u518d\u8bd5" if retry else "\uff0c\u4e0d\u518d\u91cd\u8bd5"))
+                    entry = replace(entry, error=entry.error + suffix)
                 elif entry.error or entry.error_code or entry.result is None:
                     retry = False
                 elif entry.result.verdict == "unknown" and max_rounds is None:
@@ -1630,6 +1639,8 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 while ready is not None:
                     consume(*ready)
                     ready = processing.pop(wait=True)
+            if not any(item.error or item.error_code for item in latest.values()):
+                primary_error = None
         except _BatchInterrupted as exc:
             status, note = exc.status, str(exc)
             cleanup_errors.extend(exc.cleanup_errors)
@@ -1797,7 +1808,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 lambda: self.radio_session.heal_link(cancel_event),
                 deauth_batches=settings.get("deauth_batches", 10),
                 stop_on_missing_beacon=True,
-                **({"no_client_observation_tenths": settings.get("no_client_observation_tenths", 5)} if observe_clients else {}),
+                **({"no_client_observation_seconds": settings.get("no_client_observation_seconds", 30)} if observe_clients else {}),
                 **({"group_targets": group} if group_targets else {}),
                 defer_analysis=True,
             )
@@ -1822,9 +1833,11 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 raise _BatchInterrupted(primary_message, "resource_limit", errors) from exc
             if isinstance(primary, CommandExecutionTimeout):
                 raise _BatchInterrupted(primary_message, "command_timeout", errors) from exc
+            from modules.capture_services.openwrt.handshake_capture import ChannelTuneError
             return failed_entries(HandshakeTargetResult(
                 target, None, primary_message,
-                "idle_radio_unavailable" if isinstance(exc, IdleRadioUnavailable) else "capture_failed",
+                "idle_radio_unavailable" if isinstance(exc, IdleRadioUnavailable) else
+                "channel_tune_failed" if isinstance(primary, ChannelTuneError) else "capture_failed",
                 tuple(errors),
             ), False)
         if batch_radio is None:

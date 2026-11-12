@@ -62,7 +62,7 @@ class CaptureSettingsManager:
             "idle_timeout_seconds": 180,
             "pmkid_idle_timeout_seconds": 180,
             "pmkid_duration_seconds": 0,
-            "no_client_observation_tenths": 5,
+            "no_client_observation_seconds": 30,
             "handshake_rounds": 3,
             "handshake_rounds_infinite": False,
             "remote_work_root": "/tmp/winbox-capture",
@@ -375,7 +375,7 @@ class CaptureSettingsManager:
         openwrt["idle_timeout_seconds"] = self._clamp_int(openwrt.get("idle_timeout_seconds"), 0, 3600, 180)
         openwrt["pmkid_idle_timeout_seconds"] = self._clamp_int(openwrt.get("pmkid_idle_timeout_seconds"), 0, 3600, 180)
         openwrt["pmkid_duration_seconds"] = self._clamp_int(openwrt.get("pmkid_duration_seconds"), 0, 3600, 0)
-        openwrt["no_client_observation_tenths"] = self._clamp_int(openwrt.get("no_client_observation_tenths"), 0, 10, 5)
+        openwrt["no_client_observation_seconds"] = self._clamp_int(openwrt.get("no_client_observation_seconds"), 20, 90, 30)
         openwrt["handshake_rounds"] = self._clamp_int(openwrt.get("handshake_rounds"), 1, 99, 3)
         openwrt["handshake_rounds_infinite"] = self._bool(openwrt.get("handshake_rounds_infinite"), False)
         remote_root = str(openwrt.get("remote_work_root", "/tmp/winbox-capture")).strip()

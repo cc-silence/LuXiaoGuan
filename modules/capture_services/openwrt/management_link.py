@@ -26,6 +26,10 @@ printf '__MGLINK_FDB__\n'
 bridge fdb show br "$dev" 2>/dev/null
 printf '__MGLINK_BRCTL__\n'
 brctl showmacs "$dev" 2>/dev/null
+printf '__MGLINK_TOOLS__\n'
+for tool in ip bridge brctl; do
+    if command -v "$tool" >/dev/null 2>&1; then printf '%s=1\n' "$tool"; else printf '%s=0\n' "$tool"; fi
+done
 printf '__MGLINK_INTERFACES__\n'
 for path in /sys/class/net/*; do
     [ -e "$path" ] || continue
@@ -169,6 +173,11 @@ def read_management_link(runner, cancel_event=None):
     if journal is not None:
         journal.record("management_link", operation="ssh_return_path", source="router_route_fdb",
                        status=link.status, transport=link.status, reason=link.reason)
+        if link.status == "unknown":
+            from .management_link_evidence import summarize_link_probe
+            journal.record("management_link", operation="ssh_return_path", source="router_route_fdb",
+                           status="failed", transport=link.status, reason=link.reason,
+                           exit_code=result.exit_code, **summarize_link_probe(result.stdout))
     return link
 
 

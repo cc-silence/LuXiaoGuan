@@ -165,7 +165,7 @@ class OpenWrtHandshakeCapture:
         defer_analysis=False,
         deauth_batches=10,
         stop_on_missing_beacon=False,
-        no_client_observation_tenths=None,
+        no_client_observation_seconds=None,
     ):
         """采集单个目标的原始 CAP，默认被动等待。
 
@@ -223,7 +223,13 @@ class OpenWrtHandshakeCapture:
                 diag_name = collect_tool_failure_diagnostics(
                     self.command_runner, workspace, workspace_manager,
                     f"tune-{tag}", cancel_event,
-                    tool_log=str(exc) + ("\n" + tool_detail if tool_detail else ""))
+                    tool_log="\n".join(filter(None, (
+                        str(exc), getattr(exc, "channel_trace", ""), tool_detail))),
+                    extra_commands=(
+                        ("regulatory", "iw reg get"),
+                        ("tool-versions", "uname -a; iw --version; airodump-ng --help 2>&1 | head -n 3"),
+                        ("radio-drivers", "for p in /sys/class/ieee80211/phy*; do [ -e \"$p\" ] || continue; printf '%s ' \"$p\"; readlink \"$p/device/driver\"; done"),
+                    ))
                 if diag_name:
                     raise ChannelTuneError(str(exc) + "\uff1b\u65e0\u7ebf\u8bca\u65ad\u5df2\u4fdd\u5b58\u3002") from exc
                 raise
@@ -242,14 +248,15 @@ class OpenWrtHandshakeCapture:
             observation = None
             current_clients = {}
             observed_clients = set()
-            if no_client_observation_tenths is not None:
+            empty_checks = {}
+            if no_client_observation_seconds is not None:
                 from .client_observation import ClientObservation
                 observation = ClientObservation()
                 try:
-                    fraction = max(0, min(10, int(no_client_observation_tenths)))
+                    observation_seconds = max(20, min(90, int(no_client_observation_seconds)))
                 except (TypeError, ValueError):
-                    fraction = 5
-                observation_deadline = started + duration * fraction / 10
+                    observation_seconds = 30
+                observation_deadline = started + min(duration, observation_seconds)
                 next_observation = started
             while time.monotonic() < deadline:
                 if cancel_event is not None and cancel_event.is_set():
@@ -277,7 +284,13 @@ class OpenWrtHandshakeCapture:
                     for key, clients in current_clients.items():
                         if clients:
                             observed_clients.add(key)
-                        elif clients == () and now >= observation_deadline and key not in observed_clients:
+                            empty_checks.pop(key, None)
+                        elif clients is None:
+                            empty_checks.pop(key, None)
+                        elif clients == ():
+                            empty_checks[key] = min(2, empty_checks.get(key, 0) + 1)
+                        if (clients == () and empty_checks.get(key, 0) >= 2
+                                and now >= observation_deadline and key not in observed_clients):
                             unavailable.add(key)
                             no_client_targets.add(key)
                     next_observation = time.monotonic() + 5
@@ -312,7 +325,7 @@ class OpenWrtHandshakeCapture:
                     deauth_index += 1
                     active_bssid = normalize_bssid(active_target.bssid)
                     if observation is not None:
-                        client_macs = current_clients.get(active_bssid) or ()
+                        client_macs = (current_clients.get(active_bssid) or ())[:_DEAUTH_MAX_CLIENTS]
                     else:
                         client_macs = clients_by_target[active_target.bssid]
                         live = self._refresh_live_clients(
@@ -416,6 +429,7 @@ class OpenWrtHandshakeCapture:
         readable = False
         last_seen = 0
         heal_tried = False
+        channel_trace = []
         while time.monotonic() < deadline:
             if cancel_event is not None and cancel_event.is_set():
                 raise RuntimeError("定向握手抓包已取消。")
@@ -423,10 +437,18 @@ class OpenWrtHandshakeCapture:
                 return
             result = self.command_runner.run(
                 "read_monitor_channel",
-                f"iw dev {quote_argument(monitor_interface)} info 2>/dev/null",
+                f"iw dev {quote_argument(monitor_interface)} info",
                 timeout=8,
                 cancel_event=cancel_event,
             )
+            if len(channel_trace) < 20:
+                channel_trace.append(
+                    f"elapsed={max(0, 15 - (deadline - time.monotonic())):.1f}s "
+                    f"exit={result.exit_code} timed_out={getattr(result, 'timed_out', False)} "
+                    f"cancelled={getattr(result, 'cancelled', False)} "
+                    f"stdout={str(result.stdout or '')[:512]!r} "
+                    f"stderr={str(result.stderr or '')[:512]!r}"
+                )
             if result.exit_code == 0:
                 match = re.search(r"channel\s+(\d+)\s*\(", result.stdout or "")
                 if match:
@@ -448,10 +470,12 @@ class OpenWrtHandshakeCapture:
                     continue
             time.sleep(1)
         if readable:
-            raise ChannelTuneError(
+            error = ChannelTuneError(
                 f"网卡未能切到目标信道 {channel}（当前在信道 {last_seen}）。"
                 "信道切换未成功，具体原因需根据无线诊断核对。"
             )
+            error.channel_trace = "===== channel-verification =====\n" + "\n".join(channel_trace)
+            raise error
 
     @staticmethod
     def _ordered_client_macs(target):

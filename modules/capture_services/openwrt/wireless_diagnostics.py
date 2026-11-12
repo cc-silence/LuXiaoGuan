@@ -26,6 +26,7 @@ def collect_tool_failure_diagnostics(
     tag,
     cancel_event=None,
     tool_log="",
+    extra_commands=(),
 ):
     """采集远端无线诊断并写到本地会话目录，返回文件名或空串。
 
@@ -41,7 +42,7 @@ def collect_tool_failure_diagnostics(
     lines = []
     if tool_log:
         lines.extend(("===== tool-log =====", tool_log, ""))
-    for suffix, command in _DIAG_COMMANDS:
+    for suffix, command in _DIAG_COMMANDS + tuple(extra_commands):
         try:
             result = command_runner.run(
                 f"diag_{safe_tag}_{suffix}",
@@ -54,6 +55,10 @@ def collect_tool_failure_diagnostics(
         output = (result.stdout or "").strip()
         lines.append(f"===== {suffix} =====")
         lines.append(output if output else "<空>")
+        if result.exit_code != 0 or getattr(result, "timed_out", False):
+            lines.append(f"exit={result.exit_code} timed_out={getattr(result, 'timed_out', False)}")
+        if result.stderr:
+            lines.append("stderr: " + str(result.stderr)[:2048])
         lines.append("")
     if not lines:
         return ""
