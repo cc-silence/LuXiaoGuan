@@ -19,7 +19,10 @@ class MissingPackagesError(ValueError):
 class _GraphLimit(ValueError):
     pass
 
-def closure(rows,roots):
+def closure(rows,roots, *, runtime_supplements=()):
+    runtime_supplements = frozenset(runtime_supplements)
+    if not runtime_supplements <= {'librt', 'libpthread', 'libgcc1'}:
+        raise ValueError('Unsupported runtime supplement')
     names,providers={},{}
     for row in rows:
         names.setdefault(row["name"],row)
@@ -54,7 +57,7 @@ def closure(rows,roots):
             if requirement["negative"]:
                 continue
             name=requirement["name"]
-            if name in FIRMWARE_OWNED:
+            if name in FIRMWARE_OWNED and name not in runtime_supplements:
                 required.add(name)
                 return
             if name.startswith("kmod-"):
@@ -94,8 +97,8 @@ def closure(rows,roots):
         label=str(expression)
         raise MissingPackagesError([label])
 
-    roots=tuple(roots)
-    absent=[r for r in roots if all(q["name"] not in names and q["name"] not in providers and q["name"] not in FIRMWARE_OWNED for q in requirements(r))]
+    roots=tuple(dict.fromkeys((*roots, *sorted(runtime_supplements))))
+    absent=[r for r in roots if all(q["name"] not in names and q["name"] not in providers and (q["name"] not in FIRMWARE_OWNED or q["name"] in runtime_supplements) for q in requirements(r))]
     if absent:raise MissingPackagesError(absent)
     for name in roots:visit(name)
     check_conflicts()

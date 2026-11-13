@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-10",
+  "scope": "Read-only SSH return-path diagnostics; no admission-policy change",
+  "changed": [
+    "modules/capture_services/openwrt/management_link.py",
+    "modules/capture_services/openwrt/management_link_evidence.py",
+    "modules/capture_services/openwrt/operation_diagnostics.py",
+    "tests/test_management_link.py"
+  ],
+  "tests": {
+    "command": "python -m unittest tests.test_management_link tests.test_operation_diagnostics tests.test_radio_diagnostics -q",
+    "passed": 27
+  },
+  "privacy": "Numeric counts and tool availability only; tested after export redaction",
+  "live_router_tested": false,
+  "debian12_tested": false
+}

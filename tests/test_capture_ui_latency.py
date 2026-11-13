@@ -70,11 +70,11 @@ class SettingsCommitTests(unittest.TestCase):
         self.changed.assert_called_once()
 
     def test_unsubmitted_spin_value_is_flushed_on_close(self):
-        self.dialog.page.handshake_rounds.setValue(7)
+        self.dialog.page.refresh_seconds.setValue(19)
         self.changed.assert_not_called()
         self.dialog.reject()
         self.changed.assert_called_once()
-        self.assertEqual(self.dialog.page.collect_settings()['handshake_rounds'],7)
+        self.assertEqual(self.dialog.page.collect_settings()['refresh_seconds'],19)
 
     def test_collecting_existing_dictionary_rows_does_not_resolve_again(self):
         self.dialog.page.password_dictionary.append_paths(['fixture-one.txt'],emit=False)

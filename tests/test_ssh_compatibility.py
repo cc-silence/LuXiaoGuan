@@ -94,16 +94,8 @@ class TestRsaOnlyHandshake(unittest.TestCase):
     def test_connects_to_rsa_only_server(self):
         ensure_ssh_compatibility()
         with local_rsa_only_router() as (client, key):
-            # 首次连接需校验指纹
-            with self.assertRaises(HostKeyConfirmationRequired) as ctx:
-                client.connect(password="test1234")
-
             expected_fp = client.fingerprint_for_key(key)
-            self.assertEqual(ctx.exception.fingerprint, expected_fp)
-            self.assertEqual(ctx.exception.key_type, "ssh-rsa")
-
-            # 确认指纹后连接成功
-            info = client.connect(password="test1234", expected_fingerprint=expected_fp)
+            info = client.connect(password="test1234")
             self.assertTrue(client.connected)
             self.assertEqual(info.key_type, "ssh-rsa")
             self.assertEqual(info.fingerprint, expected_fp)

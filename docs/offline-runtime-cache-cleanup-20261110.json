@@ -1,0 +1,15 @@
+{
+  "applied": true,
+  "bytes": 138455074,
+  "paths": [
+    {
+      "path": "C:\\Users\\CC\\Desktop\\Work\\RouterManager\\RouterManager_python\\build\\openwrt-runtime-supplement-20261110\\http-cache",
+      "bytes": 134464698
+    },
+    {
+      "path": "C:\\Users\\CC\\Desktop\\Work\\RouterManager\\RouterManager_python\\build\\openwrt-runtime-supplement-20261110\\bundle",
+      "bytes": 3990376
+    }
+  ],
+  "skipped": []
+}

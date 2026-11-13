@@ -5,7 +5,7 @@
 2. 捕获统计核心指标（PMKID、EAPOL 握手包、识别热点数、生成的 .pcapng 原始文件）；
 3. AP 热点明细表格（BSSID、SSID、信道、握手帧构成、捕获状态）；
 4. 原始会话诊断文本分析日志浏览器；
-5. 一键打开输出目录。
+5. 一键打开结果目录。
 """
 
 import os
@@ -159,7 +159,7 @@ class AutoCaptureReportDialog(FramelessDialog):
                     "操作指引：\n"
                     "1. 若路由器刚完成脱机抓包，请先点击【📥 一键拉取握手包】将成果文件同步到电脑；\n"
                     "2. 同步完成后再次点击【📊 智能分析日志】即可查看完整的抓包分析与热点诊断；\n"
-                    f"3. 您也可以点击下方的“📂 打开输出目录”直接查看本地目录 ({local_dir})。"
+                    f"3. 您也可以点击下方的“📂 打开结果目录”直接查看本地目录 ({local_dir})。"
                 )
             log_view.setPlainText(summary_text)
             log_layout.addWidget(log_view)
@@ -174,7 +174,7 @@ class AutoCaptureReportDialog(FramelessDialog):
         self.button_layout.addWidget(dir_lbl)
         self.button_layout.addStretch(1)
 
-        open_btn = _create_dialog_button("📂 打开输出目录", self, "settingsSecondaryButton")
+        open_btn = _create_dialog_button("📂 打开结果目录", self, "settingsSecondaryButton")
         open_btn.clicked.connect(lambda: self._open_dir(local_dir))
         self.button_layout.addWidget(open_btn)
 

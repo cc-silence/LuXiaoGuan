@@ -830,6 +830,13 @@ class CaptureService(QObject):
         )
         if not targets:
             return False
+        completed_count = sum(point.capture_state == AccessPointCaptureState.CAPTURED for point in targets)
+        targets = tuple(point for point in targets if point.capture_state != AccessPointCaptureState.CAPTURED)
+        if completed_count:
+            self.messageGenerated.emit(
+                f"已跳过 {completed_count} 个已有可用包的信号。", "info")
+        if not targets:
+            return False
         session_id = uuid4().hex
         cancel_event = self.task_controller.begin(
             CaptureTaskType.HANDSHAKE.value,

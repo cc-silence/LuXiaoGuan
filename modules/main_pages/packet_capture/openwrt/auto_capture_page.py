@@ -1420,7 +1420,7 @@ class AutoCapturePage(QWidget):
         self.analyze_offline_btn.clicked.connect(self._on_analyze_offline_clicked)
         result_row.addWidget(self.analyze_offline_btn)
 
-        self.bg_open_output_dir_btn = QPushButton("📂 打开输出目录", self.step3_card)
+        self.bg_open_output_dir_btn = QPushButton("📂 打开结果目录", self.step3_card)
         self.bg_open_output_dir_btn.setObjectName("captureSecondaryButton")
         self.bg_open_output_dir_btn.setToolTip(f"在文件资源管理器中打开电脑上的抓包输出目录：\n{out_dir}")
         self.bg_open_output_dir_btn.clicked.connect(self._on_open_output_dir_clicked)
@@ -1506,7 +1506,7 @@ class AutoCapturePage(QWidget):
         self.stop_all_btn = self.toggle_all_btn
         self.fg_pull_btn = None
 
-        self.open_output_dir_btn = QPushButton("📂 打开输出目录", self.guard_card)
+        self.open_output_dir_btn = QPushButton("📂 打开结果目录", self.guard_card)
         self.open_output_dir_btn.setObjectName("captureSecondaryButton")
         self.open_output_dir_btn.setToolTip("打开本地抓包输出目录")
         self.open_output_dir_btn.clicked.connect(self._on_open_output_dir_clicked)

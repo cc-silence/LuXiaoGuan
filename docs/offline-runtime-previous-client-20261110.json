@@ -1,0 +1,29 @@
+{
+  "client": "build\\releases\\1.0.62_alpha_20261110_163203\\dist\\LuXiaoGuan\\LuXiaoGuan.exe",
+  "app_version": "1.0.62_alpha",
+  "validation": "Actual frozen catalog-reader and dependency-resolver code; no router installation performed",
+  "results": [
+    {
+      "kind": "common",
+      "profiles": 1672,
+      "objects": 4541,
+      "minimum": "1.0.46_alpha",
+      "release": "19.07.0",
+      "missing_runtime_plan": [
+        "librt",
+        "tmux"
+      ]
+    },
+    {
+      "kind": "capture",
+      "profiles": 1930,
+      "objects": 1691,
+      "minimum": null,
+      "release": "19.07.0",
+      "missing_runtime_plan": [
+        "libpthread",
+        "aircrack-ng"
+      ]
+    }
+  ]
+}

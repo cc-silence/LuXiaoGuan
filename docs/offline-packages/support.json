@@ -27,9 +27,9 @@
   "packages": [
     {
       "kind": "capture",
-      "archive": "RouterManager_OpenWrt_Capture_Offline_20261105_220825.zip",
-      "sha256": "e71b3248df65df6f499d8d209bfc81c95802dfa2d9cb5280cc57602a8e608389",
-      "size": 241562783,
+      "archive": "RouterManager_OpenWrt_Capture_Offline_20261110_220853.zip",
+      "sha256": "11aeb5f24ea9573ddfe2b782a1abfff0cd7eeff598ed5d61a5fb3dcc9d040854",
+      "size": 245858121,
       "profiles": 1930,
       "roots": [
         "aircrack-ng",
@@ -90,8 +90,8 @@
         "25.12.5",
         "25.12.6"
       ],
-      "unique_package_files": 891,
-      "unique_objects": 1277,
+      "unique_package_files": 1305,
+      "unique_objects": 1691,
       "ancillary_package_names": [
         "libatomic1",
         "libgcc1",
@@ -105,9 +105,15 @@
         "libpcap1",
         "libpcre",
         "libpcre2",
+        "libpthread",
+        "librt",
         "libstdcpp6",
         "uclibcxx",
         "zlib"
+      ],
+      "firmware_required_names": [
+        "libc",
+        "libpthread"
       ],
       "architecture_targets": {
         "aarch64_cortex-a53": [
@@ -25677,16 +25683,16 @@
           ]
         }
       ],
-      "coverage_report": "dist/openwrt_capture/RouterManager_OpenWrt_Capture_Offline_20261105_220825.coverage.json",
+      "coverage_report": "dist/openwrt_capture/RouterManager_OpenWrt_Capture_Offline_20261110_220853.coverage.json",
       "manifest_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/update-channels/offline-capture.json",
-      "archive_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/offline-capture-e71b3248df65df6f499d8d209bfc81c95802dfa2d9cb5280cc57602a8e608389/RouterManager_OpenWrt_Capture_Offline_20261105_220825.zip",
+      "archive_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/offline-capture-11aeb5f24ea9573ddfe2b782a1abfff0cd7eeff598ed5d61a5fb3dcc9d040854/RouterManager_OpenWrt_Capture_Offline_20261110_220853.zip",
       "cloudflare_offline_preserved": true
     },
     {
       "kind": "common",
-      "archive": "RouterManager_OpenWrt_Common_Offline_20261106_101557.zip",
-      "sha256": "8a00895b0687c96564c06f9f9724ba38154d9e72ab5db32677c2a80bbbd63532",
-      "size": 285026116,
+      "archive": "RouterManager_OpenWrt_Common_Offline_20261110_220721.zip",
+      "sha256": "df99ece736b41288965319bc6883050601ab9e75e50eb05dd92015231a2aa8c1",
+      "size": 285183598,
       "profiles": 1672,
       "roots": [
         "curl",
@@ -25752,8 +25758,8 @@
         "25.12.5",
         "25.12.6"
       ],
-      "unique_package_files": 2601,
-      "unique_objects": 4466,
+      "unique_package_files": 2676,
+      "unique_objects": 4541,
       "ancillary_package_names": [
         "ca-bundle",
         "cgi-io",
@@ -25785,6 +25791,7 @@
         "libnl-tiny1",
         "libopenssl1.1",
         "libpthread",
+        "librt",
         "libubox20191228",
         "libubox20210516",
         "libubox20220515",
@@ -25819,6 +25826,10 @@
         "ucode-mod-ubus",
         "ucode-mod-uci",
         "zlib"
+      ],
+      "firmware_required_names": [
+        "libc",
+        "librt"
       ],
       "architecture_targets": {
         "aarch64_cortex-a53": [
@@ -50148,9 +50159,9 @@
           "unverified_legacy": []
         }
       ],
-      "coverage_report": "dist/openwrt_common/RouterManager_OpenWrt_Common_Offline_20261106_101557.coverage.json",
+      "coverage_report": "dist/openwrt_common/RouterManager_OpenWrt_Common_Offline_20261110_220721.coverage.json",
       "manifest_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/update-channels/offline-common.json",
-      "archive_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/offline-common-8a00895b0687c96564c06f9f9724ba38154d9e72ab5db32677c2a80bbbd63532/RouterManager_OpenWrt_Common_Offline_20261106_101557.zip",
+      "archive_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/offline-common-df99ece736b41288965319bc6883050601ab9e75e50eb05dd92015231a2aa8c1/RouterManager_OpenWrt_Common_Offline_20261110_220721.zip",
       "cloudflare_offline_preserved": true
     }
   ],
@@ -50460,7 +50471,7 @@
       "official_image_first_available": "23.05.3"
     }
   ],
-  "updated_at": "2026-11-06T10:24:37+08:00",
+  "updated_at": "2026-11-10T22:30:27+08:00",
   "maintenance": {
     "generated_by": "scripts/openwrt_packages/support_inventory.py",
     "update_on": [

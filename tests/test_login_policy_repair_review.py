@@ -72,14 +72,21 @@ class PolicyReviewTests(unittest.TestCase):
         self.assertFalse(control.access_denied(error))
         self.assertEqual(connection_message(error, {'tcp_connected': False}, 22), '')
 
-    def test_no_host_fingerprint_bypasses_neither_confirmation_nor_authentication(self):
-        from modules.capture_services.openwrt.ssh_client import HostKeyConfirmationRequired
+    def test_unverified_host_still_requires_authentication(self):
         repair = Mock()
         with router('normal') as (client, server):
-            with self.assertRaises(HostKeyConfirmationRequired):
-                client.connect('valid', timeout=3, cancel_event=Event(), network_repair=repair)
-            self.assertEqual(server.attempts, [])
+            client.connect('valid', timeout=3, cancel_event=Event(), network_repair=repair)
+            self.assertTrue(client.connected)
+            self.assertTrue(client.host_fingerprint)
+            self.assertEqual(server.attempts, [('password', 'root', 'valid')])
         repair.assert_not_called()
+
+    def test_unverified_host_rejects_wrong_password(self):
+        with router('normal') as (client, server):
+            with self.assertRaises(RuntimeError):
+                client.connect('wrong', timeout=3)
+            self.assertFalse(client.connected)
+            self.assertEqual(server.attempts, [('password', 'root', 'wrong')])
 
     def test_empty_password_with_deferred_repair_keeps_existing_auth_sequence(self):
         repair = Mock()

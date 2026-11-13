@@ -5,6 +5,7 @@ from PySide6.QtCore import Qt, Signal
 from modules.ui_scale_manager import UiScaleManager
 from PySide6.QtWidgets import (
     QGridLayout,
+    QSizePolicy,
     QCheckBox,
     QGroupBox,
     QHBoxLayout,
@@ -69,10 +70,38 @@ class CaptureToolPanel(QWidget):
         root.addWidget(scan_group)
 
         handshake_group, handshake_layout = self._group("握手抓取")
-        self.capture_seconds = self._spin(handshake_group, 0, 3600, " 秒")
+        handshake_layout.setAlignment(Qt.AlignTop)
+        self.capture_seconds = self._spin(handshake_group, 0, 3600, "秒")
+        self.capture_seconds.set_compact_digits(3)
+        self.capture_seconds.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.capture_seconds.setToolTip("每个信号最多等待多久，建议保留 180 秒。连接活动少时可调高，但整个任务会更久；填 0 使用程序默认时长，不代表立即停止。")
-        handshake_layout.addWidget(self._field_label("单目标超时", handshake_group))
-        handshake_layout.addWidget(self.capture_seconds)
+        self.handshake_rounds_mode = QComboBox(handshake_group)
+        self.handshake_rounds_mode.setObjectName("captureComboBox")
+        self.handshake_rounds_mode.addItem("固定轮数", "fixed")
+        self.handshake_rounds_mode.addItem("不限轮数", "infinite")
+        self.handshake_rounds_mode.setToolTip(
+            "选“固定轮数”时按右侧的轮数尝试；选“不限轮数”时持续尝试，抓到可用包或手动停止时结束。执行故障会报出具体原因。此时轮数输入框置灰不可编辑，运行期间会占用网卡。"
+        )
+        self.handshake_rounds = QSpinBox(handshake_group)
+        self.handshake_rounds.setObjectName("captureSpinBox")
+        self.handshake_rounds.setRange(1, 99)
+        self.handshake_rounds.setSuffix("轮")
+        self.handshake_rounds.set_compact_digits(1)
+        self.handshake_rounds.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.handshake_rounds.setToolTip(
+            "建议保留 3 轮。未抓到可用包的信号会再尝试，轮数越多等待越久。"
+            "已抓到可用包的信号会跳过，其他信号会按设定轮数继续尝试。"
+        )
+        handshake_grid = QGridLayout()
+        handshake_grid.setHorizontalSpacing(6)
+        handshake_grid.setVerticalSpacing(5)
+        handshake_grid.addWidget(self._field_label("单目标超时", handshake_group), 1, 0)
+        handshake_grid.addWidget(self.capture_seconds, 1, 1)
+        handshake_grid.addWidget(self.handshake_rounds_mode, 0, 0)
+        handshake_grid.addWidget(self.handshake_rounds, 0, 1)
+        handshake_grid.setColumnStretch(0, 0)
+        handshake_grid.setColumnStretch(1, 1)
+        handshake_layout.addLayout(handshake_grid)
         self.handshake_button = self._button(handshake_group, "开始常规抓包", "handshake")
         handshake_layout.addWidget(self.handshake_button)
         root.addWidget(handshake_group)
@@ -128,6 +157,8 @@ class CaptureToolPanel(QWidget):
         self.band_combo.currentTextChanged.connect(lambda _text: self.settingsChanged.emit())
         self.scan_seconds.lineEdit().editingFinished.connect(self.settingsChanged)
         self.capture_seconds.lineEdit().editingFinished.connect(self.settingsChanged)
+        self.handshake_rounds.valueChanged.connect(lambda _value: self.settingsChanged.emit())
+        self.handshake_rounds_mode.currentIndexChanged.connect(self._sync_rounds_mode)
 
     @staticmethod
     def _spin(parent, minimum, maximum, suffix):
@@ -186,6 +217,16 @@ class CaptureToolPanel(QWidget):
         self.band_combo.setCurrentText(str(settings.get("band", "2.4G")))
         self.scan_seconds.setValue(int(settings.get("scan_seconds", 24)))
         self.capture_seconds.setValue(int(settings.get("idle_timeout_seconds", 180)))
+        self.handshake_rounds.setValue(int(settings.get("handshake_rounds", 3)))
+        self.handshake_rounds_mode.setCurrentIndex(1 if bool(settings.get("handshake_rounds_infinite", False)) else 0)
+        self._apply_rounds_mode_enabled()
+
+    def _apply_rounds_mode_enabled(self):
+        self.handshake_rounds.setEnabled(self.handshake_rounds_mode.currentData() != "infinite")
+
+    def _sync_rounds_mode(self, _index):
+        self._apply_rounds_mode_enabled()
+        self.settingsChanged.emit()
 
     def collect_settings(self):
         """返回工具栏控制的配置字段。"""
@@ -195,6 +236,8 @@ class CaptureToolPanel(QWidget):
             "band": self.band_combo.currentText(),
             "scan_seconds": self.scan_seconds.value(),
             "idle_timeout_seconds": self.capture_seconds.value(),
+            "handshake_rounds": self.handshake_rounds.value(),
+            "handshake_rounds_infinite": self.handshake_rounds_mode.currentData() == "infinite",
         }
 
 

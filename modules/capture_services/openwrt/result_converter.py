@@ -858,12 +858,12 @@ def _rank_pairs(pairs):
     if verdict == "m2m3":
         return HandshakeAnalysis(
             "m2m3",
-            f"抓到 M2+M3（{short}），可转换为 22000，最终以跑包为准。",
+            f"抓到 M2+M3（{short}），最终以跑包为准。",
             ap,
             sta,
         )
     if verdict in {"m1m4", "m3m4"}:
-        return HandshakeAnalysis(verdict, "已抓到可用消息对，可生成 22000。", ap, sta)
+        return HandshakeAnalysis(verdict, "已抓到可用消息对，最终以跑包为准。", ap, sta)
     return HandshakeAnalysis(
         "pmkid",
         f"发现 PMKID（{short}），可以跑包，最终以跑包为准。",

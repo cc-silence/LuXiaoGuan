@@ -1,0 +1,9 @@
+{
+  "objects": 883,
+  "existing_cloudflare_bytes": 610348324,
+  "new_cloudflare_bytes": 0,
+  "peak_bytes": 610348324,
+  "limit_bytes": 1000000000,
+  "within_limit": true,
+  "publication_target": "GitHub only"
+}

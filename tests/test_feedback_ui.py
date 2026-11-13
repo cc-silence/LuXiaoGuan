@@ -118,6 +118,16 @@ class WindowFeedbackTests(unittest.TestCase):
             dialog.assert_not_called()
             self.assertEqual(service.openwrt_password(),"")
 
+    def test_login_has_no_fingerprint_option_and_ignores_old_fingerprints(self):
+        page=self.window.packet_capture_page
+        connection=page.openwrt_tab.login_page.connection
+        self.assertFalse(hasattr(connection, "fingerprint_check"))
+        settings={"host":"router.example", "port":22, "remember_host_fingerprint":True}
+        page.settings["openwrt"]["trusted_host_fingerprints"]={"router.example:22":"SHA256:old"}
+        with patch.object(page.capture_service,"connect_openwrt_async",return_value=True) as connect:
+            page._connect_with_saved_credentials(settings)
+            connect.assert_called_once_with(settings)
+
     def test_unchecking_password_deletes_persistence_but_keeps_current_input(self):
         page=self.window.packet_capture_page
         login=page.openwrt_tab.login_page
@@ -138,32 +148,7 @@ class WindowFeedbackTests(unittest.TestCase):
             self.assertFalse(loaded["openwrt"]["remember_password"])
         connection.password.clear()
 
-    def test_unchecking_fingerprint_deletes_only_current_device_record_on_disk(self):
-        page=self.window.packet_capture_page
-        connection=page.openwrt_tab.login_page.connection
-        key=page._fingerprint_key(connection.host.text(),connection.port.value())
-        connection.fingerprint_check.setChecked(True)
-        page.settings["openwrt"]["trusted_host_fingerprints"]={key:"SHA256:current","other-router:22":"SHA256:other"}
-        page._save_settings_with_feedback()
-        connection.password.setText("keep-input")
-        connection.fingerprint_check.setChecked(False)
-        self.assertNotIn(key,page.settings["openwrt"]["trusted_host_fingerprints"])
-        self.assertIn("other-router:22",page.settings["openwrt"]["trusted_host_fingerprints"])
-        self.assertNotIn(key,page.settings_manager.load()["openwrt"]["trusted_host_fingerprints"])
-        self.assertEqual(connection.password.text(),"keep-input")
-        connection.password.clear()
 
-    def test_changed_fingerprint_does_not_resave_when_persistence_is_disabled(self):
-        page=self.window.packet_capture_page
-        connection=page.openwrt_tab.login_page.connection
-        connection.fingerprint_check.setChecked(False)
-        key=page._fingerprint_key(connection.host.text(),connection.port.value())
-        result=NS(status="fingerprint_changed",key_type="ssh-ed25519",fingerprint="SHA256:new",
-                  expected_fingerprint="SHA256:old")
-        with patch("modules.main_pages.packet_capture_page.confirm_fingerprint_change",return_value=True),patch.object(page.capture_service,"connect_openwrt_async") as connect:
-            page._confirm_openwrt_fingerprint(result)
-            connect.assert_called_once()
-        self.assertNotIn(key,page.settings["openwrt"]["trusted_host_fingerprints"])
 
     def test_deletion_toast_moves_up_fades_and_reuses_one_instance(self):
         page=self.window.packet_capture_page
@@ -182,10 +167,6 @@ class WindowFeedbackTests(unittest.TestCase):
         self.assertLess(toast._opacity_effect.opacity(),1)
         toast._animation.setCurrentTime(toast._animation.duration())
         self.assertTrue(toast.isHidden())
-        connection.fingerprint_check.setChecked(True)
-        connection.fingerprint_check.setChecked(False)
-        self.assertIs(login._storage_feedback,toast)
-        self.assertIn("\u6307\u7eb9",toast.text())
         self.assertEqual(connection.password.text(),"keep-this-session")
         self.window.apply_appearance(100,"default","light.qss");APP.processEvents()
         login.show_storage_feedback(toast.text())
@@ -209,41 +190,8 @@ class WindowFeedbackTests(unittest.TestCase):
             self.assertEqual(connection.password.text(),"retain-on-failure")
             self.assertTrue(connection.remember_password.isChecked())
             self.assertTrue(page.settings["openwrt"]["remember_password"])
-        connection.fingerprint_check.setChecked(True)
-        key=page._fingerprint_key(connection.host.text(),connection.port.value())
-        trusted=page.settings["openwrt"].setdefault("trusted_host_fingerprints",{})
-        trusted[key]="SHA256:retain-on-failure"
-        with patch.object(page,"_save_settings_with_feedback",return_value=False),patch.object(login,"show_storage_feedback") as toast:
-            connection.fingerprint_check.setChecked(False)
-            toast.assert_not_called()
-            self.assertTrue(connection.fingerprint_check.isChecked())
-            self.assertTrue(page.settings["openwrt"]["remember_host_fingerprint"])
-            self.assertEqual(page.settings["openwrt"]["trusted_host_fingerprints"][key],"SHA256:retain-on-failure")
         connection.password.clear()
 
-    def test_failed_fingerprint_confirmation_save_restores_original_trust(self):
-        page=self.window.packet_capture_page;connection=page.openwrt_tab.login_page.connection
-        connection.fingerprint_check.setChecked(True)
-        key=page._fingerprint_key(connection.host.text(),connection.port.value())
-        for status,original in (("fingerprint_unknown",{}),("fingerprint_changed",{key:"SHA256:old"})):
-            with self.subTest(status=status):
-                previous={**original,"other-device:22":"SHA256:other"}
-                page.settings["openwrt"]["trusted_host_fingerprints"]=previous.copy()
-                result=NS(status=status,key_type="ssh-ed25519",fingerprint="SHA256:new",expected_fingerprint="SHA256:old")
-                with patch("modules.main_pages.packet_capture_page.confirm_host_fingerprint",return_value=(True,True)),patch("modules.main_pages.packet_capture_page.confirm_fingerprint_change",return_value=True),patch.object(page.settings_manager,"save",side_effect=OSError("read only")),patch("modules.main_pages.packet_capture_page.MessageDialog"),patch.object(page.capture_service,"connect_openwrt_async") as connect,patch.object(page.capture_service,"reject_openwrt_fingerprint") as reject:
-                    page._confirm_openwrt_fingerprint(result)
-                    connect.assert_not_called()
-                    reject.assert_called_once()
-                self.assertEqual(page.settings["openwrt"]["trusted_host_fingerprints"],previous)
-                self.assertEqual(page.openwrt_tab.settings["trusted_host_fingerprints"],previous)
-                with patch("modules.main_pages.packet_capture_page.confirm_host_fingerprint",return_value=(True,True)),patch("modules.main_pages.packet_capture_page.confirm_fingerprint_change",return_value=True),patch.object(page.capture_service,"connect_openwrt_async") as connect:
-                    page._confirm_openwrt_fingerprint(result)
-                    connect.assert_called_once()
-                    self.assertEqual(connect.call_args.args[1],"SHA256:new")
-                saved=page.settings_manager.load()["openwrt"]["trusted_host_fingerprints"]
-                self.assertEqual(saved[key],"SHA256:new")
-                self.assertEqual(saved["other-device:22"],"SHA256:other")
-        connection.fingerprint_check.setChecked(False)
 
     def test_failed_password_read_does_not_delete_stored_credential(self):
         page=self.window.packet_capture_page;login=page.openwrt_tab.login_page
@@ -278,22 +226,6 @@ class WindowFeedbackTests(unittest.TestCase):
             connection.remember_password.setChecked(False)
         connection.password.clear()
 
-    def test_failed_fingerprint_save_restores_other_devices_and_retry_deletes_current_only(self):
-        page=self.window.packet_capture_page;login=page.openwrt_tab.login_page
-        connection=login.connection
-        connection.fingerprint_check.setChecked(True)
-        key=page._fingerprint_key(connection.host.text(),connection.port.value())
-        page.settings["openwrt"]["trusted_host_fingerprints"]={key:"SHA256:current", "other-device:22":"SHA256:other"}
-        with patch.object(page.settings_manager,"save",side_effect=OSError("read only")),patch("modules.main_pages.packet_capture_page.MessageDialog"),patch.object(login,"show_storage_feedback") as toast:
-            connection.fingerprint_check.setChecked(False)
-            self.assertTrue(connection.fingerprint_check.isChecked())
-            self.assertEqual(page.settings["openwrt"]["trusted_host_fingerprints"],{key:"SHA256:current", "other-device:22":"SHA256:other"})
-            toast.assert_not_called()
-        with patch.object(login,"show_storage_feedback") as toast:
-            connection.fingerprint_check.setChecked(False)
-            toast.assert_called_once()
-        self.assertNotIn(key,page.settings["openwrt"]["trusted_host_fingerprints"])
-        self.assertEqual(page.settings["openwrt"]["trusted_host_fingerprints"]["other-device:22"],"SHA256:other")
 
     def test_cancelling_storage_during_connected_session_does_not_disconnect_or_clear_input(self):
         from dataclasses import replace
@@ -307,9 +239,7 @@ class WindowFeedbackTests(unittest.TestCase):
             with patch("modules.platform_services.windows_credentials.write_generic_password"),patch("modules.platform_services.windows_credentials.read_generic_password",return_value=""),patch("modules.platform_services.windows_credentials.delete_generic_password") as deleted,patch.object(service,"disconnect_openwrt_async") as disconnect:
                 connection.password.setText("connected-session")
                 connection.remember_password.setChecked(True)
-                connection.fingerprint_check.setChecked(True)
                 connection.remember_password.setChecked(False)
-                connection.fingerprint_check.setChecked(False)
                 deleted.assert_called()
                 disconnect.assert_not_called()
                 self.assertEqual(service.openwrt_snapshot.connection_state,OpenWrtConnectionState.CONNECTED)

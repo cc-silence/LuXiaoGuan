@@ -61,6 +61,7 @@ class AccessPointTable(QTableWidget):
     NUMBER_COLUMN = 0
     BSSID_COLUMN = 2
     SSID_COLUMN = 3
+    CLIENT_COLUMN = 5
 
     def __init__(self, parent=None):
         super().__init__(0, len(self.HEADERS), parent)
@@ -95,10 +96,12 @@ class AccessPointTable(QTableWidget):
         self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
         self.horizontalHeaderItem(self.BSSID_COLUMN).setToolTip("点击表头右侧眼睛隐藏/显示本列内容")
         self.horizontalHeaderItem(self.SSID_COLUMN).setToolTip("点击表头右侧眼睛隐藏/显示本列内容")
-        for index, width in enumerate((48, 86, 150, 180, 88, 72, 80, 66, 100)):
+        for index, width in enumerate((48, 91, 155, 180, 88, 72, 80, 66, 100)):
             self.setColumnWidth(index, width)
         header.sortIndicatorChanged.connect(self._on_sort_indicator_changed)
-        header.setSortIndicator(-1, Qt.AscendingOrder)
+        self._sort_preference = (self.CLIENT_COLUMN, Qt.DescendingOrder)
+        with QSignalBlocker(header):
+            header.setSortIndicator(*self._sort_preference)
         self._points = ()
         self._privacy = controller_for(self)
         self._ssid_values = set()
@@ -468,7 +471,8 @@ class AccessPointTable(QTableWidget):
     def _refresh_client_cell(self, row, point):
         """刷新客户端数及三列高亮；无客户端时恢复默认前景。"""
 
-        client_item = self.item(row, 5)
+        client_item = self.item(row, self.CLIENT_COLUMN)
+        client_item.setData(Qt.UserRole, len(point.clients))
         client_item.setText(str(len(point.clients)))
         self._apply_row_highlight(
             (self.item(row, 2), self.item(row, 3), client_item), point
@@ -521,7 +525,9 @@ class AccessPointTable(QTableWidget):
                 status_item.setTextAlignment(Qt.AlignCenter)
                 bssid_item = self._item(self._display_bssid(point))
                 ssid_item = self._item(self._display_ssid(point))
-                client_item = self._item(str(len(point.clients)), center=True)
+                client_item = _NumberItem(str(len(point.clients)))
+                client_item.setData(Qt.UserRole, len(point.clients))
+                client_item.setTextAlignment(Qt.AlignCenter)
                 values = (
                     number_item,
                     status_item,
@@ -538,6 +544,9 @@ class AccessPointTable(QTableWidget):
                 self._refresh_status_cell(row, point)
                 self._apply_row_highlight((bssid_item, ssid_item, client_item), point)
             self._refresh_capturing_rows()
+            if self._sort_preference is not None:
+                with QSignalBlocker(self.horizontalHeader()):
+                    self.horizontalHeader().setSortIndicator(*self._sort_preference)
             self.setSortingEnabled(sorting)
             self._renumber_rows()
             self._fit_height_to_content()
@@ -660,6 +669,7 @@ class AccessPointTable(QTableWidget):
         """序号/MAC/名称列不可排序：任何路径调用都直接吞掉，行顺序不动。"""
 
         if column in (self.NUMBER_COLUMN, self.BSSID_COLUMN, self.SSID_COLUMN):
+            self._sort_preference = None
             header = self.horizontalHeader()
             header.blockSignals(True)
             try:
@@ -669,13 +679,15 @@ class AccessPointTable(QTableWidget):
             return
         super().sortByColumn(column, order)
 
-    def _on_sort_indicator_changed(self, section, _order):
+    def _on_sort_indicator_changed(self, section, order):
         """序号/MAC/名称列不可排序：点它们只清除指示器；其他列排序后重排序号。
 
         指示器信号先于视图实际搬行，重排号必须 deferred，否则排的是旧顺序。
         """
 
         if section in (self.NUMBER_COLUMN, self.BSSID_COLUMN, self.SSID_COLUMN):
+            if not self._updating:
+                self._sort_preference = None
             header = self.horizontalHeader()
             header.blockSignals(True)
             try:
@@ -683,6 +695,8 @@ class AccessPointTable(QTableWidget):
             finally:
                 header.blockSignals(False)
             return
+        if section >= 0 and not self._updating:
+            self._sort_preference = (section, order)
         QTimer.singleShot(0, self._renumber_rows)
 
     def selected_bssids(self):

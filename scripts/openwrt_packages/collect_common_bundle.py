@@ -113,7 +113,7 @@ class Collector:
     def profile(self, release, target):
         if not self.refresh_selected:
             saved = self.ledger.load(release, target)
-            if saved is not None:
+            if saved is not None and (saved.get('package_manager') == 'apk' or 'runtime_supplements' in saved):
                 self.reused_profiles.append((release, target))
                 return saved
         if time.time() > self.deadline:
@@ -143,7 +143,9 @@ class Collector:
             target_hashes = None
         target_rows = parse_feed(target_raw, "target", target_url, apk, target_hashes)
         try:
-            selected, provided = closure(target_rows + architecture["rows"], self.roots)
+            supplements = () if apk else ('librt', 'libpthread', 'libgcc1')
+            selected, provided = closure(target_rows + architecture["rows"], self.roots,
+                                         runtime_supplements=supplements)
         except MissingPackagesError as exc:
             return dict(release=release, target=target, target_family=target_family,
                         architecture=arch, status="dependencies-unavailable",
@@ -151,11 +153,14 @@ class Collector:
         for row in selected:
             if row["architecture"] not in (arch, "all", "noarch"):
                 raise ValueError("Incompatible package architecture: " + row["filename"])
-        return dict(release=release, target=target, target_family=target_family, architecture=arch,
+        result = dict(release=release, target=target, target_family=target_family, architecture=arch,
                     package_manager="apk" if apk else "opkg", status="index-verified",
                     roots=list(self.roots), packages=selected, firmware_required=provided,
                     firmware_evidence=evidence,
                     indexes=[target_index] + architecture["indexes"] if apk or self.spec.kind == "common" else [])
+        if not apk:
+            result['runtime_supplements'] = list(supplements)
+        return result
 
     def scan(self, releases, targets):
         profiles, errors = [], []

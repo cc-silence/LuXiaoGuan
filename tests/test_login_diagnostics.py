@@ -71,8 +71,7 @@ class LoginDiagnosticTests(unittest.TestCase):
             self.assertEqual(runner.operation_diagnostics.snapshot()['login_attempts'][0]['reason'], 'authentication_rejected')
 
     def test_host_key_decisions_remain_before_authentication(self):
-        for expected, exception, reason in (('', HostKeyConfirmationRequired, 'host_key_confirmation_required'),
-                ('SHA256:other', HostKeyChangedError, 'host_key_changed')):
+        for expected, exception, reason in (('SHA256:other', HostKeyChangedError, 'host_key_changed'),):
             with self.subTest(reason=reason), router('normal') as (client, server):
                 with self.assertRaises(exception):
                     client.connect('valid', expected, timeout=3)

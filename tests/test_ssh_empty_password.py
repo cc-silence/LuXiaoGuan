@@ -103,11 +103,12 @@ class EmptyPasswordSshTests(unittest.TestCase):
             self.assertFalse(client.connected)
             self.assertEqual(server.attempts,[("none","root")])
 
-    def test_unknown_host_key_is_confirmed_before_authentication(self):
+    def test_unknown_host_key_still_requires_authentication(self):
         with router("none") as (client,server):
-            with self.assertRaises(HostKeyConfirmationRequired):client.connect("",timeout=3)
-            self.assertFalse(client.connected)
-            self.assertFalse(server.attempts)
+            client.connect("",timeout=3)
+            self.assertTrue(client.connected)
+            self.assertEqual(server.attempts, [("none", "root")])
+            self.assertTrue(client.host_fingerprint)
 
     def test_changed_host_key_is_blocked_before_authentication(self):
         with router("none") as (client,server):

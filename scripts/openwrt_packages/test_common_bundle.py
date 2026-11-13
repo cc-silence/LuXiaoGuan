@@ -114,7 +114,7 @@ class CommonBundleTests(unittest.TestCase):
 class IncrementalTests(unittest.TestCase):
     def profile(self,release,target):
         return dict(status="index-verified",release=release,target=target,architecture="test",
-                    roots=list(ROOTS),packages=[],indexes=[],package_manager="opkg")
+                    roots=list(ROOTS),packages=[],indexes=[],package_manager="opkg",runtime_supplements=["librt","libpthread","libgcc1"])
 
     def test_saved_profile_never_calls_network_architecture_or_dependency_resolver(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -184,7 +184,7 @@ class ReleaseCoverageTests(unittest.TestCase):
             with patch("scripts.openwrt_packages.collect_common_bundle.firmware_metadata", return_value=metadata), patch("scripts.openwrt_packages.collect_common_bundle.parse_feed", return_value=[]):
                 result = task.profile("19.07.1", "x86/64")
             self.assertEqual(result["status"], "dependencies-unavailable")
-            self.assertEqual(set(result["missing_packages"]), set(ROOTS))
+            self.assertEqual(set(result["missing_packages"]), set(ROOTS) | {"librt", "libpthread", "libgcc1"})
             self.assertNotIn("packages", result)
 
     def test_connection_error_is_not_misreported_as_missing_firmware(self):

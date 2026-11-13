@@ -80,6 +80,7 @@ class OpenWrtCapturePage(QWidget):
         from .signal_list_export import SignalListExportController
         self.signal_export = SignalListExportController(self)
         self.tools.actionRequested.connect(self._handle_tool_action)
+        self.tools.settingsChanged.connect(self.settingsChanged)
         self.tools.advancedWpsRequested.connect(self.advancedWpsRequested)
         service.openwrtSnapshotChanged.connect(self.apply_snapshot)
         self.apply_snapshot(service.openwrt_snapshot)

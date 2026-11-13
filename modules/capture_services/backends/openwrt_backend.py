@@ -97,7 +97,7 @@ def _maybe_drop_raw_cap(final_path, verdict, hc_path, settings):
 
 def _convert_handshake_products(final_path, target, local_root, stem, verdict, settings):
     """Keep legacy result fields empty; report CAP status through the existing note."""
-    _product, note = cap_product_note(final_path)
+    _product, note = cap_product_note(final_path, enabled=bool(settings.get("generate_cap", True)))
     return "", note, "", ""
 
 
@@ -1025,7 +1025,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
             ))
         pmkid_count = sum(1 for verdict in combos.values() if verdict == "pmkid")
         hc_files = []
-        _product, cap_note = cap_product_note(final_path)
+        _product, cap_note = cap_product_note(final_path, enabled=bool(settings.get("generate_cap", True)))
         hc_notes = [cap_note]
         completed_bssids = tuple(dict.fromkeys(str(ap).upper() for ap, _sta in combos))
         detail = f"发现 {len(combos)} 个可跑包组合（PMKID {pmkid_count} 个）。"
@@ -1123,7 +1123,8 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 bool(settings.get("active_deauth", False)),
                 "",
                 lambda: self.radio_session.heal_link(cancel_event),
-                deauth_batches=settings.get("deauth_batches", 5),
+                deauth_batches=settings.get("deauth_batches", 10),
+                no_client_observation_seconds=settings.get("no_client_observation_seconds", 30),
             )
             if result.verdict in ("none", "partial"):
                 # 包里没有 EAPOL，或有 EAPOL 但凑不出可跑包组合，密码学上无价值，
@@ -1500,8 +1501,8 @@ class OpenWrtCaptureBackend(CaptureBackend):
         每轮跳过已出可跑包结论的目标；普通目标失败继续，取消/断连/恢复失败整体中断。
         自动调用方通过 stop_on_idle_unavailable 要求空闲拒绝停整轮；手动默认继续。
         target_callback 在目标落盘后、下一目标与最终清理前回传结构化结果。
-        副作用与单目标一致，只是 M 接口按目标创建删除、接管按目标恢复、远端目录在
-        最后统一清理；任一确认都必须由页面层在主线程提前完成，本方法不创建弹窗。
+        同频段连续目标复用已核实的临时接口和接管；切换频段或任务结束时恢复，
+        远端目录最后统一清理；任一确认都必须由页面层在主线程提前完成，本方法不创建弹窗。
         message_callback(text, level) 是线程安全的过程播报，目标开始与结束时逐条通知。
         """
 
@@ -1530,6 +1531,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         self._running = True
         primary_error = None
         latest = {}
+        tune_failures = {}
         retained = []
         cleanup_errors = []
         status = "completed"
@@ -1538,22 +1540,25 @@ class OpenWrtCaptureBackend(CaptureBackend):
         from modules.capture_services.handshake_processing import DeferredHandshake, HandshakeProcessingQueue
         from modules.capture_services.openwrt.capture_capacity import bounded_groups, read_target_capacity
         processing = HandshakeProcessingQueue()
+        from modules.capture_services.openwrt.handshake_batch_radio import HandshakeBatchRadio
+        batch_radio = HandshakeBatchRadio(self, workspace)
 
         def consume(group, entries, terminal=False):
             nonlocal primary_error
             group_interruption = None
             for target, (entry, retry) in zip(group, entries):
                 previous = latest.get(target.bssid)
+                if entry.result is not None:
+                    tune_failures.pop(target.bssid, None)
                 if entry.result is not None and entry.result.verdict in _CONVERTIBLE_VERDICTS:
                     retry = False
+                elif entry.error_code == "channel_tune_failed" and group_same_channel:
+                    tune_failures[target.bssid] = tune_failures.get(target.bssid, 0) + 1
+                    retry = tune_failures[target.bssid] < 3
+                    suffix = (f"\uff1b\u4fe1\u9053\u5207\u6362\u5931\u8d25 {tune_failures[target.bssid]}/3 "
+                              + ("\uff0c\u4e0b\u4e00\u8f6e\u518d\u8bd5" if retry else "\uff0c\u4e0d\u518d\u91cd\u8bd5"))
+                    entry = replace(entry, error=entry.error + suffix)
                 elif entry.error or entry.error_code or entry.result is None:
-                    retry = False
-                elif (max_rounds is not None and previous is not None and previous.result is not None
-                      and entry.result.content_fingerprint
-                      and entry.result.content_fingerprint == previous.result.content_fingerprint):
-                    entry = replace(entry, stop_reason="no_progress", result=replace(
-                        entry.result, verdict_detail=entry.result.verdict_detail
-                        + "连续两轮完整等待后的目标内容相同，无进展，已停止重复采集。"))
                     retry = False
                 elif entry.result.verdict == "unknown" and max_rounds is None:
                     entry = replace(entry, stop_reason="unknown", result=replace(
@@ -1622,7 +1627,8 @@ class OpenWrtCaptureBackend(CaptureBackend):
                     args = (workspace, session_id, settings, local_root, group[0], index,
                             total, round_no, cancel_event, progress_callback, message_callback)
                     captured = self._capture_single_handshake(
-                        *args, group_targets=group if len(group) > 1 else (), defer_processing=True)
+                        *args, group_targets=group if len(group) > 1 else (), defer_processing=True,
+                        batch_radio=batch_radio, observe_clients=group_same_channel)
                     index += len(group)
                     if isinstance(captured, DeferredHandshake):
                         processing.submit(group, captured)
@@ -1633,6 +1639,8 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 while ready is not None:
                     consume(*ready)
                     ready = processing.pop(wait=True)
+            if not any(item.error or item.error_code for item in latest.values()):
+                primary_error = None
         except _BatchInterrupted as exc:
             status, note = exc.status, str(exc)
             cleanup_errors.extend(exc.cleanup_errors)
@@ -1661,7 +1669,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 note = "；".join(filter(None, (note, f"发布清理进度失败：{exc}")))
             finally:
                 try:
-                    self._finish_capture_task(workspace, primary_error, None, message_callback)
+                    self._finish_capture_task(workspace, primary_error, batch_radio.takeover, message_callback)
                 except Exception as exc:
                     cleanup_errors.extend(getattr(exc, "cleanup_errors", (str(exc),)))
         cancelled = cancel_event is not None and cancel_event.is_set()
@@ -1690,7 +1698,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         cancel_event,
         progress_callback,
         message_callback=None,
-        *, group_targets=(), defer_processing=False,
+        *, group_targets=(), defer_processing=False, batch_radio=None, observe_clients=False,
     ):
         """执行批次中的单个目标，返回 (HandshakeTargetResult, 是否值得再试)。
 
@@ -1705,28 +1713,33 @@ class OpenWrtCaptureBackend(CaptureBackend):
         takeover_record = None
         try:
             self._ensure_remote_tmp(cancel_event)
-            phy = self._find_scan_radio(
-                target.band, cancel_event, target.channel,
-                bool(settings.get("idle_radio_only", False)), message_callback,
-            )
-            takeover_record = self._maybe_takeover(
-                workspace,
-                session_id,
-                phy,
-                settings,
-                cancel_event,
-                f"r{round_no}t{index}",
-                target_channel=target.channel,
-                expected_band=target.band,
-                message_callback=message_callback,
-            )
-            record = self.radio_session.create(
-                session_id,
-                phy,
-                target.band,
-                cancel_event=cancel_event,
-                idle_radio_only=bool(settings.get("idle_radio_only", False)),
-            )
+            if batch_radio is not None:
+                record = batch_radio.acquire(session_id, settings, target, round_no,
+                                             index, cancel_event, message_callback)
+                takeover_record = batch_radio.takeover
+            else:
+                phy = self._find_scan_radio(
+                    target.band, cancel_event, target.channel,
+                    bool(settings.get("idle_radio_only", False)), message_callback,
+                )
+                takeover_record = self._maybe_takeover(
+                    workspace,
+                    session_id,
+                    phy,
+                    settings,
+                    cancel_event,
+                    f"r{round_no}t{index}",
+                    target_channel=target.channel,
+                    expected_band=target.band,
+                    message_callback=message_callback,
+                )
+                record = self.radio_session.create(
+                    session_id,
+                    phy,
+                    target.band,
+                    cancel_event=cancel_event,
+                    idle_radio_only=bool(settings.get("idle_radio_only", False)),
+                )
         except Exception as exc:
             # 接管成功后，创建 M 接口仍可能因驱动、取消或连接中断失败。此前此分支
             # 直接返回，漏掉 radio 恢复，导致 UCI 显示“已启用”但运行接口未回来。
@@ -1742,7 +1755,13 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 primary_message += f"；连接诊断已保存：{diagnostic}"
             else:
                 primary_message += _session_diag_note(workspace)
-            preparation_errors = self._restore_task_wireless(workspace, takeover_record)
+            if batch_radio is not None:
+                from modules.capture_services.openwrt.handshake_batch_radio import BatchRadioCleanupError
+                if isinstance(exc, BatchRadioCleanupError):
+                    raise _BatchInterrupted(str(exc), "failed", exc.cleanup_errors) from exc
+                preparation_errors = batch_radio.release()
+            else:
+                preparation_errors = self._restore_task_wireless(workspace, takeover_record)
             if isinstance(exc, CaptureResourceError):
                 raise _BatchInterrupted(primary_message, "resource_limit", preparation_errors) from exc
             if cancel_event is not None and cancel_event.is_set():
@@ -1787,7 +1806,9 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 bool(settings.get("active_deauth", False)),
                 f"r{round_no}t{index}",
                 lambda: self.radio_session.heal_link(cancel_event),
-                deauth_batches=settings.get("deauth_batches", 5),
+                deauth_batches=settings.get("deauth_batches", 10),
+                stop_on_missing_beacon=True,
+                **({"no_client_observation_seconds": settings.get("no_client_observation_seconds", 30)} if observe_clients else {}),
                 **({"group_targets": group} if group_targets else {}),
                 defer_analysis=True,
             )
@@ -1795,7 +1816,8 @@ class OpenWrtCaptureBackend(CaptureBackend):
             errors.extend(getattr(exc, "cleanup_errors", ()))
             from modules.capture_services.capture_logging import save_ssh_failure
             diagnostic = save_ssh_failure(workspace.local_dir, exc, self.ssh_client.connected)
-            errors.extend(self._restore_task_wireless(workspace, takeover_record, message_callback))
+            errors.extend(batch_radio.release(message_callback) if batch_radio is not None else
+                          self._restore_task_wireless(workspace, takeover_record, message_callback))
             primary_message = getattr(exc, "primary_message", str(exc)) or type(exc).__name__
             if diagnostic:
                 primary_message += f"；连接诊断已保存：{diagnostic}"
@@ -1811,12 +1833,15 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 raise _BatchInterrupted(primary_message, "resource_limit", errors) from exc
             if isinstance(primary, CommandExecutionTimeout):
                 raise _BatchInterrupted(primary_message, "command_timeout", errors) from exc
+            from modules.capture_services.openwrt.handshake_capture import ChannelTuneError
             return failed_entries(HandshakeTargetResult(
                 target, None, primary_message,
-                "idle_radio_unavailable" if isinstance(exc, IdleRadioUnavailable) else "capture_failed",
+                "idle_radio_unavailable" if isinstance(exc, IdleRadioUnavailable) else
+                "channel_tune_failed" if isinstance(primary, ChannelTuneError) else "capture_failed",
                 tuple(errors),
             ), False)
-        errors.extend(self._restore_task_wireless(workspace, takeover_record))
+        if batch_radio is None:
+            errors.extend(self._restore_task_wireless(workspace, takeover_record))
         from modules.capture_services.handshake_processing import DeferredHandshake
         from modules.capture_services.openwrt.handshake_capture import DownloadedHandshake
 
@@ -1852,7 +1877,9 @@ class OpenWrtCaptureBackend(CaptureBackend):
             # 调用方按 verdict 区分显示，partial 标“有反应、值得再试”。
             note = "；".join(errors)
             return (
-                HandshakeTargetResult(target, replace(result, cap_path="", verdict_detail="本轮未抓到可用包。"), note, cleanup_errors=tuple(errors)),
+                HandshakeTargetResult(target, replace(result, cap_path="",
+                    verdict_detail=result.verdict_detail if getattr(result, "no_clients_observed", False)
+                    else "本轮未抓到可用包。"), note, cleanup_errors=tuple(errors)),
                 True,
             )
         if result.verdict == "unknown" and not result.has_usable_frames:

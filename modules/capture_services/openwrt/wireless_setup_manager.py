@@ -290,7 +290,7 @@ exit 1
             radios = [r for r in env.data["radios"] if not r.get("runtime_pending")]
         if not radios:
             raise SignalError("radio", "没有当前可用的无线网卡，请检查驱动或等待网卡状态切换完成。")
-        message("开始扫描：" + "、".join(r["name"] for r in radios) + "，采集时间 " + str(seconds) + " 秒；已发起的原生扫描最多等待 " + str(SCAN_COMMAND_TIMEOUT_SECONDS) + " 秒完成。", "info")
+        message("开始扫描：" + "、".join(r["name"] for r in radios) + "，采集时间 " + str(seconds) + " 秒；已发起的原生扫描最多等待 " + str(SCAN_COMMAND_TIMEOUT_SECONDS) + " 秒完成；超时时尝试兼容扫描可能需要更长时间。", "info")
         deadline = time.monotonic() + seconds
         if on_started is not None:
             on_started(deadline)
@@ -300,9 +300,13 @@ exit 1
         completed = set()
         failures = []
         warned = set()
+        compat_radios = set()
+        blocked_radios = set()
         first_pass = True
         while first_pass or time.monotonic() < deadline:
             for radio in radios:
+                if radio["name"] in blocked_radios:
+                    continue
                 if cancel.is_set():
                     raise InterruptedError("扫描已取消。")
                 remaining = deadline - time.monotonic()
@@ -313,8 +317,40 @@ exit 1
                     interface = interfaces[0] if interfaces and radio.get("runtime_up") is not False else ""
                     message("正在扫描 " + radio["name"] + "（" + (interface or "临时扫描接口，不发射 AP") + "）。", "info")
                     target = {} if interface else {"expected_phy": self._radio(env, radio["name"])["phy"]}
-                    result = self._call("scan", cancel, timeout=SCAN_COMMAND_TIMEOUT_SECONDS,
-                                        interface=interface, radio=radio["name"], **target)
+                    from .wireless_scan_commands import SCAN_FALLBACK_COMMAND_TIMEOUT_SECONDS
+                    using_compat = radio["name"] in compat_radios
+                    try:
+                        result = self._call("scan", cancel,
+                            timeout=SCAN_FALLBACK_COMMAND_TIMEOUT_SECONDS if using_compat else SCAN_COMMAND_TIMEOUT_SECONDS,
+                            interface=interface, radio=radio["name"],
+                            **({"compat_interface": True} if using_compat else {}), **target)
+                    except SignalError as exc:
+                        if using_compat:
+                            from .scan_failure_evidence import record_scan_fallback
+                            blocked_radios.add(radio["name"])
+                            record_scan_fallback(self.runner, radio, "failed", error=exc)
+                            raise
+                        if (exc.code != "rpc_iwinfo_scan_7" or
+                                getattr(exc, "scan_target", None) != "radio" or not interface or
+                                cancel.is_set()):
+                            raise
+                        from .scan_failure_evidence import record_scan_failure, record_scan_fallback
+                        record_scan_failure(self.runner, env.data, radio, interface, exc)
+                        record_scan_fallback(self.runner, radio, "started")
+                        fallback_started = time.monotonic()
+                        message(radio["name"] + ": \u65e0\u7ebf\u626b\u63cf\u8d85\u65f6\uff0c\u6b63\u5728\u5c1d\u8bd5\u5df2\u6838\u5b9e\u7684\u6865\u63a5\u63a5\u53e3\u3002", "warning")
+                        try:
+                            result = self._call("scan", cancel, timeout=SCAN_FALLBACK_COMMAND_TIMEOUT_SECONDS,
+                                interface=interface, radio=radio["name"], compat_interface=True)
+                        except Exception as fallback_error:
+                            blocked_radios.add(radio["name"])
+                            record_scan_fallback(self.runner, radio,
+                                "cancelled" if cancel.is_set() else "failed", error=fallback_error,
+                                elapsed_seconds=time.monotonic() - fallback_started)
+                            raise
+                        record_scan_fallback(self.runner, radio, "completed", result=result,
+                            elapsed_seconds=time.monotonic() - fallback_started)
+                        compat_radios.add(radio["name"])
                     from .scan_interface_evidence import record_scan_selection
                     record_scan_selection(self.runner, result, radio["name"])
                     def evidence(values):
@@ -351,6 +387,8 @@ exit 1
                     failures.append(str(exc))
                     message(radio["name"] + "：" + str(exc), "warning")
             first_pass = False
+            if blocked_radios and all(r["name"] in blocked_radios for r in radios):
+                break
             if cancel.wait(min(1, max(0, deadline-time.monotonic()))):
                 raise InterruptedError("扫描已取消。")
         if not completed:

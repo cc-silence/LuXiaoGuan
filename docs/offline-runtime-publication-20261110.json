@@ -1,0 +1,97 @@
+{
+  "date": "2026-11-10",
+  "status": "published-and-client-verified",
+  "bundles": {
+    "common": {
+      "complete": true,
+      "profiles": 1672,
+      "zip_bytes": 285183598,
+      "zip_path": "C:\\Users\\CC\\Desktop\\Work\\RouterManager\\RouterManager_python\\dist\\openwrt_common\\RouterManager_OpenWrt_Common_Offline_20261110_220721.zip",
+      "zip_sha256": "df99ece736b41288965319bc6883050601ab9e75e50eb05dd92015231a2aa8c1",
+      "baseline_sha256": "8a00895b0687c96564c06f9f9724ba38154d9e72ab5db32677c2a80bbbd63532",
+      "unique_objects": 4541,
+      "runtime_supplement_names": [
+        "libgcc1",
+        "libpthread",
+        "librt"
+      ],
+      "coverage_path": "C:\\Users\\CC\\Desktop\\Work\\RouterManager\\RouterManager_python\\dist\\openwrt_common\\RouterManager_OpenWrt_Common_Offline_20261110_220721.coverage.json"
+    },
+    "capture": {
+      "complete": true,
+      "profiles": 1930,
+      "zip_bytes": 245858121,
+      "zip_path": "C:\\Users\\CC\\Desktop\\Work\\RouterManager\\RouterManager_python\\dist\\openwrt_capture\\RouterManager_OpenWrt_Capture_Offline_20261110_220853.zip",
+      "zip_sha256": "11aeb5f24ea9573ddfe2b782a1abfff0cd7eeff598ed5d61a5fb3dcc9d040854",
+      "baseline_sha256": "e71b3248df65df6f499d8d209bfc81c95802dfa2d9cb5280cc57602a8e608389",
+      "unique_objects": 1691,
+      "runtime_supplement_names": [
+        "libgcc1",
+        "libpthread",
+        "librt"
+      ],
+      "coverage_path": "C:\\Users\\CC\\Desktop\\Work\\RouterManager\\RouterManager_python\\dist\\openwrt_capture\\RouterManager_OpenWrt_Capture_Offline_20261110_220853.coverage.json"
+    }
+  },
+  "full_opkg_graphs_verified": {
+    "common": 1336,
+    "capture": 1594
+  },
+  "unchanged_apk_profiles": {
+    "common": 336,
+    "capture": 336
+  },
+  "tests": {
+    "runtime_and_collection_regressions": 42,
+    "signed_resource_and_support_regressions": 28,
+    "actual_frozen_client_reader": "1.0.62_alpha"
+  },
+  "new_runtime_packages": [
+    "librt",
+    "libpthread",
+    "libgcc1"
+  ],
+  "live_router_tested": false,
+  "application_binary_rebuilt": false,
+  "cloudflare_offline_write_operations": 0,
+  "publication_receipts": {
+    "common": {
+      "kind": "common",
+      "status": "published-and-client-verified",
+      "manifest_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/update-channels/offline-common.json",
+      "archive_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/offline-common-df99ece736b41288965319bc6883050601ab9e75e50eb05dd92015231a2aa8c1/RouterManager_OpenWrt_Common_Offline_20261110_220721.zip",
+      "sha256": "df99ece736b41288965319bc6883050601ab9e75e50eb05dd92015231a2aa8c1",
+      "profiles": 1672,
+      "size": 285183598,
+      "cloudflare_offline_preserved": true
+    },
+    "capture": {
+      "kind": "capture",
+      "status": "published-and-client-verified",
+      "manifest_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/update-channels/offline-capture.json",
+      "archive_url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/offline-capture-11aeb5f24ea9573ddfe2b782a1abfff0cd7eeff598ed5d61a5fb3dcc9d040854/RouterManager_OpenWrt_Capture_Offline_20261110_220853.zip",
+      "sha256": "11aeb5f24ea9573ddfe2b782a1abfff0cd7eeff598ed5d61a5fb3dcc9d040854",
+      "profiles": 1930,
+      "size": 245858121,
+      "cloudflare_offline_preserved": true
+    }
+  },
+  "public_signed_notices": [
+    {
+      "kind": "common",
+      "route": "configured-proxy",
+      "revision": "20261110221213",
+      "sha256": "df99ece736b41288965319bc6883050601ab9e75e50eb05dd92015231a2aa8c1",
+      "size": 285183598,
+      "url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/offline-common-df99ece736b41288965319bc6883050601ab9e75e50eb05dd92015231a2aa8c1/RouterManager_OpenWrt_Common_Offline_20261110_220721.zip"
+    },
+    {
+      "kind": "capture",
+      "route": "configured-proxy",
+      "revision": "20261110222141",
+      "sha256": "11aeb5f24ea9573ddfe2b782a1abfff0cd7eeff598ed5d61a5fb3dcc9d040854",
+      "size": 245858121,
+      "url": "https://github.com/luxiaoguan-ui/luxiaoguan-publish/releases/download/offline-capture-11aeb5f24ea9573ddfe2b782a1abfff0cd7eeff598ed5d61a5fb3dcc9d040854/RouterManager_OpenWrt_Capture_Offline_20261110_220853.zip"
+    }
+  ]
+}
