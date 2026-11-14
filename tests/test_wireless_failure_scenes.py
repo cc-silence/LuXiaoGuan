@@ -152,6 +152,7 @@ class FailureRetentionTests(unittest.TestCase):
         from modules.capture_services.local_capture_diagnostics import AutoCaptureDiagnostics
         runner,journal=self.runner()
         class Service(QObject):
+            messageGenerated=Signal(str,str)
             radioStreamOutput=Signal(str,str)
             radioStateChanged=Signal(str,str)
         class Owner(QObject):
