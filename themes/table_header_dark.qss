@@ -20,3 +20,8 @@ QTableView QTableCornerButton::section {
     border: none;
     border-bottom: 1px solid #2d343d;
 }
+
+/* Keep the outer edges symmetric; cell grids draw only bottom/right. */
+QTableView {
+    border: 1px solid #303842;
+}

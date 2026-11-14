@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-13",
+  "input_archive": "CC_LuXiaoGuan_20261113_140638.zip",
+  "input_sha256": "37e535d632b8fa4d25661725aa3939468e9672c647aa3e42699a897afe4bc343",
+  "app_version": "1.0.65_alpha",
+  "device": {
+    "model": "TP-Link TL-XDR6088",
+    "firmware": "OpenWrt 23.05.4 r24012-d8dd03c46f",
+    "kernel": "5.15.162",
+    "target": "mediatek/filogic"
+  },
+  "facts": [
+    "24-second scan succeeded with 35 APs.",
+    "60-second scans failed at local 14:04:24 and 14:06:12, about 36 seconds after capture_start.",
+    "SSH return path was wired; selected 5GHz phy1 was reported idle.",
+    "After the first failure, boot_id changed and uptime reset from 81073 seconds to 38 seconds at 14:05:09. This confirms one full router reboot. No later reconnection evidence confirms a second reboot.",
+    "Before failures, last health samples reported about 350 MiB available memory. This is not proof against a later rapid OOM.",
+    "Collected logread/dmesg/pstore output contains normal watchdog initialization lines, not a panic, firmware crash stack or proven watchdog reset cause.",
+    "Scanner launches airodump-ng passive band-a channel hopping with CSV/PCAP output and does not reboot the router. 24/60 seconds use the same path."
+  ],
+  "conclusion": "One actual router reboot is proven. Exact cause is unresolved; continuous monitor/channel hopping and driver or firmware handling merit investigation. An SSH channel timeout is the observed consequence, not proof of the underlying cause.",
+  "references": [
+    {
+      "url": "https://github.com/openwrt/mt76/issues/556",
+      "read_date": "2026-11-13",
+      "scope": "Historical monitor-mode firmware-crash report. Different conditions and versions; not evidence that this device has the same bug."
+    }
+  ],
+  "actions": "Keep 24 seconds temporarily; no blind SSH timeout increase, watchdog disable, driver replacement, or claimed 60-second fix. No router changes performed.",
+  "next_evidence": "Need reboot-surviving crash output or live/serial kernel logs around failure before identifying a driver fix. No physical router reproduction in this audit."
+}

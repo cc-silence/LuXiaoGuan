@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QFileDialog
 
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from modules.config_manager import user_downloads_dir
+from modules.user_errors import user_error
 
 
 class _ExportSignals(QObject):
@@ -35,7 +36,9 @@ class _ExportJob(QRunnable):
         except Exception as exc:
             import logging
             logging.getLogger(__name__).exception('Signal list export failed')
-            self.signals.finished.emit(False, str(exc), 0)
+            self.signals.finished.emit(
+                False, user_error(exc, '导出未完成，请检查保存目录权限后重试。'), 0
+            )
         finally:
             self.points = ()
 

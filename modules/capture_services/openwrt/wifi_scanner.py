@@ -86,6 +86,9 @@ class OpenWrtWifiScanner:
                 "monitor 接口当前不可用"
                 f"（{monitor_status_text(status)}），拒绝开始扫描，请检查无线驱动后重试。"
             )
+        from .scan_evidence import collect_scan_context
+        collect_scan_context(self.command_runner, monitor_interface, band, duration,
+                             refresh_interval, cancel_event, command=command)
         handle = self.process_manager.start(
             "airodump-ng",
             command,

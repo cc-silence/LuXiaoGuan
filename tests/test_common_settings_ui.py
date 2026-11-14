@@ -15,6 +15,14 @@ SYSTEM=dict(config="system",section="cfg01",token="b"*64,devices=[],values=dict(
 class CommonSettingsUiTests(unittest.TestCase):
     create_page=create_page
 
+    def test_signal_messages_do_not_enter_common_settings_information(self):
+        page, service = self.create_page(with_info=True)
+        service.messageGenerated.emit("SIGNAL_SCAN_WARNING_ONLY", "warning")
+        APP.processEvents()
+        self.assertNotIn("SIGNAL_SCAN_WARNING_ONLY", page.info_panel.info_box.toPlainText())
+        page._message("COMMON_SETTINGS_RESULT_ONLY", "success")
+        self.assertIn("COMMON_SETTINGS_RESULT_ONLY", page.info_panel.info_box.toPlainText())
+
     def test_lan_collision_popup_keeps_editor_open_and_allows_corrected_address(self):
         import copy
         from PySide6.QtWidgets import QTextEdit

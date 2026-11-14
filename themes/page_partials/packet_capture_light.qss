@@ -24,7 +24,7 @@ QTabWidget#openwrtCaptureTabs::pane { border: none; background: transparent; top
 QTabWidget#openwrtCaptureTabs QTabBar::tab { background: transparent; color: #52627a; border: none; border-radius: 4px; margin: 3px 2px; padding: 6px 12px; font: __BODY_PT__pt "__FONT_FAMILY__"; }
 QTabWidget#openwrtCaptureTabs QTabBar::tab:selected { color: #344258; background: #e1e6ed; }
 QTabWidget#openwrtCaptureTabs QTabBar::tab:hover:!selected { color: #344258; background: #edf0f4; }
-QTableWidget#captureAccessPointTable { background: #edf2f8; alternate-background-color: #e7edf6; border: none; color: #172033; selection-background-color: #b8d4f0; selection-color: #172033; }
+QTableWidget#captureAccessPointTable { background: #edf2f8; alternate-background-color: #e7edf6; border: 1px solid #d0d9e3; color: #172033; selection-background-color: #b8d4f0; selection-color: #172033; }
 
 
 

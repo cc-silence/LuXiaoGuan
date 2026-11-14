@@ -35,9 +35,16 @@ class AutoCaptureDiagnostics(QObject):
         self._failure_epochs = {}
         self._failure_streams = {}
         self._context_time = 0
+        service.messageGenerated.connect(self.message)
         service.radioStreamOutput.connect(self.stream)
         service.radioStateChanged.connect(self.state)
         service.owner.openwrtSnapshotChanged.connect(self.snapshot_changed)
+
+    @Slot(str, str)
+    def message(self, text, level):
+        history = current_history()
+        if history:
+            history.append(CATEGORY, text, level, channel='information', device=self.device)
 
     def begin(self, radio):
         key = device_key(self.service.owner.openwrt_snapshot) or self.device

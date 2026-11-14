@@ -40,7 +40,7 @@ class CaptureUninstallTests(unittest.TestCase):
             selection.return_value.exec.return_value=selection.Accepted
             selection.return_value.selected_packages.return_value=('hcxdumptool',)
             uninstall_capture(page,'pmkid')
-        self.assertEqual(message.call_args.args[1],'rejected selection')
+        self.assertEqual(message.call_args.args[1], '\u64cd\u4f5c\u672a\u5b8c\u6210\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002')
         owner.deleteLater()
 
     def test_uninstall_progress_failure_and_disposal(self):

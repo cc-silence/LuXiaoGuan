@@ -89,6 +89,21 @@ class RouterHealthTests(unittest.TestCase):
             collect_connection(runner)
             self.assertEqual(journal.snapshot()['router_health']['incidents'][-1]['collection_status'], status)
 
+    def test_pstore_tail_stack_and_empty_directory_are_distinct(self):
+        from modules.capture_services.openwrt.router_health_evidence import sanitize_health
+        for count in (0, 2):
+            output = '__RM_FAULT_BEGIN__\nSOURCE pstore\nPSTORE '+str(count)+'\n'
+            if count:
+                output += ''.join('LOG [ 1.23] frame_'+str(i)+'\n' for i in range(110))
+            output += '__RM_FAULT_END__\n'
+            data = parse_faults(output)
+            self.assertEqual(data['pstore_files'], count)
+            clean = sanitize_health({'incidents': [dict(data, phase='connection', kind='collection')]}, HistoryMasker())
+            self.assertEqual(clean['incidents'][0]['pstore_files'], count)
+            self.assertEqual(len(clean['incidents'][0]['lines']), 110 if count else 0)
+        self.assertIn('tail -c 16384', LOG_COMMAND)
+        self.assertNotIn('head -c 4096', LOG_COMMAND)
+
     def test_existing_resource_output_survives_invalid_optional_sample(self):
         journal = self.journal()
         runner = self.runner(journal, '')

@@ -7,6 +7,7 @@ import re
 
 MAX_SAMPLES = 16
 MAX_INCIDENTS = 8
+MAX_FAULT_LINES = 128
 BEGIN = "__RM_HEALTH_BEGIN__"
 END = "__RM_HEALTH_END__"
 SAMPLE_COMMAND = r"""
@@ -20,7 +21,7 @@ awk '/^MemTotal:/ {print "TOTAL " $2} /^MemFree:/ {print "FREE " $2} /^MemAvaila
 printf '__RM_HEALTH_END__\n'
 """
 # No version-specific logread switches, dmesg clearing, mounts or file writes.
-_PATTERN = 'out of memory|oom-kill|killed process|kernel panic|watchdog|soft lockup|hard lockup|call trace|kernel bug|mt76|mt7603|mt76x2|firmware.*(crash|fail)|reset|reboot'
+_PATTERN = 'out of memory|oom-kill|killed process|kernel panic|watchdog|soft lockup|hard lockup|call trace|kernel bug|oops|fatal exception|mt76|mt79|firmware.*(crash|fail)|reset|reboot'
 LOG_COMMAND = r"""
 printf '__RM_FAULT_BEGIN__\n'
 if command -v logread >/dev/null 2>&1; then
@@ -38,8 +39,9 @@ if [ -d /sys/fs/pstore ] && [ -r /sys/fs/pstore ]; then
   [ -f "$f" ] && [ -r "$f" ] || continue
   [ "$count" -lt 2 ] || break
   count=$((count + 1))
-  head -c 4096 "$f" 2>/dev/null | grep -i -E 'PATTERN' | tail -n 20 | cut -c 1-512 | sed 's/^/LOG /'
+  tail -c 16384 "$f" 2>/dev/null | tail -n 40 | cut -c 1-512 | sed 's/^/LOG /'
  done
+ printf 'PSTORE %s\n' "$count"
 else printf 'MISSING pstore\n'; fi
 printf '__RM_FAULT_END__\n'
 """.replace('PATTERN', _PATTERN)
@@ -76,7 +78,7 @@ def parse_faults(text):
     from modules.log_history import HistoryMasker
     from .capture_transport_evidence import _sanitize_line
     lines = text.strip().splitlines()
-    if len(lines) > 90 or not lines or lines[0] != '__RM_FAULT_BEGIN__' or lines[-1] != '__RM_FAULT_END__':
+    if len(lines) > MAX_FAULT_LINES + 10 or not lines or lines[0] != '__RM_FAULT_BEGIN__' or lines[-1] != '__RM_FAULT_END__':
         raise ValueError("Invalid fault evidence")
     result = {'sources_present': [], 'sources_missing': [], 'lines': []}
     masker = HistoryMasker()
@@ -84,7 +86,9 @@ def parse_faults(text):
         key, _, value = line.partition(' ')
         if key in ('SOURCE', 'MISSING') and value in ('logread', 'dmesg', 'pstore'):
             result['sources_present' if key == 'SOURCE' else 'sources_missing'].append(value)
-        elif key == 'LOG' and len(result['lines']) < 80:
+        elif key == 'PSTORE' and value in ('0', '1', '2'):
+            result['pstore_files'] = int(value)
+        elif key == 'LOG' and len(result['lines']) < MAX_FAULT_LINES:
             result['lines'].append(_sanitize_line(value, masker))
         else:
             raise ValueError("Invalid fault field")
@@ -119,8 +123,10 @@ def sanitize_health(data, masker):
             for key in ('sources_present', 'sources_missing'):
                 if isinstance(row.get(key), list):
                     clean[key] = [s for s in row[key][:3] if s in ('logread', 'dmesg', 'pstore')]
+            if type(row.get('pstore_files')) is int and 0 <= row['pstore_files'] <= 2:
+                clean['pstore_files'] = row['pstore_files']
             if isinstance(row.get('lines'), list):
-                clean['lines'] = [_sanitize_line(s, masker) for s in row['lines'][:80] if isinstance(s, str)]
+                clean['lines'] = [_sanitize_line(s, masker) for s in row['lines'][:MAX_FAULT_LINES] if isinstance(s, str)]
             result[name].append(clean)
     return result
 
@@ -207,7 +213,7 @@ def _collect(runner, phase, cancel=None, *, faults=False):
     try:
         result = runner.run('router_health' if phase == 'connection' else 'capture_health',
                             SAMPLE_COMMAND + (LOG_COMMAND if faults else ''),
-                            timeout=4, cancel_event=cancel, output_limit=49152)
+                            timeout=4, cancel_event=cancel, output_limit=98304)
         if connection is not None and getattr(ssh, '_client', None) is not connection:
             return
         if result.cancelled: status = 'cancelled'

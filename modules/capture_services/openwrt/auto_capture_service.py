@@ -15,6 +15,7 @@
 """
 
 from .capture_live_logs import with_capture_logs
+from modules.user_errors import plain_exception
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -631,7 +632,7 @@ class AutoCaptureRadioSession:
                 f"\n❌ [抓包启动失败] {exc}\n",
             )
             self.service.radioStateChanged.emit(self.radio_name, "stopping")
-            self.service.messageGenerated.emit(f"射频 {self.radio_name} 抓包失败: {exc}", "error")
+            self.service.messageGenerated.emit(f"射频 {self.radio_name} 抓包失败：{plain_exception(exc)}", "error")
         finally:
             cleanup_confirmed = False
             try:
@@ -1273,7 +1274,7 @@ class AutoCaptureService(QObject):
                 self.refresh_boot_status()
             except Exception as exc:
                 LOGGER.warning("Clear remote cap artifacts failed: %s", exc)
-                self.messageGenerated.emit(f"清空路由器抓包目录失败: {exc}", "error")
+                self.messageGenerated.emit(f"清空路由器抓包目录失败：{plain_exception(exc)}", "error")
                 self.remoteCapDirCleared.emit(False, str(exc))
 
         t = threading.Thread(target=_task, name="ClearRemoteCapArtifacts", daemon=True)
@@ -1579,7 +1580,7 @@ class AutoCaptureService(QObject):
                 self.messageGenerated.emit("后台抓包脚本未持续运行，请检查路由器无线状态与系统日志。", "warning")
         except Exception as exc:
             LOGGER.warning("Diagnose boot script exit failed: %s", exc)
-            self.messageGenerated.emit(f"后台抓包未能保持运行: {exc}", "warning")
+            self.messageGenerated.emit(f"后台抓包未能保持运行：{plain_exception(exc)}", "warning")
 
     def start_boot_script(self):
         """异步手动启动后台抓包脚本。"""
@@ -1602,7 +1603,7 @@ class AutoCaptureService(QObject):
                     self._diagnose_boot_script_exit()
                     self.refresh_boot_status()
             except Exception as exc:
-                self.messageGenerated.emit(f"启动后台抓包脚本失败: {exc}", "error")
+                self.messageGenerated.emit(f"启动后台抓包脚本失败：{plain_exception(exc)}", "error")
                 self.refresh_boot_status()
 
         t = threading.Thread(target=_task, name="StartBootScript", daemon=True)
@@ -1631,7 +1632,7 @@ class AutoCaptureService(QObject):
                     self._diagnose_boot_script_exit()
                     self.refresh_boot_status()
             except Exception as exc:
-                self.messageGenerated.emit(f"部署或启动脚本失败: {exc}", "error")
+                self.messageGenerated.emit(f"部署或启动脚本失败：{plain_exception(exc)}", "error")
                 self.refresh_boot_status()
 
         t = threading.Thread(target=_task, name="InstallAndStartBootScript", daemon=True)
@@ -1651,7 +1652,7 @@ class AutoCaptureService(QObject):
                     self.messageGenerated.emit("自启脚本部署完成！", "success")
                 self.refresh_boot_status()
             except Exception as exc:
-                self.messageGenerated.emit(f"部署自启脚本失败: {exc}", "error")
+                self.messageGenerated.emit(f"部署自启脚本失败：{plain_exception(exc)}", "error")
                 self.refresh_boot_status()
 
         t = threading.Thread(target=_task, name="InstallBootService", daemon=True)
@@ -1667,7 +1668,7 @@ class AutoCaptureService(QObject):
                 self.messageGenerated.emit(f"已{action_str}开机自启", "success")
                 self.refresh_boot_status()
             except Exception as exc:
-                self.messageGenerated.emit(f"切换开机自启失败: {exc}", "error")
+                self.messageGenerated.emit(f"切换开机自启失败：{plain_exception(exc)}", "error")
                 self.refresh_boot_status()
 
         t = threading.Thread(target=_task, name="ToggleAutostart", daemon=True)
@@ -1682,7 +1683,7 @@ class AutoCaptureService(QObject):
                 self.messageGenerated.emit("已完全卸载自启服务与脚本", "success")
                 self.refresh_boot_status()
             except Exception as exc:
-                self.messageGenerated.emit(f"卸载失败: {exc}", "error")
+                self.messageGenerated.emit(f"卸载失败：{plain_exception(exc)}", "error")
                 self.refresh_boot_status()
 
         t = threading.Thread(target=_task, name="UninstallBootService", daemon=True)
@@ -1706,7 +1707,7 @@ class AutoCaptureService(QObject):
                 self.messageGenerated.emit("后台抓包已成功结束！抓包数据已安全保存至 /root/cap/ 目录。", "success")
                 self.refresh_boot_status()
             except Exception as exc:
-                self.messageGenerated.emit(f"收尾抓包失败: {exc}", "error")
+                self.messageGenerated.emit(f"收尾抓包失败：{plain_exception(exc)}", "error")
                 self.refresh_boot_status()
 
         t = threading.Thread(target=_task, name="StopAndCleanupCapture", daemon=True)

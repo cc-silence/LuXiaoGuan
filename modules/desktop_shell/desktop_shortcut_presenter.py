@@ -5,6 +5,7 @@ from modules.platform_services.application_paths import ensure_directory
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from modules.platform_services.desktop_shortcut import shortcut_state
 from .desktop_shortcut_controller import DesktopShortcutController
+from modules.user_errors import user_error
 
 
 class DesktopShortcutPresenter(QObject):
@@ -60,7 +61,7 @@ class DesktopShortcutPresenter(QObject):
             ensure_directory(self.marker.parent)
             self.marker.write_text("1\n", encoding="utf-8")
         except OSError as exc:
-            self._message("\u65e0\u6cd5\u4fdd\u5b58\u9996\u6b21\u63d0\u793a\u8bb0\u5f55\uff1a\n" + str(exc))
+            self._message("\u65e0\u6cd5\u4fdd\u5b58\u9996\u6b21\u63d0\u793a\u8bb0\u5f55\uff1a\n" + user_error(exc))
 
     def _message(self, text):
         if self._stopping or self.runtime._exiting:

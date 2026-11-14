@@ -21,6 +21,7 @@ from modules.ui_scale_manager import UiScaleManager
 
 POINTS=tuple(AccessPointInfo('02:11:22:33:44:'+format(i,'02X'),ssid='Target '+str(i),encryption='WPA2-PSK',selected=True) for i in range(1,7))
 class Service(QObject):
+    _publish_failure = CaptureService._publish_failure
     openwrtSnapshotChanged=Signal(object)
     passwordFound=Signal(object)
     def __init__(self):

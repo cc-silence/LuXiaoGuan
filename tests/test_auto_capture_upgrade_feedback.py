@@ -10,7 +10,8 @@ from modules.main_pages.packet_capture.openwrt.auto_capture_page import AutoCapt
 
 def make_page(service, messages):
     page = QWidget()
-    page.service = NS(current_device=None, dependency_service=service, messageGenerated=messages)
+    page.service = NS(current_device=None, dependency_service=service, messageGenerated=Mock())
+    page.auto_capture_service = NS(messageGenerated=messages)
     return page
 
 
@@ -53,6 +54,7 @@ class UpgradeFeedbackTests(unittest.TestCase):
         service.upgrade_hcx_async.assert_called_once_with()
         service.install_async.assert_not_called()
         messages.emit.assert_called_once()
+        page.service.messageGenerated.emit.assert_not_called()
 
     def test_accepted_check_clears_previous_rejection(self):
         owner = Owner()

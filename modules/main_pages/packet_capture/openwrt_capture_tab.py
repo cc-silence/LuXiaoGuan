@@ -17,6 +17,7 @@ from modules.common_widgets.bounce_scroll_area import BounceScrollArea
 from modules.common_widgets.common_dialogs import MessageDialog
 from modules.main_pages.page_action_buttons import create_page_text_button
 from .ui_helpers import create_capture_card, create_form_row
+from modules.user_errors import user_error
 
 
 class OpenWrtCaptureTab(QWidget):
@@ -171,7 +172,7 @@ class OpenWrtCaptureTab(QWidget):
         try:
             result = self.capture_service.validate_openwrt_settings(self.collect_settings())
         except CaptureBackendError as exc:
-            MessageDialog("OpenWrt 设置有误", str(exc), self).exec()
+            MessageDialog("OpenWrt 设置有误", user_error(exc), self).exec()
             return
         MessageDialog(
             "OpenWrt 设置可用",

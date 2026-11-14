@@ -24,6 +24,7 @@ from modules.network_policy import (
     blocked_proxy_message,
 )
 from modules.download_services.download_paths import software_download_directory
+from modules.user_errors import plain_exception
 from modules.download_services.download_file_session import DownloadFileSession
 from modules.update_services.windows_update_package_metadata import (
     is_windows_monthly_update,
@@ -286,7 +287,7 @@ class DownloadOperationsCoordinator:
                     except (OSError, ValueError) as exc:
                         page._set_status(row_data, STATUS_DOWNLOAD_FAILED)
                         page._append_info(
-                            f"{name}：无法写入多文件下载计划清单：{exc}",
+                            f"{name}：无法写入多文件下载计划清单：{plain_exception(exc)}",
                             level="error",
                         )
                         return
@@ -517,7 +518,7 @@ class DownloadOperationsCoordinator:
                     except (OSError, ValueError) as exc:
                         page._set_status(row_data, STATUS_DOWNLOAD_FAILED)
                         page._append_info(
-                            f"{name}：文件下载完成，但无法写入多文件关系清单：{exc}",
+                            f"{name}：文件下载完成，但无法写入多文件关系清单：{plain_exception(exc)}",
                             level="error",
                         )
                         return

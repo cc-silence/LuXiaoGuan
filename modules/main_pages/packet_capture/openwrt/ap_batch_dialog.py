@@ -7,6 +7,7 @@ from modules.common_widgets.bounce_scroll_area import BounceScrollArea
 from modules.settings_pages.settings_widgets import create_dialog_ok_cancel_buttons,create_settings_button
 from modules.capture_services.openwrt.ap_batch_identity import build_access_point_identities,random_identity,access_point_band
 from .signal_setup_forms import text_input,add_field,hint
+from modules.user_errors import user_error
 
 
 class AccessPointBatchDialog(FramelessDialog):
@@ -67,7 +68,7 @@ class AccessPointBatchDialog(FramelessDialog):
                 value=random_identity(self.snapshot,current+list(updates.values()))
                 updates[key]=value
         except ValueError as exc:
-            self.error.setText(str(exc));self.error.show();return
+            self.error.setText(user_error(exc));self.error.show();return
         for key,value in updates.items():
             name,mac,_=self.rows[key];name.setText(value["name"]);mac.setText(value["mac"])
         self.error.hide()
@@ -81,5 +82,5 @@ class AccessPointBatchDialog(FramelessDialog):
         except ValueError as exc:
             from modules.capture_services.management_diagnostics import record_dialog_validation
             record_dialog_validation(self.parentWidget(),"ap",exc)
-            self.error.setText(str(exc));self.error.show();return
+            self.error.setText(user_error(exc));self.error.show();return
         super().accept()

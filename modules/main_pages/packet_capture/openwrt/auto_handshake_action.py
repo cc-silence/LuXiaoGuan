@@ -2,6 +2,7 @@
 
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from modules.capture_services.privacy_mask import mask_target
+from modules.user_errors import user_error
 
 
 def start_auto_handshake(page):
@@ -10,8 +11,9 @@ def start_auto_handshake(page):
     try:
         request = service.prepare(page.openwrt_tab.connection_settings())
     except (ValueError, OSError) as exc:
-        page.info_panel.append_info(str(exc), "warning")
-        MessageDialog("自动抓包条件未满足", str(exc), page).exec()
+        message = user_error(exc)
+        page.info_panel.append_info(message, "warning")
+        MessageDialog("自动抓包条件未满足", message, page).exec()
         return False
     scope = "\n".join(
         f"{index}. {mask_target(p.ssid, p.bssid, request.mask_ssid, request.mask_bssid)}"
@@ -36,6 +38,7 @@ def start_auto_handshake(page):
     try:
         return service.start(request)
     except (ValueError, OSError) as exc:
-        page.info_panel.append_info(str(exc), "warning")
-        MessageDialog("自动抓包未启动", str(exc), page).exec()
+        message = user_error(exc)
+        page.info_panel.append_info(message, "warning")
+        MessageDialog("自动抓包未启动", message, page).exec()
         return False

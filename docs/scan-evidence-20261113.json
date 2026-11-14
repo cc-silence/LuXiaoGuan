@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-13",
+  "scope": "Read-only scan diagnosis. Existing streamed logging is now enabled for ordinary Wi-Fi scans as well as capture workers; scan behavior and router configuration are unchanged.",
+  "implementation": {
+    "lifecycle": "Existing with_capture_logs decorator surrounds scan setup, execution and remote cleanup. One reference-counted independent SSH diagnostic channel per existing authenticated connection. No password reuse or new unverified connection.",
+    "context": "A short isolated read-only channel records requested duration, refresh interval, band, monitor interface and actual scan command; reads available kernel, iw/airodump versions, driver/module identity, current channel and advertised frequencies, firmware-related kernel lines. Unsupported or failed collection is recorded and cannot invalidate the main login.",
+    "live_logs": "Kernel/fault lines are redacted on ingestion and passed to the existing asynchronous computer-side history store. Scan failure, router reboot or application restart does not depend on reading logs from the router again. An ended stream can be acquired afresh on the same connection. Cancellation drains one already-buffered input chunk before closing.",
+    "reconnect": "Existing boot_id/uptime comparison is retained. Fault filter includes mt79, Oops and fatal exceptions. Reads last 16KiB/40 lines of up to two pstore files without keyword filtering so stack frames survive. Records pstore_files=0/1/2 to distinguish empty pstore directory from a retained crash record."
+  },
+  "limits": {
+    "stream_bytes": 2097152,
+    "system_lines_in_memory": 128,
+    "scan_contexts": 8,
+    "scan_context_probe_output_bytes": 32768,
+    "scan_context_retained_chars": 8192,
+    "scan_context_deadline_seconds": 4,
+    "max_fault_lines": 128,
+    "fault_probe_output_bytes": 98304,
+    "history_stream_bytes": 2097152,
+    "history_database_bytes": 50331648,
+    "history_days": 7
+  },
+  "validation": {
+    "tests_passed": 102,
+    "tests": [
+      "test_scan_live_evidence",
+      "test_capture_live_evidence",
+      "test_router_health_evidence",
+      "test_scan_wait_budget",
+      "test_scan_takeover",
+      "test_wps_scan",
+      "test_diagnostic_history",
+      "test_operation_diagnostics"
+    ],
+    "shell": "Actual local POSIX-shell fixture proves tail stack beyond first 4096 bytes is retained without keyword filtering. Shell syntax verified; commands do not mount, clear logs, change UCI, reboot or replace drivers.",
+    "encoding": "Modified Python compiled immediately; UTF-8/replacement-character and git diff checks passed."
+  },
+  "source_audit": {
+    "manifest": "build\\scan-evidence-sources\\manifest.json",
+    "manifest_sha256": "d3dca34ab4a429ffb9939479785a414520e94a9d91dd07e0b26702feef4b55a7",
+    "exact_releases": 50,
+    "unique_pinned_ubox_sources": 6,
+    "conclusion": "Re-read verified local official release Makefiles and pinned logread sources; -f and -l exist in all 50 supported release entries. Live official master source also read. Direct raw source refresh failed with WinError 10054; cached hashes matched the existing source-of-record matrix.",
+    "live_url": "https://raw.githubusercontent.com/openwrt/ubox/master/log/logread.c"
+  },
+  "limitations": [
+    "No physical router crash reproduction or proven fix for the TL-XDR6088 reboot.",
+    "Logs not delivered before a total kernel/network freeze cannot be recovered by this network stream.",
+    "Device without supported logread/PTy or retained pstore records reports the corresponding limitation.",
+    "Common cross-platform Python and existing SSH layer; native Debian 12 desktop runtime validation remains pending."
+  ]
+}

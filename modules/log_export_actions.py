@@ -1,6 +1,7 @@
 """Shared export actions for information panels and standalone buttons."""
 
 from modules.display_privacy import Masker
+from modules.user_errors import human_error_text, plain_exception
 
 
 class LogExportActions:
@@ -35,7 +36,7 @@ class LogExportActions:
         try:
             router_context=self._export_context_provider(masker) if self._export_context_provider else ""
         except Exception as exc:
-            MessageDialog("导出日志", "无法获取当前路由器诊断信息："+str(exc), owner).exec()
+            MessageDialog("导出日志", "无法获取当前路由器诊断信息："+plain_exception(exc), owner).exec()
             return
         self._export_service = service
         service.completed.connect(self._export_completed)
@@ -74,7 +75,7 @@ class LogExportActions:
             return
         from modules.common_widgets.common_dialogs import MessageDialog
         MessageDialog('\u5bfc\u51fa\u65e5\u5fd7\u5931\u8d25',
-            self.display_text(reason) + '\n\u8bf7\u68c0\u67e5\u76ee\u5f55\u6743\u9650\u548c\u78c1\u76d8\u7a7a\u95f4\u3002', self.window()).exec()
+            self.display_text(human_error_text(reason)) + '\n\u8bf7\u68c0\u67e5\u76ee\u5f55\u6743\u9650\u548c\u78c1\u76d8\u7a7a\u95f4\u3002', self.window()).exec()
 
     def _export_activity_changed(self):
         if self._export_service and not self._export_service.active:

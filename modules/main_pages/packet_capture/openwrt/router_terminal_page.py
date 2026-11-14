@@ -11,6 +11,7 @@ from modules.ui_scale_manager import UiScaleManager
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from modules.dialog_theme import create_themed_menu
 from modules.main_pages.page_action_buttons import create_page_text_button, create_page_icon_button
+from modules.user_errors import plain_exception
 
 
 def terminal_command(path,script=False):
@@ -350,7 +351,7 @@ class RouterTerminalPage(QWidget):
                 device_history=self.service.owner.diagnostic_history,
                 app_version=QApplication.instance().applicationVersion())
         except Exception as exc:
-            MessageDialog('导出终端诊断','无法获取当前路由器诊断信息：'+str(exc),owner).exec();return
+            MessageDialog('导出终端诊断','无法获取当前路由器诊断信息：'+plain_exception(exc),owner).exec();return
         self._export_service=service
         service.completed.connect(self._export_completed)
         service.failed.connect(self._export_failed)

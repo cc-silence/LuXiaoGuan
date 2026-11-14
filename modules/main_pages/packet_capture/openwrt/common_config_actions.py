@@ -2,6 +2,7 @@
 from .router_config_dialog import RouterConfigDialog
 from .settings_impacts import LAN_APPLY_WARNING
 from modules.common_widgets.common_dialogs import ConfirmDialog
+from modules.user_errors import user_error
 
 
 class CommonConfigActions:
@@ -33,7 +34,7 @@ class CommonConfigActions:
         except Exception as exc:
             from modules.capture_services.management_diagnostics import record_management_error
             record_management_error(page.manager.manager.runner,"common_validation",config,exc)
-            page._message(str(exc), "error")
+            page._message(user_error(exc), "error")
         page._sync()
 
     def _current(self,item):
@@ -116,7 +117,7 @@ class CommonConfigActions:
         except Exception as exc:
             from modules.capture_services.management_diagnostics import record_management_error
             record_management_error(page.manager.manager.runner,"common_validation",item[0],exc)
-            page._message(str(exc), "error")
+            page._message(user_error(exc), "error")
         finally:page._sync()
         return True
 

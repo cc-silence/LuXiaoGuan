@@ -843,6 +843,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         self.snapshot = OpenWrtSessionSnapshot.initial()
         return self.snapshot
 
+    @with_capture_logs
     def scan_wifi(self, session_id, settings, cancel_event=None, progress_callback=None, message_callback=None):
         """执行单次受控 Wi-Fi 扫描，并在 finally 精确恢复远端临时资源。
 

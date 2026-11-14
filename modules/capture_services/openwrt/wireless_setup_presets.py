@@ -8,6 +8,8 @@ def ap_recommendations(data, radio_name):
     features = data.get("features", {})
     values = {"hidden": "0", "isolate": "1", "wmm": "1",
               "dtim_period": "2", "beacon_int": "100"}
+    if any(c.get("iso3166", c.get("code")) == "TW" for c in radio.get("countries", ())):
+        values["country"] = "TW"
     band = radio_band(radio)
     if band == "6g":
         if features.get("ap_sae"):

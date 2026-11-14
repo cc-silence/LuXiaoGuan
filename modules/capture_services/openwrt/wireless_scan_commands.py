@@ -45,27 +45,28 @@ local function scan_native()
  local rs=status[req.radio]
  if matches[req.interface] and (matches[req.interface]~=1 or owners[req.interface]~=req.radio) then fail("radio") end
  if type(rs)~="table" or not rs.up or rs.pending then fail("radio") end
- -- Match the router web scan target only while an active station is present.
- -- The target remains the verified radio, never a guessed interface or PHY.
+ -- Prefer a unique live station; revalidate its ownership before each scan.
  local station_active=false
  local station_iface=nil
+ local station_count=0
  local c=clean(true)
  for _,iface in ipairs(rs.interfaces or {}) do
   local section=iface.section
   local cfg=type(section)=="string" and c:get_all("wireless",section) or nil
-  if type(cfg)=="table" and cfg.device==req.radio and cfg.mode=="sta" and
+  if type(cfg)=="table" and cfg.device==req.radio and cfg.mode=="sta" and netifd_bool(cfg.disabled,false)==false and
      type(iface.ifname)=="string" and matches[iface.ifname]==1 and owners[iface.ifname]==req.radio then
    local dev,err=bus:call("network.device","status",{name=iface.ifname})
    if not err and type(dev)=="table" and dev.up==true then
     station_active=true
+    station_count=station_count+1
     if station_iface and station_iface~=iface.ifname and req.compat_interface==true then fail("radio") end
     station_iface=iface.ifname
    end
   end
  end
- if req.compat_interface==true then
+ if req.compat_interface==true or (station_count==1 and req.force_radio~=true) then
   if not station_active or not station_iface then fail("radio") end
-  -- Probe iwinfo before requesting another scan after a timeout.
+  -- Probe the station and then re-read current ownership and state.
   rpc("iwinfo","info",{device=station_iface})
   c=clean(true)
   local latest=rpc("network.wireless","status",{})
@@ -78,7 +79,7 @@ local function scan_native()
      if entry.ifname==station_iface then
       if other_radio~=req.radio then fail("radio") end
       local cfg=type(entry.section)=="string" and c:get_all("wireless",entry.section) or nil
-      if type(cfg)~="table" or cfg.device~=req.radio or cfg.mode~="sta" then fail("radio") end
+      if type(cfg)~="table" or cfg.device~=req.radio or cfg.mode~="sta" or netifd_bool(cfg.disabled,false)~=false then fail("radio") end
       owned=owned+1
      end
     end
@@ -107,7 +108,7 @@ local function scan_native()
    if not err and type(device)=="table" and device.up==true then
     -- The nl80211 backend recognizes radio pseudo devices only by this prefix.
     -- Other valid configuration names retain the verified interface scan path.
-    local use_radio=station_active and req.radio:sub(1,5)=="radio" and req.compat_interface~=true
+    local use_radio=(req.force_radio==true or (station_active and station_count~=1)) and req.radio:sub(1,5)=="radio" and req.compat_interface~=true
     local target=use_radio and req.radio or iface
     local ok,result=pcall(rpc,"iwinfo","scan",{device=target})
     if not ok then

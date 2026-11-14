@@ -10,6 +10,7 @@ import time
 
 COMMAND = "command -v logread >/dev/null 2>&1 || { printf '__RM_LOG_UNAVAILABLE__\\n'; exit 127; }; exec logread -f -l 40"
 MAX_LIFETIME = 24 * 60 * 60
+MAX_STREAM_BYTES = 2 * 1024 * 1024
 _RELEVANT = re.compile(r'kern\.|panic|oom-kill|out of memory|killed process|call trace|watchdog|firmware.*(?:crash|fail)|soft lockup|hard lockup', re.I)
 
 
@@ -40,6 +41,7 @@ class CaptureLogRun:
         decoder = codecs.getincrementaldecoder('utf-8')('replace')
         partial = ''
         state = 'ended'
+        received = 0
         deadline = time.monotonic() + MAX_LIFETIME
         try:
             self.record('stream_states', state='starting')
@@ -47,23 +49,31 @@ class CaptureLogRun:
             self.channel = ssh.open_diagnostic_stream(self.connection, COMMAND, self.stop, timeout=4)
             self.ready.set()
             self.record('stream_states', state='running')
-            while not self.stop.is_set():
+            drained_after_stop = False
+            while not self.stop.is_set() or (not drained_after_stop and self.channel.recv_ready()):
+                if self.stop.is_set(): drained_after_stop = True
                 if time.monotonic() >= deadline:
                     state = 'deadline'
                     break
                 if ssh._client is not self.connection:
+                    state = 'disconnected'
                     break
                 if self.channel.recv_ready():
                     try: chunk = self.channel.recv(8192)
                     except socket.timeout: continue
                     if not chunk: break
-                    partial += decoder.decode(chunk)
+                    remaining = MAX_STREAM_BYTES - received
+                    received += len(chunk)
+                    partial += decoder.decode(chunk[:remaining])
                     while '\n' in partial:
                         line, partial = partial.split('\n', 1)
                         self.line(line.rstrip('\r'))
                     if len(partial) > 8192:
                         self.line(partial[:512] + ' [oversized line omitted]')
                         partial = ''
+                    if received >= MAX_STREAM_BYTES:
+                        state = 'limit'
+                        break
                 elif self.channel.exit_status_ready() or self.channel.closed:
                     break
                 else:
@@ -123,7 +133,7 @@ class CaptureLogManager:
             return None
         with self.lock:
             run = self.run
-            if run is None or run.connection is not connection or run.stop.is_set():
+            if run is None or run.connection is not connection or run.stop.is_set() or run.done.is_set():
                 if run is not None: run.stop.set()
                 run = self.run = CaptureLogRun(self, connection)
                 run.thread.start()

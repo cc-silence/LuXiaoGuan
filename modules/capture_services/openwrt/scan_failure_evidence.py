@@ -41,14 +41,14 @@ def record_scan_failure(runner, environment, radio, interface, error):
     journal.record("workflow", **fields)
 
 
-def record_scan_fallback(runner, radio, status, error=None, result=None, elapsed_seconds=None):
+def record_scan_fallback(runner, radio, status, error=None, result=None, elapsed_seconds=None, *, target="interface"):
     """Record fallback outcome without retaining wireless names or raw output."""
     journal = getattr(runner, "operation_diagnostics", None)
     if journal is None:
         return
     fields = {"operation": "wireless_scan_fallback", "status": status,
               "stage": "execute" if status == "started" else "finish",
-              "scan_target": "interface"}
+              "scan_target": target if target in SAFE_VALUES["scan_target"] else "interface"}
     name = radio.get("name")
     if isinstance(name, str) and re.fullmatch(r"[A-Za-z0-9_.:-]{1,64}", name):
         fields["scan_radio"] = name
@@ -64,7 +64,7 @@ def record_scan_fallback(runner, radio, status, error=None, result=None, elapsed
             fields.update(scan_error="rpc_iwinfo_" + match.group(1), native_error=int(match.group(2)))
         else:
             fields["scan_error"] = code if code in SAFE_VALUES["scan_error"] else "other"
-        fields["stage"] = "execute" if getattr(error, "scan_target", None) == "interface" else "preflight"
+        fields["stage"] = "execute" if getattr(error, "scan_target", None) in {"interface", "radio"} else "preflight"
     if isinstance(result, dict):
         rows = result.get("results")
         if isinstance(rows, list):

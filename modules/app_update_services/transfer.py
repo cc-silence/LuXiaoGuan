@@ -88,7 +88,8 @@ class UpdateTransfer(QThread):
         except Exception as exc:
             if not self.cancel_event.is_set():
                 record("transfer_failed", stage="download" if self.download else "plan", error_type=type(exc).__name__, chain=exception_chain(exc))
-                self.failed.emit(str(exc))
+                from .failure_codes import failure_text
+                self.failed.emit(failure_text(exc))
 
     def _download(self,plan):
         from .cache import prune_completed

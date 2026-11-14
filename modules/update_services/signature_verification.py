@@ -59,7 +59,8 @@ def verify_signature(path, config, name):
             config[RECEIPT_KEY] = (before, time.monotonic())
             return True, "签名验证通过"
     except (OSError, subprocess.SubprocessError) as exc:
-        return False, f"{name} 签名验证失败：{exc}"
+        from modules.user_errors import plain_exception
+        return False, f"{name} 签名验证失败：{plain_exception(exc)}"
     if result.returncode == 3:
         return False, f"{name} 签名发布者不匹配"
     return False, f"{name} 数字签名无效或无法验证"

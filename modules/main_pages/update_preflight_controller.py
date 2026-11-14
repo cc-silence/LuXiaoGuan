@@ -12,6 +12,7 @@ import logging
 from functools import wraps
 
 from PySide6.QtCore import QObject, QThread, Slot
+from modules.user_errors import human_failure_text, plain_exception
 
 from modules.main_pages.update_confirmations import (
     confirm_firewall_rules,
@@ -35,7 +36,7 @@ def _guard_preflight_result(method):
         except Exception as exc:
             logging.getLogger('winbox.update').exception('Update preflight callback failed')
             self._pending_process_preflights.pop(software_id, None)
-            self._page._on_update_finished(software_id, False, f'更新预检失败：{exc}')
+            self._page._on_update_finished(software_id, False, f'更新预检失败：{plain_exception(exc)}')
     return guarded
 
 
@@ -147,7 +148,7 @@ class UpdatePreflightController(QObject):
         if error:
             self._pending_process_preflights.pop(software_id, None)
             page._set_rows_status(software_id, "ready")
-            page._append_info(f"{software_name}：检查更新前进程失败：{error}", level="warning")
+            page._append_info(f"{software_name}：检查更新前进程失败：{human_failure_text(error) or '请查看日志后重试。'}", level="warning")
             return
 
         for warning in process_plan.get("warnings", []):
