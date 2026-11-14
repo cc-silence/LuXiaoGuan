@@ -56,4 +56,8 @@ class FullPackageTransfer(QThread):
                 if not self.cancel_event.is_set():self.result.emit(plan)
         except InterruptedError:pass
         except Exception as exc:
-            if not self.cancel_event.is_set():self.failed.emit(str(exc))
+            if not self.cancel_event.is_set():
+                from .failure_codes import failure_text
+                from .diagnostics import record, exception_chain
+                record("full_package_transfer_failed", error_type=type(exc).__name__, chain=exception_chain(exc))
+                self.failed.emit(failure_text(exc))

@@ -97,7 +97,8 @@ class UpdateChecker(QObject):
                 raise ValueError("\u672a\u914d\u7f6e\u53ef\u7528\u7684\u4ee3\u7406\u3002")
         except (OSError, ValueError, TypeError, AttributeError) as exc:
             record("check_configuration_failed", error_type=type(exc).__name__, chain=exception_chain(exc))
-            self.failed.emit(str(exc), manual)
+            from .failure_codes import failure_text
+            self.failed.emit(failure_text(exc), manual)
             return False
         record("routes_selected", network_mode=mode, routes=",".join(c.name for c in self._channels))
         self._manager = QNetworkAccessManager(self)

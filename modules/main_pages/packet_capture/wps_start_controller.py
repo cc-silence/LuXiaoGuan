@@ -2,6 +2,7 @@
 from PySide6.QtCore import QObject
 from modules.common_widgets.common_dialogs import ConfirmDialog
 from modules.config_services.capture_settings_manager import CaptureSettingsManager
+from modules.user_errors import RESULT_DIR_INVALID
 from .openwrt.confirmation_helpers import confirm_radio_takeover
 
 
@@ -108,7 +109,7 @@ class WpsStartController(QObject):
                 CaptureSettingsManager.normalized_output_dir(settings.get("output_dir"))
             )
         except Exception as exc:
-            page.info_panel.append_info(f"结果目录无效：{exc}", "error")
+            page.info_panel.append_info(RESULT_DIR_INVALID, "error")
             return
         if not page.capture_service.capture_openwrt_wps_async(settings, selected, mode, entry=entry):
             page.info_panel.append_info("当前任务条件不满足或已有任务运行，不能开始 WPS。", "warning")

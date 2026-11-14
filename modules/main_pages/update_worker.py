@@ -110,7 +110,7 @@ class UpdateWorker(QObject):
                     write_update_log(update_config, "更新成功，已删除下载包。")
                 except OSError as exc:
                     write_update_log(update_config, f"删除下载包失败：{exc}")
-                    message += f"；删除下载包失败：{exc}"
+                    message += "；旧下载包未能删除，不影响本次更新。"
 
             elapsed = time.monotonic() - worker_started_at
             write_update_log(update_config, f"安装 worker 总耗时：{elapsed:.3f} 秒")
@@ -123,7 +123,8 @@ class UpdateWorker(QObject):
         except Exception as exc:
             import logging
             logging.getLogger("winbox.update").exception("Update worker failed")
-            message = f"更新异常：{exc}"
+            from modules.user_errors import plain_exception
+            message = f"更新异常：{plain_exception(exc, '安装过程未完成，请查看更新日志后重试。')}"
             if update_config is not None:
                 elapsed = time.monotonic() - worker_started_at
                 write_update_log(update_config, f"安装 worker 总耗时：{elapsed:.3f} 秒")
@@ -272,4 +273,5 @@ class UpdateWorker(QObject):
         except subprocess.TimeoutExpired:
             return False, "更新后脚本超时"
         except (OSError, subprocess.SubprocessError) as exc:
-            return False, f"更新后脚本执行异常：{exc}"
+            from modules.user_errors import plain_exception
+            return False, f"更新后脚本执行异常：{plain_exception(exc)}"

@@ -241,7 +241,7 @@ class CaptureToolPanel(QWidget):
         }
 
 
-    def set_action_availability(self, connected, busy, enabled_features, task_type="", task_state="", pause_state="", wps_entry="quick"):
+    def set_action_availability(self, connected, busy, enabled_features, task_type="", task_state="", pause_state="", wps_entry="quick", scan_progress=None):
         """按连接、任务和功能开关统一控制动作，不自行判断依赖细节。"""
 
         enabled = bool(connected and not busy)
@@ -287,7 +287,12 @@ class CaptureToolPanel(QWidget):
             button.setProperty("captureAction", "stop" if owns_wps else "wps")
             self._set_button_enabled(button, task_state != "stopping" if owns_wps else enabled and bool(enabled_features.get("wps", False)))
         if scan_running:
-            self.scan_button.setText("停止扫描")
+            text = "停止扫描"
+            if (task_state == "capturing" and scan_progress is not None
+                    and not scan_progress.indeterminate and scan_progress.total > 0):
+                remaining = max(0, scan_progress.total - scan_progress.current)
+                text += f"（{remaining}秒）"
+            self.scan_button.setText(text)
             self.scan_button.setProperty("captureAction", "stop")
             self._set_button_enabled(self.scan_button, bool(connected))
         else:

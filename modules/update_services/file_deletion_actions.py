@@ -44,7 +44,8 @@ def apply_delete_paths(config, target_dir=None, phase="pre"):
         except PermissionError:
             errors.append(f"{delete_path}: 权限不足")
         except OSError as exc:
-            errors.append(f"{delete_path}: {exc}")
+            from modules.user_errors import plain_exception
+            errors.append(f"{delete_path}: {plain_exception(exc)}")
     if errors:
         label = "更新后删除" if phase == "post" else "更新前删除"
         return False, f"{label}失败：{'；'.join(errors)}"

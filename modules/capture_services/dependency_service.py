@@ -10,6 +10,7 @@ from .openwrt.other_tool_dependencies import OTHER_KEYS
 from .openwrt.models import CaptureProgress, CaptureTaskType, DependencyInfo, DependencyState
 from .openwrt.signal_package_feed import default_cache_dir
 from .openwrt.dependency_groups import CAPTURE_KEYS, CAPTURE_PACKAGES, CAPTURE_REMOVABLE_PACKAGES, COMMON_ITEMS, COMMON_KEYS, REQUIRED_COMMON_ITEMS, REQUIRED_COMMON_KEYS
+from modules.user_errors import human_error_text, plain_exception
 
 
 @dataclass(frozen=True)
@@ -356,7 +357,7 @@ class OpenWrtDependencyService(QObject):
                 lambda summary,detail:self._complete(session,dict(checked=(),error=summary)),
                 None,self._emit_dependency_message)
         except Exception as exc:
-            self._complete(session,dict(checked=(),error="无法启动依赖任务："+str(exc)))
+            self._complete(session,dict(checked=(),error="无法启动依赖任务："+plain_exception(exc)))
             return False
         return True
 
@@ -406,16 +407,17 @@ class OpenWrtDependencyService(QObject):
             from modules.log_services import DiagnosticReference
             self._diagnostics.append(DiagnosticReference(Path(path),Path(path).parent))
         error=str(result.get("error",""))
+        display_error=human_error_text(error) if error else ""
         if self._same_connection(self._binding):
             checked=result.get("checked",())
             if (task.group in {"common","terminal"} or task.group in TOOL_KEYS) and not checked:
-                checked=(DependencyInfo(task.items[0],TOOL_BY_KEY[task.group].title if task.group in TOOL_KEYS else "终端会话保留" if task.group=="terminal" else "文件传输",DependencyState.UNKNOWN,detail=error),)
+                checked=(DependencyInfo(task.items[0],TOOL_BY_KEY[task.group].title if task.group in TOOL_KEYS else "终端会话保留" if task.group=="terminal" else "文件传输",DependencyState.UNKNOWN,detail=display_error),)
             if task.group in {"common_all","login_all","auto_capture","other_check"}:
                 seen={item.key for item in checked}
-                checked=tuple(checked)+tuple(DependencyInfo(key,key,DependencyState.UNKNOWN,detail=error)
+                checked=tuple(checked)+tuple(DependencyInfo(key,key,DependencyState.UNKNOWN,detail=display_error)
                     for key in task.items if key not in seen)
             if task.group in TOOL_KEYS and not any(item.key==task.group for item in checked):
-                checked=tuple(checked)+(DependencyInfo(task.group,TOOL_BY_KEY[task.group].title,DependencyState.UNKNOWN,detail=error),)
+                checked=tuple(checked)+(DependencyInfo(task.group,TOOL_BY_KEY[task.group].title,DependencyState.UNKNOWN,detail=display_error),)
             self._merge(checked,task.group,self._binding)
             self.publish_verified(result.get("related_checked", ()), self._binding)
         else:error=error or "连接已变化，结果未应用到其他设备。"
@@ -423,7 +425,7 @@ class OpenWrtDependencyService(QObject):
         from .workflow_diagnostics import record_workflow
         record_workflow(self.owner, "dependency_request", "completed" if success else "failed",
                         stage=task.action, kind=task.group, reason=error or "verified")
-        message=error or ("文件传输支持已卸载，SSH 登录不受影响。" if task.group=="common" and task.action=="uninstall" else "文件传输检测通过。" if task.group=="common" else "依赖清单已更新。")
+        message=display_error or ("文件传输支持已卸载，SSH 登录不受影响。" if task.group=="common" and task.action=="uninstall" else "文件传输检测通过。" if task.group=="common" else "依赖清单已更新。")
         if not error and task.group=='terminal':message='终端会话保留支持已卸载，普通终端仍可使用。' if task.action=='uninstall' else '终端会话保留支持检测通过。'
         if not error and task.group in TOOL_KEYS:
             message=TOOL_BY_KEY[task.group].title+("已卸载。" if task.action=="uninstall" else "检测通过。")

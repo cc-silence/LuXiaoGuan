@@ -2,6 +2,7 @@
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from modules.capture_services.openwrt.dependency_groups import CAPTURE_KEYS, CAPTURE_PACKAGES, CAPTURE_REMOVABLE_PACKAGES, missing_packages
 from .package_select_dialog import PackageSelectDialog
+from modules.user_errors import user_error
 
 
 def _context(page, key=None):
@@ -95,4 +96,4 @@ def uninstall_capture(page, key=None):
         except ValueError as exc:
             import logging
             logging.getLogger("routermanager.dependency").exception("Capture uninstall request rejected")
-            MessageDialog("\u65e0\u6cd5\u5378\u8f7d", str(exc), page).exec()
+            MessageDialog("\u65e0\u6cd5\u5378\u8f7d", user_error(exc), page).exec()

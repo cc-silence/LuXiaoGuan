@@ -4,6 +4,7 @@ from modules.platform_services.cancellation import CancellationEvent as Event
 from uuid import uuid4
 from PySide6.QtCore import QObject, Qt, Signal, Slot
 from .openwrt.router_management import RouterManagement
+from modules.user_errors import human_failure_text
 from modules.platform_services.file_metadata import local_entry_hidden
 from modules.platform_services.local_file_operations import recycle_local_entry, create_local_directory
 
@@ -318,7 +319,8 @@ class RouterManagementService(QObject):
         action = self.current[1]
         if action=='initial_verify':self.initialVerificationCompleted.emit(dict(verified=False,note=summary))
         if action not in {"password_change", "common_read", "common_save", "policy_read", "policy_preview", "policy_apply"} and not action.startswith("maintenance_"):
-            self.owner.settingsMessageGenerated.emit(("本机文件操作未完成：" if self.current[1].startswith("local_") else "路由器管理操作未完成：")+summary, "error")
+            detail = human_failure_text(summary) or "请查看日志后重试。"
+            self.owner.settingsMessageGenerated.emit(("本机文件操作未完成：" if self.current[1].startswith("local_") else "路由器管理操作未完成：")+detail, "error")
         self._finish(True)
         self.failed.emit(key, summary)
 

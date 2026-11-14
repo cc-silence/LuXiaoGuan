@@ -53,7 +53,7 @@ def cleanup_stale_update_workspaces(base_dir: Path, cancel=None, now=None, warn=
         except (InterruptedError, TimeoutError):
             raise
         except (OSError, ValueError) as exc:
-            tell(f"更新工作区清理失败：{candidate}；{exc}。请核对权限和目录链接。", "warning")
+            tell("旧更新文件未清理干净，不影响本次更新，可稍后重试。", "warning")
 
 
 def ensure_update_workspace(config, software_name):

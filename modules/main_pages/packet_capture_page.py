@@ -16,6 +16,7 @@ from modules.main_pages.packet_capture.openwrt.openwrt_page import OpenWrtPage
 from modules.common_widgets.common_dialogs import MessageDialog
 from modules.main_pages.packet_capture.openwrt.confirmation_helpers import confirm_radio_takeover
 from modules.common_widgets.common_dialogs import ConfirmDialog
+from modules.user_errors import RESULT_DIR_INVALID, human_failure_text, plain_exception, user_error
 
 
 
@@ -342,7 +343,7 @@ class PacketCapturePage(QFrame):
         except Exception as exc:
             MessageDialog(
                 "OpenWrt 登录设置有误",
-                f"无法开始登录。\n\n原因：{exc}\n\n请检查路由器地址、SSH 端口和用户名。",
+                f"无法开始登录。\n\n原因：{plain_exception(exc)}\n\n请检查路由器地址、SSH 端口和用户名。",
                 self,
             ).exec()
             return
@@ -367,7 +368,7 @@ class PacketCapturePage(QFrame):
         except OSError as exc:
             MessageDialog(
                 "保存路由器密码失败",
-                f"Windows 凭据管理器无法保存密码。\n\n原因：{exc}\n\n"
+                f"Windows 凭据管理器无法保存密码。\n\n原因：{plain_exception(exc)}\n\n"
                 "可以取消“记住密码”后继续登录，密码仍只在当前进程内使用。",
                 self,
             ).exec()
@@ -440,8 +441,9 @@ class PacketCapturePage(QFrame):
         try:
             validate_pmkid_mode(settings.get("mode", "filter"), bool(settings.get("pmkid_active_beacon", False)))
         except HcxCompatibilityError as exc:
-            self.info_panel.append_info(str(exc), "warning")
-            MessageDialog("PMKID 尚未开始", str(exc), self).exec()
+            message = user_error(exc)
+            self.info_panel.append_info(message, "warning")
+            MessageDialog("PMKID 尚未开始", message, self).exec()
             return
         selected = tuple(point.bssid for point in snapshot.access_points if point.selected)
         if settings.get("mode") != "global" and not selected:
@@ -512,7 +514,7 @@ class PacketCapturePage(QFrame):
                 CaptureSettingsManager.normalized_output_dir(settings.get("output_dir"))
             )
         except Exception as exc:
-            self.info_panel.append_info(f"结果目录无效：{exc}", "error")
+            self.info_panel.append_info(RESULT_DIR_INVALID, "error")
             return
         if not self.capture_service.capture_openwrt_pmkid_async(settings, selected):
             self.info_panel.append_info("当前任务条件不满足或已有任务运行，不能开始 PMKID。", "warning")
@@ -590,7 +592,7 @@ class PacketCapturePage(QFrame):
             self.info_panel.append_info("射频占用检测已取消。", "info")
             return
         if error:
-            self.info_panel.append_info(f"射频占用检测失败：{error}", "warning")
+            self.info_panel.append_info(human_failure_text(error) or "射频检测未完成，请稍后重试。", "warning")
             return
         snapshot = self.capture_service.openwrt_snapshot
         if snapshot.connection_state.value != "connected":
@@ -719,7 +721,7 @@ class PacketCapturePage(QFrame):
                 CaptureSettingsManager.normalized_output_dir(settings.get("output_dir"))
             )
         except Exception as exc:
-            self.info_panel.append_info(f"结果目录无效：{exc}", "error")
+            self.info_panel.append_info(RESULT_DIR_INVALID, "error")
             return
         if not self.capture_service.capture_openwrt_handshakes_async(settings, selected):
             self.info_panel.append_info("当前任务条件不满足或已有任务运行，不能开始定向任务。", "warning")
@@ -788,7 +790,7 @@ class PacketCapturePage(QFrame):
                 CaptureSettingsManager.normalized_output_dir(settings.get("output_dir"))
             )
         except Exception as exc:
-            self.info_panel.append_info(f"结果目录无效：{exc}", "error")
+            self.info_panel.append_info(RESULT_DIR_INVALID, "error")
             return
         if not self.capture_service.capture_openwrt_password_async(settings, selected):
             self.info_panel.append_info("当前任务条件不满足或已有任务运行，不能开始猜密码。", "warning")
@@ -825,7 +827,7 @@ class PacketCapturePage(QFrame):
             if error is None:
                 self.info_panel.append_info(f"已清除 {bssid} 记住的 PIN。", "info")
             else:
-                self.info_panel.append_info(f"清除 {bssid} 记住的 PIN 失败：{error}", "warning")
+                self.info_panel.append_info(f"清除 {bssid} 记住的 PIN 失败：{human_failure_text(error)}", "warning")
 
         for bssid in selected:
             try:
@@ -903,7 +905,7 @@ class PacketCapturePage(QFrame):
             )
             directory.mkdir(parents=True, exist_ok=True)
         except Exception as exc:
-            self.info_panel.append_info(f"结果目录无效：{exc}", "error")
+            self.info_panel.append_info(RESULT_DIR_INVALID, "error")
             return
         if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(directory))):
             self.info_panel.append_info(f"打开保存目录失败：{directory}", "error")
@@ -922,7 +924,7 @@ class PacketCapturePage(QFrame):
         except OSError as exc:
             MessageDialog(
                 "抓包设置保存失败",
-                f"无法写入抓包配置：{self.settings_manager.storage_hint()}\n\n原因：{exc}\n\n"
+                f"无法写入抓包配置。\n\n原因：{plain_exception(exc)}\n\n"
                 "只有主副本写入失败才会报错；请确认磁盘空间充足、用户配置目录可写，"
                 "并关闭占用配置文件的软件后重试。（软件目录只读不影响保存）",
                 self,
@@ -943,7 +945,7 @@ class PacketCapturePage(QFrame):
         try:
             manager.save(config)
         except OSError as exc:
-            self.info_panel.append_info(f"保存信息文字缩放失败：{exc}", "error")
+            self.info_panel.append_info(f"保存信息文字缩放失败：{plain_exception(exc)}", "error")
 
     def set_light_theme(self, enabled, force=False):
         """应用主窗口主题；force 供主题文件整体切换时强制刷新。"""

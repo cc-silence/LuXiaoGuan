@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt, QTimer, Signal, QSignalBlocker
 from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QSplitter, QVBoxLayout, QWidget
 
 from modules.main_pages.packet_capture.ui_helpers import create_capture_card
+from modules.user_errors import plain_exception
 from .connection_section import ConnectionSection
 from .device_status_panel import DeviceStatusPanel
 from .resource_picker import OpenWrtResourcePicker
@@ -178,7 +179,7 @@ class RouterLoginPage(QWidget):
             )
         except OSError as exc:
             if self.info_panel is not None:
-                self.info_panel.append_info(f"读取 Windows 保存的路由器密码失败：{exc}", "error")
+                self.info_panel.append_info(f"读取 Windows 保存的路由器密码失败：{plain_exception(exc)}", "error")
             return False
         self.connection.password.setText(password)
         return True
@@ -205,7 +206,7 @@ class RouterLoginPage(QWidget):
         except OSError as exc:
             self._restore_password_preference()
             if self.info_panel is not None:
-                self.info_panel.append_info(f"更新 Windows 路由器密码凭据失败：{exc}", "error")
+                self.info_panel.append_info(f"更新 Windows 路由器密码凭据失败：{plain_exception(exc)}", "error")
             return
         self._remember_password_preference = settings["remember_password"]
         self.settingsChanged.emit()

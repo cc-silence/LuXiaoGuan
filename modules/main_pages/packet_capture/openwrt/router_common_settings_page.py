@@ -143,7 +143,6 @@ class RouterCommonSettingsPage(QWidget):
         capture_service.activityChanged.connect(self._sync)
         capture_service.openwrtSnapshotChanged.connect(self._sync)
         self.service.snapshotChanged.connect(self._sync)
-        self.service.messageGenerated.connect(self._message)
         self._sync()
 
     def showEvent(self,event):
@@ -282,5 +281,5 @@ class RouterCommonSettingsPage(QWidget):
         self.monitor_actions.dispose()
         for signal, slot in ((self.manager.completed, self._completed), (self.manager.failed, self._failed),
             (self.capture_service.activityChanged, self._sync), (self.capture_service.openwrtSnapshotChanged, self._sync),
-            (self.service.snapshotChanged, self._sync), (self.service.messageGenerated, self._message)):
+            (self.service.snapshotChanged, self._sync)):
             signal.disconnect(slot)

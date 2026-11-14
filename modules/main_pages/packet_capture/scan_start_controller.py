@@ -2,6 +2,7 @@
 from PySide6.QtCore import QObject
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from modules.config_services.capture_settings_manager import CaptureSettingsManager
+from modules.user_errors import RESULT_DIR_INVALID
 
 
 class ScanStartController(QObject):
@@ -86,7 +87,7 @@ class ScanStartController(QObject):
         try:
             settings["resolved_output_dir"] = str(CaptureSettingsManager.normalized_output_dir(settings.get("output_dir")))
         except Exception as exc:
-            page.info_panel.append_info("\u6293\u5305\u7ed3\u679c\u76ee\u5f55\u65e0\u6548\uff1a" + str(exc), "error")
+            page.info_panel.append_info(RESULT_DIR_INVALID, "error")
             return
         if not page.capture_service.scan_openwrt_wifi_async(settings):
             message = "\u5f53\u524d\u672a\u8fde\u63a5\u8def\u7531\u5668\u6216\u5df2\u6709\u4efb\u52a1\u8fd0\u884c\uff0c\u4e0d\u80fd\u5f00\u59cb\u626b\u63cf\u3002"

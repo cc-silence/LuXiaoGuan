@@ -155,6 +155,7 @@ class OpenWrtCapturePage(QWidget):
             snapshot.task_state,
             snapshot.pause_state,
             snapshot.wps_entry,
+            scan_progress=snapshot.progress,
         )
         # 会话里一旦有已验证的可用产物（可跑包 CAP/22000），就把取结果入口置绿；
         # 多目标任务中途已有目标出可用包时靠会话级标记提前变绿，不用等任务结束；

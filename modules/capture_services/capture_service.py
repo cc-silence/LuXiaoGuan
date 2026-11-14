@@ -17,6 +17,7 @@ from modules.capture_services.task_controller import CaptureTaskController
 from modules.capture_services.dependency_service import OpenWrtDependencyService
 from modules.capture_services.verified_results import VerifiedResultCheck, VerifiedResults, check_verified_results
 from modules.capture_services.router_signal_service import RouterSignalService
+from modules.user_errors import human_failure_text, plain_exception, user_error
 from modules.capture_services.openwrt.models import (
     AccessPointCaptureState,
     CaptureArtifact,
@@ -118,7 +119,6 @@ class CaptureService(QObject):
         self.router_connection_state = RouterConnectionState(self)
         from .openwrt.auto_capture_service import AutoCaptureService
         self.auto_capture = AutoCaptureService(self)
-        self.auto_capture.messageGenerated.connect(self.messageGenerated)
         from modules.cache_maintenance import CacheMaintenance
         self._shutdown_maintenance = CacheMaintenance(self)
         self._shutdown_maintenance.warning.connect(self.messageGenerated)
@@ -162,6 +162,23 @@ class CaptureService(QObject):
 
         self.taskFinishedNotice.emit(str(title), str(text))
 
+    def _publish_failure(self, title, summary, level, detail=""):
+        """信息窗只发客户能看懂的结论，完整诊断以 diagnostic 层级留档。
+
+        参数 title 是任务前缀，summary 是原始失败摘要，level 是展示层级，
+        detail 是可选诊断字符串。返回展示文本，供快照和弹窗复用。
+        """
+
+        short = human_failure_text(summary) or "任务未完成，请查看日志后重试。"
+        text = f"{title}{short}"
+        self.messageGenerated.emit(text, level)
+        diagnostic = str(summary or "").strip()
+        if detail:
+            diagnostic = f"{diagnostic}\n{detail}" if diagnostic else str(detail)
+        if diagnostic and diagnostic != short:
+            self.messageGenerated.emit(diagnostic, "diagnostic")
+        return text
+
     def _maybe_auto_open_dir(self, produced):
         """任务成功且有文件落盘时，按开关自动打开结果目录。
 
@@ -178,7 +195,7 @@ class CaptureService(QObject):
         try:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(directory)))
         except Exception as exc:
-            self.messageGenerated.emit(f"结果目录已生成，但自动打开失败：{exc}", "warning")
+            self.messageGenerated.emit(f"结果目录已生成，但自动打开失败：{plain_exception(exc, '系统未能打开文件夹。')}", "warning")
 
     def set_verified_history(self, history, *, initial_only=False):
         """从配置载入已抓可用包名单，只收合法 BSSID 条目，不发信号。
@@ -333,7 +350,7 @@ class CaptureService(QObject):
             except Exception as exc:
                 if not self._shutting_down:
                     self.windowsMessageGenerated.emit(
-                        f"检测 Windows 抓包环境失败：{exc}", "error"
+                        f"检测 Windows 抓包环境失败：{plain_exception(exc)}", "error"
                     )
             finally:
                 self._probe_lock.release()
@@ -573,7 +590,7 @@ class CaptureService(QObject):
         try:
             validate_pmkid_mode(mode,active_request)
         except HcxCompatibilityError as exc:
-            self.messageGenerated.emit(str(exc),"warning")
+            self.messageGenerated.emit(user_error(exc), "warning")
             return False
         targets = tuple(selected_bssids) if mode == "filter" else ()
         if mode == "filter" and not targets:
@@ -809,7 +826,11 @@ class CaptureService(QObject):
         if cancelled:
             self.takeoverProbeFinished.emit(probe_id, (), "已取消", True)
             return
-        self.takeoverProbeFinished.emit(probe_id, (), str(summary or "射频占用检测失败"), False)
+        warning = human_failure_text(summary) or "射频检测未完成，请稍后重试。"
+        diagnostic = str(summary or "").strip()
+        if diagnostic:
+            self.messageGenerated.emit(diagnostic, "diagnostic")
+        self.takeoverProbeFinished.emit(probe_id, (), warning, False)
 
     def capture_openwrt_handshakes_async(self, settings, selected_bssids=()):
         """在后台对多个已扫描目标逐个执行定向任务，最多循环指定轮数。
@@ -1096,7 +1117,7 @@ class CaptureService(QObject):
     def _on_openwrt_handshakes_failed(self, summary, detail, target_bssids):
         """整批灾难性失败时保留连接，按取消与否标记全部目标。"""
 
-        snapshot = self._task_failure_snapshot(summary)
+        snapshot = self._task_failure_snapshot(human_failure_text(summary))
         cancelled = "已取消" in str(summary) or "SSH 连接已断开" in str(summary)
         wanted = set(str(value).upper() for value in target_bssids)
         access_points = tuple(
@@ -1115,9 +1136,9 @@ class CaptureService(QObject):
         self._handshake_batch_targets = ()
         self.openwrt_backend.snapshot = snapshot
         self.openwrtSnapshotChanged.emit(snapshot)
-        self.messageGenerated.emit(f"多目标定向任务未完成：{summary}", level)
+        text = self._publish_failure("多目标定向任务未完成：", summary, level, detail)
         if level != "info":
-            self._notify_task_result("定向抓包结果", f"多目标定向任务未完成：{summary}")
+            self._notify_task_result("定向抓包结果", text)
         self.task_controller.finish(failed=level == "error")
 
     def capture_openwrt_password_async(self, settings, selected_bssids=()):
@@ -1259,12 +1280,11 @@ class CaptureService(QObject):
         status_summary = finish(self, cancelled="\u5df2\u53d6\u6d88" in str(summary))
         if status_summary:
             summary = str(summary) + "\n" + status_summary
-        snapshot = self._task_failure_snapshot(summary)
-        self.openwrt_backend.snapshot = snapshot
-        self.openwrtSnapshotChanged.emit(snapshot)
+        self.openwrt_backend.snapshot = self._task_failure_snapshot(human_failure_text(summary))
+        self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
         level = "info" if "已取消" in str(summary) or "SSH 连接已断开" in str(summary) else "error"
-        self.messageGenerated.emit(f"在线密码验证未完成：{summary}", level)
-        self._notify_task_result("\u731c\u5bc6\u7801\u7ed3\u679c", f"\u5728\u7ebf\u5bc6\u7801\u9a8c\u8bc1\u672a\u5b8c\u6210\uff1a{summary}")
+        text = self._publish_failure("在线密码验证未完成：", summary, level, detail)
+        self._notify_task_result("\u731c\u5bc6\u7801\u7ed3\u679c", text)
         self.task_controller.finish(failed=level == "error")
 
     def _on_openwrt_password_progress(self, update):
@@ -1338,7 +1358,7 @@ class CaptureService(QObject):
         try:
             settings = dict(settings, wps_defaults=prepare_wps_options(settings.get("wps_defaults"), mode=mode))
         except ValueError as exc:
-            self.messageGenerated.emit(str(exc), "warning")
+            self.messageGenerated.emit(user_error(exc), "warning")
             return False
         session_id = uuid4().hex
         cancel_event = self.task_controller.begin(
@@ -1773,10 +1793,10 @@ class CaptureService(QObject):
     def _on_openwrt_scan_failed(self, summary, detail):
         """扫描失败不关闭已验证的 SSH 会话，保留失败原因便于用户重试。"""
 
-        self.openwrt_backend.snapshot = self._task_failure_snapshot(summary)
+        self.openwrt_backend.snapshot = self._task_failure_snapshot(human_failure_text(summary))
         self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
         level = "info" if "已取消" in str(summary) else "error"
-        self.messageGenerated.emit(f"Wi-Fi 扫描未完成：{summary}", level)
+        self._publish_failure("Wi-Fi 扫描未完成：", summary, level, detail)
         self.task_controller.finish(failed=level == "error")
 
     def _on_openwrt_pmkid_progress(self, update):
@@ -1881,10 +1901,10 @@ class CaptureService(QObject):
     def _on_openwrt_pmkid_failed(self, summary, detail):
         """PMKID 失败保留 SSH 会话，并显示可重试的结构化原因。"""
 
-        self.openwrt_backend.snapshot = self._task_failure_snapshot(summary)
+        self.openwrt_backend.snapshot = self._task_failure_snapshot(human_failure_text(summary))
         self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
         level = "info" if "已取消" in str(summary) else "error"
-        self.messageGenerated.emit(f"PMKID 任务未完成：{summary}", level)
+        self._publish_failure("PMKID 任务未完成：", summary, level, detail)
         self.task_controller.finish(failed=level == "error")
 
 
@@ -2080,7 +2100,7 @@ class CaptureService(QObject):
     def _on_openwrt_handshake_failed(self, summary, detail, target_bssid):
         """H 任务失败时保留连接和目标选择，并显示可重试原因。"""
 
-        snapshot = self._task_failure_snapshot(summary)
+        snapshot = self._task_failure_snapshot(human_failure_text(summary))
         level = "info" if "已取消" in str(summary) else "error"
         snapshot = replace(
             snapshot,
@@ -2095,9 +2115,9 @@ class CaptureService(QObject):
         )
         self.openwrt_backend.snapshot = snapshot
         self.openwrtSnapshotChanged.emit(snapshot)
-        self.messageGenerated.emit(f"定向任务未完成：{summary}", level)
+        text = self._publish_failure("定向任务未完成：", summary, level, detail)
         if level != "info":
-            self._notify_task_result("定向抓包结果", f"定向任务未完成：{summary}")
+            self._notify_task_result("定向抓包结果", text)
         self.task_controller.finish(failed=level == "error")
 
     @staticmethod
@@ -2121,7 +2141,7 @@ class CaptureService(QObject):
         页面仍开放后续动作。
         """
 
-        changes = {"last_error": str(summary)}
+        changes = {"last_error": str(summary) or "任务未完成，请重试。"}
         if not self.openwrt_backend.ssh_client.connected:
             changes.update(
                 connection_state=OpenWrtConnectionState.DISCONNECTED,
@@ -2132,19 +2152,25 @@ class CaptureService(QObject):
     def _on_openwrt_worker_failed(self, summary, detail):
         """把连接/探测异常转换为 FAILED 快照和用户可读提示。"""
 
+        short = human_failure_text(summary) or "路由器连接或登录未完成，请重试。"
         self.openwrt_backend.disconnect()
         self._openwrt_password = ""
         self.openwrt_backend.snapshot = replace(
             self.openwrt_backend.snapshot,
             connection_state=OpenWrtConnectionState.FAILED,
-            connection_detail=str(summary),
-            last_error=str(summary),
+            connection_detail=short,
+            last_error=short,
         )
         self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
         self.settingsMessageGenerated.emit(
-            f"路由器连接或登录未完成：{summary}",
+            f"路由器连接或登录未完成：{short}",
             "error",
         )
+        diagnostic = str(summary or "").strip()
+        if detail:
+            diagnostic = f"{diagnostic}\n{detail}" if diagnostic else str(detail)
+        if diagnostic and diagnostic != short:
+            self.messageGenerated.emit(diagnostic, "diagnostic")
         self.task_controller.finish(failed=True)
 
     def _cleanup_openwrt_worker(self, session_id):

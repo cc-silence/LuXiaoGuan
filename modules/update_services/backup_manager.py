@@ -84,7 +84,8 @@ def restore_keep_paths(backup_context):
         except PermissionError:
             errors.append(f"{dest}: 权限不足")
         except (OSError, shutil.Error) as exc:
-            errors.append(f"{dest}: {exc}")
+            from modules.user_errors import plain_exception
+            errors.append(f"{dest}: {plain_exception(exc)}")
     if errors:
         return False, f"恢复备份失败：{'；'.join(errors)}"
     return True, ""

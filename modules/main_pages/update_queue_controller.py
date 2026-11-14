@@ -112,7 +112,8 @@ class UpdateQueueController(QObject):
                     self._page._begin_queued_update(task['row'])
                 except Exception as exc:
                     logging.getLogger('winbox.update').exception('Unable to start queued update')
-                    self._page._on_update_finished(sid, False, f"启动更新失败：{exc}")
+                    from modules.user_errors import plain_exception
+                    self._page._on_update_finished(sid, False, f"启动更新失败：{plain_exception(exc)}")
         finally:
             self._dispatching = False
             if len(self._active) < MAX_CONCURRENT_UPDATES and self._next_ready() is not None:

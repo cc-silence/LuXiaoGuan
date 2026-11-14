@@ -17,7 +17,6 @@ class RouterHomepageDialog(FramelessDialog):
     def __init__(self,snapshot,parent=None):
         super().__init__('设置默认打开窗口',parent,inherit_parent_stylesheet=False)
         apply_common_dialog_theme(self,parent);self.set_scaled_size((540,260))
-        self.content_layout.addWidget(hint('选择浏览器打开路由器地址后进入的管理页面。',self))
         body=QWidget(self);layout=QVBoxLayout(body)
         options=available_pages(snapshot)
         self.homepage=choice(body,options)

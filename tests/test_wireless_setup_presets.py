@@ -90,6 +90,33 @@ class PresetEditorTests(unittest.TestCase):
         finally:
             d.reject(); d.deleteLater(); APP.processEvents()
 
+    def test_recommended_country_is_capability_gated_and_restores_existing(self):
+        env = configured_environment()
+        radio = env.data['radios'][0]
+        radio['countries'] = [{'iso3166': 'CN', 'country': 'China'},
+                              {'iso3166': 'TW', 'country': 'Taiwan'}]
+        d = AccessPointSetupDialog('radio7', '5G')
+        try:
+            configure_ap(d, env)
+            d.name_edit.setText('Country test')
+            d.password.edit.setText('password-123')
+            self.assertIsNone(d.country.currentData())
+            d.settings_profile.setCurrentIndex(1)
+            self.assertEqual(d.country.currentData(), 'TW')
+            self.assertEqual(ap_request(d).options['country'], 'TW')
+            d.settings_profile.setCurrentIndex(0)
+            self.assertIsNone(d.country.currentData())
+            self.assertNotIn('country', ap_request(d).options)
+            radio['option_support']['device']['country'] = False
+            self.assertNotIn('country', ap_recommendations(env.data, 'radio7'))
+            radio['option_support']['device']['country'] = True
+            radio['countries'] = [{'code': 'US'}]
+            self.assertNotIn('country', ap_recommendations(env.data, 'radio7'))
+            radio['countries'] = [{'code': 'TW'}]
+            self.assertEqual(ap_recommendations(env.data, 'radio7')['country'], 'TW')
+        finally:
+            d.reject(); d.deleteLater(); APP.processEvents()
+
     def test_relay_static_settings_restore_without_losing_password_or_identity(self):
         env = configured_environment()
         env.data['rows'].append(dict(section='uplink', mode='sta', device='radio7',

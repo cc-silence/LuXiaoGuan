@@ -130,6 +130,10 @@ def get_theme_icon(
     - 亮色主题返回深灰色版本（#555555），也可通过 light_color 指定颜色。
     - dark_color 适合资源本身是深色图标、放在暗色按钮上不可见的场景。
     """
+    # Empty paths are intentional placeholders, not image files.
+    if not resource_path:
+        return QIcon()
+
     color = (light_color or QColor(85, 85, 85)) if is_light else dark_color
     key = f"color:{color.name()}" if color is not None else "raw"
     if key not in _icon_cache:

@@ -1,7 +1,8 @@
 """发射与中继设置窗口，默认简化，高级选项按设备能力装配。"""
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLayout, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 from modules.common_widgets.bounce_scroll_area import BounceScrollArea
+from modules.common_widgets.natural_height_layout import NaturalHeightVBoxLayout
 from modules.common_widgets.config_fields import ConfigCheckBox, ConfigValueList
 from modules.common_widgets.collapsible_section import CollapsibleSection
 from modules.common_widgets.frameless_dialog import FramelessDialog
@@ -33,7 +34,8 @@ class _SetupDialog(FramelessDialog):
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QScrollArea.NoFrame)
         self.body = QWidget(self.scroll_area)
-        self.form = QVBoxLayout(self.body)
+        self.form = NaturalHeightVBoxLayout(self.body)
+        self.form.setSizeConstraint(QLayout.SetMinimumSize)
         UiScaleManager.for_widget(self).bind_layout(self.form, margins=(2, 12, 2, 6), spacing=14)
         self.scroll_area.setWidget(self.body)
         self.content_layout.addWidget(self.scroll_area, 1)

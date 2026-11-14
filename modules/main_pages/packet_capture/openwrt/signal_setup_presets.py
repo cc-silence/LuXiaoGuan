@@ -54,7 +54,7 @@ def bind_settings_profile(dialog, environment, kind):
                     "encryption": dialog.encryption, "hidden": dialog.hidden,
                     "isolate": dialog.isolation, "wmm": dialog.wmm,
                     "ieee80211w": dialog.management, "dtim_period": dialog.dtim,
-                    "beacon_int": dialog.beacon}
+                    "beacon_int": dialog.beacon, "country": dialog.country}
         recommendations = ap_recommendations(environment.data, dialog.radio_name)
     else:
         controls = {"bridge_mode": dialog.bridge_mode, "proto": dialog.protocol,

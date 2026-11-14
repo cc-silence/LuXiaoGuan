@@ -52,6 +52,7 @@ from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog, 
 from modules.common_widgets.frameless_dialog import FramelessDialog
 from modules.config_manager import ConfigManager
 from modules.dialog_theme import build_base_stylesheet, detect_light_theme
+from modules.user_errors import human_failure_text, plain_exception
 from modules.main_pages.packet_capture.ui_helpers import create_capture_card, create_step_card, VerticalResizeHandle
 from modules.main_pages.page_action_buttons import create_page_text_button
 from .auto_capture_button_styles import apply_stop_button_style
@@ -2385,7 +2386,7 @@ class AutoCapturePage(QWidget):
     def _on_pull_offline_error(self, err_msg: str):
         self._is_pulling_offline = False
         self._update_pull_buttons_state()
-        MessageDialog("拉取成果失败", f"从路由器拉取离线成果时出现异常:\n{err_msg}", self).exec()
+        MessageDialog("拉取成果失败", f"从路由器拉取离线成果时出现异常：\n{human_failure_text(err_msg)}", self).exec()
 
     @active_service_slot(bool, str)
     def _on_remote_cap_cleared(self, success: bool, message: str):
@@ -2402,7 +2403,7 @@ class AutoCapturePage(QWidget):
             dialog = AutoCaptureReportDialog(report, str(out_dir), self)
             dialog.exec()
         except Exception as exc:
-            MessageDialog("分析日志失败", f"分析本地抓包成果日志时出现异常:\n{exc}", self).exec()
+            MessageDialog("分析日志失败", f"分析本地抓包成果日志时出现异常：\n{plain_exception(exc)}", self).exec()
 
     def _on_open_output_dir_clicked(self):
         out_dir = self.auto_capture_service.get_output_dir()
@@ -2503,7 +2504,7 @@ class AutoCapturePage(QWidget):
             reason = dep_service.last_rejection_reason or "依赖任务未能启动，请在【路由器登录】页面查看详情。"
             MessageDialog("无法开始升级", reason, self).exec()
             return
-        self.service.messageGenerated.emit("正在为当前路由器自动部署现代版 hcxdumptool 6.3.4...", "info")
+        self.auto_capture_service.messageGenerated.emit("正在为当前路由器自动部署现代版 hcxdumptool 6.3.4...", "info")
 
     def _on_install_dependency_clicked(self):
         """在自动抓包页面一键触发安装缺失的自动抓包依赖 (hcxdumptool)。"""
@@ -2518,4 +2519,4 @@ class AutoCapturePage(QWidget):
             reason = dep_service.last_rejection_reason or "依赖任务未能启动，请在【路由器登录】页面查看详情。"
             MessageDialog("无法开始安装", reason, self).exec()
             return
-        self.service.messageGenerated.emit("正在为当前路由器安装自动抓包依赖（含 hcxdumptool、文件传输、信号管理与 iw）...", "info")
+        self.auto_capture_service.messageGenerated.emit("正在为当前路由器安装自动抓包依赖（含 hcxdumptool、文件传输、信号管理与 iw）...", "info")

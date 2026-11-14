@@ -15,6 +15,7 @@ from PySide6.QtGui import QAction, QDesktopServices
 from PySide6.QtWidgets import QApplication
 
 from modules.main_pages.base_page_styles import create_themed_menu
+from modules.user_errors import plain_exception
 
 from modules.common_widgets.common_dialogs import ConfirmDialog, create_themed_confirm_dialog
 from modules.download_services.download_paths import software_download_directory
@@ -49,19 +50,19 @@ class UpdateContextActions:
             return
         exe_path = self._page.software_manager.resolve_path(restart_exe)
         if not exe_path.is_file():
-            self._page._append_info(f"重启程序不存在：{exe_path}", level="error")
+            self._page._append_info("重启程序不存在，请检查更新方案里配置的路径。", level="error")
             return
         try:
             subprocess.Popen([str(exe_path)])
             self._page._append_info(f"已启动：{exe_path.name}")
         except Exception as exc:
-            self._page._append_info(f"启动失败：{exc}", level="error")
+            self._page._append_info(f"启动失败：{plain_exception(exc)}", level="error")
 
     def delete_package(self, row_data):
         """删除指定安装包文件。"""
         package_path = Path(row_data.get("package_path", ""))
         if not package_path.is_file():
-            self._page._append_info(f"安装包不存在：{package_path}", level="warning")
+            self._page._append_info("安装包不存在，可能已被移动或删除。", level="warning")
             self._page.scan_packages()
             return
         dialog = create_themed_confirm_dialog(
@@ -77,7 +78,7 @@ class UpdateContextActions:
             self._page._append_info(f"已删除安装包：{package_path.name}")
             self._page.scan_packages()
         except OSError as exc:
-            self._page._append_info(f"删除安装包失败：{exc}", level="error")
+            self._page._append_info(f"删除安装包失败：{plain_exception(exc)}", level="error")
 
     def create_directories(self):
         """为所有启用的软件项创建对应的下载/离线更新目录。"""
@@ -107,7 +108,7 @@ class UpdateContextActions:
             open_folder_in_explorer(directory)
             self._page._append_info(f"已打开目录：{directory}")
         except Exception as exc:
-            self._page._append_info(f"打开目录失败：{exc}", level="error")
+            self._page._append_info(f"打开目录失败：{plain_exception(exc)}", level="error")
 
     def open_update_log_folder(self, row_data):
         """打开当前软件最近一次更新日志所在的文件夹。

@@ -298,8 +298,9 @@ QTreeWidget#softwareItemsTree::item {{
         # 主窗口里大量控件由 ui_main.py 生成并写死字体/尺寸。
         # 这里用附加 QSS 覆盖最核心的主界面区域，让全局缩放在主窗口也能明显生效。
         font = self._resolved_font()
-        # QSS 高度是内容盒；另有上下各 3px 的主题 margin。
+        # QSS heights describe the content box; fixed widget heights include margins.
         menu_button_height = self.px(self.NAV_BUTTON_SIZE)
+        toggle_content_height = menu_button_height - 2 * self.px(self.NAV_MARGIN_Y)
         icon_button_size = self.px(44)
         bottom_bar_height = self.px(26)
         return f"""
@@ -322,8 +323,8 @@ QTreeWidget#softwareItemsTree::item {{
 
 #toggleButton {{
     margin: {self.px(self.NAV_MARGIN_Y)}px {self.px(self.NAV_MARGIN_X)}px;
-    min-height: {self.px(self.NAV_BUTTON_SIZE)}px;
-    max-height: {self.px(self.NAV_BUTTON_SIZE)}px;
+    min-height: {toggle_content_height}px;
+    max-height: {toggle_content_height}px;
     font: {self.font_pt()}pt "{font}";
 }}
 

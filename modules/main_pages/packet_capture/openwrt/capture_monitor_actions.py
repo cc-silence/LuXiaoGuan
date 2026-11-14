@@ -5,6 +5,7 @@ from modules.ui_scale_manager import UiScaleManager
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
 from modules.main_pages.page_action_buttons import create_page_text_button, set_page_action_enabled
 from .orphan_review_dialog import OrphanReviewDialog
+from modules.user_errors import user_error
 
 TITLE="\u4e34\u65f6\u6293\u5305\u63a5\u53e3\u6e05\u7406"
 
@@ -81,7 +82,7 @@ class CaptureMonitorActions(QObject):
             self.preview_key=self.page.manager.submit("capture_monitor_preview")
             self.waiting=True
         except (ValueError,RuntimeError) as exc:
-            self.page._message(str(exc),"warning")
+            self.page._message(user_error(exc), "warning")
         self.sync()
 
     def _preview_completed(self,key,value):

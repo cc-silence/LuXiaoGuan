@@ -8,6 +8,7 @@ StrategyExecutor.execute() 入口使用。
 """
 
 from modules.release_identity import DISPLAY_NAME
+from modules.user_errors import plain_exception
 import locale
 import os
 import queue
@@ -348,12 +349,12 @@ def apply_rename_rules(config, package_path=None):
             try:
                 dest_path.unlink()
             except (OSError, PermissionError) as exc:
-                warnings.append(f"重命名失败：无法删除已存在的目标文件 {dest_path}：{exc}")
+                warnings.append("重命名失败：目标文件已存在且无法删除。")
                 continue
         try:
             source_path.rename(dest_path)
         except (OSError, PermissionError) as exc:
-            warnings.append(f"重命名失败 {source_path} → {new_name}：{exc}")
+            warnings.append(f"重命名失败：{plain_exception(exc)}")
     return warnings
 
 
@@ -627,7 +628,7 @@ class StrategyExecutor:
         except subprocess.TimeoutExpired:
             return False, f"{name} 安装超时"
         except (OSError, subprocess.SubprocessError) as exc:
-            return False, f"{name} 安装异常：{exc}"
+            return False, f"{name} 安装异常：{plain_exception(exc)}"
 
     @staticmethod
     def _extract_copy(download_path, config, name, parent=None, targets=None):
@@ -691,7 +692,7 @@ class StrategyExecutor:
                         try:
                             target.unlink()
                         except OSError as exc:
-                            errors.append(f"{target}: 存在非目录文件且无法删除：{exc}")
+                            errors.append(f"{target}: 存在非目录文件且无法删除（{plain_exception(exc)}）")
                             continue
                     else:
                         errors.append(f"{target}: 该路径已存在且不是目录，无法继续（可勾选\"删除旧目录\"自动清理）")
@@ -707,7 +708,7 @@ class StrategyExecutor:
                 except PermissionError as exc:
                     errors.append(_permission_failure_message(target, exc))
                 except (OSError, shutil.Error) as exc:
-                    errors.append(f"{target}: {exc}")
+                    errors.append(f"{target}: {plain_exception(exc)}")
 
             rmtree(temp_dir, ignore_errors=True)
             if success_count > 0:
@@ -719,7 +720,7 @@ class StrategyExecutor:
         except PermissionError as exc:
             return False, f"{name} 复制失败：{_permission_failure_message(name, exc)}"
         except (OSError, shutil.Error) as exc:
-            return False, f"{name} 复制失败：{exc}"
+            return False, f"{name} 复制失败：{plain_exception(exc)}"
         finally:
             rmtree(temp_dir, ignore_errors=True)
 
@@ -762,7 +763,7 @@ class StrategyExecutor:
             except PermissionError:
                 errors.append(f"{target}: 权限不足，请以管理员身份运行 {DISPLAY_NAME}")
             except (OSError, shutil.Error) as exc:
-                errors.append(f"{target}: {exc}")
+                errors.append(f"{target}: {plain_exception(exc)}")
         if success_count > 0:
             msg = f"{name} 已复制到 {success_count}/{len(targets)} 个位置"
             if errors:
@@ -994,12 +995,13 @@ class StrategyExecutor:
             if message:
                 write_update_log(config, f"自定义脚本输出：{message.strip()[-2000:]}")
             if message:
-                return False, f"{name} 自定义更新失败（{details}）：{message[-1000:]}"
+                write_update_log(config, f"{name} 自定义更新输出：{message[-1000:]}")
+                return False, f"{name} 自定义更新失败（{details}），详情见更新日志。"
             return False, f"{name} 自定义更新失败（{details}）"
         except subprocess.TimeoutExpired:
             return False, f"{name} 自定义更新超时"
         except (OSError, subprocess.SubprocessError) as exc:
-            return False, f"{name} 自定义更新异常：{exc}"
+            return False, f"{name} 自定义更新异常：{plain_exception(exc)}"
 
     @staticmethod
     def _expand_update_text(text, config, download_path, target_dir, name):

@@ -506,7 +506,8 @@ class RouterFilesPage(QWidget):
             if purpose in {'local','remote'}:self._footers[purpose=='remote'].setText('正在读取目录…')
             return key
         except Exception as exc:
-            MessageDialog('无法执行',str(exc),self).exec()
+            from modules.user_errors import user_error
+            MessageDialog('无法执行',user_error(exc),self).exec()
 
     def _refresh(self,remote):
         self._navigate(remote,(self.remote_path if remote else self.local_path).text())

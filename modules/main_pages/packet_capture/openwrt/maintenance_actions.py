@@ -4,6 +4,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QFileDialog
 from .maintenance_review_dialog import MaintenanceReviewDialog
 from modules.common_widgets.common_dialogs import ConfirmDialog, MessageDialog
+from modules.user_errors import user_error
 from .settings_impacts import DISCONNECT_WARNING
 
 
@@ -84,7 +85,7 @@ class MaintenanceActions:
         except Exception as exc:
             from modules.capture_services.management_diagnostics import record_management_error
             record_management_error(page.manager.manager.runner,"maintenance_validation",operation,exc)
-            page._message(str(exc), "error")
+            page._message(user_error(exc), "error")
         page._sync()
 
     def completed(self, key, result):
@@ -138,7 +139,7 @@ class MaintenanceActions:
         except Exception as exc:
             from modules.capture_services.management_diagnostics import record_management_error
             record_management_error(page.manager.manager.runner,"maintenance_validation",result.get("operation","read"),exc)
-            page._message(str(exc), "error")
+            page._message(user_error(exc), "error")
         finally:
             page._sync()
         return True

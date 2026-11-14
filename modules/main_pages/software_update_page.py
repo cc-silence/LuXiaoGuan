@@ -20,6 +20,7 @@ from .update_confirmations import confirm_windows_restart
 from modules.update_services import UpdatePackageScanner
 from modules.update_services.update_settings_manager import UpdateSettingsManager
 from modules.update_services.update_workspace import ensure_update_workspace
+from modules.user_errors import plain_exception
 from .info_panel import InfoPanel
 from .main_page_workspace import create_main_page_workspace
 from .update_icon_helper import themed_update_software_icon
@@ -506,7 +507,7 @@ class SoftwareUpdatePage(QFrame):
             open_folder_in_explorer(log_path.parent)
             self._append_info(f"已打开更新日志目录：{log_path.parent}")
         except OSError as exc:
-            self._append_info(f"打开更新日志目录失败：{exc}", level="error")
+            self._append_info(f"打开更新日志目录失败：{plain_exception(exc)}", level="error")
 
     def cancel_update(self, row_data):
         """请求停止当前 Windows 补丁更新。
@@ -525,7 +526,7 @@ class SoftwareUpdatePage(QFrame):
         try:
             self._update_cancel_path.touch()
         except OSError as exc:
-            self._append_info(f"无法创建停止请求：{exc}", level="error")
+            self._append_info(f"无法创建停止请求：{plain_exception(exc)}", level="error")
             return
         self._append_info(
             f"{row_data.get('name')}：已请求停止，正在等待 DISM 安全退出并恢复服务。",

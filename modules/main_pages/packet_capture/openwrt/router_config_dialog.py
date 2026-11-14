@@ -1,12 +1,12 @@
 """Common settings popups reuse the shared form and dialog components."""
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QFrame, QHBoxLayout
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QFrame, QSizePolicy
 from modules.common_widgets.frameless_dialog import FramelessDialog
 from modules.common_widgets.common_dialogs import apply_common_dialog_theme
 from modules.common_widgets.bounce_scroll_area import BounceScrollArea
 from modules.common_widgets.config_fields import ConfigValueList
 from modules.settings_pages.settings_widgets import create_dialog_ok_cancel_buttons, create_settings_button
 from modules.ui_scale_manager import UiScaleManager
-from modules.main_pages.page_action_buttons import create_page_text_button
+from .random_name_input import RandomNameInput
 from modules.capture_services.openwrt.common_settings import validate_values
 from modules.capture_services.openwrt.uci_booleans import netifd_bool
 from modules.platform_services.static_network import StaticMigrationError
@@ -50,18 +50,19 @@ class RouterConfigDialog(FramelessDialog):
         cancel.clicked.connect(self.reject)
 
     def _system(self,body,layout):
-        from modules.capture_services.openwrt.relocation_identity import generate_relocation_hostname
         from modules.capture_services.openwrt.router_timezones import FALLBACK_TIMEZONES
         old=self.review["values"]
         layout.addWidget(hint("\u4fee\u6539\u8def\u7531\u5668\u81ea\u5df1\u7684\u540d\u79f0\u548c\u5f53\u5730\u65f6\u95f4\u3002\u4e3b\u673a\u540d\u4e0d\u4f1a\u6539\u53d8 Wi-Fi \u540d\u79f0\u6216\u767b\u5f55\u5730\u5740\u3002",body))
-        host=text_input(body,old.get("hostname",""))
+        row=RandomNameInput(body,old.get("hostname",""))
+        host=row.edit
         self.controls["hostname"]=host
-        row=QWidget(body)
-        buttons=QHBoxLayout(row)
-        UiScaleManager.for_widget(self).bind_layout(buttons,margins=(0,0,0,0),spacing=8)
-        self.hostname_random_button=create_page_text_button(row,"\u968f\u673a","\u751f\u6210\u4e00\u4e2a\u65b0\u7684\u8def\u7531\u5668\u54c1\u724c\u6216\u624b\u673a\u578b\u53f7\u540d\u79f0\u3002")
-        self.hostname_random_button.clicked.connect(lambda:host.setText(generate_relocation_hostname(host.text().strip())))
-        buttons.addWidget(host,1);buttons.addWidget(self.hostname_random_button)
+        self.hostname_random_button=row.random_button
+        scale=UiScaleManager.for_widget(self)
+        scale.bind_metrics(row, fixed_height=34)
+        scale.bind_metrics(self.hostname_random_button, fixed_width=56)
+        for control in (host,self.hostname_random_button):
+            control.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
+        self.hostname_random_button.setToolTip("\u751f\u6210\u4e00\u4e2a\u65b0\u7684\u8def\u7531\u5668\u54c1\u724c\u6216\u624b\u673a\u578b\u53f7\u540d\u79f0\u3002")
         add_field(layout,body,"\u4e3b\u673a\u540d",row,"\u4f8b\u5982 CMCC_G2T7\uff0c\u4e5f\u53ef\u4ee5\u70b9\u51fb\u968f\u673a\u751f\u6210\u3002")
         current=(old.get("zonename",""),old.get("timezone","UTC0"))
         raw=self.review.get("timezones")
