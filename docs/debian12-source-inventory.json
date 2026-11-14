@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "product": "RouterManager",
-  "upstream_commit": "752462b8994b7f64458a60d3edc9552c0ff8b97f",
-  "checked_date": "2026-11-06",
+  "upstream_commit": "37ca8e7c9cb43b3fbfd6420ace9ab78e83cb881d",
+  "checked_date": "2026-11-13",
   "files": {
     ".github/CODEOWNERS": {
       "upstream_sha256": "0849e1d6a24277dbb7c8befc64b5500ef06e803422c5dffae4fb0ef5ae17783e",
@@ -45,8 +45,8 @@
       "linux_sha256": "6178ea7080ea0c282d09c8701799d06e0c934ec69316ab8aea1b7e7e971fcdb3"
     },
     "AGENTS.md": {
-      "upstream_sha256": "cb921232eab657850dde8f7b8093fea5f93d10130df935c7056a626c186b929a",
-      "linux_sha256": "cb921232eab657850dde8f7b8093fea5f93d10130df935c7056a626c186b929a"
+      "upstream_sha256": "5109cb45e84ab7c9725a00b75f173858e6d32e74066fc2fb98b5898ec1c73a57",
+      "linux_sha256": "5109cb45e84ab7c9725a00b75f173858e6d32e74066fc2fb98b5898ec1c73a57"
     },
     "RouterManager-linux.spec": {
       "upstream_sha256": "0314454a4df7809721428a5e3ba90734c85f25a78e84f4064056a3d111f7e87a",
@@ -133,12 +133,12 @@
       "linux_sha256": "15822ce1c50f9b2110fc8cddcf032b8ff20c48fccda53e59592311ac76a784fd"
     },
     "bin/update_launcher/RouterManagerUpdater.exe": {
-      "upstream_sha256": "fb2b692a388785b0653b19ef66f259e4547c93bba7bf128905a46c40e70d54ee",
-      "linux_sha256": "fb2b692a388785b0653b19ef66f259e4547c93bba7bf128905a46c40e70d54ee"
+      "upstream_sha256": "26b389e6b655d4ad43edbdd1b424f60dfab5207252d6c1a5b94b964ad44db95e",
+      "linux_sha256": "26b389e6b655d4ad43edbdd1b424f60dfab5207252d6c1a5b94b964ad44db95e"
     },
     "bin/update_launcher/RouterManagerUpdater.json": {
-      "upstream_sha256": "d5b0252afd9c063b2ed0b1d99e117fdeacf7dc33270358f5c132e7712bb25592",
-      "linux_sha256": "d5b0252afd9c063b2ed0b1d99e117fdeacf7dc33270358f5c132e7712bb25592"
+      "upstream_sha256": "5c7a26ea85cb7e33ba0c51770c98070df807e940e68511ad5bf7d5306cd7e84d",
+      "linux_sha256": "5c7a26ea85cb7e33ba0c51770c98070df807e940e68511ad5bf7d5306cd7e84d"
     },
     "config/app_update.json": {
       "upstream_sha256": null,
@@ -147,6 +147,10 @@
     "docs/alternate-pmkid-tool-removal-20261102.md": {
       "upstream_sha256": "7dcfa65c720ed2952b764651703d50f0d136eb8f9ab17a2298bb36669b004f15",
       "linux_sha256": "7dcfa65c720ed2952b764651703d50f0d136eb8f9ab17a2298bb36669b004f15"
+    },
+    "docs/auto-capture-channel-policy-review.json": {
+      "upstream_sha256": "474ebc99590a8f676c7509a693a83bf5f76995ca640d2529aa6fafdbbc5700ab",
+      "linux_sha256": "474ebc99590a8f676c7509a693a83bf5f76995ca640d2529aa6fafdbbc5700ab"
     },
     "docs/auto-capture-display-privacy-review-20261106.json": {
       "upstream_sha256": "a5afa9eb147b0a2ff0539c34d25e6e51bec017167189eb744d27c269e9501290",
@@ -184,6 +188,10 @@
       "upstream_sha256": "f01199ffa1be3fb5f206c65fb7e3ab0da051963dc732c14278ebb9a161c77cb5",
       "linux_sha256": "f01199ffa1be3fb5f206c65fb7e3ab0da051963dc732c14278ebb9a161c77cb5"
     },
+    "docs/capture-live-evidence-20261109.json": {
+      "upstream_sha256": "15622df697d28059f0303ab56184f8429824d9d8f233afa6b5dfc9a415b566da",
+      "linux_sha256": "15622df697d28059f0303ab56184f8429824d9d8f233afa6b5dfc9a415b566da"
+    },
     "docs/capture-settings-dialog-verification-20261101.md": {
       "upstream_sha256": "2bd342acc27e991e2f855f3e7c1650e3466cb46189fa5ffb50fad94e732e451d",
       "linux_sha256": "2bd342acc27e991e2f855f3e7c1650e3466cb46189fa5ffb50fad94e732e451d"
@@ -207,6 +215,10 @@
     "docs/cold-idle-capture-three-pass-review-20261106.json": {
       "upstream_sha256": "d7209fc2d12726f175c06e0710c2270cab15d613d5ef8af7947f387dcedf226a",
       "linux_sha256": "d7209fc2d12726f175c06e0710c2270cab15d613d5ef8af7947f387dcedf226a"
+    },
+    "docs/common-settings-25-three-pass-review-20261109.json": {
+      "upstream_sha256": "c32980c0801b4a9775ec3471cc62e74c1bab55232160839d0dd6ada258b9de32",
+      "linux_sha256": "c32980c0801b4a9775ec3471cc62e74c1bab55232160839d0dd6ada258b9de32"
     },
     "docs/common-settings-compatibility-audit-20261025.md": {
       "upstream_sha256": "86bc450bc480d6df810f95fe4230c8fbb5872fc3d43287e31b659f04ccfb307f",
@@ -263,6 +275,10 @@
     "docs/curl-offline-release-20261102.md": {
       "upstream_sha256": "e34bf60610a6d7fe31de4f70435ad7245c1292f6edbb0220d8328006b5e5f69e",
       "linux_sha256": "e34bf60610a6d7fe31de4f70435ad7245c1292f6edbb0220d8328006b5e5f69e"
+    },
+    "docs/customer-firewall-login-admission-fix-20261107.json": {
+      "upstream_sha256": "ea9745d76f4c7f6157c36df4df5d15eb67f0b7e0ef33c01a5e4223ad11090560",
+      "linux_sha256": "ea9745d76f4c7f6157c36df4df5d15eb67f0b7e0ef33c01a5e4223ad11090560"
     },
     "docs/debian12-progress.md": {
       "upstream_sha256": "720abf894377105f228f14cabbad537954a4f177128d086f9ce9f6ded16c3420",
@@ -328,6 +344,22 @@
       "upstream_sha256": "ecf3b61197be20a331147a72552694b776b00dd147190a18eba86e28b7efae80",
       "linux_sha256": "ecf3b61197be20a331147a72552694b776b00dd147190a18eba86e28b7efae80"
     },
+    "docs/dependency-backup-additional-three-pass-review-20261109.json": {
+      "upstream_sha256": "e65427fbf9541bf855eb813f1f56e44396ee4f37ac942b39518fe85dbe2d3c8c",
+      "linux_sha256": "e65427fbf9541bf855eb813f1f56e44396ee4f37ac942b39518fe85dbe2d3c8c"
+    },
+    "docs/dependency-backup-consumed-defaults-fix-20261109.json": {
+      "upstream_sha256": "4986712823e51d56031f65f8acf4733ec30168d310b229ffb2925f2ca8ed3ccc",
+      "linux_sha256": "4986712823e51d56031f65f8acf4733ec30168d310b229ffb2925f2ca8ed3ccc"
+    },
+    "docs/dependency-backup-third-three-pass-review-20261109.json": {
+      "upstream_sha256": "fd5be9cc31275cf0dd1a246f26a961709fc260538855a227705963f0c233a62c",
+      "linux_sha256": "fd5be9cc31275cf0dd1a246f26a961709fc260538855a227705963f0c233a62c"
+    },
+    "docs/dependency-backup-three-pass-review-20261109.json": {
+      "upstream_sha256": "cab2eed8efe4cdcedff7d096d0a06182ba66ae5aef3608c0ae4b60320cd148df",
+      "linux_sha256": "cab2eed8efe4cdcedff7d096d0a06182ba66ae5aef3608c0ae4b60320cd148df"
+    },
     "docs/dependency-compatibility-audit-20261025.md": {
       "upstream_sha256": "725730886f8f49b03c680165e8542befa269f2dbff9b5d1eac36e461139ba1d8",
       "linux_sha256": "725730886f8f49b03c680165e8542befa269f2dbff9b5d1eac36e461139ba1d8"
@@ -363,6 +395,14 @@
     "docs/download-request-classification-review-20261105.json": {
       "upstream_sha256": "6600607cc0859342776fab38681865ff3d702f9d4c560299727a95627771d91a",
       "linux_sha256": "6600607cc0859342776fab38681865ff3d702f9d4c560299727a95627771d91a"
+    },
+    "docs/factory-reset-recovery-additional-two-pass-20261108.json": {
+      "upstream_sha256": "e702012cbc38edece24708949818069b1f1e07160c80bcbecfc21a4d1644ac15",
+      "linux_sha256": "e702012cbc38edece24708949818069b1f1e07160c80bcbecfc21a4d1644ac15"
+    },
+    "docs/factory-reset-recovery-two-pass-review-20261108.json": {
+      "upstream_sha256": "0a6eae1ebcacee09cd3ecddbce4f4b19704023f31e46a1f85b5bcdb6292d1f19",
+      "linux_sha256": "0a6eae1ebcacee09cd3ecddbce4f4b19704023f31e46a1f85b5bcdb6292d1f19"
     },
     "docs/factory-reset-recovery.md": {
       "upstream_sha256": "53aaea504ad561b613028ac886880aeb36cad96f4581fe062f89fae834e5f3f9",
@@ -424,6 +464,14 @@
       "upstream_sha256": "e6b571e2662416800d2328401d2dacf1972d7e795aeb1a4cb1d3ebb9ba0e7a9a",
       "linux_sha256": "e6b571e2662416800d2328401d2dacf1972d7e795aeb1a4cb1d3ebb9ba0e7a9a"
     },
+    "docs/initial-security-feedback-export-completeness-20261109.json": {
+      "upstream_sha256": "949c5e12e4bce21c70e593a76ef43f05533a5f679c2509941b0d9e9bbd362a5a",
+      "linux_sha256": "949c5e12e4bce21c70e593a76ef43f05533a5f679c2509941b0d9e9bbd362a5a"
+    },
+    "docs/initial-security-wireless-customer-log-review-20261109.json": {
+      "upstream_sha256": "51feabd086bb693228b9901d90dff57b665aa945cd1ded49e1ecebc8fae96cb2",
+      "linux_sha256": "51feabd086bb693228b9901d90dff57b665aa945cd1ded49e1ecebc8fae96cb2"
+    },
     "docs/initial-wifi-reconnect-20261102.md": {
       "upstream_sha256": "c38dc1e3f7aedbe005156969872ca551227230309d3983c6291297811a6f5c39",
       "linux_sha256": "c38dc1e3f7aedbe005156969872ca551227230309d3983c6291297811a6f5c39"
@@ -432,9 +480,53 @@
       "upstream_sha256": "7e04953e930a958607ab5d1190a356aebebb8070cfc6158ea0a8cc343b997864",
       "linux_sha256": "7e04953e930a958607ab5d1190a356aebebb8070cfc6158ea0a8cc343b997864"
     },
+    "docs/installed-dependency-backup-additional-two-pass-review-20261108.json": {
+      "upstream_sha256": "1aaad4b840f31480122a470c27eea9ede1d8e1723df2b15b89312e2874bdd420",
+      "linux_sha256": "1aaad4b840f31480122a470c27eea9ede1d8e1723df2b15b89312e2874bdd420"
+    },
+    "docs/installed-dependency-backup-archive-exit-two-pass-review-20261108.json": {
+      "upstream_sha256": "527b40426527f080d28f4bf7354bac822a3d49b0cd402b6327a5364503a6649e",
+      "linux_sha256": "527b40426527f080d28f4bf7354bac822a3d49b0cd402b6327a5364503a6649e"
+    },
+    "docs/installed-dependency-backup-busybox-transport-two-pass-review-20261108.json": {
+      "upstream_sha256": "e72b34c8f465b4a5fd8ca494e93d26e448bd46976345c0c971748548b6d5bfcd",
+      "linux_sha256": "e72b34c8f465b4a5fd8ca494e93d26e448bd46976345c0c971748548b6d5bfcd"
+    },
+    "docs/installed-dependency-backup-review-20261108.json": {
+      "upstream_sha256": "409b34164223db4b8f144dbb58d93a6e6200a9e750e386e121f0dea6be9be579",
+      "linux_sha256": "409b34164223db4b8f144dbb58d93a6e6200a9e750e386e121f0dea6be9be579"
+    },
+    "docs/installed-dependency-backup-two-pass-review-20261108.json": {
+      "upstream_sha256": "47ef3c038382d1db3c2cf86f64a695f583df85436d81429f07d14a509eda06f8",
+      "linux_sha256": "47ef3c038382d1db3c2cf86f64a695f583df85436d81429f07d14a509eda06f8"
+    },
+    "docs/installed-dependency-backup-windows-transport-two-pass-review-20261108.json": {
+      "upstream_sha256": "31146d2502ea05fb173b88fbd25aed4409903a862f07724423e84afc66873b75",
+      "linux_sha256": "31146d2502ea05fb173b88fbd25aed4409903a862f07724423e84afc66873b75"
+    },
+    "docs/ipsec-empty-dump-login-fix-20261107.json": {
+      "upstream_sha256": "4385b27d4df62bf76d58d7d9a2acc567040c91eaaa267eb5e1e6191c879ae8bb",
+      "linux_sha256": "4385b27d4df62bf76d58d7d9a2acc567040c91eaaa267eb5e1e6191c879ae8bb"
+    },
+    "docs/ipsec-login-export-validation-20261107.json": {
+      "upstream_sha256": "f9a73cd6de8d2493a793da2a3add86df001cf3b23e2dd8688a83d5bef366c6fd",
+      "linux_sha256": "f9a73cd6de8d2493a793da2a3add86df001cf3b23e2dd8688a83d5bef366c6fd"
+    },
+    "docs/ipsec-login-verification-diagnostics-review-20261106.json": {
+      "upstream_sha256": "6c078f92eef2874c82c65e2ffb84e42219920b6a8893d8cb2158a8b19f0d9d80",
+      "linux_sha256": "6c078f92eef2874c82c65e2ffb84e42219920b6a8893d8cb2158a8b19f0d9d80"
+    },
+    "docs/ipsec-three-pass-review-20261106.json": {
+      "upstream_sha256": "4e50e25f24664899edad53471c70ce0f9e4342ec4e75655498b349b5dbc2f99f",
+      "linux_sha256": "4e50e25f24664899edad53471c70ce0f9e4342ec4e75655498b349b5dbc2f99f"
+    },
     "docs/lan-client-recovery-audit-20261026.md": {
       "upstream_sha256": "b42294a11d5c305c45f4074c3257a5442305d8246c2f82ab9b4942b3a275d72e",
       "linux_sha256": "b42294a11d5c305c45f4074c3257a5442305d8246c2f82ab9b4942b3a275d72e"
+    },
+    "docs/lan-ipv4-form-display-review-20261109.json": {
+      "upstream_sha256": "d2de6fa454ba01008cc4a2b7192fc41cd7065fd4e2956d848fc7e40a5dd874d9",
+      "linux_sha256": "d2de6fa454ba01008cc4a2b7192fc41cd7065fd4e2956d848fc7e40a5dd874d9"
     },
     "docs/lan-wifi-recovery-20261103.json": {
       "upstream_sha256": "6bb812df1749cc6b45ee323ccd1d568b2b79818ca3627a745ced3b37cf72424a",
@@ -460,6 +552,10 @@
       "upstream_sha256": "5f857f5117b92956a6fec0120c79331f75c42f476d93f28405b35607bc2a54a9",
       "linux_sha256": "5f857f5117b92956a6fec0120c79331f75c42f476d93f28405b35607bc2a54a9"
     },
+    "docs/librt-offline-size-audit-20261110.json": {
+      "upstream_sha256": "d59d0018fa1e8cbbd6b6443e3a5c3138d0450317a63b0f3720078a778ed0b24f",
+      "linux_sha256": "d59d0018fa1e8cbbd6b6443e3a5c3138d0450317a63b0f3720078a778ed0b24f"
+    },
     "docs/live-capture-details-review-20261106.json": {
       "upstream_sha256": "ebe038deb12f7d2cf330964695910db69cde20614b182916f1f71e42ebde7865",
       "linux_sha256": "ebe038deb12f7d2cf330964695910db69cde20614b182916f1f71e42ebde7865"
@@ -480,6 +576,10 @@
       "upstream_sha256": "e8bf6d0cabfc755e70be7970e3752b9e07c5615b1b36fc8404e21091111f4529",
       "linux_sha256": "e8bf6d0cabfc755e70be7970e3752b9e07c5615b1b36fc8404e21091111f4529"
     },
+    "docs/login-recovery-admission-fix-20261108.json": {
+      "upstream_sha256": "d9c1c7c1fe93bdc732112f5a3255afc0d19b021898eddefdc89fb8b41dd21cd8",
+      "linux_sha256": "d9c1c7c1fe93bdc732112f5a3255afc0d19b021898eddefdc89fb8b41dd21cd8"
+    },
     "docs/mac-input-feedback-20261102.md": {
       "upstream_sha256": "c117a27d35d43942811b7df112c4ba4b61cf17d6c9bd013117e587254c4a0d5d",
       "linux_sha256": "c117a27d35d43942811b7df112c4ba4b61cf17d6c9bd013117e587254c4a0d5d"
@@ -499,6 +599,10 @@
     "docs/management-dependency-sources-20261104.json": {
       "upstream_sha256": "c455a13abd3f6d1c7e94774822ee444ed107e1be9872f38d738fac4b2279efea",
       "linux_sha256": "c455a13abd3f6d1c7e94774822ee444ed107e1be9872f38d738fac4b2279efea"
+    },
+    "docs/management-link-diagnostics-20261110.json": {
+      "upstream_sha256": "2d8edda296f3d99a818ce1df6302dd1266187c780e00f76a5a681c97b9261933",
+      "linux_sha256": "2d8edda296f3d99a818ce1df6302dd1266187c780e00f76a5a681c97b9261933"
     },
     "docs/mirror-preference-20261103.md": {
       "upstream_sha256": "825591c8bb72e672f8422bbddc2379d4232933cb93c6f6cc88a26ca3b4c90542",
@@ -569,12 +673,28 @@
       "linux_sha256": "ec26b017dd7c78559ef8dfc3e3deeb06912a02ab4d10aff1f269eac06190f714"
     },
     "docs/offline-packages/support.json": {
-      "upstream_sha256": "46e272c40c1d5277a8a8972edaf9cb2f68e3e5fc48d22fdeaeaa1d795569d8f1",
-      "linux_sha256": "46e272c40c1d5277a8a8972edaf9cb2f68e3e5fc48d22fdeaeaa1d795569d8f1"
+      "upstream_sha256": "c5a9d2dd62ebc4d9685339f2880945a1140f8d43d50acef40a49ca439bbe5405",
+      "linux_sha256": "c5a9d2dd62ebc4d9685339f2880945a1140f8d43d50acef40a49ca439bbe5405"
     },
     "docs/offline-packages/support.txt": {
-      "upstream_sha256": "248bdce8f9d2c817e17c11fe04345702767b17baced2783aae3bd0fa3ec208cb",
-      "linux_sha256": "248bdce8f9d2c817e17c11fe04345702767b17baced2783aae3bd0fa3ec208cb"
+      "upstream_sha256": "6bc725dbe27ec1b983b82c65580cfbcf925b1e972f9873aabaa8ba254d5e68a2",
+      "linux_sha256": "6bc725dbe27ec1b983b82c65580cfbcf925b1e972f9873aabaa8ba254d5e68a2"
+    },
+    "docs/offline-runtime-cache-cleanup-20261110.json": {
+      "upstream_sha256": "7c54eabc1b0e8a16c9732dc01c98d9895ae452d7c544db5530ed1c0e333e4b57",
+      "linux_sha256": "7c54eabc1b0e8a16c9732dc01c98d9895ae452d7c544db5530ed1c0e333e4b57"
+    },
+    "docs/offline-runtime-cloudflare-preservation-20261110.json": {
+      "upstream_sha256": "6e5504100f216018a0c224f9531ab03c65f2b8cae13b05b932b7401460a9626d",
+      "linux_sha256": "6e5504100f216018a0c224f9531ab03c65f2b8cae13b05b932b7401460a9626d"
+    },
+    "docs/offline-runtime-previous-client-20261110.json": {
+      "upstream_sha256": "6965b2685a2710a2e13d9eb1aa4633d56f043c8d6ebbab89fb5d9174ecd65968",
+      "linux_sha256": "6965b2685a2710a2e13d9eb1aa4633d56f043c8d6ebbab89fb5d9174ecd65968"
+    },
+    "docs/offline-runtime-publication-20261110.json": {
+      "upstream_sha256": "dd00d9bad0aa0e068b5e0d423a5e36abec5796d1d87a1cc1dfe1eb15002efab5",
+      "linux_sha256": "dd00d9bad0aa0e068b5e0d423a5e36abec5796d1d87a1cc1dfe1eb15002efab5"
     },
     "docs/online-verification-radio-scope-20261105.json": {
       "upstream_sha256": "6f00b8a9cb047518beb8ae93f6c7c4f7a1cd36ae829a639ada1d9bac2b8cc0ea",
@@ -583,6 +703,22 @@
     "docs/openwrt-compatibility.md": {
       "upstream_sha256": "a87a93b991b46dc86d378863360fd7eca5cf23caae8fdf28aa20b635875493b7",
       "linux_sha256": "a87a93b991b46dc86d378863360fd7eca5cf23caae8fdf28aa20b635875493b7"
+    },
+    "docs/other-dependency-install-additional-review-20261107.json": {
+      "upstream_sha256": "e4a5389a1cf4266ab38882b04cc815bb42f06ffbd7b9a921033cb060178de60c",
+      "linux_sha256": "e4a5389a1cf4266ab38882b04cc815bb42f06ffbd7b9a921033cb060178de60c"
+    },
+    "docs/other-dependency-install-fix-20261107.json": {
+      "upstream_sha256": "f6384c5a10d4aeb2c47fc3cc34ce076a1b2d179a844ef4eb1ad07dac7d7775ad",
+      "linux_sha256": "f6384c5a10d4aeb2c47fc3cc34ce076a1b2d179a844ef4eb1ad07dac7d7775ad"
+    },
+    "docs/other-dependency-install-review-20261107.json": {
+      "upstream_sha256": "3bae94335ab394405d84f85f5e3bdb23d51536223270ed3a940ed1c786ca66eb",
+      "linux_sha256": "3bae94335ab394405d84f85f5e3bdb23d51536223270ed3a940ed1c786ca66eb"
+    },
+    "docs/other-dependency-install-two-round-review-20261107.json": {
+      "upstream_sha256": "10684ad85daba0b86cab8f7d82222bd273c18f505c27961aff844b36321503f6",
+      "linux_sha256": "10684ad85daba0b86cab8f7d82222bd273c18f505c27961aff844b36321503f6"
     },
     "docs/other-online-dependencies-review-20261106.json": {
       "upstream_sha256": "3f9d2fe9e92ee80e9aadc579a35da790d79f2178045681e5185e7a08d5c7ddf3",
@@ -752,6 +888,18 @@
       "upstream_sha256": "0966008cacd52d059f2b880cc8871711c4f4a66dd869c56e424f89b1c07105a1",
       "linux_sha256": "0966008cacd52d059f2b880cc8871711c4f4a66dd869c56e424f89b1c07105a1"
     },
+    "docs/router-health-diagnostics-20261109.json": {
+      "upstream_sha256": "fe001580b7348fdf93fbabd61cd9384bd1e88b99f3a3a23a3e91bf1f3727e241",
+      "linux_sha256": "fe001580b7348fdf93fbabd61cd9384bd1e88b99f3a3a23a3e91bf1f3727e241"
+    },
+    "docs/rpcd-randomized-save-directory-review-20261109.json": {
+      "upstream_sha256": "10016b52db369fb5fcd1219a330adf0951374a6c617d5962ce04743293e267c9",
+      "linux_sha256": "10016b52db369fb5fcd1219a330adf0951374a6c617d5962ce04743293e267c9"
+    },
+    "docs/rpcd-save-directory-second-source-review-20261109.json": {
+      "upstream_sha256": "777e1cd24d02ee962a36ddc2ba225a4261dcb8f8f320a9480adc6d38548c21fb",
+      "linux_sha256": "777e1cd24d02ee962a36ddc2ba225a4261dcb8f8f320a9480adc6d38548c21fb"
+    },
     "docs/safe-tool-uninstall-20261025.md": {
       "upstream_sha256": "f0ae956f4aafd1661e91c4e4e411b8ddfa371fed707e6640c6d3a9ae88d7a6f3",
       "linux_sha256": "f0ae956f4aafd1661e91c4e4e411b8ddfa371fed707e6640c6d3a9ae88d7a6f3"
@@ -776,6 +924,22 @@
       "upstream_sha256": "4ba3caac68eed6d5eed7454f1b9f42ab670419db74b41056394b5251c3241c18",
       "linux_sha256": "4ba3caac68eed6d5eed7454f1b9f42ab670419db74b41056394b5251c3241c18"
     },
+    "docs/shared-offline-bundle-additional-two-pass-review-20261109.json": {
+      "upstream_sha256": "89a5f3135ad7f003df76b95ed5bc2bd0faf357b91a87943aca6b4458b5af8d6d",
+      "linux_sha256": "89a5f3135ad7f003df76b95ed5bc2bd0faf357b91a87943aca6b4458b5af8d6d"
+    },
+    "docs/shared-offline-bundle-final-two-pass-review-20261109.json": {
+      "upstream_sha256": "f557f702fb5d5d83e3499a412f69e4d1511ad10ba8ec61f95eec9a218030d9cc",
+      "linux_sha256": "f557f702fb5d5d83e3499a412f69e4d1511ad10ba8ec61f95eec9a218030d9cc"
+    },
+    "docs/shared-offline-bundle-reuse-20261109.json": {
+      "upstream_sha256": "9305e5407a357a77054e86dfd9387dd46a23c125c88750bc67ac46e463cd01fc",
+      "linux_sha256": "9305e5407a357a77054e86dfd9387dd46a23c125c88750bc67ac46e463cd01fc"
+    },
+    "docs/shared-offline-bundle-two-pass-review-20261109.json": {
+      "upstream_sha256": "390e282544c6c1c66a3c8d95fa403788756dd0c0ee945e270472ad10d01e0eec",
+      "linux_sha256": "390e282544c6c1c66a3c8d95fa403788756dd0c0ee945e270472ad10d01e0eec"
+    },
     "docs/signal-background-read-handoff-20261029.md": {
       "upstream_sha256": "c58ab8645593158a87c1f05e1154296e122c309f01783bfa870809db64029a8c",
       "linux_sha256": "c58ab8645593158a87c1f05e1154296e122c309f01783bfa870809db64029a8c"
@@ -791,6 +955,14 @@
     "docs/signal-toggle-recovery-20261102.json": {
       "upstream_sha256": "e1b349c06494533693e0137d62224162300d7be275f5f4eaac4f35d705339899",
       "linux_sha256": "e1b349c06494533693e0137d62224162300d7be275f5f4eaac4f35d705339899"
+    },
+    "docs/station-connection-authentication-review-20261109.json": {
+      "upstream_sha256": "e77e5720c7b9ca6b25ac2626845116439861652d1ca1a0f8a924daa630422906",
+      "linux_sha256": "e77e5720c7b9ca6b25ac2626845116439861652d1ca1a0f8a924daa630422906"
+    },
+    "docs/station-connection-driver-bssid-fix-20261109.json": {
+      "upstream_sha256": "0febe442a02f6173d46cea239d06da2bc3abcafe45886160d7492631a4db4a85",
+      "linux_sha256": "0febe442a02f6173d46cea239d06da2bc3abcafe45886160d7492631a4db4a85"
     },
     "docs/terminal-interaction-20261102.md": {
       "upstream_sha256": "cb476301d7df43f20dd736a1f697ea76ad60af1ab0ba64f6a8836d8d44200be5",
@@ -820,6 +992,18 @@
       "upstream_sha256": "fc8058e356402c2a68c0f4e3ff3e33933ca0ff0210c1e3fe84251388cdceb1a5",
       "linux_sha256": "fc8058e356402c2a68c0f4e3ff3e33933ca0ff0210c1e3fe84251388cdceb1a5"
     },
+    "docs/windows-login-evidence-collector-20261107.json": {
+      "upstream_sha256": "759b987242ebb026b8b3ab15651d79f36122b0c5f25826e6bc705aa0265fb3ee",
+      "linux_sha256": "759b987242ebb026b8b3ab15651d79f36122b0c5f25826e6bc705aa0265fb3ee"
+    },
+    "docs/windows-login-evidence-official-review-20261107.json": {
+      "upstream_sha256": "79b07e0da89957799812b4ec394fe89269324b1f2da7877e73e17a608cc0699f",
+      "linux_sha256": "79b07e0da89957799812b4ec394fe89269324b1f2da7877e73e17a608cc0699f"
+    },
+    "docs/windows-login-evidence-second-official-review-20261107.json": {
+      "upstream_sha256": "3f8a661b1ffe2cd2fcfc9633ff05ecf8dcb5cb8bf8bc87f997048ee3b1bfd935",
+      "linux_sha256": "3f8a661b1ffe2cd2fcfc9633ff05ecf8dcb5cb8bf8bc87f997048ee3b1bfd935"
+    },
     "docs/windows-window-compatibility.md": {
       "upstream_sha256": "48b271ca09372e4bc99b0e55edc18a7dcfcd2840e1de087f15c4ad69aeba89a6",
       "linux_sha256": "48b271ca09372e4bc99b0e55edc18a7dcfcd2840e1de087f15c4ad69aeba89a6"
@@ -827,6 +1011,10 @@
     "docs/wireless-failure-evidence-20261103.json": {
       "upstream_sha256": "4f6815221586f14feea02eea86277afa1d8ae5ce85bac4fd0d24724ec196f85d",
       "linux_sha256": "4f6815221586f14feea02eea86277afa1d8ae5ce85bac4fd0d24724ec196f85d"
+    },
+    "docs/wireless-setup-presets-20261112.json": {
+      "upstream_sha256": "e1b02b8eda71094f7099c782bdd52606eeb9b6a6ea4791a6c389d6a10cf9a381",
+      "linux_sha256": "e1b02b8eda71094f7099c782bdd52606eeb9b6a6ea4791a6c389d6a10cf9a381"
     },
     "docs/wireless-setup-review.md": {
       "upstream_sha256": "709da1291d1a0d34323d6450bfd71f36767f5118acac6b9755d2d0093188d892",
@@ -923,6 +1111,10 @@
     "images/icons/app-router.png": {
       "upstream_sha256": "cec2bfcf14bc78d4a0d7639f7ed26278664f2527d29d8cf4c4222a94971e7a8e",
       "linux_sha256": "cec2bfcf14bc78d4a0d7639f7ed26278664f2527d29d8cf4c4222a94971e7a8e"
+    },
+    "images/icons/auto-capture.svg": {
+      "upstream_sha256": "7d303d2eafee81b2fcd5faaffa70a8fa66d2dd0337dd1b5bac266add84e06a9c",
+      "linux_sha256": "7d303d2eafee81b2fcd5faaffa70a8fa66d2dd0337dd1b5bac266add84e06a9c"
     },
     "images/icons/broom_5182.png": {
       "upstream_sha256": "958c13b54e546cd3e9714b8dae6ac4553f337d55254af67bb861f3fe6a5314ac",
@@ -2072,9 +2264,21 @@
       "upstream_sha256": "88dcfca200e7e8e771bd8d37b25101f0ebeaf332dcbac4d44d4c7c853a2319a5",
       "linux_sha256": "88dcfca200e7e8e771bd8d37b25101f0ebeaf332dcbac4d44d4c7c853a2319a5"
     },
+    "images/icons/nav-common-settings.svg": {
+      "upstream_sha256": "ab71bd070d3820cd938e1feef7fe7fa1d82f66cfde418d643968a529b4067c3f",
+      "linux_sha256": "ab71bd070d3820cd938e1feef7fe7fa1d82f66cfde418d643968a529b4067c3f"
+    },
+    "images/icons/packet-capture.svg": {
+      "upstream_sha256": "769faa234ed06209b6fdb8b35981fc83dc1295843db9324cdcc0afce1d039b34",
+      "linux_sha256": "769faa234ed06209b6fdb8b35981fc83dc1295843db9324cdcc0afce1d039b34"
+    },
     "images/icons/router-login.svg": {
       "upstream_sha256": "7f4908d4a11205a7fced0afa3cd71e7a4b4738a367ced6563db4cfa989f2efea",
       "linux_sha256": "7f4908d4a11205a7fced0afa3cd71e7a4b4738a367ced6563db4cfa989f2efea"
+    },
+    "images/icons/signal-management.svg": {
+      "upstream_sha256": "e568984e4ca7519b030995079e54212279f145db2d7505aaa3c0493df08cee96",
+      "linux_sha256": "e568984e4ca7519b030995079e54212279f145db2d7505aaa3c0493df08cee96"
     },
     "images/images/PyDracula.png": {
       "upstream_sha256": "1a798e23fda1347a2a68063110f2d8fb8d1b7e0905cd7a7f201a9b69c782533c",
@@ -3057,8 +3261,8 @@
       "linux_sha256": "a21dde20a79c8892790605c2807987cdeb647b33beb55a9602509909b5eae2aa"
     },
     "main.py": {
-      "upstream_sha256": "e34f81622b076ad1b4c9295f69bf038aa631da7cbc68f29e03809021a4da32f9",
-      "linux_sha256": "e34f81622b076ad1b4c9295f69bf038aa631da7cbc68f29e03809021a4da32f9"
+      "upstream_sha256": "7dcd2d1cb58d46986d21cf822b4c8e5c94f7cced3ff2d618cb3c0109669b46c3",
+      "linux_sha256": "7dcd2d1cb58d46986d21cf822b4c8e5c94f7cced3ff2d618cb3c0109669b46c3"
     },
     "modules/__init__.py": {
       "upstream_sha256": "83b4c17559a183808a36ca6f401cb97b0b14d1706c2f10887f17d611064c6c0e",
@@ -3085,8 +3289,12 @@
       "linux_sha256": "67fb45b3085d44bbff205d022320119eb847af0f8daec79eb1d7f22f856181dc"
     },
     "modules/app_update_services/checker.py": {
-      "upstream_sha256": "a1a868b8711b0ec40a7953af9aa358cba077c45135f115a55448f6fdc0db5a16",
-      "linux_sha256": "a1a868b8711b0ec40a7953af9aa358cba077c45135f115a55448f6fdc0db5a16"
+      "upstream_sha256": "3afc8d57f8440617ca4be4754016e1be5e9e992a6c0c05781a08dceb6ba57cce",
+      "linux_sha256": "3afc8d57f8440617ca4be4754016e1be5e9e992a6c0c05781a08dceb6ba57cce"
+    },
+    "modules/app_update_services/config.py": {
+      "upstream_sha256": "995e62c14a0d32658f393dfcca847499299c675a2b40e1733965fa51c2fcec62",
+      "linux_sha256": "995e62c14a0d32658f393dfcca847499299c675a2b40e1733965fa51c2fcec62"
     },
     "modules/app_update_services/diagnostics.py": {
       "upstream_sha256": "7d6a191bded834fa26daa8817b80242c4985da4540ff3d1e9aee2ab6e9251419",
@@ -3121,16 +3329,16 @@
       "linux_sha256": "fba76db00072c9b418aaefaba03edff408c028e1f715950b3438dd91249d154d"
     },
     "modules/app_update_services/linux_download.py": {
-      "upstream_sha256": "6a1ecaa7c0ac6f7987253a0a60966a433dc6957a8c222db189ed52f7ad5b381e",
-      "linux_sha256": "6a1ecaa7c0ac6f7987253a0a60966a433dc6957a8c222db189ed52f7ad5b381e"
+      "upstream_sha256": "6b586b3d54414d9fdd814e8f91eb6699639e1747a1441c4fa85805863570a4c2",
+      "linux_sha256": "6b586b3d54414d9fdd814e8f91eb6699639e1747a1441c4fa85805863570a4c2"
     },
     "modules/app_update_services/linux_full_package.py": {
       "upstream_sha256": "cd59c3d8560376916bf97d5e6b16a60599d866406668350f1d77773f631449d6",
       "linux_sha256": "cd59c3d8560376916bf97d5e6b16a60599d866406668350f1d77773f631449d6"
     },
     "modules/app_update_services/linux_full_package_transfer.py": {
-      "upstream_sha256": "2b2600ddc6145e93cd9c32d6a9cc7d98594479ff5d7a579e0dc8b0b5d87e2b8f",
-      "linux_sha256": "2b2600ddc6145e93cd9c32d6a9cc7d98594479ff5d7a579e0dc8b0b5d87e2b8f"
+      "upstream_sha256": "6c7925dc35c843f65938d5f9c5c98849357a7023383462ef6af3445610cbcba7",
+      "linux_sha256": "6c7925dc35c843f65938d5f9c5c98849357a7023383462ef6af3445610cbcba7"
     },
     "modules/app_update_services/linux_install_plan.py": {
       "upstream_sha256": "60e86cdcdfcf947cd147fa24087e256786769a479d191ded99c5180a60e866cb",
@@ -3189,12 +3397,12 @@
       "linux_sha256": "a7c2ab961e51f31ce7119a5e59a66913a7a44becbfb2cc9ab4c3809a91f430cb"
     },
     "modules/app_update_services/transaction.py": {
-      "upstream_sha256": "97a3306e58a07d8e8694a470307bf034c80ea424ed16efedc88f16b65987bb5d",
-      "linux_sha256": "97a3306e58a07d8e8694a470307bf034c80ea424ed16efedc88f16b65987bb5d"
+      "upstream_sha256": "1b20a944c1b9b8e7a0ff1d6b72723d39024e669925e62f25df93a731e287871e",
+      "linux_sha256": "1b20a944c1b9b8e7a0ff1d6b72723d39024e669925e62f25df93a731e287871e"
     },
     "modules/app_update_services/transfer.py": {
-      "upstream_sha256": "bed1dcf394dd09fec58dc3a963085ceb4e90e8b6a32ae0e846db862ed9356095",
-      "linux_sha256": "bed1dcf394dd09fec58dc3a963085ceb4e90e8b6a32ae0e846db862ed9356095"
+      "upstream_sha256": "5edb8c5849b3b8b82e9e1b1be405e57091f6990d25cbb7860c213881ba326ca0",
+      "linux_sha256": "5edb8c5849b3b8b82e9e1b1be405e57091f6990d25cbb7860c213881ba326ca0"
     },
     "modules/app_update_services/trust.py": {
       "upstream_sha256": "39418f5f461d4a58d46829e9ddca183c5227c00ad08d6a9bb8f3af625ac8da2a",
@@ -3213,12 +3421,12 @@
       "linux_sha256": "84265aa6daa5a7269eaf6e65c0656830085a55d697cda8aec3900047438c3981"
     },
     "modules/capture_services/auto_handshake.py": {
-      "upstream_sha256": "6a81e5d0fc9cf0a8f903de5c2c59357d7ee36589f1d84dcc511c52c19ebd75c1",
-      "linux_sha256": "6a81e5d0fc9cf0a8f903de5c2c59357d7ee36589f1d84dcc511c52c19ebd75c1"
+      "upstream_sha256": "0e60885ecf4f087794b0eca74c894fe5ff3a062dfbba129a3d2db3be4f5b1844",
+      "linux_sha256": "0e60885ecf4f087794b0eca74c894fe5ff3a062dfbba129a3d2db3be4f5b1844"
     },
     "modules/capture_services/auto_handshake_service.py": {
-      "upstream_sha256": "e7e6551b53183e3ba274e3e475ad92f4636e8a9e815011ae6fd841eb3aaf6941",
-      "linux_sha256": "e7e6551b53183e3ba274e3e475ad92f4636e8a9e815011ae6fd841eb3aaf6941"
+      "upstream_sha256": "f5f15d03f9d0fb264809eca76c084303ec7a554b98a26726a0c310a4dcae6a18",
+      "linux_sha256": "f5f15d03f9d0fb264809eca76c084303ec7a554b98a26726a0c310a4dcae6a18"
     },
     "modules/capture_services/backends/__init__.py": {
       "upstream_sha256": "cc180f0101df0c0d728cd1ad33855ff4369da7aa4124639e9fba1ec1947e4a0a",
@@ -3229,8 +3437,8 @@
       "linux_sha256": "2e51fc1eaf7a35811636bdabd04b5f6a6052f9e3e29b53d74c563b3c0ae5eb8a"
     },
     "modules/capture_services/backends/openwrt_backend.py": {
-      "upstream_sha256": "6939a200f532faeaa59a4ed7d0bc37994df7c53cd64a40b5229674e3f03dfee6",
-      "linux_sha256": "6939a200f532faeaa59a4ed7d0bc37994df7c53cd64a40b5229674e3f03dfee6"
+      "upstream_sha256": "e604d12c57801bdbeae5caed464fb7c981c83bd556783ec10d5aa4b7e1b85418",
+      "linux_sha256": "e604d12c57801bdbeae5caed464fb7c981c83bd556783ec10d5aa4b7e1b85418"
     },
     "modules/capture_services/backends/windows_wifi_backend.py": {
       "upstream_sha256": "3415e25285f27e34c1fcb815e6a4e7b7bece3c6f4f84b62497a59f2719cb4450",
@@ -3249,8 +3457,8 @@
       "linux_sha256": "8da0705302db9112304451f29847bb50a4f2b7407221b1e085a08649db552a91"
     },
     "modules/capture_services/capture_service.py": {
-      "upstream_sha256": "8cf604e32d0141de3bd460b6c1abfd76c4876792cf930a414940e2053582a228",
-      "linux_sha256": "8cf604e32d0141de3bd460b6c1abfd76c4876792cf930a414940e2053582a228"
+      "upstream_sha256": "10280552f3167ea69074a08f61b741950ce527bf519e2e1ce6843c9b4ece0b4f",
+      "linux_sha256": "10280552f3167ea69074a08f61b741950ce527bf519e2e1ce6843c9b4ece0b4f"
     },
     "modules/capture_services/common_bundle_service.py": {
       "upstream_sha256": "052f1ef994f47a80ac3a1294930cd0fc5b6308fbdf9f4e2ef50bc84d8f54200d",
@@ -3259,6 +3467,10 @@
     "modules/capture_services/configuration_progress.py": {
       "upstream_sha256": "06e5c94cf0ac80a91e2f0f47bf273b9a40c65ab9a488f659b9d6ff78d18bb497",
       "linux_sha256": "06e5c94cf0ac80a91e2f0f47bf273b9a40c65ab9a488f659b9d6ff78d18bb497"
+    },
+    "modules/capture_services/dependency_backup_service.py": {
+      "upstream_sha256": "43bcb097a24c881ef684b16f4a7fa50eeee2e8b3c31e8aa74d188ce0233284bc",
+      "linux_sha256": "43bcb097a24c881ef684b16f4a7fa50eeee2e8b3c31e8aa74d188ce0233284bc"
     },
     "modules/capture_services/dependency_confirmation.py": {
       "upstream_sha256": "241c7b72e3f5b3a49a7e41e1fa6b0499cf9f05bc399ee66d318ca861170082a5",
@@ -3269,8 +3481,12 @@
       "linux_sha256": "4d6d3dd18c4ce0fb755973be28ad817133b275cf1ceec168069385ce7a0aa4d3"
     },
     "modules/capture_services/dependency_service.py": {
-      "upstream_sha256": "9043703ea05c845441fc5bbdd69165dcf481fb671ba748ba178e14d56a1c7f69",
-      "linux_sha256": "9043703ea05c845441fc5bbdd69165dcf481fb671ba748ba178e14d56a1c7f69"
+      "upstream_sha256": "a26c8d0a380a5f4d21f55849ae78f60173fe384fcc9e2329fa802646367faa8c",
+      "linux_sha256": "a26c8d0a380a5f4d21f55849ae78f60173fe384fcc9e2329fa802646367faa8c"
+    },
+    "modules/capture_services/dependency_state_sync.py": {
+      "upstream_sha256": "948d06c891a5eb001ea92f14ed918ec0e5e7b99a0e69bd18fb9fd2f55243c634",
+      "linux_sha256": "948d06c891a5eb001ea92f14ed918ec0e5e7b99a0e69bd18fb9fd2f55243c634"
     },
     "modules/capture_services/dictionary_preview.py": {
       "upstream_sha256": "5c0db7906f37de3fe48149e3587aa064889d6e2857293758e8835c5e643cec63",
@@ -3280,21 +3496,29 @@
       "upstream_sha256": "2ec2992fae4ccd3dacb3fd78c8eeb2ec93f1612d392d8a67e5188acedd460831",
       "linux_sha256": "2ec2992fae4ccd3dacb3fd78c8eeb2ec93f1612d392d8a67e5188acedd460831"
     },
+    "modules/capture_services/factory_recovery_refresh.py": {
+      "upstream_sha256": "4356a65a9df9131486b09f4f1be62ee0463e66dacdfb657e300ef1114c8b74b9",
+      "linux_sha256": "4356a65a9df9131486b09f4f1be62ee0463e66dacdfb657e300ef1114c8b74b9"
+    },
+    "modules/capture_services/factory_reset_credentials.py": {
+      "upstream_sha256": "0b4e7f93c5e9a8827a556cd96d8cd4bdf138ccf085a53bad4bde91a512c0f9a0",
+      "linux_sha256": "0b4e7f93c5e9a8827a556cd96d8cd4bdf138ccf085a53bad4bde91a512c0f9a0"
+    },
     "modules/capture_services/handshake_processing.py": {
       "upstream_sha256": "5e796ab2acc1c8878422bba57a684cd0bc6d2a262a89d6029716fb48264c2fa8",
       "linux_sha256": "5e796ab2acc1c8878422bba57a684cd0bc6d2a262a89d6029716fb48264c2fa8"
     },
     "modules/capture_services/lan_client_recovery.py": {
-      "upstream_sha256": "1a7baa5b6c5c5bccc4215e63c05f07c046376ddbb1d3c8c2caa4dd5673268276",
-      "linux_sha256": "1a7baa5b6c5c5bccc4215e63c05f07c046376ddbb1d3c8c2caa4dd5673268276"
+      "upstream_sha256": "e517d2474706f3ff17ebbab3de22bc13d56930682f94f5b03fbed23215f19f92",
+      "linux_sha256": "e517d2474706f3ff17ebbab3de22bc13d56930682f94f5b03fbed23215f19f92"
     },
     "modules/capture_services/lan_force_retry.py": {
       "upstream_sha256": "8e1da4d2b25cdb2883b19ac43257ad333073b34f707768632068e543610e4125",
       "linux_sha256": "8e1da4d2b25cdb2883b19ac43257ad333073b34f707768632068e543610e4125"
     },
     "modules/capture_services/lan_recovery_service.py": {
-      "upstream_sha256": "a1ba97e8f17a7de534950c63d76c39f259f35598357fde520953ea77f452bb9b",
-      "linux_sha256": "a1ba97e8f17a7de534950c63d76c39f259f35598357fde520953ea77f452bb9b"
+      "upstream_sha256": "346fb38ded60417b692de64b35eb52579eb33054a150b7824b6a89df85b3aada",
+      "linux_sha256": "346fb38ded60417b692de64b35eb52579eb33054a150b7824b6a89df85b3aada"
     },
     "modules/capture_services/local_cache_cleanup.py": {
       "upstream_sha256": "e101d231d8b1373ed4160dcee5c54bc17158ed7ec16736a12f36ce297935d5a0",
@@ -3305,8 +3529,8 @@
       "linux_sha256": "92c8d59fbe7979dbce9142b12f55aec205d4499c2018f25f49e76e41412e0d32"
     },
     "modules/capture_services/login_operation.py": {
-      "upstream_sha256": "9c97329e081d3535c0680e5e8abeb47ae31a1f3061302c70683e61c0ab0cc2a1",
-      "linux_sha256": "9c97329e081d3535c0680e5e8abeb47ae31a1f3061302c70683e61c0ab0cc2a1"
+      "upstream_sha256": "546e34a0e6dd8f94008435e937e8565880c28813140fb1806efc7f414d57fc4a",
+      "linux_sha256": "546e34a0e6dd8f94008435e937e8565880c28813140fb1806efc7f414d57fc4a"
     },
     "modules/capture_services/management_diagnostic_schema.py": {
       "upstream_sha256": "bea351208effcc66c81c74413dd75fab25281340e3c76a37aa9056d2cb737b51",
@@ -3317,8 +3541,8 @@
       "linux_sha256": "b4bfa695e2fa5498c524f9cc6c0e0ef61921ac3d4195d50227a9d3224dd7c7a4"
     },
     "modules/capture_services/management_readiness.py": {
-      "upstream_sha256": "c82fe8cecf4e12537df08626ac4d67dd51266b838ed246a88f2d633a8578c144",
-      "linux_sha256": "c82fe8cecf4e12537df08626ac4d67dd51266b838ed246a88f2d633a8578c144"
+      "upstream_sha256": "c1e66ecde1c92ae2e5dc664d723768b97ad93f41713cfc259d660202c8b68eb9",
+      "linux_sha256": "c1e66ecde1c92ae2e5dc664d723768b97ad93f41713cfc259d660202c8b68eb9"
     },
     "modules/capture_services/models.py": {
       "upstream_sha256": "02e9bcba7ff19f177e667b3e465eecb9bb2c6023d74e5396b49d32519fe394b0",
@@ -3353,8 +3577,8 @@
       "linux_sha256": "40119f428d9a657fae1c6867f2955dc2451978adb2d193aa7db8ad32cc10a0fd"
     },
     "modules/capture_services/openwrt/apk_offline.py": {
-      "upstream_sha256": "20781cd7185b56b58992af48109a7d15e2d1546350460f60b699c2accdd09ab4",
-      "linux_sha256": "20781cd7185b56b58992af48109a7d15e2d1546350460f60b699c2accdd09ab4"
+      "upstream_sha256": "ee974283c7cc5ce2184a0c67fe48193d811ae000e155a7d6910740cc166a9ae4",
+      "linux_sha256": "ee974283c7cc5ce2184a0c67fe48193d811ae000e155a7d6910740cc166a9ae4"
     },
     "modules/capture_services/openwrt/apk_package_feed.py": {
       "upstream_sha256": "c2bc1251d24b614e01c4634497be6978625f924050dd14c8e4cbb0e7b3db9383",
@@ -3376,9 +3600,13 @@
       "upstream_sha256": "ff25f05adf248bddf93ca4aba2e2bb841575acd14fc173f44cd051483665cb6d",
       "linux_sha256": "ff25f05adf248bddf93ca4aba2e2bb841575acd14fc173f44cd051483665cb6d"
     },
+    "modules/capture_services/openwrt/auto_capture_channels.py": {
+      "upstream_sha256": "949fd45ed72210fd7fbc7710370c4b7e624fd2ac396f1a056571751b3e4994e5",
+      "linux_sha256": "949fd45ed72210fd7fbc7710370c4b7e624fd2ac396f1a056571751b3e4994e5"
+    },
     "modules/capture_services/openwrt/auto_capture_cleanup.py": {
-      "upstream_sha256": "31bcc38a7ad21c52d627e46a74cc9d1b1561a5be31010a9789bcef011bf08f0b",
-      "linux_sha256": "31bcc38a7ad21c52d627e46a74cc9d1b1561a5be31010a9789bcef011bf08f0b"
+      "upstream_sha256": "91a57359e3c618b3ead9493a1fafc15259a517722d612f23644261bdfa439366",
+      "linux_sha256": "91a57359e3c618b3ead9493a1fafc15259a517722d612f23644261bdfa439366"
     },
     "modules/capture_services/openwrt/auto_capture_idle_refresh.py": {
       "upstream_sha256": "70aa962cd3fa867935d4a779666fd279c79934507ae46503284139bd28a582d6",
@@ -3393,8 +3621,8 @@
       "linux_sha256": "f5cdfd1420c2da2d9c2cf445ef2542f721bb4c2c0e6026f24cb6c6b9dd602ff1"
     },
     "modules/capture_services/openwrt/auto_capture_service.py": {
-      "upstream_sha256": "153f380a576ce24f3e8f7928177809a2734e2935e8237da06210aa485573e887",
-      "linux_sha256": "153f380a576ce24f3e8f7928177809a2734e2935e8237da06210aa485573e887"
+      "upstream_sha256": "2d7e6ee04963eace6ef35a9a354197212249beeaf09aea9cade406a59f29cf4a",
+      "linux_sha256": "2d7e6ee04963eace6ef35a9a354197212249beeaf09aea9cade406a59f29cf4a"
     },
     "modules/capture_services/openwrt/auto_capture_startup.py": {
       "upstream_sha256": "73f3129934f3aa79628e2a3884721dd0fa9058b5de72c85df7a8d4b8af9ef8a9",
@@ -3433,8 +3661,8 @@
       "linux_sha256": "f5cf7f49a34649f2d9fd62be99ae0cd3a5974c64d4b4a05da4294aa5ce958921"
     },
     "modules/capture_services/openwrt/bundle_dependencies.py": {
-      "upstream_sha256": "51c1a9b0fc3f517088a0fd34a2c5a31f66470d7fb6d6bc467b947956cf7fe1a4",
-      "linux_sha256": "51c1a9b0fc3f517088a0fd34a2c5a31f66470d7fb6d6bc467b947956cf7fe1a4"
+      "upstream_sha256": "3884d4968764ee2a4e91cc1148821e7d4083170a2dc22f77b9af14a485aebea8",
+      "linux_sha256": "3884d4968764ee2a4e91cc1148821e7d4083170a2dc22f77b9af14a485aebea8"
     },
     "modules/capture_services/openwrt/bundle_dependency_rules.py": {
       "upstream_sha256": "42a996e9f62f9d3797980e453f3b07f98ce53dd59eed7f3d2fd315f24cd26cec",
@@ -3504,6 +3732,10 @@
       "upstream_sha256": "9fc13e8feaa3a3872dc454df9f9addf97937a41e80b069e9ff5f3a9bdefcc303",
       "linux_sha256": "9fc13e8feaa3a3872dc454df9f9addf97937a41e80b069e9ff5f3a9bdefcc303"
     },
+    "modules/capture_services/openwrt/capture_evidence.py": {
+      "upstream_sha256": "504ae2deea9f0e69f05cc2e3be560863f62224c802a87767b47e93059e839af0",
+      "linux_sha256": "504ae2deea9f0e69f05cc2e3be560863f62224c802a87767b47e93059e839af0"
+    },
     "modules/capture_services/openwrt/capture_failure_evidence.py": {
       "upstream_sha256": "d8a91ae3bb0410f9b252676022c86c47083b4ff709469e6b18a884466cfdaac4",
       "linux_sha256": "d8a91ae3bb0410f9b252676022c86c47083b4ff709469e6b18a884466cfdaac4"
@@ -3511,6 +3743,10 @@
     "modules/capture_services/openwrt/capture_initialization_evidence.py": {
       "upstream_sha256": "0554a64334601203f22edd7661e9084d6baa58a4cfd87effa1c82cd79125b970",
       "linux_sha256": "0554a64334601203f22edd7661e9084d6baa58a4cfd87effa1c82cd79125b970"
+    },
+    "modules/capture_services/openwrt/capture_live_logs.py": {
+      "upstream_sha256": "f67d3e70039e2e9920f407c8f05332c30c95ed8c6b08220568c9ab4fff10f027",
+      "linux_sha256": "f67d3e70039e2e9920f407c8f05332c30c95ed8c6b08220568c9ab4fff10f027"
     },
     "modules/capture_services/openwrt/capture_placeholders.py": {
       "upstream_sha256": "bad9b43ab350e1dacdc18a39541617b9e4e2deb7ce1af5dd35ae0dde22a973b1",
@@ -3525,8 +3761,12 @@
       "linux_sha256": "cf5df6afe732087c9d4c4ff36cbf119a1876af68046b00a7beb94469042afb2e"
     },
     "modules/capture_services/openwrt/capture_takeover.py": {
-      "upstream_sha256": "5cf39c8ceb50c5362a7eb1f9e3882a662727e6fd6c13a439ee340cb9a7a10250",
-      "linux_sha256": "5cf39c8ceb50c5362a7eb1f9e3882a662727e6fd6c13a439ee340cb9a7a10250"
+      "upstream_sha256": "5d9a637aa41c680c636f29b896967135d2e4baf6adb60066724887cf07821d43",
+      "linux_sha256": "5d9a637aa41c680c636f29b896967135d2e4baf6adb60066724887cf07821d43"
+    },
+    "modules/capture_services/openwrt/capture_transport_evidence.py": {
+      "upstream_sha256": "ba960fef64a2e946096e7a1f6f8fe586094452198be4d38c6f650e84262f9290",
+      "linux_sha256": "ba960fef64a2e946096e7a1f6f8fe586094452198be4d38c6f650e84262f9290"
     },
     "modules/capture_services/openwrt/channel_capture.py": {
       "upstream_sha256": "6de74d9594aafbc4ed623cd9a49ae9954271561288670af66e98fc4c1a15c6f7",
@@ -3540,29 +3780,33 @@
       "upstream_sha256": "0437afb8eff7ad8f48c9cdf86613b5f2c503d4b354915d402ad38dfcc5bb2fa2",
       "linux_sha256": "0437afb8eff7ad8f48c9cdf86613b5f2c503d4b354915d402ad38dfcc5bb2fa2"
     },
+    "modules/capture_services/openwrt/client_observation.py": {
+      "upstream_sha256": "859cdf86c06bae834cb343d99b0a4bdf99901412d9fb91f80bdc872c45e94e88",
+      "linux_sha256": "859cdf86c06bae834cb343d99b0a4bdf99901412d9fb91f80bdc872c45e94e88"
+    },
     "modules/capture_services/openwrt/command_builder.py": {
       "upstream_sha256": "7bc12729364f6b23ce481228464eca65b0f5e9a8b64b86c133cb3362a4856dd7",
       "linux_sha256": "7bc12729364f6b23ce481228464eca65b0f5e9a8b64b86c133cb3362a4856dd7"
     },
     "modules/capture_services/openwrt/command_runner.py": {
-      "upstream_sha256": "b9a5e4396ce5c1c509a4d816218b239b2bed37102deee865e1b9ab34ff942641",
-      "linux_sha256": "b9a5e4396ce5c1c509a4d816218b239b2bed37102deee865e1b9ab34ff942641"
+      "upstream_sha256": "88e59a3379d53caa89bc44d4abcbc6ef0ab11cab8358c85ce89f9b3484aaef95",
+      "linux_sha256": "88e59a3379d53caa89bc44d4abcbc6ef0ab11cab8358c85ce89f9b3484aaef95"
     },
     "modules/capture_services/openwrt/common_bundle_download.py": {
       "upstream_sha256": "8a98dc957453219464ca7aabd9eecbb343e6dd4cf0cf471638814313d8062e1d",
       "linux_sha256": "8a98dc957453219464ca7aabd9eecbb343e6dd4cf0cf471638814313d8062e1d"
     },
     "modules/capture_services/openwrt/common_bundle_installer.py": {
-      "upstream_sha256": "4a2d8713aeadd62334c378a177bae00f292c3f051f59a0900ed74d1d0abc07ca",
-      "linux_sha256": "4a2d8713aeadd62334c378a177bae00f292c3f051f59a0900ed74d1d0abc07ca"
+      "upstream_sha256": "e4aded89b5f0f6d0b9444377e41e691a73985a057fb485b8b7e39f841b4944a8",
+      "linux_sha256": "e4aded89b5f0f6d0b9444377e41e691a73985a057fb485b8b7e39f841b4944a8"
     },
     "modules/capture_services/openwrt/common_bundle_manifest.py": {
       "upstream_sha256": "fcb3861352a67a030356dac3845f0e98991b9a79aa5a88fe2ecb1ab193de284b",
       "linux_sha256": "fcb3861352a67a030356dac3845f0e98991b9a79aa5a88fe2ecb1ab193de284b"
     },
     "modules/capture_services/openwrt/common_bundle_repository.py": {
-      "upstream_sha256": "f49510e9051076e70ff55fe3ec173540b95c80ea08d24c8e35d82ccadd69a625",
-      "linux_sha256": "f49510e9051076e70ff55fe3ec173540b95c80ea08d24c8e35d82ccadd69a625"
+      "upstream_sha256": "b36e6237ed233457b955592f1370efba10379dae54e13373981e2c07b05f4a6a",
+      "linux_sha256": "b36e6237ed233457b955592f1370efba10379dae54e13373981e2c07b05f4a6a"
     },
     "modules/capture_services/openwrt/common_settings.py": {
       "upstream_sha256": "c61f56b7a0bb6800db91b2bb4dcf2f9bc61f7c89f52f1e6e39d3692a01a0d224",
@@ -3613,16 +3857,36 @@
       "linux_sha256": "aca597e189cf65650e841a42ebb7a2ab0e44888525d07f0addc61820b3eda06e"
     },
     "modules/capture_services/openwrt/dependency_manager.py": {
-      "upstream_sha256": "19b4abc5eb02d6a1d8a05d5e937310e354cc59ddaa1fa53721f3794c360c760c",
-      "linux_sha256": "19b4abc5eb02d6a1d8a05d5e937310e354cc59ddaa1fa53721f3794c360c760c"
+      "upstream_sha256": "62b4ac95e99431b7f1c9dc014f0d5d263af945318049613c4074711e0d302600",
+      "linux_sha256": "62b4ac95e99431b7f1c9dc014f0d5d263af945318049613c4074711e0d302600"
     },
     "modules/capture_services/openwrt/dependency_proxy.py": {
       "upstream_sha256": "82b187d79452b4c2d94edd9d29836114c20830edb9822f20e425edb40aab2189",
       "linux_sha256": "82b187d79452b4c2d94edd9d29836114c20830edb9822f20e425edb40aab2189"
     },
     "modules/capture_services/openwrt/dependency_resolution.py": {
-      "upstream_sha256": "b190a5e062c673d9958c6663b8afda752587ad7ac2696f16d7ec4f8078ed6ec9",
-      "linux_sha256": "b190a5e062c673d9958c6663b8afda752587ad7ac2696f16d7ec4f8078ed6ec9"
+      "upstream_sha256": "23ce408816dd5350fb8cd285752fe25d8d7caac40b957f7cbb6fe8ce3f925742",
+      "linux_sha256": "23ce408816dd5350fb8cd285752fe25d8d7caac40b957f7cbb6fe8ce3f925742"
+    },
+    "modules/capture_services/openwrt/dependency_snapshot_archive.py": {
+      "upstream_sha256": "7a975b5833574d037b1feb2d39564a8ad6c62994173413ce128b7c3eacd961d9",
+      "linux_sha256": "7a975b5833574d037b1feb2d39564a8ad6c62994173413ce128b7c3eacd961d9"
+    },
+    "modules/capture_services/openwrt/dependency_snapshot_package_check.py": {
+      "upstream_sha256": "11b0589fc82451a4cbe845819302e0e327bff70789cec08a902c6e7f91b39df1",
+      "linux_sha256": "11b0589fc82451a4cbe845819302e0e327bff70789cec08a902c6e7f91b39df1"
+    },
+    "modules/capture_services/openwrt/dependency_snapshot_permissions.py": {
+      "upstream_sha256": "3eccc87f5c2d1e1303dcb7e9cbb2350fb903141f760716ac044f306712b9b976",
+      "linux_sha256": "3eccc87f5c2d1e1303dcb7e9cbb2350fb903141f760716ac044f306712b9b976"
+    },
+    "modules/capture_services/openwrt/dependency_snapshot_plan.py": {
+      "upstream_sha256": "32bc831994c6f3dc06536196ebbe893be7016d1edef4cd69befa24981356ddde",
+      "linux_sha256": "32bc831994c6f3dc06536196ebbe893be7016d1edef4cd69befa24981356ddde"
+    },
+    "modules/capture_services/openwrt/dependency_snapshot_transfer.py": {
+      "upstream_sha256": "357f6e084518a8059ab33524d6624eae7e48f3c8196350a5b8de4113eadbd17f",
+      "linux_sha256": "357f6e084518a8059ab33524d6624eae7e48f3c8196350a5b8de4113eadbd17f"
     },
     "modules/capture_services/openwrt/device_identity.py": {
       "upstream_sha256": "71eb4540015e3975b9232a57ff6515b7da6a8248e9aed3791c6f89063e419131",
@@ -3652,9 +3916,13 @@
       "upstream_sha256": "be10f7bb65a6826b4b833d893ce5e3209361de41c2bae3a60f0b9edb81876d44",
       "linux_sha256": "be10f7bb65a6826b4b833d893ce5e3209361de41c2bae3a60f0b9edb81876d44"
     },
+    "modules/capture_services/openwrt/handshake_batch_radio.py": {
+      "upstream_sha256": "a410cb206888b05833ce97647daca780cf8510b4ef5fb6a87791d3bb10c7dbcc",
+      "linux_sha256": "a410cb206888b05833ce97647daca780cf8510b4ef5fb6a87791d3bb10c7dbcc"
+    },
     "modules/capture_services/openwrt/handshake_capture.py": {
-      "upstream_sha256": "f47d66e47473b986779f1c4748579f78888e7816626710f591d2da6dbc53fd40",
-      "linux_sha256": "f47d66e47473b986779f1c4748579f78888e7816626710f591d2da6dbc53fd40"
+      "upstream_sha256": "0ec46a864de07a8faa7074c1db410f60961ecb0c36e79df938ec45d989973d3d",
+      "linux_sha256": "0ec46a864de07a8faa7074c1db410f60961ecb0c36e79df938ec45d989973d3d"
     },
     "modules/capture_services/openwrt/hcx_bundle.py": {
       "upstream_sha256": "0bdf7a9b2e9928dcad409aaa881f605be57657558a3ef01970664c38f6bb29e2",
@@ -3712,9 +3980,29 @@
       "upstream_sha256": "46cc311b9add3cdc7f763202df6fc105d43445f17c2191470616408d93457350",
       "linux_sha256": "46cc311b9add3cdc7f763202df6fc105d43445f17c2191470616408d93457350"
     },
+    "modules/capture_services/openwrt/initial_security_evidence.py": {
+      "upstream_sha256": "c5f2a4d0940bc614d807ed1a6bbf235c5646b3f57db5b170bdbfc1d2331f773a",
+      "linux_sha256": "c5f2a4d0940bc614d807ed1a6bbf235c5646b3f57db5b170bdbfc1d2331f773a"
+    },
     "modules/capture_services/openwrt/installation_sources.py": {
-      "upstream_sha256": "fd06543db010b0b52d94e25b9ddbdce937ee08c177334fae3049787b75894b69",
-      "linux_sha256": "fd06543db010b0b52d94e25b9ddbdce937ee08c177334fae3049787b75894b69"
+      "upstream_sha256": "faa7324b1af606b31bc3259c7561e885029b9435a6a34f04b65a099fe9faf7c9",
+      "linux_sha256": "faa7324b1af606b31bc3259c7561e885029b9435a6a34f04b65a099fe9faf7c9"
+    },
+    "modules/capture_services/openwrt/installed_dependency_backup.py": {
+      "upstream_sha256": "3358a60944b018b82130aab671a913dc268b55dd4a03a40d607ee84b6aaf513e",
+      "linux_sha256": "3358a60944b018b82130aab671a913dc268b55dd4a03a40d607ee84b6aaf513e"
+    },
+    "modules/capture_services/openwrt/installed_dependency_catalog.py": {
+      "upstream_sha256": "41f36013cabd7b0721221daeedec089c338e60d5574edf62c52b61d671ff4619",
+      "linux_sha256": "41f36013cabd7b0721221daeedec089c338e60d5574edf62c52b61d671ff4619"
+    },
+    "modules/capture_services/openwrt/installed_dependency_reader.py": {
+      "upstream_sha256": "30052d774996bf88ec2ec9ebe8ec31970ccbd65c89d8f9ac1e0c44fec83c5779",
+      "linux_sha256": "30052d774996bf88ec2ec9ebe8ec31970ccbd65c89d8f9ac1e0c44fec83c5779"
+    },
+    "modules/capture_services/openwrt/kernel_package_feed.py": {
+      "upstream_sha256": "b327c1d1c941ad2aeeaa614b255dd27b5563b47996667eb9f69d8a5a6b3ba927",
+      "linux_sha256": "b327c1d1c941ad2aeeaa614b255dd27b5563b47996667eb9f69d8a5a6b3ba927"
     },
     "modules/capture_services/openwrt/live_capture_details.py": {
       "upstream_sha256": "710ad361e906a4f580f14211306e15f54a498bdd7bb63ca54e57be6c732b34f1",
@@ -3725,12 +4013,16 @@
       "linux_sha256": "ed8d8a52819f628a84355b2e9b6dcf32776bab399626ec5ca33d90153c7e4c97"
     },
     "modules/capture_services/openwrt/login_diagnostics.py": {
-      "upstream_sha256": "295b4f559d3be36208672e1250f6c402b4cb7290cd4265966ae5d579acfeaa82",
-      "linux_sha256": "295b4f559d3be36208672e1250f6c402b4cb7290cd4265966ae5d579acfeaa82"
+      "upstream_sha256": "b746a94c16c03ee6c09c6fbc9ed40d252092c667f975fda0aa40b89d361b91fc",
+      "linux_sha256": "b746a94c16c03ee6c09c6fbc9ed40d252092c667f975fda0aa40b89d361b91fc"
     },
     "modules/capture_services/openwrt/management_link.py": {
-      "upstream_sha256": "c2d8aaa5d8b33a311cbdac20e9ca9cb5450fa3f9329ab86c232605d3d9d61ac9",
-      "linux_sha256": "c2d8aaa5d8b33a311cbdac20e9ca9cb5450fa3f9329ab86c232605d3d9d61ac9"
+      "upstream_sha256": "9e6065731d0cb200f677058fe41a9080972b77291fc43d80a59585ce702ffeca",
+      "linux_sha256": "9e6065731d0cb200f677058fe41a9080972b77291fc43d80a59585ce702ffeca"
+    },
+    "modules/capture_services/openwrt/management_link_evidence.py": {
+      "upstream_sha256": "d29411ebf819a6f51b5d0c4f37295581266a01806b41e2be664b7f37992b14d7",
+      "linux_sha256": "d29411ebf819a6f51b5d0c4f37295581266a01806b41e2be664b7f37992b14d7"
     },
     "modules/capture_services/openwrt/management_requirements.py": {
       "upstream_sha256": "e84941dcb6f6dcfeb40bd6bedeac19fc039f68c7634fe3f4705ea3d7347cb593",
@@ -3761,8 +4053,8 @@
       "linux_sha256": "41afe8469cce2ebd24f153870c226b8f40ba0b75c3a39c8d9365d52884d044f7"
     },
     "modules/capture_services/openwrt/operation_diagnostics.py": {
-      "upstream_sha256": "43eb4ec2edf7c22fb3e9f078d663b98fb9eae37caf4bc02500eea49958b0ea8a",
-      "linux_sha256": "43eb4ec2edf7c22fb3e9f078d663b98fb9eae37caf4bc02500eea49958b0ea8a"
+      "upstream_sha256": "903153fda91976fb4936b4156acd4ef8d13cd4ce8941f4c03abc76943a21d985",
+      "linux_sha256": "903153fda91976fb4936b4156acd4ef8d13cd4ce8941f4c03abc76943a21d985"
     },
     "modules/capture_services/openwrt/opkg_version.py": {
       "upstream_sha256": "b4dda5ae9b89e5a82af1f2817de62ddbfca933c499614edf95cef8664517e1d9",
@@ -3784,6 +4076,10 @@
       "upstream_sha256": "aaa94d9505a3a6ff8811b3ebec7fcf64bdc7e87266b2138b7d7d97fae70dc3ab",
       "linux_sha256": "aaa94d9505a3a6ff8811b3ebec7fcf64bdc7e87266b2138b7d7d97fae70dc3ab"
     },
+    "modules/capture_services/openwrt/package_conflicts.py": {
+      "upstream_sha256": "c9519dd7c6d36eb2088df76e838993bd932bc79669eeb65d0bdcc246943c7d80",
+      "linux_sha256": "c9519dd7c6d36eb2088df76e838993bd932bc79669eeb65d0bdcc246943c7d80"
+    },
     "modules/capture_services/openwrt/package_download_diagnostics.py": {
       "upstream_sha256": "f7fa24dade7232aaeb9ff7b171bf6fc2a761d5ee546cb6d74993ae6cb7750f71",
       "linux_sha256": "f7fa24dade7232aaeb9ff7b171bf6fc2a761d5ee546cb6d74993ae6cb7750f71"
@@ -3797,8 +4093,8 @@
       "linux_sha256": "3aca3d45d8bdc127468f5933ada4684c850fea09b5a090e38e8bbe252f33aa81"
     },
     "modules/capture_services/openwrt/package_manager.py": {
-      "upstream_sha256": "7565fb796403ddc5c79c18303b62574046e527de85ecb0dff7bd2bcbca7ae076",
-      "linux_sha256": "7565fb796403ddc5c79c18303b62574046e527de85ecb0dff7bd2bcbca7ae076"
+      "upstream_sha256": "3f7546a7c3fda976e698b55007a0f8bbb757eaebe73846522fa5dc6468b11c29",
+      "linux_sha256": "3f7546a7c3fda976e698b55007a0f8bbb757eaebe73846522fa5dc6468b11c29"
     },
     "modules/capture_services/openwrt/package_mirror_policy.py": {
       "upstream_sha256": "f29fc6a4fd2f9a3a0b0e23d0f0703f85efe9ef2a86d02e195d8fee0e85456f61",
@@ -3833,12 +4129,16 @@
       "linux_sha256": "a166688e065d01112030b6d0617951d766976be36566c7130eae18d4fca48bd2"
     },
     "modules/capture_services/openwrt/password_recovery.py": {
-      "upstream_sha256": "0a628373c6e12c144042aa75155676c325e1fcd8e7d3889bd7d541c69d261154",
-      "linux_sha256": "0a628373c6e12c144042aa75155676c325e1fcd8e7d3889bd7d541c69d261154"
+      "upstream_sha256": "ffa4a458f1b1a698994401ad6488581e7b320a2b87db59fc9eeed5570d65ac32",
+      "linux_sha256": "ffa4a458f1b1a698994401ad6488581e7b320a2b87db59fc9eeed5570d65ac32"
+    },
+    "modules/capture_services/openwrt/password_recovery_admission.py": {
+      "upstream_sha256": "42e20c4f7ee636c82cc4b6e597010e65dac04bbbe21aa10c6f69158cd9072228",
+      "linux_sha256": "42e20c4f7ee636c82cc4b6e597010e65dac04bbbe21aa10c6f69158cd9072228"
     },
     "modules/capture_services/openwrt/password_recovery_store.py": {
-      "upstream_sha256": "27e9f9978b9931b3fc3e13b45b632a4d3d0e6559a12f0571208db69307bdd77e",
-      "linux_sha256": "27e9f9978b9931b3fc3e13b45b632a4d3d0e6559a12f0571208db69307bdd77e"
+      "upstream_sha256": "55d0fd2fe7d465c759610452bbdb7423d6d4685539dee71162abc9d9958f2ce2",
+      "linux_sha256": "55d0fd2fe7d465c759610452bbdb7423d6d4685539dee71162abc9d9958f2ce2"
     },
     "modules/capture_services/openwrt/password_reporting.py": {
       "upstream_sha256": "9b9f239b0deb21c76a67333d16bfd7e9677fd6285a3ff830b1a7c883c16258ea",
@@ -3945,8 +4245,12 @@
       "linux_sha256": "81be6aa32aa3c787225aa20a0f546d4fedb30b6d40a0cc547b905be838358344"
     },
     "modules/capture_services/openwrt/reconnect_cleanup.py": {
-      "upstream_sha256": "d1778cb6c26383b83fa8bb5dd7bc90986f201c70696be6d0c7f761cddc9d5be0",
-      "linux_sha256": "d1778cb6c26383b83fa8bb5dd7bc90986f201c70696be6d0c7f761cddc9d5be0"
+      "upstream_sha256": "538801ee7102ef3b1feb14f1ae4fe7c95a4fe58168726717bdd3285ec3e31ddb",
+      "linux_sha256": "538801ee7102ef3b1feb14f1ae4fe7c95a4fe58168726717bdd3285ec3e31ddb"
+    },
+    "modules/capture_services/openwrt/recovery_identity_snapshot.py": {
+      "upstream_sha256": "f1c37fe20a548ebc963008cf194136b9f963b48f7aa4da8e3f382b856c89f23e",
+      "linux_sha256": "f1c37fe20a548ebc963008cf194136b9f963b48f7aa4da8e3f382b856c89f23e"
     },
     "modules/capture_services/openwrt/relocation_access_points.py": {
       "upstream_sha256": "c362041abbe40742e1a9d67498989f01d2d2b37ad150ed8fa6038aef498a244a",
@@ -3973,16 +4277,16 @@
       "linux_sha256": "011e001f2cbb3e394c2a1a4a071856aab9d11dc12d255d9123797977579c2cac"
     },
     "modules/capture_services/openwrt/remote_process.py": {
-      "upstream_sha256": "e4c1b9fdd825ca1abbbbce098bb2a71962841b680015d40ce2f4ac4e6eff90cc",
-      "linux_sha256": "e4c1b9fdd825ca1abbbbce098bb2a71962841b680015d40ce2f4ac4e6eff90cc"
+      "upstream_sha256": "9f3bb01bbdbcfa4dcb9ea5bd11e370c2ca5589b545bbea23a26c0a68dadf3092",
+      "linux_sha256": "9f3bb01bbdbcfa4dcb9ea5bd11e370c2ca5589b545bbea23a26c0a68dadf3092"
     },
     "modules/capture_services/openwrt/remote_resources.py": {
       "upstream_sha256": "2bff185cbf8c69f654038f6641ef05563719935a602155745f51b680699f8611",
       "linux_sha256": "2bff185cbf8c69f654038f6641ef05563719935a602155745f51b680699f8611"
     },
     "modules/capture_services/openwrt/result_converter.py": {
-      "upstream_sha256": "e27adb9f2423e5a1c4a8671cf4d5f5448ceddebaec728dadcb1e72c78b2855c9",
-      "linux_sha256": "e27adb9f2423e5a1c4a8671cf4d5f5448ceddebaec728dadcb1e72c78b2855c9"
+      "upstream_sha256": "c330d4b97abb7ca151cb2079ac0afd8ac33e2a36ec9f8d4fc2381ee1c8cd7c30",
+      "linux_sha256": "c330d4b97abb7ca151cb2079ac0afd8ac33e2a36ec9f8d4fc2381ee1c8cd7c30"
     },
     "modules/capture_services/openwrt/router_backup.py": {
       "upstream_sha256": "ba20535ccb0061551fd0ee5f5457b1eb410cd15f5c84f31b8b93accbce291ee4",
@@ -4000,29 +4304,33 @@
       "upstream_sha256": "39efd0a625e3c283d9eabf032f82ce98f39583dba551b16291fe40b8946c13f6",
       "linux_sha256": "39efd0a625e3c283d9eabf032f82ce98f39583dba551b16291fe40b8946c13f6"
     },
+    "modules/capture_services/openwrt/router_health_evidence.py": {
+      "upstream_sha256": "304150d76edeade02a42aadc731a1f54aab3766395b005f40e0395d1f724dac1",
+      "linux_sha256": "304150d76edeade02a42aadc731a1f54aab3766395b005f40e0395d1f724dac1"
+    },
     "modules/capture_services/openwrt/router_management.py": {
       "upstream_sha256": "4c8ffae24e9c27d0f7488f384b1213d393e0f8c9203f0bf8b864baba02052c17",
       "linux_sha256": "4c8ffae24e9c27d0f7488f384b1213d393e0f8c9203f0bf8b864baba02052c17"
     },
     "modules/capture_services/openwrt/router_password.py": {
-      "upstream_sha256": "6092fd31a81ed23c7f994415c309f54e34559ce234608434590e92e2fa9fa518",
-      "linux_sha256": "6092fd31a81ed23c7f994415c309f54e34559ce234608434590e92e2fa9fa518"
+      "upstream_sha256": "c94d24fa465d53874d0d1c57216de77792fdd6d146b1f53dc8547224e044ac71",
+      "linux_sha256": "c94d24fa465d53874d0d1c57216de77792fdd6d146b1f53dc8547224e044ac71"
     },
     "modules/capture_services/openwrt/router_policy.py": {
-      "upstream_sha256": "9416495f91e07c3fbb13d41e7607584d480edd726367a4e95bb4a29b151505e5",
-      "linux_sha256": "9416495f91e07c3fbb13d41e7607584d480edd726367a4e95bb4a29b151505e5"
+      "upstream_sha256": "684de93927f43ce712fe782210c38044b639a48878f0bd1be3042b172ed9a54f",
+      "linux_sha256": "684de93927f43ce712fe782210c38044b639a48878f0bd1be3042b172ed9a54f"
     },
     "modules/capture_services/openwrt/router_policy_commands.py": {
-      "upstream_sha256": "67211cb7cedf2f6fc3d525d814aec0b7049f219af79a202eb37fc713fa9f16c6",
-      "linux_sha256": "67211cb7cedf2f6fc3d525d814aec0b7049f219af79a202eb37fc713fa9f16c6"
+      "upstream_sha256": "253024398dec7de7edc40fd76a89623666e8d27640fffebb54e245a7763e4272",
+      "linux_sha256": "253024398dec7de7edc40fd76a89623666e8d27640fffebb54e245a7763e4272"
     },
     "modules/capture_services/openwrt/router_policy_files.py": {
       "upstream_sha256": "2dab4f4a48b2c91a14c2753a8062330f5c1d531452fefe2940881bfa6b5a5db9",
       "linux_sha256": "2dab4f4a48b2c91a14c2753a8062330f5c1d531452fefe2940881bfa6b5a5db9"
     },
     "modules/capture_services/openwrt/router_policy_plan.py": {
-      "upstream_sha256": "aaf0aab94c205fea1f5e9bcf69693c4b4a979929e2fb1e9ad90ab3a066b67a85",
-      "linux_sha256": "aaf0aab94c205fea1f5e9bcf69693c4b4a979929e2fb1e9ad90ab3a066b67a85"
+      "upstream_sha256": "ce49701a2c174c6998ea113bd3691605cb16ab13f9e269f6104ab0bfd939a185",
+      "linux_sha256": "ce49701a2c174c6998ea113bd3691605cb16ab13f9e269f6104ab0bfd939a185"
     },
     "modules/capture_services/openwrt/router_reboot.py": {
       "upstream_sha256": "41cc52d051d39cfed86c96d4094fb00f2958a6127d6c983130298ccff8606e4b",
@@ -4045,20 +4353,40 @@
       "linux_sha256": "831093555707036133fbe574574374b4de610d125ac404057066414c78f98751"
     },
     "modules/capture_services/openwrt/save_only_commands.py": {
-      "upstream_sha256": "58bf088f3c37bbe16dee28aa2ee9eef00fdcd838b3a4998dd9a3ccea097e9dff",
-      "linux_sha256": "58bf088f3c37bbe16dee28aa2ee9eef00fdcd838b3a4998dd9a3ccea097e9dff"
+      "upstream_sha256": "5474c94adbd812ac12c940085e38e1773795409ce3208db2a146241eb247c05a",
+      "linux_sha256": "5474c94adbd812ac12c940085e38e1773795409ce3208db2a146241eb247c05a"
     },
     "modules/capture_services/openwrt/save_only_manager.py": {
       "upstream_sha256": "bce8282eeb9bb3fa15d1d427b343039ae5e935cf6ee1b883e7594f6a7df7c6b6",
       "linux_sha256": "bce8282eeb9bb3fa15d1d427b343039ae5e935cf6ee1b883e7594f6a7df7c6b6"
     },
+    "modules/capture_services/openwrt/save_session_directory.py": {
+      "upstream_sha256": "3c79a17a8d4ecbf93257adfac459ad2be10fafca7976de7b0887a09a955f3b15",
+      "linux_sha256": "3c79a17a8d4ecbf93257adfac459ad2be10fafca7976de7b0887a09a955f3b15"
+    },
+    "modules/capture_services/openwrt/scan_channel_policy.py": {
+      "upstream_sha256": "f1a00ee486e117c07e646cabc43d886d7823e567fa14f9708b344b920d63345c",
+      "linux_sha256": "f1a00ee486e117c07e646cabc43d886d7823e567fa14f9708b344b920d63345c"
+    },
+    "modules/capture_services/openwrt/scan_default_band.py": {
+      "upstream_sha256": "e99f862dedb4a9a75782dddcd3a19b2a531f39d7339be41b592ebaa0b2114afa",
+      "linux_sha256": "e99f862dedb4a9a75782dddcd3a19b2a531f39d7339be41b592ebaa0b2114afa"
+    },
+    "modules/capture_services/openwrt/scan_failure_evidence.py": {
+      "upstream_sha256": "4ad8e250780332cbf8c2f0915d60e52ddb799ebbd1d8b9b2c5c1df948232996e",
+      "linux_sha256": "4ad8e250780332cbf8c2f0915d60e52ddb799ebbd1d8b9b2c5c1df948232996e"
+    },
     "modules/capture_services/openwrt/scan_interface_evidence.py": {
-      "upstream_sha256": "8cf9740b77d8f7aafdd0e50c8a04b555d66b0e729ab8d2c5a58bff2d4fd6235b",
-      "linux_sha256": "8cf9740b77d8f7aafdd0e50c8a04b555d66b0e729ab8d2c5a58bff2d4fd6235b"
+      "upstream_sha256": "3d33cffe9bb552bb938656869f5c9833cf3e42024314e6353a182bc0ab39ae89",
+      "linux_sha256": "3d33cffe9bb552bb938656869f5c9833cf3e42024314e6353a182bc0ab39ae89"
     },
     "modules/capture_services/openwrt/session_journal.py": {
       "upstream_sha256": "217ceb79b3ff52b86d58d8e02c1d79bce31dfe80974695e3a27a23965003db36",
       "linux_sha256": "217ceb79b3ff52b86d58d8e02c1d79bce31dfe80974695e3a27a23965003db36"
+    },
+    "modules/capture_services/openwrt/shared_bundle_packages.py": {
+      "upstream_sha256": "76ead0382fce879c7bd521ece5b2a7a7f787418c72bc285fc78203071fc549f8",
+      "linux_sha256": "76ead0382fce879c7bd521ece5b2a7a7f787418c72bc285fc78203071fc549f8"
     },
     "modules/capture_services/openwrt/signal_commands.py": {
       "upstream_sha256": "a57cfda33b15c29dd466f833c92b678edb5b169e58b91a2f9f19a70f1c3f7002",
@@ -4085,8 +4413,8 @@
       "linux_sha256": "83854980886c335af110f7f342403d3e72c09918478161c18bed7ed76f34d911"
     },
     "modules/capture_services/openwrt/signal_package_feed.py": {
-      "upstream_sha256": "87f7ce725b2397e4d31530d41b4a8b3e0dcd1fd729c3f4360aa5ec839019940f",
-      "linux_sha256": "87f7ce725b2397e4d31530d41b4a8b3e0dcd1fd729c3f4360aa5ec839019940f"
+      "upstream_sha256": "aa595c27711e69fad17ad71e632c4b15f84a3ab77e397f72ed644ff607d653a1",
+      "linux_sha256": "aa595c27711e69fad17ad71e632c4b15f84a3ab77e397f72ed644ff607d653a1"
     },
     "modules/capture_services/openwrt/signal_recovery.py": {
       "upstream_sha256": "a4195500d8416437970ee21d7ef9679966c285407e9a515a832ed4a220666109",
@@ -4096,25 +4424,33 @@
       "upstream_sha256": "24468b3d923b310c123d859ec18aa7e065b8d1ab7620f618d4e6c5d85c1963a2",
       "linux_sha256": "24468b3d923b310c123d859ec18aa7e065b8d1ab7620f618d4e6c5d85c1963a2"
     },
+    "modules/capture_services/openwrt/snapshot_configuration.py": {
+      "upstream_sha256": "50e7f91059ed097449ba367f2632898781d4f26d1e10300b43237f7b781ab13f",
+      "linux_sha256": "50e7f91059ed097449ba367f2632898781d4f26d1e10300b43237f7b781ab13f"
+    },
+    "modules/capture_services/openwrt/snapshot_original_packages.py": {
+      "upstream_sha256": "258f1a61749f079074a959f573e6b81bcd07a1c4b0579cd4d2de1bb0b2872548",
+      "linux_sha256": "258f1a61749f079074a959f573e6b81bcd07a1c4b0579cd4d2de1bb0b2872548"
+    },
     "modules/capture_services/openwrt/ssh_client.py": {
-      "upstream_sha256": "ed17443d065e259894876a60bc3b11097e4b7c952e6192d7fb42591f5676efd1",
-      "linux_sha256": "ed17443d065e259894876a60bc3b11097e4b7c952e6192d7fb42591f5676efd1"
+      "upstream_sha256": "aee86bfbdbe3015a9dafa03ae18b6c9af69c20f9fdf52d5d5f6f5d6703d68a12",
+      "linux_sha256": "aee86bfbdbe3015a9dafa03ae18b6c9af69c20f9fdf52d5d5f6f5d6703d68a12"
     },
     "modules/capture_services/openwrt/ssh_compatibility.py": {
       "upstream_sha256": "ff6b3c6068c993aa79fad2068dd5629e1e231393e1512b8635b3d074b2ee8400",
       "linux_sha256": "ff6b3c6068c993aa79fad2068dd5629e1e231393e1512b8635b3d074b2ee8400"
     },
     "modules/capture_services/openwrt/ssh_connect_control.py": {
-      "upstream_sha256": "076d557b29445322cb2e0c14b806217a5526e3185fa15cca7e672f269119d92d",
-      "linux_sha256": "076d557b29445322cb2e0c14b806217a5526e3185fa15cca7e672f269119d92d"
+      "upstream_sha256": "80fcca96c35473077b116d639d7e2a36c1931e48d414f817105759310421b749",
+      "linux_sha256": "80fcca96c35473077b116d639d7e2a36c1931e48d414f817105759310421b749"
     },
     "modules/capture_services/openwrt/ssh_empty_auth.py": {
       "upstream_sha256": "889b759fcd0f4052b2b298204adc6d2390baf81d5c25857892a7fd39f09fe470",
       "linux_sha256": "889b759fcd0f4052b2b298204adc6d2390baf81d5c25857892a7fd39f09fe470"
     },
     "modules/capture_services/openwrt/ssh_login_probe.py": {
-      "upstream_sha256": "be43b06555f6e94823136f5776e85cf764d12baed60efb24fe0987f889a4d1c6",
-      "linux_sha256": "be43b06555f6e94823136f5776e85cf764d12baed60efb24fe0987f889a4d1c6"
+      "upstream_sha256": "c351bd50a0898a6d81a667dc8675674bab2d4486196ca097177218cc4460d917",
+      "linux_sha256": "c351bd50a0898a6d81a667dc8675674bab2d4486196ca097177218cc4460d917"
     },
     "modules/capture_services/openwrt/ssh_terminal.py": {
       "upstream_sha256": "a78cd9f7084604d1c30a6946ac001a709464e12f36f2fe58cad78963526c4dc4",
@@ -4123,6 +4459,10 @@
     "modules/capture_services/openwrt/stale_processes.py": {
       "upstream_sha256": "f63bb0e14babb0c898523112c24b01ca4708db70e9b72f25154ab281788e1196",
       "linux_sha256": "f63bb0e14babb0c898523112c24b01ca4708db70e9b72f25154ab281788e1196"
+    },
+    "modules/capture_services/openwrt/station_connection.py": {
+      "upstream_sha256": "0b0d431326f2a8b4b413ad96129b55005b39faec8ac558808bcddd05b4790b10",
+      "linux_sha256": "0b0d431326f2a8b4b413ad96129b55005b39faec8ac558808bcddd05b4790b10"
     },
     "modules/capture_services/openwrt/station_identity_commands.py": {
       "upstream_sha256": "3f493d465793e709306810bd78d4f046259733dcaf2af85d8ff3053af0919ba7",
@@ -4137,8 +4477,8 @@
       "linux_sha256": "f970f445f2088062a11c7fdd431ed09a3ca7b0d3a3f78c078dd940ad407a1b32"
     },
     "modules/capture_services/openwrt/temporary_package_sources.py": {
-      "upstream_sha256": "5aa210e27c4b3bae5ff3d7d6f8a0983318a7833c63a7acb13b70510d9aca56c4",
-      "linux_sha256": "5aa210e27c4b3bae5ff3d7d6f8a0983318a7833c63a7acb13b70510d9aca56c4"
+      "upstream_sha256": "fbc981fafa3375be45ccb5b7ad4cbca10d7e63470db5d7e4e7ad084e5b26d47f",
+      "linux_sha256": "fbc981fafa3375be45ccb5b7ad4cbca10d7e63470db5d7e4e7ad084e5b26d47f"
     },
     "modules/capture_services/openwrt/tool_catalog.py": {
       "upstream_sha256": "bdde982f7ac95994e860000d258a2d1b8887dd2ae38152fe419a09e1c1378dfb",
@@ -4209,8 +4549,8 @@
       "linux_sha256": "b98b27e0f455905c4c6272143b6b3334b6221a15ba3cc0f1c0ee186bcfa47d45"
     },
     "modules/capture_services/openwrt/wireless_diagnostics.py": {
-      "upstream_sha256": "4465376a8993411048ae3464eb2baf8e8283ee44f61ca0ad348d4f49e421468a",
-      "linux_sha256": "4465376a8993411048ae3464eb2baf8e8283ee44f61ca0ad348d4f49e421468a"
+      "upstream_sha256": "31bc0db5c7a87a02e65ebd82970b36a2098f748de4271aec4c49eeeb707b5317",
+      "linux_sha256": "31bc0db5c7a87a02e65ebd82970b36a2098f748de4271aec4c49eeeb707b5317"
     },
     "modules/capture_services/openwrt/wireless_failure_commands.py": {
       "upstream_sha256": "ce513d33233e1fa93363997e90f751c17b506af33120464afaa31951fd7ae33d",
@@ -4260,9 +4600,13 @@
       "upstream_sha256": "bd7c79360ba12d767a1573b6a1425ab37fd77e044a1185960a597d79d9c7858e",
       "linux_sha256": "bd7c79360ba12d767a1573b6a1425ab37fd77e044a1185960a597d79d9c7858e"
     },
+    "modules/capture_services/openwrt/wireless_saved_diagnostics.py": {
+      "upstream_sha256": "db1129ce30736066708c54ec78e0ee58152a29cf50c5c5a9e79690405f0187fe",
+      "linux_sha256": "db1129ce30736066708c54ec78e0ee58152a29cf50c5c5a9e79690405f0187fe"
+    },
     "modules/capture_services/openwrt/wireless_scan_commands.py": {
-      "upstream_sha256": "904b294177622b5f9d5dc1fee88a9d69b713036ebb2c2925b59805dba57e7f24",
-      "linux_sha256": "904b294177622b5f9d5dc1fee88a9d69b713036ebb2c2925b59805dba57e7f24"
+      "upstream_sha256": "e5abfde0792e389ba2dd65569d89019bdbb28bf3e6cb751f1a141d73ff992643",
+      "linux_sha256": "e5abfde0792e389ba2dd65569d89019bdbb28bf3e6cb751f1a141d73ff992643"
     },
     "modules/capture_services/openwrt/wireless_scan_results.py": {
       "upstream_sha256": "33431af2e37882b24786159dba198db2f5c20ece66a40b34eb7a8d169f7616ec",
@@ -4277,52 +4621,56 @@
       "linux_sha256": "77f8e01dc28fde03c10854e2131ae610ce8c593d0a0c0fdd258c8f278e17ef2e"
     },
     "modules/capture_services/openwrt/wireless_setup_commands.py": {
-      "upstream_sha256": "5dfffbe2bc00d937dae71af9740ce61204f34110642e90bb3b5ab753f7b6b0c4",
-      "linux_sha256": "5dfffbe2bc00d937dae71af9740ce61204f34110642e90bb3b5ab753f7b6b0c4"
+      "upstream_sha256": "34f86f84b79583a435fdd1260a69c4808c62c5f9b8a21622880b0a406e90d162",
+      "linux_sha256": "34f86f84b79583a435fdd1260a69c4808c62c5f9b8a21622880b0a406e90d162"
     },
     "modules/capture_services/openwrt/wireless_setup_manager.py": {
-      "upstream_sha256": "5690626499f8ed1ce978b03da5bcb99d5e5d1c4ff8bd75c336c40e99acdb7428",
-      "linux_sha256": "5690626499f8ed1ce978b03da5bcb99d5e5d1c4ff8bd75c336c40e99acdb7428"
+      "upstream_sha256": "5d4af6710f1d5e84be651c58e7dc95aa01a8ffb32db2180db5ffcfedfab1a25e",
+      "linux_sha256": "5d4af6710f1d5e84be651c58e7dc95aa01a8ffb32db2180db5ffcfedfab1a25e"
     },
     "modules/capture_services/openwrt/wireless_setup_models.py": {
-      "upstream_sha256": "2a1651c08c6a36cb2ce9d68900e4aae1cfdb28bd41cfc5653bccf5a0e97817fa",
-      "linux_sha256": "2a1651c08c6a36cb2ce9d68900e4aae1cfdb28bd41cfc5653bccf5a0e97817fa"
+      "upstream_sha256": "407dc51ebafe2e41ca51b37861de529aa6113c5c3b8c872f352ac897f601b5b2",
+      "linux_sha256": "407dc51ebafe2e41ca51b37861de529aa6113c5c3b8c872f352ac897f601b5b2"
+    },
+    "modules/capture_services/openwrt/wireless_setup_presets.py": {
+      "upstream_sha256": "73bcb5e0ded0caad407e2911cd1418412f54e89ae433eb8d0ec9034c20d9068f",
+      "linux_sha256": "73bcb5e0ded0caad407e2911cd1418412f54e89ae433eb8d0ec9034c20d9068f"
     },
     "modules/capture_services/openwrt/wireless_status_commands.py": {
-      "upstream_sha256": "0f275ec8bbff63e154003fd4d4288cb92f6d94410db190ab911fb1fb0b5263f0",
-      "linux_sha256": "0f275ec8bbff63e154003fd4d4288cb92f6d94410db190ab911fb1fb0b5263f0"
+      "upstream_sha256": "944b44800377fbafeee218d796226d2450c3ba38e04d24a495e096677f540a62",
+      "linux_sha256": "944b44800377fbafeee218d796226d2450c3ba38e04d24a495e096677f540a62"
     },
     "modules/capture_services/openwrt/wireless_status_manager.py": {
-      "upstream_sha256": "bc2cb04ff577c3e1970b5d892faa4fe1f0722923b2b5d7a601446fdb682adaa0",
-      "linux_sha256": "bc2cb04ff577c3e1970b5d892faa4fe1f0722923b2b5d7a601446fdb682adaa0"
+      "upstream_sha256": "48016e6233d6acaf95f025d7a8a71ece5e6b5a7017de5d96fa813a0b0cce0968",
+      "linux_sha256": "48016e6233d6acaf95f025d7a8a71ece5e6b5a7017de5d96fa813a0b0cce0968"
     },
     "modules/capture_services/openwrt/wireless_status_models.py": {
-      "upstream_sha256": "274b5f3ec9172ff61b8cc560150d0ad4e67b3588eadbfcf1ec95f3549e3e46f7",
-      "linux_sha256": "274b5f3ec9172ff61b8cc560150d0ad4e67b3588eadbfcf1ec95f3549e3e46f7"
+      "upstream_sha256": "99eff7d5c27ee4ec8e89af183b346882a222630c3d11cce65575e9d69bbd6bd0",
+      "linux_sha256": "99eff7d5c27ee4ec8e89af183b346882a222630c3d11cce65575e9d69bbd6bd0"
     },
     "modules/capture_services/openwrt/workspace.py": {
       "upstream_sha256": "2598a121c8d39cbf792693729cdc56a4a88638477b7ca48abdd3b92e32f51b7a",
       "linux_sha256": "2598a121c8d39cbf792693729cdc56a4a88638477b7ca48abdd3b92e32f51b7a"
     },
     "modules/capture_services/openwrt/wps_capture.py": {
-      "upstream_sha256": "1a71cdf90e7b7618a1a3a2c1d2d1913b17deb12f91e572844e4979e57afb536e",
-      "linux_sha256": "1a71cdf90e7b7618a1a3a2c1d2d1913b17deb12f91e572844e4979e57afb536e"
+      "upstream_sha256": "3bec26b21f68a682b2dab9be218066fbe51b85b96afec7138e016b49caa599bb",
+      "linux_sha256": "3bec26b21f68a682b2dab9be218066fbe51b85b96afec7138e016b49caa599bb"
     },
     "modules/capture_services/openwrt/wps_defaults.py": {
-      "upstream_sha256": "53149c4e3b215004d84b81be26b1a9bd30432d501ff74dedef5842cb295956b5",
-      "linux_sha256": "53149c4e3b215004d84b81be26b1a9bd30432d501ff74dedef5842cb295956b5"
+      "upstream_sha256": "d18b5b619568659ef118e69f11b8d8ec21920910d02849cdc8b287d7092984e6",
+      "linux_sha256": "d18b5b619568659ef118e69f11b8d8ec21920910d02849cdc8b287d7092984e6"
     },
     "modules/capture_services/openwrt/wps_diagnostics.py": {
-      "upstream_sha256": "ad5fb113722083983a47ae16fc272659a8ca53766f3372352889808c0833d0b2",
-      "linux_sha256": "ad5fb113722083983a47ae16fc272659a8ca53766f3372352889808c0833d0b2"
+      "upstream_sha256": "a6b5d50b271e82e7030ca2dc3bbfd9ae7bf58530107eebb7a3db28ab85da6b4d",
+      "linux_sha256": "a6b5d50b271e82e7030ca2dc3bbfd9ae7bf58530107eebb7a3db28ab85da6b4d"
     },
     "modules/capture_services/openwrt/wps_models.py": {
-      "upstream_sha256": "17faed36278bb85335bc0397005e8955abad9d88b76384b00cb1de9802e73cfe",
-      "linux_sha256": "17faed36278bb85335bc0397005e8955abad9d88b76384b00cb1de9802e73cfe"
+      "upstream_sha256": "48dcbaabad2e061c199a76f59287f349c2b8bd420fd057d96e50943d6bb390f4",
+      "linux_sha256": "48dcbaabad2e061c199a76f59287f349c2b8bd420fd057d96e50943d6bb390f4"
     },
     "modules/capture_services/openwrt/wps_observation.py": {
-      "upstream_sha256": "54f7533d9cc992a58728f5b2081d4ba301cf0ff7989f48b1773f55e55d2f4e38",
-      "linux_sha256": "54f7533d9cc992a58728f5b2081d4ba301cf0ff7989f48b1773f55e55d2f4e38"
+      "upstream_sha256": "42524b72ff58340850b853b37f7cc1624069466e2fd314dfc66ebeef1361700c",
+      "linux_sha256": "42524b72ff58340850b853b37f7cc1624069466e2fd314dfc66ebeef1361700c"
     },
     "modules/capture_services/openwrt/wps_options.py": {
       "upstream_sha256": "6dea660342394a4cddf60b8f8c88ee9e6cf78a1d3b2d287b0ac07a1f5eda2eba",
@@ -4337,12 +4685,16 @@
       "linux_sha256": "0c939521c22148f07d89a7091e75cb89dffa3f2918b42fa5680f41b50fe04ffc"
     },
     "modules/capture_services/openwrt/wps_quick.py": {
-      "upstream_sha256": "fe4956d9c3256d432adaf688a1de9c47f23cd5470a35801c62aa7b6d3c504f89",
-      "linux_sha256": "fe4956d9c3256d432adaf688a1de9c47f23cd5470a35801c62aa7b6d3c504f89"
+      "upstream_sha256": "b7cfe143092bfa70fbb2e9bdfd4b8b733ff6f1ce276373db330e150a2c6af763",
+      "linux_sha256": "b7cfe143092bfa70fbb2e9bdfd4b8b733ff6f1ce276373db330e150a2c6af763"
     },
     "modules/capture_services/openwrt/wps_radio.py": {
       "upstream_sha256": "744fabdea1d2f3b7c99fd1e507ec36d032227f2b4a9eb7e8d9d4b2ec463602cc",
       "linux_sha256": "744fabdea1d2f3b7c99fd1e507ec36d032227f2b4a9eb7e8d9d4b2ec463602cc"
+    },
+    "modules/capture_services/openwrt/wps_remembered_pin.py": {
+      "upstream_sha256": "57fffb4949389987348eb5203394e6f9460a487f0f71be1a7e83b8995e742f4a",
+      "linux_sha256": "57fffb4949389987348eb5203394e6f9460a487f0f71be1a7e83b8995e742f4a"
     },
     "modules/capture_services/openwrt/wps_result_text.py": {
       "upstream_sha256": "96cfa802d016c2fd888e9627c68b3e201f7366d26353b73ed5e79625ef5651a1",
@@ -4405,8 +4757,8 @@
       "linux_sha256": "baedc31a64e5c217f94b0cb5a25905a0a544328144a2c3a8ac8e7485e7482aea"
     },
     "modules/capture_services/router_connection_state.py": {
-      "upstream_sha256": "8a2ab5811caacc408c439b528cf75f2c8cd7671a5e071d80ed33849ceccf4105",
-      "linux_sha256": "8a2ab5811caacc408c439b528cf75f2c8cd7671a5e071d80ed33849ceccf4105"
+      "upstream_sha256": "dda929cfa25589e622076a4ad1851b1f87b5d5b1af72f498db413e3f90420e69",
+      "linux_sha256": "dda929cfa25589e622076a4ad1851b1f87b5d5b1af72f498db413e3f90420e69"
     },
     "modules/capture_services/router_file_batch.py": {
       "upstream_sha256": "57b32bf3050ce7b5541df101c4f4156b4e01170589ddf73a2f9b17ccd1bf31a1",
@@ -4417,8 +4769,8 @@
       "linux_sha256": "7407e12653f05074ce21cbc2663ac2b51818782d1a8faa9efe76c413e3f3295e"
     },
     "modules/capture_services/router_management_service.py": {
-      "upstream_sha256": "fd592d9da9605c45c2b2ee8f70d11715d884d39fbb84d2c99411c17a81fae40e",
-      "linux_sha256": "fd592d9da9605c45c2b2ee8f70d11715d884d39fbb84d2c99411c17a81fae40e"
+      "upstream_sha256": "20b4135f7f5f45a54c2ab2eef031c667f14f0ef5d60b3e8720ea97503383887d",
+      "linux_sha256": "20b4135f7f5f45a54c2ab2eef031c667f14f0ef5d60b3e8720ea97503383887d"
     },
     "modules/capture_services/router_password_actions.py": {
       "upstream_sha256": "d4fc174a2a757eee83054a7918dd86dd396b4f9cc5755e91ec7f98f25475bf50",
@@ -4433,8 +4785,8 @@
       "linux_sha256": "1c036c73c10f77042d151b1867491c5d04dd7fec700e79ff8ef2513d6226a33e"
     },
     "modules/capture_services/scan_management_service.py": {
-      "upstream_sha256": "4aa30a001e328cd6e5904327af0a6c2d39648fd2931b6c7c826000b5ec02cb8f",
-      "linux_sha256": "4aa30a001e328cd6e5904327af0a6c2d39648fd2931b6c7c826000b5ec02cb8f"
+      "upstream_sha256": "ad607482ce0fa54f2be54fb7cca6ad7ca75f2a0f93dcd58711d6dd5d391dc298",
+      "linux_sha256": "ad607482ce0fa54f2be54fb7cca6ad7ca75f2a0f93dcd58711d6dd5d391dc298"
     },
     "modules/capture_services/shutdown_cleanup.py": {
       "upstream_sha256": "95932ce6e9ae7618e6c15405c7eb16d8ffb5772081cf606fda3b8cbfb5369e51",
@@ -4461,16 +4813,16 @@
       "linux_sha256": "6ac9da4e3b30537293b71662107b06bdfbbe298ea49a92639bc91093aeee3386"
     },
     "modules/capture_services/test_reconnect_cleanup.py": {
-      "upstream_sha256": "205546a45b59a27655969d816a39d52b5cd5300eeee2b05e54237471193a0c6f",
-      "linux_sha256": "205546a45b59a27655969d816a39d52b5cd5300eeee2b05e54237471193a0c6f"
+      "upstream_sha256": "b0822253e5ab5ddd5447679b4d10f3cc3ae74d11ea84472a819be141c978acf7",
+      "linux_sha256": "b0822253e5ab5ddd5447679b4d10f3cc3ae74d11ea84472a819be141c978acf7"
     },
     "modules/capture_services/verified_results.py": {
       "upstream_sha256": "a940912362a6a5768da9cf72139a72cf2609c0a70cdc9189eed945b996317acf",
       "linux_sha256": "a940912362a6a5768da9cf72139a72cf2609c0a70cdc9189eed945b996317acf"
     },
     "modules/capture_services/wireless_setup_service.py": {
-      "upstream_sha256": "cc760bf2619d720f4754045ff45504d919aef2c34f5973b98ac940addcab436d",
-      "linux_sha256": "cc760bf2619d720f4754045ff45504d919aef2c34f5973b98ac940addcab436d"
+      "upstream_sha256": "263ad6105ece431dfd7b649e95e50dac70d4a7526d46af7d8797397a0913fc52",
+      "linux_sha256": "263ad6105ece431dfd7b649e95e50dac70d4a7526d46af7d8797397a0913fc52"
     },
     "modules/capture_services/workflow_diagnostics.py": {
       "upstream_sha256": "d9721d04b527bd6b2560780ac10e8fb6277a5129ab42d9eb0f62fa84c7f063f8",
@@ -4625,8 +4977,8 @@
       "linux_sha256": "4f0ecc0bf444df62447a3cfec6646735699b9df020144520466792eae6ca6771"
     },
     "modules/common_widgets/spin_box.py": {
-      "upstream_sha256": "da6e2d00ddbc3dedba74190e6bd17792d2fc724c193ad7641b00d57d417e1e51",
-      "linux_sha256": "da6e2d00ddbc3dedba74190e6bd17792d2fc724c193ad7641b00d57d417e1e51"
+      "upstream_sha256": "1e4611d2a772858f4679bd114861e9d2e61b4599d385005bdd0f1c368676850a",
+      "linux_sha256": "1e4611d2a772858f4679bd114861e9d2e61b4599d385005bdd0f1c368676850a"
     },
     "modules/common_widgets/sweep_button.py": {
       "upstream_sha256": "99f3c0c07333e3b2ba5bb96d0ab8ea827abd9d7fb1858ee8fdb611935b71fa69",
@@ -4653,20 +5005,24 @@
       "linux_sha256": "037842603738e71f285aaaf92ffa95fd78e50e54e251e9841407c43377d67ec5"
     },
     "modules/config_manager.py": {
-      "upstream_sha256": "a3a790b2d38aef9897df3c3d3382b82a3f0ae55c6397358a9e69b3492b0d451f",
-      "linux_sha256": "a3a790b2d38aef9897df3c3d3382b82a3f0ae55c6397358a9e69b3492b0d451f"
+      "upstream_sha256": "96470ede7dcb1b127bd01a454e8e430f76b74e91cd93c7ede5925075de85a996",
+      "linux_sha256": "96470ede7dcb1b127bd01a454e8e430f76b74e91cd93c7ede5925075de85a996"
     },
     "modules/config_services/capture_settings_manager.py": {
-      "upstream_sha256": "557eadca13615f64d484f42983e0d6a8b833098e16816002b01fbf97b02ceeb0",
-      "linux_sha256": "557eadca13615f64d484f42983e0d6a8b833098e16816002b01fbf97b02ceeb0"
+      "upstream_sha256": "ebe8c60bd4c26414f16c979e86508910347b65502aaf14fd28f3d13eda704efb",
+      "linux_sha256": "ebe8c60bd4c26414f16c979e86508910347b65502aaf14fd28f3d13eda704efb"
     },
     "modules/config_services/config_store.py": {
-      "upstream_sha256": "bebc7db3d22b2e29f9e423f82acecbe8a53802d1617de78dc03d338033d06242",
-      "linux_sha256": "bebc7db3d22b2e29f9e423f82acecbe8a53802d1617de78dc03d338033d06242"
+      "upstream_sha256": "2c62694c1dc017ab5724b5a0faf0e07767f7a94f6899c3c5b6a1507b35e0a7fd",
+      "linux_sha256": "2c62694c1dc017ab5724b5a0faf0e07767f7a94f6899c3c5b6a1507b35e0a7fd"
+    },
+    "modules/config_services/portable_settings_migration.py": {
+      "upstream_sha256": "5769aab52eeeec9db16866cf657d1b845a9aa8ad8f926bed4a935a814faecc89",
+      "linux_sha256": "5769aab52eeeec9db16866cf657d1b845a9aa8ad8f926bed4a935a814faecc89"
     },
     "modules/config_services/proxy_config_manager.py": {
-      "upstream_sha256": "ebca8ba47701ec471bb78a085ed2041a148e667a3f26fedd54ed324d9f462f1d",
-      "linux_sha256": "ebca8ba47701ec471bb78a085ed2041a148e667a3f26fedd54ed324d9f462f1d"
+      "upstream_sha256": "31b7440b30a068d3ea2bf55949b5356491727e685638ba34fbfcbe8ffa926067",
+      "linux_sha256": "31b7440b30a068d3ea2bf55949b5356491727e685638ba34fbfcbe8ffa926067"
     },
     "modules/config_services/software_item_tree.py": {
       "upstream_sha256": "b370d0f095883732ffd19dfe487653ad7395c3233964583322169b12f853a487",
@@ -4721,8 +5077,8 @@
       "linux_sha256": "230a488247f52cf19982862ee5aa059125607fb4e85db674113c8e39fce40309"
     },
     "modules/desktop_shell/startup_firewall_controller.py": {
-      "upstream_sha256": "f415f7eb5add788d5867796a00a6814d479fce19d2bf3aaabe0eb83f8eefabdf",
-      "linux_sha256": "f415f7eb5add788d5867796a00a6814d479fce19d2bf3aaabe0eb83f8eefabdf"
+      "upstream_sha256": "5f36b77e6a6acefd52893f5a297b5ebd03070d551fa98115b598b7947400cf8f",
+      "linux_sha256": "5f36b77e6a6acefd52893f5a297b5ebd03070d551fa98115b598b7947400cf8f"
     },
     "modules/desktop_shell/startup_firewall_presenter.py": {
       "upstream_sha256": "ebcc23aba1ad092458a7bfd63ac5bec365cdb8b13651d181ec94b30842a01f10",
@@ -4797,8 +5153,8 @@
       "linux_sha256": "06a18edfc1eb75d38a4a9be92a75bf5ef72d1a82c4f2b6f06c455b8e71e3914e"
     },
     "modules/log_export_paths.py": {
-      "upstream_sha256": "bf3d5ce268c31322a10491abb31064813556077c0db2a7da5d71510e0870aab5",
-      "linux_sha256": "bf3d5ce268c31322a10491abb31064813556077c0db2a7da5d71510e0870aab5"
+      "upstream_sha256": "3336b15adde37bda63812f1fe21e33e1927604fcadc37c305ef7fa6470b7c592",
+      "linux_sha256": "3336b15adde37bda63812f1fe21e33e1927604fcadc37c305ef7fa6470b7c592"
     },
     "modules/log_history.py": {
       "upstream_sha256": "16738b7e9054369fe5384b52e033434a4ae809b35ca42437e78059d934af4e3f",
@@ -4893,8 +5249,8 @@
       "linux_sha256": "159b9efed55747779cd9c0c8daff585bbaca22530c41be9a88613d1b788cd150"
     },
     "modules/main_pages/info_panel.py": {
-      "upstream_sha256": "a6013203a38cf0c94d4acede9a60a79e0803ef8bdb88979dd550083a73d8eb41",
-      "linux_sha256": "a6013203a38cf0c94d4acede9a60a79e0803ef8bdb88979dd550083a73d8eb41"
+      "upstream_sha256": "8b2fdb416d89c22dd909c4a7bf997fc84d820cd20fa89f883c51e343267915b3",
+      "linux_sha256": "8b2fdb416d89c22dd909c4a7bf997fc84d820cd20fa89f883c51e343267915b3"
     },
     "modules/main_pages/main_page_workspace.py": {
       "upstream_sha256": "069e4b02297568fd6fc5f977f6a2f62a6281d5ce57258898d4795964849bb297",
@@ -4917,8 +5273,8 @@
       "linux_sha256": "9481325978193446d494e9a9105ac7800738b807b8dfb2f094bedd617ff114d2"
     },
     "modules/main_pages/packet_capture/openwrt/access_point_table.py": {
-      "upstream_sha256": "8ec8dfc449be1fc3c44d346bef5f27ebca5d9219524dbb648f740db5e20f8cdd",
-      "linux_sha256": "8ec8dfc449be1fc3c44d346bef5f27ebca5d9219524dbb648f740db5e20f8cdd"
+      "upstream_sha256": "764119a89c0a4a288a0d28aa15f8ec361e58efd16fba487727d974115d3786ee",
+      "linux_sha256": "764119a89c0a4a288a0d28aa15f8ec361e58efd16fba487727d974115d3786ee"
     },
     "modules/main_pages/packet_capture/openwrt/ap_batch_dialog.py": {
       "upstream_sha256": "22231cd221e31f87200ebb1b28a122ac6483c95340c59d281fa2748284e3396d",
@@ -4937,24 +5293,24 @@
       "linux_sha256": "4b55ca50b3fbed606dcf3f563397b413c5dddff0139e86d320caf98b392fc199"
     },
     "modules/main_pages/packet_capture/openwrt/auto_capture_page.py": {
-      "upstream_sha256": "8f2397e0ed2f4e91f21879eff9895ce4f188729515a9fc33ba6c4edbf1178382",
-      "linux_sha256": "8f2397e0ed2f4e91f21879eff9895ce4f188729515a9fc33ba6c4edbf1178382"
+      "upstream_sha256": "36fe9db9834bd2ec82cb92fd9cb2ab368317ff3f33ccd5ec8e09602615e634b1",
+      "linux_sha256": "36fe9db9834bd2ec82cb92fd9cb2ab368317ff3f33ccd5ec8e09602615e634b1"
     },
     "modules/main_pages/packet_capture/openwrt/auto_capture_radio_card.py": {
-      "upstream_sha256": "e561d95759ee131658cfd594c9131dcf3f198f926f8d396bf1294c07f7886e75",
-      "linux_sha256": "e561d95759ee131658cfd594c9131dcf3f198f926f8d396bf1294c07f7886e75"
+      "upstream_sha256": "d274ca3c82ccd7344985d0ff9fe26bedf29ea64f952532b1ff9f03ea4742f690",
+      "linux_sha256": "d274ca3c82ccd7344985d0ff9fe26bedf29ea64f952532b1ff9f03ea4742f690"
     },
     "modules/main_pages/packet_capture/openwrt/auto_capture_report_dialog.py": {
-      "upstream_sha256": "c36eff230e2978ba0098afa1de5a3552e46be03b8f50ed6e8c4f711554893a27",
-      "linux_sha256": "c36eff230e2978ba0098afa1de5a3552e46be03b8f50ed6e8c4f711554893a27"
+      "upstream_sha256": "bcd08e41abe684935e8c4b4a2ccb2edaf3254d600f24ceb4f2ae0f4c7033c565",
+      "linux_sha256": "bcd08e41abe684935e8c4b4a2ccb2edaf3254d600f24ceb4f2ae0f4c7033c565"
     },
     "modules/main_pages/packet_capture/openwrt/auto_handshake_action.py": {
       "upstream_sha256": "7822fa7ebf6b5c546bc9c3ffda1c099b324607b10c0048ddb7524969c681dee0",
       "linux_sha256": "7822fa7ebf6b5c546bc9c3ffda1c099b324607b10c0048ddb7524969c681dee0"
     },
     "modules/main_pages/packet_capture/openwrt/backup_filenames.py": {
-      "upstream_sha256": "7e50c2a38348a6efe11c3bad79bae4969adc330a1f6c3b497b37e99e6b5c7fbf",
-      "linux_sha256": "7e50c2a38348a6efe11c3bad79bae4969adc330a1f6c3b497b37e99e6b5c7fbf"
+      "upstream_sha256": "23123c874507b5b48ff66c6806722005009eee1227ad360f44364acdfab9f8ae",
+      "linux_sha256": "23123c874507b5b48ff66c6806722005009eee1227ad360f44364acdfab9f8ae"
     },
     "modules/main_pages/packet_capture/openwrt/bundle_export_actions.py": {
       "upstream_sha256": "1cef7cf3966155c45055a0f9988c3d5f39f6f44a03e1c927ba937792d0454e70",
@@ -4981,12 +5337,12 @@
       "linux_sha256": "48238b111ab8d05f952f8aa82ce3f295e6e9ac1a9cb2281447dd87cca8732655"
     },
     "modules/main_pages/packet_capture/openwrt/capture_settings_page.py": {
-      "upstream_sha256": "6b7331554be9a4ed28680fbc6373f8f69e48249d6e3579158b76d67cd1d97077",
-      "linux_sha256": "6b7331554be9a4ed28680fbc6373f8f69e48249d6e3579158b76d67cd1d97077"
+      "upstream_sha256": "9fa0c7d9b1521fe61a9d6ef618fe6ce4eec5472ca99a5d13e28c31bff183f39e",
+      "linux_sha256": "9fa0c7d9b1521fe61a9d6ef618fe6ce4eec5472ca99a5d13e28c31bff183f39e"
     },
     "modules/main_pages/packet_capture/openwrt/capture_tool_panel.py": {
-      "upstream_sha256": "ade067fbea4d58dc0b1a3cbb1a40338bd9c1c144fcb8ad472271da17748bc9c7",
-      "linux_sha256": "ade067fbea4d58dc0b1a3cbb1a40338bd9c1c144fcb8ad472271da17748bc9c7"
+      "upstream_sha256": "158096e54ab1441177d14f01655fc0a5df76355dc1faf42105c62f2768c453da",
+      "linux_sha256": "158096e54ab1441177d14f01655fc0a5df76355dc1faf42105c62f2768c453da"
     },
     "modules/main_pages/packet_capture/openwrt/capture_upgrade_progress.py": {
       "upstream_sha256": "0d726fc46de7139a319e5fc0f0c3f510abee18087bb11a62f36bc60d1e4cdcbc",
@@ -5005,8 +5361,8 @@
       "linux_sha256": "948f19d68daea05c519a056341d7ccded4e2a6f9a5bb500241f1c522d6f499ca"
     },
     "modules/main_pages/packet_capture/openwrt/common_settings_groups.py": {
-      "upstream_sha256": "2f28a65d24c6e13fb0f87e4b3f25e465ba0dba2479d2c50f9881ca8eb43bb8ef",
-      "linux_sha256": "2f28a65d24c6e13fb0f87e4b3f25e465ba0dba2479d2c50f9881ca8eb43bb8ef"
+      "upstream_sha256": "2a47a1729bac70e7a28d5541c5957c05a436485b3631c86f8b29eac6cda00202",
+      "linux_sha256": "2a47a1729bac70e7a28d5541c5957c05a436485b3631c86f8b29eac6cda00202"
     },
     "modules/main_pages/packet_capture/openwrt/common_tool_section.py": {
       "upstream_sha256": "48dfd26295fcdd8ef5a35b0bf0d36d173c2c32efa4ac29476677d350edfd526b",
@@ -5025,12 +5381,16 @@
       "linux_sha256": "bdf76fd4d07044717dcaccec931d74fe29ae2dfbec679c247d13e76c89ce9651"
     },
     "modules/main_pages/packet_capture/openwrt/connection_section.py": {
-      "upstream_sha256": "3bb577b2fe153bd92f24cc5c51bb781913719d74f180f5f1419ad340f463d881",
-      "linux_sha256": "3bb577b2fe153bd92f24cc5c51bb781913719d74f180f5f1419ad340f463d881"
+      "upstream_sha256": "ae4eb70368271f4eea30e5b86041eccbf4c83d7be79f7d470b661f250b2886ea",
+      "linux_sha256": "ae4eb70368271f4eea30e5b86041eccbf4c83d7be79f7d470b661f250b2886ea"
     },
     "modules/main_pages/packet_capture/openwrt/dependency_actions.py": {
       "upstream_sha256": "397d3d49b27253b82537a12aaf1238d03c9466f0878e10ad4ff9eb3670629c83",
       "linux_sha256": "397d3d49b27253b82537a12aaf1238d03c9466f0878e10ad4ff9eb3670629c83"
+    },
+    "modules/main_pages/packet_capture/openwrt/dependency_backup_card.py": {
+      "upstream_sha256": "13d7c0d04bdeba2fda7a7fdc89d209dd2ca85db6da32a5989d01283eb172d2e0",
+      "linux_sha256": "13d7c0d04bdeba2fda7a7fdc89d209dd2ca85db6da32a5989d01283eb172d2e0"
     },
     "modules/main_pages/packet_capture/openwrt/dependency_candidate_prompt.py": {
       "upstream_sha256": "6573072b8cb4507ba2848b43fc951acadf014fb352a5de0a13005fedd3cb82db",
@@ -5049,8 +5409,8 @@
       "linux_sha256": "379808c89f891c08db5c9ff1520481ddd0b46cb8aa94eed3845eb536b3c117f0"
     },
     "modules/main_pages/packet_capture/openwrt/factory_reset_result_dialog.py": {
-      "upstream_sha256": "25834679c28eb75fafc67d661ee601e6d4f02e672a4544baa4d053d2c35ada4d",
-      "linux_sha256": "25834679c28eb75fafc67d661ee601e6d4f02e672a4544baa4d053d2c35ada4d"
+      "upstream_sha256": "fa3ed2de8592bc69dddb2a363293309525adbff90546049efdcc47ddd94d8791",
+      "linux_sha256": "fa3ed2de8592bc69dddb2a363293309525adbff90546049efdcc47ddd94d8791"
     },
     "modules/main_pages/packet_capture/openwrt/file_dependency_prompt.py": {
       "upstream_sha256": "29e5c9ca560e2ded7676fcfd2b7c08af058f7b11926bfe9d5e7f7caa534925b3",
@@ -5059,6 +5419,10 @@
     "modules/main_pages/packet_capture/openwrt/file_drop_actions.py": {
       "upstream_sha256": "59bc872fb7b373ebd0578a69042309a0141eaf589e6c5850f49ce419afe41278",
       "linux_sha256": "59bc872fb7b373ebd0578a69042309a0141eaf589e6c5850f49ce419afe41278"
+    },
+    "modules/main_pages/packet_capture/openwrt/lan_ipv4_form.py": {
+      "upstream_sha256": "83b4eb4367e434d08e938db9e05733cd626f6a1d8ac697498f2f6275c935483b",
+      "linux_sha256": "83b4eb4367e434d08e938db9e05733cd626f6a1d8ac697498f2f6275c935483b"
     },
     "modules/main_pages/packet_capture/openwrt/lan_recovery_panel.py": {
       "upstream_sha256": "fd046495ff15e7316acb4f10416470a942a9473bf3fb0c5c19f6dcadae71b1ff",
@@ -5085,16 +5449,16 @@
       "linux_sha256": "358ab6c727c91aab47d41980e2f78d1e1f7f03b5facf5d8039277f54045bf87a"
     },
     "modules/main_pages/packet_capture/openwrt/management_dependency_prompt.py": {
-      "upstream_sha256": "6fc38384d6eaa1a55efae2fecbe5140809f1abe141273cdf095a141f1a59a086",
-      "linux_sha256": "6fc38384d6eaa1a55efae2fecbe5140809f1abe141273cdf095a141f1a59a086"
+      "upstream_sha256": "a4a31d99e27717dff3b0c2bf23f4822671f5d73d289e06ca295d0d03dbd1de9c",
+      "linux_sha256": "a4a31d99e27717dff3b0c2bf23f4822671f5d73d289e06ca295d0d03dbd1de9c"
     },
     "modules/main_pages/packet_capture/openwrt/network_recovery_result_dialog.py": {
       "upstream_sha256": "e4d918d5f7f71951ae8f399d8b9fc58037ff03db077a773c189a79372d05fd88",
       "linux_sha256": "e4d918d5f7f71951ae8f399d8b9fc58037ff03db077a773c189a79372d05fd88"
     },
     "modules/main_pages/packet_capture/openwrt/openwrt_page.py": {
-      "upstream_sha256": "a324821d9afd2061ea6e859b34a73c1e9fdf9fc853239bbeda62f4953a2b56f4",
-      "linux_sha256": "a324821d9afd2061ea6e859b34a73c1e9fdf9fc853239bbeda62f4953a2b56f4"
+      "upstream_sha256": "47b4cf8c609c8645c180d9a850232b2c3560d51a91d72ce227e70edffb888d8c",
+      "linux_sha256": "47b4cf8c609c8645c180d9a850232b2c3560d51a91d72ce227e70edffb888d8c"
     },
     "modules/main_pages/packet_capture/openwrt/orphan_review_dialog.py": {
       "upstream_sha256": "4aa9cc9667b1e329096d1b577fff6b2db5cf5e749efa3a64731aee5c5498070f",
@@ -5128,6 +5492,10 @@
       "upstream_sha256": "35325d0446dfc7c4652788577f1a3394fcb0f636daf3c81e5a03ea326a4783ab",
       "linux_sha256": "35325d0446dfc7c4652788577f1a3394fcb0f636daf3c81e5a03ea326a4783ab"
     },
+    "modules/main_pages/packet_capture/openwrt/quick_wps_dialog.py": {
+      "upstream_sha256": "82978d706ab5faa70c0ecefa286fceb72bd431ef26182f3e47002ff49d78fe89",
+      "linux_sha256": "82978d706ab5faa70c0ecefa286fceb72bd431ef26182f3e47002ff49d78fe89"
+    },
     "modules/main_pages/packet_capture/openwrt/radio_usage_view.py": {
       "upstream_sha256": "ca3893946f00829f658cc138920352b7c541418fb1aeb2ddf2db71f965abd00e",
       "linux_sha256": "ca3893946f00829f658cc138920352b7c541418fb1aeb2ddf2db71f965abd00e"
@@ -5136,21 +5504,25 @@
       "upstream_sha256": "db030183e28595b234b9a377bd1d80a97a3c79e91e10f52b6c1d76576daf9d1f",
       "linux_sha256": "db030183e28595b234b9a377bd1d80a97a3c79e91e10f52b6c1d76576daf9d1f"
     },
+    "modules/main_pages/packet_capture/openwrt/recovery_access_prompt.py": {
+      "upstream_sha256": "030634fcdbac843cb822f747e73369e5dc2aea5349260217c0b0e7e732bd75cc",
+      "linux_sha256": "030634fcdbac843cb822f747e73369e5dc2aea5349260217c0b0e7e732bd75cc"
+    },
     "modules/main_pages/packet_capture/openwrt/resource_picker.py": {
       "upstream_sha256": "a8e39356aee5a7fc9dce4520b28eb35e004e064434c24c8b2905b75b485f478a",
       "linux_sha256": "a8e39356aee5a7fc9dce4520b28eb35e004e064434c24c8b2905b75b485f478a"
     },
     "modules/main_pages/packet_capture/openwrt/router_common_settings_page.py": {
-      "upstream_sha256": "900ea40fb97bd33cb27b24ad52b624d1b4e11cb690c69ce932418b6363a7867c",
-      "linux_sha256": "900ea40fb97bd33cb27b24ad52b624d1b4e11cb690c69ce932418b6363a7867c"
+      "upstream_sha256": "36b343ef375e78cde4be8315808f771d0f7ac4b934b642b6198d6023104fe88c",
+      "linux_sha256": "36b343ef375e78cde4be8315808f771d0f7ac4b934b642b6198d6023104fe88c"
     },
     "modules/main_pages/packet_capture/openwrt/router_config_dialog.py": {
-      "upstream_sha256": "4eac1fcf7bad71bfb503ba3a97e63427c491df0957bb5f589945627db9f61824",
-      "linux_sha256": "4eac1fcf7bad71bfb503ba3a97e63427c491df0957bb5f589945627db9f61824"
+      "upstream_sha256": "99d95f1316f142274a39e7b42b472ac98d3687729331d5d5a18bec3c3f314144",
+      "linux_sha256": "99d95f1316f142274a39e7b42b472ac98d3687729331d5d5a18bec3c3f314144"
     },
     "modules/main_pages/packet_capture/openwrt/router_dependency_page.py": {
-      "upstream_sha256": "09983ccf33ab5cf599009b48d814d969ba24bfe0bb2977dd64320b59946e41ba",
-      "linux_sha256": "09983ccf33ab5cf599009b48d814d969ba24bfe0bb2977dd64320b59946e41ba"
+      "upstream_sha256": "86324ff15cc2f6bfc118170b02b3cc7a9b4c61785058a625cdf513db555a9949",
+      "linux_sha256": "86324ff15cc2f6bfc118170b02b3cc7a9b4c61785058a625cdf513db555a9949"
     },
     "modules/main_pages/packet_capture/openwrt/router_file_widgets.py": {
       "upstream_sha256": "aa82fde6a1efedce77cff967a914783c3498db2bcb710a586b6f30ac8c259a55",
@@ -5165,16 +5537,16 @@
       "linux_sha256": "db53adcc6f5a100ccf5982f57ed9df0797c11909bcab11d65d7a6a21ccaf5967"
     },
     "modules/main_pages/packet_capture/openwrt/router_login_page.py": {
-      "upstream_sha256": "d6cac2238f6ed487e41cc3ffe3dcb6294a0eb9882841c666c8c0ff3c83a93384",
-      "linux_sha256": "d6cac2238f6ed487e41cc3ffe3dcb6294a0eb9882841c666c8c0ff3c83a93384"
+      "upstream_sha256": "f4ca7b638973968b11ef9b6d5de74bae48f4868c3cf7cd0090a13844728df00e",
+      "linux_sha256": "f4ca7b638973968b11ef9b6d5de74bae48f4868c3cf7cd0090a13844728df00e"
     },
     "modules/main_pages/packet_capture/openwrt/router_login_prompt.py": {
       "upstream_sha256": "09303514579e3d7218780f1e44ebe899e2437c2018919a70e1cf40a22069f7bb",
       "linux_sha256": "09303514579e3d7218780f1e44ebe899e2437c2018919a70e1cf40a22069f7bb"
     },
     "modules/main_pages/packet_capture/openwrt/router_password_dialog.py": {
-      "upstream_sha256": "3749ed046c453ce1e18cbcc925102885a96fed995abd8f1ec5a3ec2b6264895b",
-      "linux_sha256": "3749ed046c453ce1e18cbcc925102885a96fed995abd8f1ec5a3ec2b6264895b"
+      "upstream_sha256": "f2c94ba56664077d1d2eee8a499014b9df1fbdc383a1b1ec6e972a486d985fcf",
+      "linux_sha256": "f2c94ba56664077d1d2eee8a499014b9df1fbdc383a1b1ec6e972a486d985fcf"
     },
     "modules/main_pages/packet_capture/openwrt/router_policy_actions.py": {
       "upstream_sha256": "7f60262705b729123c2c9bbe21a8c7d295f071f4280194347f9db4cff0a1a853",
@@ -5195,6 +5567,10 @@
     "modules/main_pages/packet_capture/openwrt/router_terminal_page.py": {
       "upstream_sha256": "614b5d6993d2bc5d67dc0adf49f35ac7d77b9172c1196ea72a9de48388e490ee",
       "linux_sha256": "614b5d6993d2bc5d67dc0adf49f35ac7d77b9172c1196ea72a9de48388e490ee"
+    },
+    "modules/main_pages/packet_capture/openwrt/scan_default_band_controller.py": {
+      "upstream_sha256": "22b24ee958b78f2d10db4c7fd23bfcd1815af91112dab6911301ee2436c191fc",
+      "linux_sha256": "22b24ee958b78f2d10db4c7fd23bfcd1815af91112dab6911301ee2436c191fc"
     },
     "modules/main_pages/packet_capture/openwrt/service_page_slots.py": {
       "upstream_sha256": "664be01f612e3d380932cb04b18e927635eb22b076943fbb2db8633f265f8b0c",
@@ -5237,36 +5613,40 @@
       "linux_sha256": "7a55680424bc5abd327bcce1bb1a9cc13ae76274d6dcf100eaf2de061fa3bd8b"
     },
     "modules/main_pages/packet_capture/openwrt/signal_runtime_details.py": {
-      "upstream_sha256": "d92607634c26850d2e69adf2c010fd05e75868890c0235f624b021d2ebe976d5",
-      "linux_sha256": "d92607634c26850d2e69adf2c010fd05e75868890c0235f624b021d2ebe976d5"
+      "upstream_sha256": "7979555106d0862ed7322c0950e485d8934011ab8bea6b3db2abdd4e1b24e0f2",
+      "linux_sha256": "7979555106d0862ed7322c0950e485d8934011ab8bea6b3db2abdd4e1b24e0f2"
     },
     "modules/main_pages/packet_capture/openwrt/signal_runtime_monitor.py": {
       "upstream_sha256": "5535e53b024a59725207efe2b88060618b1c18839bc3997d04df8d2edd605311",
       "linux_sha256": "5535e53b024a59725207efe2b88060618b1c18839bc3997d04df8d2edd605311"
     },
     "modules/main_pages/packet_capture/openwrt/signal_runtime_state.py": {
-      "upstream_sha256": "07e7f1141fb495d2e8e161047f987793b176880013b0c80b5a14072ae6256105",
-      "linux_sha256": "07e7f1141fb495d2e8e161047f987793b176880013b0c80b5a14072ae6256105"
+      "upstream_sha256": "a7d0b127fce5fce6a7a1fd53e0a62fa49515da0b0a15f602936a60adddae70d7",
+      "linux_sha256": "a7d0b127fce5fce6a7a1fd53e0a62fa49515da0b0a15f602936a60adddae70d7"
     },
     "modules/main_pages/packet_capture/openwrt/signal_setup_actions.py": {
       "upstream_sha256": "b4c6bc2bd5ff928250120a09334b70097587fe026d4a131a952d9f48301b3554",
       "linux_sha256": "b4c6bc2bd5ff928250120a09334b70097587fe026d4a131a952d9f48301b3554"
     },
     "modules/main_pages/packet_capture/openwrt/signal_setup_dialogs.py": {
-      "upstream_sha256": "e49eaf9679728047b23f92e28a1017f6e94a454e800ff9b6eedf9184f33d27d0",
-      "linux_sha256": "e49eaf9679728047b23f92e28a1017f6e94a454e800ff9b6eedf9184f33d27d0"
+      "upstream_sha256": "40f566dd353437857b4af44eb8ebfeab40d64020e0fb16ff4a623d94c8beb772",
+      "linux_sha256": "40f566dd353437857b4af44eb8ebfeab40d64020e0fb16ff4a623d94c8beb772"
     },
     "modules/main_pages/packet_capture/openwrt/signal_setup_editor.py": {
-      "upstream_sha256": "4bac2fb25bf049379dd413401d16c58a1750b7f7881c9f4e53dad085bb8bd956",
-      "linux_sha256": "4bac2fb25bf049379dd413401d16c58a1750b7f7881c9f4e53dad085bb8bd956"
+      "upstream_sha256": "d834b7f4442288c393b7f744782b0aa95b6754b389a6ef9daf38222231d05a51",
+      "linux_sha256": "d834b7f4442288c393b7f744782b0aa95b6754b389a6ef9daf38222231d05a51"
     },
     "modules/main_pages/packet_capture/openwrt/signal_setup_forms.py": {
       "upstream_sha256": "eb8e9f10f81e6d38e8827a9c3022ae6ca28d8405f7963b2c635febe467caba89",
       "linux_sha256": "eb8e9f10f81e6d38e8827a9c3022ae6ca28d8405f7963b2c635febe467caba89"
     },
     "modules/main_pages/packet_capture/openwrt/signal_setup_panels.py": {
-      "upstream_sha256": "00c6a698421aa8c8ba6eaca6754321f854a709f3ee7ddf66ca149c775ac2e7ba",
-      "linux_sha256": "00c6a698421aa8c8ba6eaca6754321f854a709f3ee7ddf66ca149c775ac2e7ba"
+      "upstream_sha256": "5028b4468d2767d074724bc0d42f23e703fc1332ac32068a85ac64fb4b553095",
+      "linux_sha256": "5028b4468d2767d074724bc0d42f23e703fc1332ac32068a85ac64fb4b553095"
+    },
+    "modules/main_pages/packet_capture/openwrt/signal_setup_presets.py": {
+      "upstream_sha256": "e94a2bcb463f321682ef253efdc02d3e055a66540a1749159bdbbcadbd9751c6",
+      "linux_sha256": "e94a2bcb463f321682ef253efdc02d3e055a66540a1749159bdbbcadbd9751c6"
     },
     "modules/main_pages/packet_capture/openwrt/signal_setup_preview.py": {
       "upstream_sha256": "1aadb73bdefe402807a186f12fc7a9fc0c3ab304d77c004666c76dff54be31ae",
@@ -5289,8 +5669,8 @@
       "linux_sha256": "023f03a13c78c783afdad0dfca759acb2afcb12bad04e757142a95434bc64518"
     },
     "modules/main_pages/packet_capture/openwrt/wps_dialog.py": {
-      "upstream_sha256": "181d440a024203f0f205c82bdc470668d66b693dbe3f728f1d1d6cbdd78dab89",
-      "linux_sha256": "181d440a024203f0f205c82bdc470668d66b693dbe3f728f1d1d6cbdd78dab89"
+      "upstream_sha256": "a8260e99316d1b7444bab43464efc877c49b0cb3d244a1a877746a05c823496b",
+      "linux_sha256": "a8260e99316d1b7444bab43464efc877c49b0cb3d244a1a877746a05c823496b"
     },
     "modules/main_pages/packet_capture/openwrt_capture_tab.py": {
       "upstream_sha256": "0051eb7c2e0685aa63282f99a0aea94d9e684b36cd55637d12e707fa6c676713",
@@ -5301,8 +5681,8 @@
       "linux_sha256": "c55ec3ef05ca2685d71a13a3ab5e8f4b1dc49d84a3f9dae6f299111c33c07bd8"
     },
     "modules/main_pages/packet_capture/scan_start_controller.py": {
-      "upstream_sha256": "af52f36d69f33287cc9bc12e01dda634ab75307bd22a8bd4056424388bd48c43",
-      "linux_sha256": "af52f36d69f33287cc9bc12e01dda634ab75307bd22a8bd4056424388bd48c43"
+      "upstream_sha256": "a24614e3f167124728c2af9be5e43839800faac184494c95946fe9d9e0b52963",
+      "linux_sha256": "a24614e3f167124728c2af9be5e43839800faac184494c95946fe9d9e0b52963"
     },
     "modules/main_pages/packet_capture/ui_helpers.py": {
       "upstream_sha256": "78ce87ce57ad75f73ac50f7e964a08ec28a565c4aa27b4d7afaa045a04109ee6",
@@ -5317,8 +5697,8 @@
       "linux_sha256": "6476688ed47821428ad5e73d8ec26e9e9546238528d553c62db8017d9cb53d83"
     },
     "modules/main_pages/packet_capture_page.py": {
-      "upstream_sha256": "b6c119d07b491eb4560ffda304ea895300bf5c4c05bc003aa9b0ee808b2e5ddd",
-      "linux_sha256": "b6c119d07b491eb4560ffda304ea895300bf5c4c05bc003aa9b0ee808b2e5ddd"
+      "upstream_sha256": "c573678cdcbba9519be84f8a209aa16ac2bd088c855fa97987062a36226d390f",
+      "linux_sha256": "c573678cdcbba9519be84f8a209aa16ac2bd088c855fa97987062a36226d390f"
     },
     "modules/main_pages/page_action_buttons.py": {
       "upstream_sha256": "56fc99172367d6bd36c41c7c5e22ae71a2d198244670a34cdae84260210361d2",
@@ -5533,40 +5913,56 @@
       "linux_sha256": "1a2c09547686ff2e4156a0f923bd09fc6b40833f83407f8afc1da85da96e1f0b"
     },
     "modules/platform_services/firewall_session_worker.py": {
-      "upstream_sha256": "1b2e40f30aafe9e0d498633533aa83c4aa16e3420717f96e40764a2daea2c513",
-      "linux_sha256": "1b2e40f30aafe9e0d498633533aa83c4aa16e3420717f96e40764a2daea2c513"
+      "upstream_sha256": "4b3045b5a321b78172effc8dba1370c55545eb5adba9a489ee98cba57f377a1e",
+      "linux_sha256": "4b3045b5a321b78172effc8dba1370c55545eb5adba9a489ee98cba57f377a1e"
+    },
+    "modules/platform_services/ipsec_command_diagnostics.py": {
+      "upstream_sha256": "ccbcbff0afffdacbfc99bbbee869f3a77fe3149c07458b9fbdcaf07ad5ff716c",
+      "linux_sha256": "ccbcbff0afffdacbfc99bbbee869f3a77fe3149c07458b9fbdcaf07ad5ff716c"
+    },
+    "modules/platform_services/ipsec_verification.py": {
+      "upstream_sha256": "4ba107b2bb2321ed1eb8877017d14a149d17f911bc8c04a87f181c7aaa978cbd",
+      "linux_sha256": "4ba107b2bb2321ed1eb8877017d14a149d17f911bc8c04a87f181c7aaa978cbd"
     },
     "modules/platform_services/lan_network.py": {
-      "upstream_sha256": "dabe10c2221de6b5e887c26ac34f1e14238dd7a8d8bddce23e9d68547afb37cf",
-      "linux_sha256": "dabe10c2221de6b5e887c26ac34f1e14238dd7a8d8bddce23e9d68547afb37cf"
+      "upstream_sha256": "37bd3805c7990754146d930dfb7253a17b90c59267a588253296c276667109b9",
+      "linux_sha256": "37bd3805c7990754146d930dfb7253a17b90c59267a588253296c276667109b9"
     },
     "modules/platform_services/lan_network_linux.py": {
       "upstream_sha256": "b7e6ad637b5c3b4826f09da5e7dd77d693ffdb0a3a9b732bf3aa03e08ec6bdbc",
       "linux_sha256": "b7e6ad637b5c3b4826f09da5e7dd77d693ffdb0a3a9b732bf3aa03e08ec6bdbc"
     },
     "modules/platform_services/lan_network_windows.py": {
-      "upstream_sha256": "18d2405cb6218b05c0ad2bcf0444dc44d0fee6fbb35828764d4561d6966aa817",
-      "linux_sha256": "18d2405cb6218b05c0ad2bcf0444dc44d0fee6fbb35828764d4561d6966aa817"
+      "upstream_sha256": "7908ef952448563023dfb38e0b1001fbabb5adce108e7f494a3c6ae241908c39",
+      "linux_sha256": "7908ef952448563023dfb38e0b1001fbabb5adce108e7f494a3c6ae241908c39"
     },
     "modules/platform_services/lease_transition.py": {
       "upstream_sha256": "eec6a90fdd84d85fa12adf86799af1478d2eb13bde558475d93ee5f014f69725",
       "linux_sha256": "eec6a90fdd84d85fa12adf86799af1478d2eb13bde558475d93ee5f014f69725"
     },
     "modules/platform_services/legacy_ipsec.py": {
-      "upstream_sha256": "f83fadf433522a7078ad36998bd21a28891651288043b77fd349726149fe7972",
-      "linux_sha256": "f83fadf433522a7078ad36998bd21a28891651288043b77fd349726149fe7972"
+      "upstream_sha256": "35b7465ff0ac23d87e0396afec80d59173e2dde1f9e52bc9ab8c000ae1ed759d",
+      "linux_sha256": "35b7465ff0ac23d87e0396afec80d59173e2dde1f9e52bc9ab8c000ae1ed759d"
     },
     "modules/platform_services/legacy_ipsec_backup.py": {
       "upstream_sha256": "653a4fa29ac93362ecbd680a30d0b4a95b6e193cc01db98bfe291ce80a9caeeb",
       "linux_sha256": "653a4fa29ac93362ecbd680a30d0b4a95b6e193cc01db98bfe291ce80a9caeeb"
+    },
+    "modules/platform_services/legacy_ipsec_binary.py": {
+      "upstream_sha256": "e00895f58f0c761958080e9ad314fb6726d17202f4dbd4afafc6527b9b728380",
+      "linux_sha256": "e00895f58f0c761958080e9ad314fb6726d17202f4dbd4afafc6527b9b728380"
     },
     "modules/platform_services/legacy_ipsec_output.py": {
       "upstream_sha256": "954f6fdac230c112e10ca8e19fec9aef7679ce8149b14149df5a114c1e7a4f35",
       "linux_sha256": "954f6fdac230c112e10ca8e19fec9aef7679ce8149b14149df5a114c1e7a4f35"
     },
     "modules/platform_services/legacy_ipsec_plan.py": {
-      "upstream_sha256": "c7f575f4fe47f2b8afa6bbc43be237e892ba21f843533f53e533dfd7fc3e630d",
-      "linux_sha256": "c7f575f4fe47f2b8afa6bbc43be237e892ba21f843533f53e533dfd7fc3e630d"
+      "upstream_sha256": "9c5dfa5d4c2434c981f224cee574d6865b342bbac594f8027bd49a29c2e575a4",
+      "linux_sha256": "9c5dfa5d4c2434c981f224cee574d6865b342bbac594f8027bd49a29c2e575a4"
+    },
+    "modules/platform_services/legacy_ipsec_snapshot_verification.py": {
+      "upstream_sha256": "7af611b69c1052fbd40d3f2a6ac29113df0adad0f0b587bdc76c4ec82b07a0ae",
+      "linux_sha256": "7af611b69c1052fbd40d3f2a6ac29113df0adad0f0b587bdc76c4ec82b07a0ae"
     },
     "modules/platform_services/legacy_ipsec_store.py": {
       "upstream_sha256": "47d30a2ab45e30381a3494d676085d8b485be82ad237fc02c79ad3181f91d07b",
@@ -5673,8 +6069,8 @@
       "linux_sha256": "9bf64a242ca3e1c909206110355f3f09a5013778214774eecb342517b5636d95"
     },
     "modules/platform_services/network_policy.py": {
-      "upstream_sha256": "8ebba99ec768d205a5d4ba11b48549ead93db22c7e5901001b960fba363999f9",
-      "linux_sha256": "8ebba99ec768d205a5d4ba11b48549ead93db22c7e5901001b960fba363999f9"
+      "upstream_sha256": "1285d5aeb2a7601d2b68f3906e7f26b07ac8554d0d216fe7d31e2be22bdff471",
+      "linux_sha256": "1285d5aeb2a7601d2b68f3906e7f26b07ac8554d0d216fe7d31e2be22bdff471"
     },
     "modules/platform_services/owned_cache.py": {
       "upstream_sha256": "323a0bfefea2f8b294b8e46b031b6e906d11d9edc8f11553e50393f3495c7917",
@@ -5705,8 +6101,8 @@
       "linux_sha256": "2cbb1a7af509407c853a423e33109ce7ff1442b58ce4bfd48e60b22c1dff8afd"
     },
     "modules/platform_services/startup_firewall.py": {
-      "upstream_sha256": "65ac3999fff6857a92b47ace5086ee8c8bbb590b099268acf0f4407b6814f8d2",
-      "linux_sha256": "65ac3999fff6857a92b47ace5086ee8c8bbb590b099268acf0f4407b6814f8d2"
+      "upstream_sha256": "f1ece8899b076e41a413f7db62497f1a148c0e18a8cac1663c420c8ea07683f7",
+      "linux_sha256": "f1ece8899b076e41a413f7db62497f1a148c0e18a8cac1663c420c8ea07683f7"
     },
     "modules/platform_services/static_network.py": {
       "upstream_sha256": "3d7d341699aaa3f04f6f8269aac59ec846870f6a4267bcf7b85be80ba29964d8",
@@ -5749,8 +6145,8 @@
       "linux_sha256": "d4c1e2d275a8b1dd1c20b7c458748e3f05e7c28aab6b801a11308bc085792ff0"
     },
     "modules/platform_services/user_data_migration.py": {
-      "upstream_sha256": "681214e8f8e973d69a54d1631142480fb7b7c78af9aa80bc8f437cd231096acd",
-      "linux_sha256": "681214e8f8e973d69a54d1631142480fb7b7c78af9aa80bc8f437cd231096acd"
+      "upstream_sha256": "50c473da80b3eab83d11b1231a3e8d848a003056902de1afb2a0ac2cc3b49f9c",
+      "linux_sha256": "50c473da80b3eab83d11b1231a3e8d848a003056902de1afb2a0ac2cc3b49f9c"
     },
     "modules/platform_services/window_shell.py": {
       "upstream_sha256": "eaf2c94e42d0d3bace400fa120fabf8a863eb57cb86e9e520ce2c585790aab9f",
@@ -5861,8 +6257,8 @@
       "linux_sha256": "dd2d49375e173cddc73a7a6f12c7ae50c0fcddde2a3df385250cba241f3955ec"
     },
     "modules/ui_scale_manager.py": {
-      "upstream_sha256": "843d88623d25c9080ceb60b619462f8ca44b566da74dcc7551cd5b5784e1dc42",
-      "linux_sha256": "843d88623d25c9080ceb60b619462f8ca44b566da74dcc7551cd5b5784e1dc42"
+      "upstream_sha256": "fac80f77d63f22e4db2ea5c3e41c38148e10f4159069018b30f61b5955a09cf0",
+      "linux_sha256": "fac80f77d63f22e4db2ea5c3e41c38148e10f4159069018b30f61b5955a09cf0"
     },
     "modules/update_services/__init__.py": {
       "upstream_sha256": "1684b5e6e647006d8b99108f7d225525af3d24ddbb8fb5caaaf1bb94e2368bd6",
@@ -8025,8 +8421,8 @@
       "linux_sha256": "1b3ba11bc5f48719dea21f5154f9b5f0d4180f00d71eab004f317c415718e46b"
     },
     "router_app/navigation.py": {
-      "upstream_sha256": "0522bec37623e19778477be0ec5c52eb6e460b0808b5e4e3b5548179e9fb5d1e",
-      "linux_sha256": "0522bec37623e19778477be0ec5c52eb6e460b0808b5e4e3b5548179e9fb5d1e"
+      "upstream_sha256": "ba92aa2c097e41a7b43ff4216ed8df5b8bc3bdd0166105882e9cc5639e505c1a",
+      "linux_sha256": "ba92aa2c097e41a7b43ff4216ed8df5b8bc3bdd0166105882e9cc5639e505c1a"
     },
     "router_app/runtime.py": {
       "upstream_sha256": "4f235ed76f2d5c607329ea83c53c3a120698a27f5b847431d947805cfb80e9bd",
@@ -8077,8 +8473,8 @@
       "linux_sha256": "1f54d82f21354ac3f9e28f5c33b2715fab52fd3e670af585c166c1294ded8d32"
     },
     "scripts/build_cleanup.py": {
-      "upstream_sha256": "a7a3e4e745d5069f355707f2231320d7b80e3f3356224663aa2696b318e6a0f8",
-      "linux_sha256": "a7a3e4e745d5069f355707f2231320d7b80e3f3356224663aa2696b318e6a0f8"
+      "upstream_sha256": "faf9c9315a988bca1bb53fed220710b6dba775f73883947f1b1de1a28a6c0d3e",
+      "linux_sha256": "faf9c9315a988bca1bb53fed220710b6dba775f73883947f1b1de1a28a6c0d3e"
     },
     "scripts/build_common_settings_contracts.py": {
       "upstream_sha256": "9c86d07ea1fb47be55389999ef6209dcd9ba0a34e7e9f0d348b821889d0ded0d",
@@ -8091,6 +8487,10 @@
     "scripts/build_linux_terminal.py": {
       "upstream_sha256": "f7cc99d2c1404272dbde3e1a47dff2a52e92b6804de11199f6458b8f5579f820",
       "linux_sha256": "f7cc99d2c1404272dbde3e1a47dff2a52e92b6804de11199f6458b8f5579f820"
+    },
+    "scripts/build_login_diagnostics.py": {
+      "upstream_sha256": "442b271ec423ff7e9fe00e4fd9576e338c5b544d7c1670e2560061c50e3ca8db",
+      "linux_sha256": "442b271ec423ff7e9fe00e4fd9576e338c5b544d7c1670e2560061c50e3ca8db"
     },
     "scripts/build_native_terminal.py": {
       "upstream_sha256": "8cc979b006a756042eb36b509b07e4b5fc287c41daccc7b2ee73807166cf4e77",
@@ -8157,8 +8557,8 @@
       "linux_sha256": "e33b5999861f489dd8fd360c359e699e910f6dc9d81b8f8b4d7261275f35892f"
     },
     "scripts/openwrt_packages/audit_common_bundle.py": {
-      "upstream_sha256": "8a2d6c37511e59dbb54798d475d5c20ecc40cfed0e5343dfb7781e05a9147de4",
-      "linux_sha256": "8a2d6c37511e59dbb54798d475d5c20ecc40cfed0e5343dfb7781e05a9147de4"
+      "upstream_sha256": "e2011a904db3385ce85e81d4c0f3f164edd274c1bba4d6b7c122d65c376e7986",
+      "linux_sha256": "e2011a904db3385ce85e81d4c0f3f164edd274c1bba4d6b7c122d65c376e7986"
     },
     "scripts/openwrt_packages/build_builtin_base.py": {
       "upstream_sha256": "efed836a172c9ce91ac8698e3fb5eda118704cd933389ea0d9d83f1198c0fa21",
@@ -8169,16 +8569,16 @@
       "linux_sha256": "e4e545e9eb32b8a5dd1f38e44ff78d461c6aab788323b6f41d08de38742b790c"
     },
     "scripts/openwrt_packages/collect_common_bundle.py": {
-      "upstream_sha256": "8c6e41436245141245d593e88d851c9f24f8af58f880ed6f70496669e83d8a66",
-      "linux_sha256": "8c6e41436245141245d593e88d851c9f24f8af58f880ed6f70496669e83d8a66"
+      "upstream_sha256": "d828719716b72dbd5a1ccc9092fb7fb20d37a56e71d513d0b385a68db9ef1e66",
+      "linux_sha256": "d828719716b72dbd5a1ccc9092fb7fb20d37a56e71d513d0b385a68db9ef1e66"
     },
     "scripts/openwrt_packages/common_bundle_support.py": {
       "upstream_sha256": "da989e25a46e63a1cd32f6dbe80ad12ad7691d5aad24af3619889990b5c3ec11",
       "linux_sha256": "da989e25a46e63a1cd32f6dbe80ad12ad7691d5aad24af3619889990b5c3ec11"
     },
     "scripts/openwrt_packages/extend_common_bundle.py": {
-      "upstream_sha256": "87a93dd73fd228d50de459577d856dfecd7f1011530dfd77030b0d1b319bfb74",
-      "linux_sha256": "87a93dd73fd228d50de459577d856dfecd7f1011530dfd77030b0d1b319bfb74"
+      "upstream_sha256": "859ab7e80a7d975d2c30f53c578c8ff9d84e3c0b552c40b843c5ce3ddfc9dec8",
+      "linux_sha256": "859ab7e80a7d975d2c30f53c578c8ff9d84e3c0b552c40b843c5ce3ddfc9dec8"
     },
     "scripts/openwrt_packages/firmware_metadata.py": {
       "upstream_sha256": "db66bd51ac208a6abfd833e6092d1f1b78654d76b277e3ff47e49f82c10e1060",
@@ -8208,21 +8608,25 @@
       "upstream_sha256": "ab066e9938556b110ec9068cb5e478412d7e766eeb37897c790147d0da44ce2e",
       "linux_sha256": "ab066e9938556b110ec9068cb5e478412d7e766eeb37897c790147d0da44ce2e"
     },
+    "scripts/openwrt_packages/supplement_runtime_bundle.py": {
+      "upstream_sha256": "c2238635219c86ee31f2dbc530dc84f1bc4c3e402db485e9cf005c6064810a89",
+      "linux_sha256": "c2238635219c86ee31f2dbc530dc84f1bc4c3e402db485e9cf005c6064810a89"
+    },
     "scripts/openwrt_packages/support_inventory.py": {
-      "upstream_sha256": "6c83ee2e4f6989d4ebf00e8df7d6fcc8df1655c576037aceb1331b994469221e",
-      "linux_sha256": "6c83ee2e4f6989d4ebf00e8df7d6fcc8df1655c576037aceb1331b994469221e"
+      "upstream_sha256": "c29924cf98de8358715091bd9c74e681b2ce0639059fdcef031752415bc046ed",
+      "linux_sha256": "c29924cf98de8358715091bd9c74e681b2ce0639059fdcef031752415bc046ed"
     },
     "scripts/openwrt_packages/test_common_bundle.py": {
-      "upstream_sha256": "ed823da61405f2d22a2da683d14365b1ec885c17af0e3368eb468e4cd74011bc",
-      "linux_sha256": "ed823da61405f2d22a2da683d14365b1ec885c17af0e3368eb468e4cd74011bc"
+      "upstream_sha256": "5d28f89cce6f84485070f35fce910d6464af543f6e2a6a4de5713cbabd226623",
+      "linux_sha256": "5d28f89cce6f84485070f35fce910d6464af543f6e2a6a4de5713cbabd226623"
     },
     "scripts/openwrt_packages/test_firmware_metadata.py": {
       "upstream_sha256": "e15d3b58c1bdf3e98c028493e2614c22caf90eef97c560221df094e36517f052",
       "linux_sha256": "e15d3b58c1bdf3e98c028493e2614c22caf90eef97c560221df094e36517f052"
     },
     "scripts/openwrt_packages/verify_extension.py": {
-      "upstream_sha256": "3b14017bb71a9365686ee7e77e2098ec3b5363c4ea1af98d6a22dea34168175a",
-      "linux_sha256": "3b14017bb71a9365686ee7e77e2098ec3b5363c4ea1af98d6a22dea34168175a"
+      "upstream_sha256": "bbac5fa1537cbd141c24b0170d372f5e90c7e579537f26397e7be028bc7ace67",
+      "linux_sha256": "bbac5fa1537cbd141c24b0170d372f5e90c7e579537f26397e7be028bc7ace67"
     },
     "scripts/prepare_linux_python.py": {
       "upstream_sha256": "89ef8f4ca46b259d4ecf674658365ac35ee5b4c5d5aebc9b5944f403e6562793",
@@ -8293,8 +8697,8 @@
       "linux_sha256": "df19b835153b2b428feea1f760855f0b6a44bf2c9adf852c8d9681e7f608d8e8"
     },
     "scripts/release_layout.py": {
-      "upstream_sha256": "7244b60d3b3af9426aef9c7ba9f819957982d436536629aa5f6e006e4b9ed58f",
-      "linux_sha256": "7244b60d3b3af9426aef9c7ba9f819957982d436536629aa5f6e006e4b9ed58f"
+      "upstream_sha256": "68f79f398320048182e609f714d04c17ec915c835cfa09cb93b5a65f1e256943",
+      "linux_sha256": "68f79f398320048182e609f714d04c17ec915c835cfa09cb93b5a65f1e256943"
     },
     "scripts/release_metadata.py": {
       "upstream_sha256": "e09ae8f5495dbd766a62fa164a6152badddaa1ca60f5f294dbe7b3dba9e09652",
@@ -8357,12 +8761,40 @@
       "linux_sha256": "110632989e7312e1f24d52782ddafc688b19748b3fd8e8ee006995b5afc93365"
     },
     "scripts/update_channel_assets.py": {
-      "upstream_sha256": "15b101d44f9e9fd7dcaf11594bfcd5afed67c643f15794cc33f76a15cc059254",
-      "linux_sha256": "15b101d44f9e9fd7dcaf11594bfcd5afed67c643f15794cc33f76a15cc059254"
+      "upstream_sha256": "f78645f11c8f21c30b06e183cbffd1ffd3dee9de30f752e602907794b4d72024",
+      "linux_sha256": "f78645f11c8f21c30b06e183cbffd1ffd3dee9de30f752e602907794b4d72024"
     },
     "scripts/verify_previous_update_client.py": {
       "upstream_sha256": "d44b2b4f80a9c4ba9d177dd6ed1ee2277380cb14db2ec49f8f8eeb09e91abe17",
       "linux_sha256": "d44b2b4f80a9c4ba9d177dd6ed1ee2277380cb14db2ec49f8f8eeb09e91abe17"
+    },
+    "scripts/windows_login_diagnostics/__init__.py": {
+      "upstream_sha256": "a257ee314a4558789d5f6def648bbbddee8020fc54168435e348896eb13f5fb2",
+      "linux_sha256": "a257ee314a4558789d5f6def648bbbddee8020fc54168435e348896eb13f5fb2"
+    },
+    "scripts/windows_login_diagnostics/collector.py": {
+      "upstream_sha256": "22a27079b8b8f92ae28726d7ddd7593e69276673fd6de0129b90ae2b9e53bac5",
+      "linux_sha256": "22a27079b8b8f92ae28726d7ddd7593e69276673fd6de0129b90ae2b9e53bac5"
+    },
+    "scripts/windows_login_diagnostics/entry.py": {
+      "upstream_sha256": "856f231eb49103c8670955f0e1dedec697bc4fa5d5bfcba1558357429d4511b2",
+      "linux_sha256": "856f231eb49103c8670955f0e1dedec697bc4fa5d5bfcba1558357429d4511b2"
+    },
+    "scripts/windows_login_diagnostics/network_inventory.py": {
+      "upstream_sha256": "30e983ff0ce0511ee2110a39bef746f0dd559bd78b86abfd827a5038b1bde766",
+      "linux_sha256": "30e983ff0ce0511ee2110a39bef746f0dd559bd78b86abfd827a5038b1bde766"
+    },
+    "scripts/windows_login_diagnostics/policy_evidence.py": {
+      "upstream_sha256": "495b2d0217f2912ae49df8aaeb5ae196d108d3cc0a56af19bb33f39c121ce0c5",
+      "linux_sha256": "495b2d0217f2912ae49df8aaeb5ae196d108d3cc0a56af19bb33f39c121ce0c5"
+    },
+    "scripts/windows_login_diagnostics/windows_host.py": {
+      "upstream_sha256": "6488d1badeb624845200ab5f0e34a2664ba7ace024d069a4e4ba6773088b8c64",
+      "linux_sha256": "6488d1badeb624845200ab5f0e34a2664ba7ace024d069a4e4ba6773088b8c64"
+    },
+    "scripts/workspace_build_retention.py": {
+      "upstream_sha256": "26f1f7756a3c12e8d3675c083573f2f5877bb3441f21b85aa3fa83bd0bc7c8dc",
+      "linux_sha256": "26f1f7756a3c12e8d3675c083573f2f5877bb3441f21b85aa3fa83bd0bc7c8dc"
     },
     "tests/__init__.py": {
       "upstream_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -8404,6 +8836,10 @@
       "upstream_sha256": "cbda0f3dfc8e116850b4fe71ba69edf01d9ab192e1cee5b9ce1a315db14a81e5",
       "linux_sha256": "cbda0f3dfc8e116850b4fe71ba69edf01d9ab192e1cee5b9ce1a315db14a81e5"
     },
+    "tests/fixtures/official_other_dependency_packages_23_05_4.json": {
+      "upstream_sha256": "f51f65d06e16ff7282dcf24da9583a0558d9638d7a835e3e3e50281274a8dfce",
+      "linux_sha256": "f51f65d06e16ff7282dcf24da9583a0558d9638d7a835e3e3e50281274a8dfce"
+    },
     "tests/fixtures/official_policy_contracts.json": {
       "upstream_sha256": "e290321203027bc4197e15e8c615fb98114a5a2e336306652a8538a4a1aea9d1",
       "linux_sha256": "e290321203027bc4197e15e8c615fb98114a5a2e336306652a8538a4a1aea9d1"
@@ -8415,6 +8851,10 @@
     "tests/fixtures/official_reboot_contracts.json": {
       "upstream_sha256": "b33b2b17f963d5f7364bb1f16bf691991b466e86fc68cb46ee1160ca64873375",
       "linux_sha256": "b33b2b17f963d5f7364bb1f16bf691991b466e86fc68cb46ee1160ca64873375"
+    },
+    "tests/fixtures/official_station_connection_contracts.json": {
+      "upstream_sha256": "fc0ce72796b2386c0dba30cfbd65f0fffe52a08a41e0dd83f4a9601354301b7c",
+      "linux_sha256": "fc0ce72796b2386c0dba30cfbd65f0fffe52a08a41e0dd83f4a9601354301b7c"
     },
     "tests/fixtures/official_wireless_setup_contracts.json": {
       "upstream_sha256": "871b30ba2202bfb121e9a7b8e0d642970707ddde5aad38867072b629d8dd372e",
@@ -8493,8 +8933,12 @@
       "linux_sha256": "ffd65ee4ae7130c11675827ad1902b6f4d8e37ef68b5aa4c429356123ba4cb4f"
     },
     "tests/test_auto_capture_cap_toggle_and_pull_cleanup.py": {
-      "upstream_sha256": "8aedb0da75b953f2958a721e0bd93d818381d423ffd28570c899885d05a49943",
-      "linux_sha256": "8aedb0da75b953f2958a721e0bd93d818381d423ffd28570c899885d05a49943"
+      "upstream_sha256": "232707add5c5de5ec7226accefca0f0f73c659fe6b1760d27adddbcdf68d9902",
+      "linux_sha256": "232707add5c5de5ec7226accefca0f0f73c659fe6b1760d27adddbcdf68d9902"
+    },
+    "tests/test_auto_capture_channels.py": {
+      "upstream_sha256": "e219fe09f645abe6a570c00547ec2cd5db365437dcaf50d44ddd1303aacf70de",
+      "linux_sha256": "e219fe09f645abe6a570c00547ec2cd5db365437dcaf50d44ddd1303aacf70de"
     },
     "tests/test_auto_capture_cleanup.py": {
       "upstream_sha256": "1c81f1cd4c5d753d28f82bc4e795d842c1765515edbd1adeee863d18c8894e1d",
@@ -8509,8 +8953,8 @@
       "linux_sha256": "e3e9d249719823f4b5f2181d8bc70e1913bb75874a8eb5dd092e4eee0fa03f71"
     },
     "tests/test_auto_capture_feature.py": {
-      "upstream_sha256": "4a330a6a541d640874fe2c4de2bf37b323b4e33953d2e08238c2ad15639ceb91",
-      "linux_sha256": "4a330a6a541d640874fe2c4de2bf37b323b4e33953d2e08238c2ad15639ceb91"
+      "upstream_sha256": "66b83bb5872d31f491d69752062eb854610375f3514949f4b8e6f7697f43194b",
+      "linux_sha256": "66b83bb5872d31f491d69752062eb854610375f3514949f4b8e6f7697f43194b"
     },
     "tests/test_auto_capture_idle_refresh.py": {
       "upstream_sha256": "ce50577a2930f4ee46f5e3cbb61fbc5dda6f7a941e58e8cfc62d6c6138925a91",
@@ -8544,21 +8988,33 @@
       "upstream_sha256": "3ab422e9ea37839478ce91feaf801b468a0a6c7856fcafe07e93da1a0cbd75a6",
       "linux_sha256": "3ab422e9ea37839478ce91feaf801b468a0a6c7856fcafe07e93da1a0cbd75a6"
     },
+    "tests/test_bridge_native_scan_target.py": {
+      "upstream_sha256": "a6ebb73fd3813b078b8b6430809dff757dc5d5052f167f43865899db30d0d646",
+      "linux_sha256": "a6ebb73fd3813b078b8b6430809dff757dc5d5052f167f43865899db30d0d646"
+    },
+    "tests/test_bridge_scan_failure_evidence.py": {
+      "upstream_sha256": "70a3ff63e901dc5444281e78ae839e0e19d96396b0b95318c4e9fb5640159c72",
+      "linux_sha256": "70a3ff63e901dc5444281e78ae839e0e19d96396b0b95318c4e9fb5640159c72"
+    },
     "tests/test_bridge_scan_streaming.py": {
-      "upstream_sha256": "f16cef38912773c2f209dec614c31556b06417c76a6ad72709259cb0f9d35abb",
-      "linux_sha256": "f16cef38912773c2f209dec614c31556b06417c76a6ad72709259cb0f9d35abb"
+      "upstream_sha256": "0fd9c377c5077e49f7822b5de42f125ee70df58a491361f5b12f4c5865204340",
+      "linux_sha256": "0fd9c377c5077e49f7822b5de42f125ee70df58a491361f5b12f4c5865204340"
     },
     "tests/test_bridge_table_updates.py": {
       "upstream_sha256": "73f50a767a4ed93148b82ba98203d5297731e5a19850369d35157498d43dee57",
       "linux_sha256": "73f50a767a4ed93148b82ba98203d5297731e5a19850369d35157498d43dee57"
     },
+    "tests/test_bridge_timeout_fallback.py": {
+      "upstream_sha256": "fe84046b7edbe75e66ff3d1096fa85c68c1ad895291489e38ea875af28156fa9",
+      "linux_sha256": "fe84046b7edbe75e66ff3d1096fa85c68c1ad895291489e38ea875af28156fa9"
+    },
     "tests/test_build_cleanup.py": {
-      "upstream_sha256": "4ef7168fe70c77caac279220f68f1604243c9acde1d98c6e8fc19285a1252de8",
-      "linux_sha256": "4ef7168fe70c77caac279220f68f1604243c9acde1d98c6e8fc19285a1252de8"
+      "upstream_sha256": "b8af7c5ae290c503e2516066eebd8c5b600af5c056a8f60050f11f9517188b4b",
+      "linux_sha256": "b8af7c5ae290c503e2516066eebd8c5b600af5c056a8f60050f11f9517188b4b"
     },
     "tests/test_builtin_base.py": {
-      "upstream_sha256": "a296e520f65357e63835ed1289b565b662213796e8eb16361446f4e00c6a397a",
-      "linux_sha256": "a296e520f65357e63835ed1289b565b662213796e8eb16361446f4e00c6a397a"
+      "upstream_sha256": "d0e1782005ff24eb20ce553449077a67aa860ea06edfdd34a6589eb81c00a448",
+      "linux_sha256": "d0e1782005ff24eb20ce553449077a67aa860ea06edfdd34a6589eb81c00a448"
     },
     "tests/test_bundle_archive_cleanup.py": {
       "upstream_sha256": "26ab16268cf849b8ce04251ccd5f6211b3e265800799c0854dab972450be7222",
@@ -8573,8 +9029,8 @@
       "linux_sha256": "3898b62920bce0688885056504a71fef5c49de71f852d340e1d6dda9efaab43d"
     },
     "tests/test_bundle_compatibility_second_review.py": {
-      "upstream_sha256": "a35f0de56d0b8c0fde25324bc0adf092a1b860dfb7b9921d9c931bacc9eecfa4",
-      "linux_sha256": "a35f0de56d0b8c0fde25324bc0adf092a1b860dfb7b9921d9c931bacc9eecfa4"
+      "upstream_sha256": "e79b6173584f8463218396f7b12c92352b79e6e98508ca7c35f56bda4ca7198d",
+      "linux_sha256": "e79b6173584f8463218396f7b12c92352b79e6e98508ca7c35f56bda4ca7198d"
     },
     "tests/test_bundle_export.py": {
       "upstream_sha256": "fb8cd63521b2db837171f65fdd3541d367263752d56a9fe3a2dcba41656bbd3f",
@@ -8636,9 +9092,13 @@
       "upstream_sha256": "5e1bf7b143cc2632840c0ea3dcdcf17b5e3a40884bc293d2b06fcdaa38fb086e",
       "linux_sha256": "5e1bf7b143cc2632840c0ea3dcdcf17b5e3a40884bc293d2b06fcdaa38fb086e"
     },
+    "tests/test_capture_channel_recovery.py": {
+      "upstream_sha256": "4881d59ae04a65c9368c85e4ea08e309c027c6ecc05e9fe2ff87e504212abfc4",
+      "linux_sha256": "4881d59ae04a65c9368c85e4ea08e309c027c6ecc05e9fe2ff87e504212abfc4"
+    },
     "tests/test_capture_channel_state.py": {
-      "upstream_sha256": "c0a9219632b3ab7733d25ba559d668e4969c05374172d120748e2d23c73c462c",
-      "linux_sha256": "c0a9219632b3ab7733d25ba559d668e4969c05374172d120748e2d23c73c462c"
+      "upstream_sha256": "25618c3c1dcfda6bfc769d096917a5a494337b38a668735d24743638f30df63e",
+      "linux_sha256": "25618c3c1dcfda6bfc769d096917a5a494337b38a668735d24743638f30df63e"
     },
     "tests/test_capture_compatibility_fixes.py": {
       "upstream_sha256": "120688e0b905137cf4f05f2f2288f5897e19b5bcb746e9df0f998f330aa41a10",
@@ -8653,20 +9113,24 @@
       "linux_sha256": "14da7416ca57ff730d6de01b1238383cfeaa21ca04fdb2905a6b100c05afcaae"
     },
     "tests/test_capture_integration_safety.py": {
-      "upstream_sha256": "684d210b1658326da3015bf80b7ffc3706884d34d02102d73b90af92dcc36ae8",
-      "linux_sha256": "684d210b1658326da3015bf80b7ffc3706884d34d02102d73b90af92dcc36ae8"
+      "upstream_sha256": "ae7bb80f31263eea5f8d4010510346f0bcdb4822df77377511a8d3ba6aecc823",
+      "linux_sha256": "ae7bb80f31263eea5f8d4010510346f0bcdb4822df77377511a8d3ba6aecc823"
+    },
+    "tests/test_capture_live_evidence.py": {
+      "upstream_sha256": "57004001685aebc8d47841909007c4bdd98c4a202d4679960bbfb23a4a9d4624",
+      "linux_sha256": "57004001685aebc8d47841909007c4bdd98c4a202d4679960bbfb23a4a9d4624"
     },
     "tests/test_capture_monitor_cleanup.py": {
       "upstream_sha256": "c186eff8f170b269a60422f7eb70e084589952cd96a3ba2fbc887bfd7936b46d",
       "linux_sha256": "c186eff8f170b269a60422f7eb70e084589952cd96a3ba2fbc887bfd7936b46d"
     },
     "tests/test_capture_settings_dialog.py": {
-      "upstream_sha256": "9854ea2a8a9fcac078fe37cb990c2db58b850ff360461cb3b2530392787f5bd9",
-      "linux_sha256": "9854ea2a8a9fcac078fe37cb990c2db58b850ff360461cb3b2530392787f5bd9"
+      "upstream_sha256": "fcedd55aec0503f3654ae2f3674e3e7f08b130f20442181855170a87545d09b4",
+      "linux_sha256": "fcedd55aec0503f3654ae2f3674e3e7f08b130f20442181855170a87545d09b4"
     },
     "tests/test_capture_snapshot_updates.py": {
-      "upstream_sha256": "904a779df91e608c6766003bf3b525cfa18778fc20b8f5d26c8211009a55852e",
-      "linux_sha256": "904a779df91e608c6766003bf3b525cfa18778fc20b8f5d26c8211009a55852e"
+      "upstream_sha256": "48f15c41293e7280bf4bb0a077dea884aff64908fac55bb78cdb40e89d4365ef",
+      "linux_sha256": "48f15c41293e7280bf4bb0a077dea884aff64908fac55bb78cdb40e89d4365ef"
     },
     "tests/test_capture_start_preflight.py": {
       "upstream_sha256": "ade25434930a86c1de2f5008c578b07132d9a2001471eebd10b38ea6fb5975eb",
@@ -8685,8 +9149,8 @@
       "linux_sha256": "d9f90c9a7f12a412f6a804c4a1d5f92d06cb652a1739226609c327a161d4fff7"
     },
     "tests/test_capture_ui_latency.py": {
-      "upstream_sha256": "e84ca9ac037f2a74daa5977314560583cf318aaad71dc3cb7ece032072f52f90",
-      "linux_sha256": "e84ca9ac037f2a74daa5977314560583cf318aaad71dc3cb7ece032072f52f90"
+      "upstream_sha256": "7e32739bfa1900c04398eff37c03c3b3551fb0dbac3fbdb30190467311a86bd4",
+      "linux_sha256": "7e32739bfa1900c04398eff37c03c3b3551fb0dbac3fbdb30190467311a86bd4"
     },
     "tests/test_capture_uninstall_feedback.py": {
       "upstream_sha256": "39a68f3c1e2f6c7ef9f6f24ac43a55861b958fe366c70578e18a056b56f231cb",
@@ -8708,6 +9172,10 @@
       "upstream_sha256": "e2b9256da48d8acd05335b5a5f140e31e482861d6aaa8f8ec107f1e12437be84",
       "linux_sha256": "e2b9256da48d8acd05335b5a5f140e31e482861d6aaa8f8ec107f1e12437be84"
     },
+    "tests/test_client_observation.py": {
+      "upstream_sha256": "fe0524166763d63741a333977a1e343ccb8e489ef66b5d289124f73a815d3c4a",
+      "linux_sha256": "fe0524166763d63741a333977a1e343ccb8e489ef66b5d289124f73a815d3c4a"
+    },
     "tests/test_common_login_prompt.py": {
       "upstream_sha256": "eb9b54cf58195861f1cf4d07afce88913ea207a303923a8a6dfe5da865f0a703",
       "linux_sha256": "eb9b54cf58195861f1cf4d07afce88913ea207a303923a8a6dfe5da865f0a703"
@@ -8721,8 +9189,8 @@
       "linux_sha256": "1d52de44ddf427b854006403933dd2bbf5526d0a3ccd488f13a4b4e6f57363b4"
     },
     "tests/test_common_settings.py": {
-      "upstream_sha256": "dbdd4a31131bacb97794f565aab5a3ab43279e9857f2b14926db39958f6dbd18",
-      "linux_sha256": "dbdd4a31131bacb97794f565aab5a3ab43279e9857f2b14926db39958f6dbd18"
+      "upstream_sha256": "c8e131b4a6efc8f2ca353a766a4bb9d3dc0c01916d78017dc3f95d6e37e2f5ff",
+      "linux_sha256": "c8e131b4a6efc8f2ca353a766a4bb9d3dc0c01916d78017dc3f95d6e37e2f5ff"
     },
     "tests/test_common_settings_audit_fixes.py": {
       "upstream_sha256": "cff443524c015dc2b26a898ea63a654fd954013162a67f97aab83d0f1937484b",
@@ -8733,12 +9201,16 @@
       "linux_sha256": "62f2fdc69c1c3f0490df4293ca22080647b51f92d539c2348a7c4301e634f43c"
     },
     "tests/test_common_settings_diagnostics.py": {
-      "upstream_sha256": "2e5e8b13285dfea8a330678f547213022479ceab6644fe8b2162aad835a0a13a",
-      "linux_sha256": "2e5e8b13285dfea8a330678f547213022479ceab6644fe8b2162aad835a0a13a"
+      "upstream_sha256": "0080dc80c9b8abff8030ad96ea7f374193fdc567e88911e566a22c03e16b1254",
+      "linux_sha256": "0080dc80c9b8abff8030ad96ea7f374193fdc567e88911e566a22c03e16b1254"
     },
     "tests/test_common_settings_feedback.py": {
       "upstream_sha256": "3f9c46887a4e712f689f38d57cec2a1b01d316b00fceaea7fee5c00b386d3505",
       "linux_sha256": "3f9c46887a4e712f689f38d57cec2a1b01d316b00fceaea7fee5c00b386d3505"
+    },
+    "tests/test_common_settings_layout.py": {
+      "upstream_sha256": "d5697e533d6119744aca802da0462952bc3d9d42aa3ffa8a479817d86e543a8c",
+      "linux_sha256": "d5697e533d6119744aca802da0462952bc3d9d42aa3ffa8a479817d86e543a8c"
     },
     "tests/test_common_settings_recheck.py": {
       "upstream_sha256": "3e5d2f227deff2e2bd7332773382caa11200aa28c62da16b2174bd0543fc0b0c",
@@ -8776,6 +9248,14 @@
       "upstream_sha256": "44a16fd127211ada6105c316a17893ab76030de4720e5713dba1eb4725815eeb",
       "linux_sha256": "44a16fd127211ada6105c316a17893ab76030de4720e5713dba1eb4725815eeb"
     },
+    "tests/test_dependency_backup_filenames.py": {
+      "upstream_sha256": "436a128243d88a9907fc42bf56370683e60bcb4947bc8a848695165a5c3f706a",
+      "linux_sha256": "436a128243d88a9907fc42bf56370683e60bcb4947bc8a848695165a5c3f706a"
+    },
+    "tests/test_dependency_backup_service.py": {
+      "upstream_sha256": "b02d6ae9e3df93cad95828f47c5db7f2d926b5ec3a62041ff93008a4993f28a1",
+      "linux_sha256": "b02d6ae9e3df93cad95828f47c5db7f2d926b5ec3a62041ff93008a4993f28a1"
+    },
     "tests/test_dependency_candidate_prompt.py": {
       "upstream_sha256": "1007af1cf1911872bdb1bcc8ff0a2159056ddc267d3a5d5bd4b832be544703fe",
       "linux_sha256": "1007af1cf1911872bdb1bcc8ff0a2159056ddc267d3a5d5bd4b832be544703fe"
@@ -8799,6 +9279,10 @@
     "tests/test_dependency_group_controls.py": {
       "upstream_sha256": "1e309193a40d75312dd15e16a7c60ff254e80f5456219ec7e552017beea5eaf3",
       "linux_sha256": "1e309193a40d75312dd15e16a7c60ff254e80f5456219ec7e552017beea5eaf3"
+    },
+    "tests/test_dependency_install_boundary_review.py": {
+      "upstream_sha256": "3a92fc4dc1fc042f8e239a3d18de73f616c6280933e2ce5766bfdffe16e15915",
+      "linux_sha256": "3a92fc4dc1fc042f8e239a3d18de73f616c6280933e2ce5766bfdffe16e15915"
     },
     "tests/test_dependency_install_finalaudit.py": {
       "upstream_sha256": "a6f05b136d1ef76013fa35001917c3b7a512bd2508f0ebb530900e16d28515db",
@@ -8832,9 +9316,29 @@
       "upstream_sha256": "f1102e133303cf3d8a735daefaa507acbb690322b67d6cc602c8d9d026717c8d",
       "linux_sha256": "f1102e133303cf3d8a735daefaa507acbb690322b67d6cc602c8d9d026717c8d"
     },
+    "tests/test_dependency_restore_failure_paths.py": {
+      "upstream_sha256": "04a61b59020c0de33863ddfa399aaaba547fa4e388a0e4812f7f63ce3f5a8ad2",
+      "linux_sha256": "04a61b59020c0de33863ddfa399aaaba547fa4e388a0e4812f7f63ce3f5a8ad2"
+    },
+    "tests/test_dependency_snapshot.py": {
+      "upstream_sha256": "6bd6cc6b3d921ef5d4cf11cc7aacdc96cfe8c6104c9ea8f9f3f580a577b39790",
+      "linux_sha256": "6bd6cc6b3d921ef5d4cf11cc7aacdc96cfe8c6104c9ea8f9f3f580a577b39790"
+    },
+    "tests/test_dependency_snapshot_permissions.py": {
+      "upstream_sha256": "19826165edc76b760af38334d3761cb11e0ccc49b5ae979eaee22b3e8d1936bd",
+      "linux_sha256": "19826165edc76b760af38334d3761cb11e0ccc49b5ae979eaee22b3e8d1936bd"
+    },
+    "tests/test_dependency_snapshot_transfer.py": {
+      "upstream_sha256": "1e4a61732082513ed9fcfecb959b691c15d4ee4a774037d2c6d914b337ec0524",
+      "linux_sha256": "1e4a61732082513ed9fcfecb959b691c15d4ee4a774037d2c6d914b337ec0524"
+    },
     "tests/test_dependency_socks.py": {
       "upstream_sha256": "4799017ebe3009373557664c14efa1dbfc79e56681432a7f8f7d65fc487b9947",
       "linux_sha256": "4799017ebe3009373557664c14efa1dbfc79e56681432a7f8f7d65fc487b9947"
+    },
+    "tests/test_dependency_state_sync.py": {
+      "upstream_sha256": "18674fa2ec04d60924e042e78304b1a484f063763bfebb592a7a6ba75d33b53c",
+      "linux_sha256": "18674fa2ec04d60924e042e78304b1a484f063763bfebb592a7a6ba75d33b53c"
     },
     "tests/test_dependency_two_round_audit.py": {
       "upstream_sha256": "626ac4eef690eb1efe4f2f1e4b2d4549df4509533484fcaf4cae24daf4907d5a",
@@ -8845,8 +9349,8 @@
       "linux_sha256": "fb3857a92e2d07ba786f2217794597cb2370e3fff34f57ae67268f1bd78c947f"
     },
     "tests/test_dependency_weak_network.py": {
-      "upstream_sha256": "8b1dc65dbe120fa49e78a7a5ea5452714fdca2c70950b80bd77b00b0dae0adbc",
-      "linux_sha256": "8b1dc65dbe120fa49e78a7a5ea5452714fdca2c70950b80bd77b00b0dae0adbc"
+      "upstream_sha256": "cce01a4ad9d6f0a2a7ec71bfb51661cbe6e55a387eac96416d6f01eb575b9f62",
+      "linux_sha256": "cce01a4ad9d6f0a2a7ec71bfb51661cbe6e55a387eac96416d6f01eb575b9f62"
     },
     "tests/test_desktop_shortcut.py": {
       "upstream_sha256": "5b54e3ef2f5f996a82fed4202f8a6a1a002ad0d0cf4c82fb34a14750573fa061",
@@ -8896,21 +9400,33 @@
       "upstream_sha256": "5516b18bbc2c4c363baa1e80f49096e26b1a195e0c03ee63f678ec8f52742e9f",
       "linux_sha256": "5516b18bbc2c4c363baa1e80f49096e26b1a195e0c03ee63f678ec8f52742e9f"
     },
+    "tests/test_factory_adapter_inspection.py": {
+      "upstream_sha256": "9d3b2708653bec66fa6215b878c385ba3e1eeb526b3634ca2c2166563892b69f",
+      "linux_sha256": "9d3b2708653bec66fa6215b878c385ba3e1eeb526b3634ca2c2166563892b69f"
+    },
+    "tests/test_factory_recovery_refresh.py": {
+      "upstream_sha256": "bd7f53d9e34b08b1816be3c9627ce526a8ea199a873a78cb115f5f64ddd840e6",
+      "linux_sha256": "bd7f53d9e34b08b1816be3c9627ce526a8ea199a873a78cb115f5f64ddd840e6"
+    },
+    "tests/test_factory_reset_credentials.py": {
+      "upstream_sha256": "3f31182db15585d4317616ec431d0ea811ece393e0d61b4ad621f7cbfc656dd2",
+      "linux_sha256": "3f31182db15585d4317616ec431d0ea811ece393e0d61b4ad621f7cbfc656dd2"
+    },
     "tests/test_factory_reset_recovery.py": {
-      "upstream_sha256": "afba416005bea0dfa75bae9a2aa01b6dfe2a25b59ad589d2044a869b1908a86c",
-      "linux_sha256": "afba416005bea0dfa75bae9a2aa01b6dfe2a25b59ad589d2044a869b1908a86c"
+      "upstream_sha256": "0bd41b04e58c4d718e67538c48949a001419d412adc278412c7c894cc212060b",
+      "linux_sha256": "0bd41b04e58c4d718e67538c48949a001419d412adc278412c7c894cc212060b"
     },
     "tests/test_factory_static_boundaries.py": {
       "upstream_sha256": "c209b6be2ffbc472a9c26bc3d9c1ed0f75bed46cd2582c73acda26244fc527a8",
       "linux_sha256": "c209b6be2ffbc472a9c26bc3d9c1ed0f75bed46cd2582c73acda26244fc527a8"
     },
     "tests/test_factory_static_recovery.py": {
-      "upstream_sha256": "69847b4976a445a6b10b2c3ec6fbdb83356d9e93d9a6a2c9a0706973e4e035fb",
-      "linux_sha256": "69847b4976a445a6b10b2c3ec6fbdb83356d9e93d9a6a2c9a0706973e4e035fb"
+      "upstream_sha256": "af337e599c04b14b748a3cd00145a437e4d09d7f0b50bb6e6bc4fe7d1610ca44",
+      "linux_sha256": "af337e599c04b14b748a3cd00145a437e4d09d7f0b50bb6e6bc4fe7d1610ca44"
     },
     "tests/test_feedback_1028.py": {
-      "upstream_sha256": "2646c77a70eacbfae76c229f58aad89ce2816d3363d264c98f149d448c2ea187",
-      "linux_sha256": "2646c77a70eacbfae76c229f58aad89ce2816d3363d264c98f149d448c2ea187"
+      "upstream_sha256": "ab42464594903043f4f2571ae5928accb2236d26b6c675e530e560c96d828c57",
+      "linux_sha256": "ab42464594903043f4f2571ae5928accb2236d26b6c675e530e560c96d828c57"
     },
     "tests/test_feedback_1028_audit.py": {
       "upstream_sha256": "133a5716a51d66544dccafde389e955fc79775a233543e6f5e41724d720d5524",
@@ -8925,8 +9441,8 @@
       "linux_sha256": "296649985c4b7d0c897fe85a90ba76f74a96a141025d4e7cd7799ccd01b42aaa"
     },
     "tests/test_feedback_1028_three_passes.py": {
-      "upstream_sha256": "e65940b3917702a6375f99caebca882f0b3743202afdaedb52764516197a832e",
-      "linux_sha256": "e65940b3917702a6375f99caebca882f0b3743202afdaedb52764516197a832e"
+      "upstream_sha256": "d894fbafb6706ec4cccdc66c63f768df5a46beb66996fae4f535d9a89e6e0f72",
+      "linux_sha256": "d894fbafb6706ec4cccdc66c63f768df5a46beb66996fae4f535d9a89e6e0f72"
     },
     "tests/test_feedback_1029_apply_diagnostics.py": {
       "upstream_sha256": "0a4dc910942d2a1425b0556e1d99275f99cad03ac5732fe057c1b824f5f5fa0a",
@@ -8941,16 +9457,16 @@
       "linux_sha256": "33ca2f7fbcf9576d688ec3dfdb348dceaa0441b835d07cf5310de22b5b85cd3a"
     },
     "tests/test_feedback_regressions.py": {
-      "upstream_sha256": "8d4579a323d318c0048786b65e07e6fdf950c9468120e4ad14b38e596baa7e12",
-      "linux_sha256": "8d4579a323d318c0048786b65e07e6fdf950c9468120e4ad14b38e596baa7e12"
+      "upstream_sha256": "fdb5873ac976f60960583e53b4e0e32adbfdce3e8cbd32cb1405110c1777832d",
+      "linux_sha256": "fdb5873ac976f60960583e53b4e0e32adbfdce3e8cbd32cb1405110c1777832d"
     },
     "tests/test_feedback_review_edges.py": {
-      "upstream_sha256": "2063bcbc4289ce5d0767802f6c8a9ccc6a5e5ffa96d51586c12f017ab89c9825",
-      "linux_sha256": "2063bcbc4289ce5d0767802f6c8a9ccc6a5e5ffa96d51586c12f017ab89c9825"
+      "upstream_sha256": "be6241bee47aca3791b936fd5d4eb286239c50709521cf1090bf7e0aa9976e5b",
+      "linux_sha256": "be6241bee47aca3791b936fd5d4eb286239c50709521cf1090bf7e0aa9976e5b"
     },
     "tests/test_feedback_ui.py": {
-      "upstream_sha256": "3fa737e02ea20f26cce9ef7a95fdfa03cdfd989092cd7194aef86bd6b23ace97",
-      "linux_sha256": "3fa737e02ea20f26cce9ef7a95fdfa03cdfd989092cd7194aef86bd6b23ace97"
+      "upstream_sha256": "01768705cfdfad032a447cabf2922ac6d6003a0180dd02b8b3ceb81983cc511b",
+      "linux_sha256": "01768705cfdfad032a447cabf2922ac6d6003a0180dd02b8b3ceb81983cc511b"
     },
     "tests/test_file_dependency_prompt.py": {
       "upstream_sha256": "13c0970129d2ffa1ef7c6f7227f8a963e142adafc0eafd7ae6b4c502ae002a2e",
@@ -8985,12 +9501,16 @@
       "linux_sha256": "2eca3fbc732d299600ca1b16d1eaffd7ff09b2580b1de2337a4b7250a737b48f"
     },
     "tests/test_full_package_update.py": {
-      "upstream_sha256": "a70edc368a729fab57c4567a15b9a94410c5176a63374f236c628be65019b402",
-      "linux_sha256": "a70edc368a729fab57c4567a15b9a94410c5176a63374f236c628be65019b402"
+      "upstream_sha256": "07f17329a3487e039f5bd6a764937a553d11c9c089517439cea3811fe6fc1aca",
+      "linux_sha256": "07f17329a3487e039f5bd6a764937a553d11c9c089517439cea3811fe6fc1aca"
+    },
+    "tests/test_handshake_batch_radio.py": {
+      "upstream_sha256": "9c6698d67766aba12db9bbd75c1648be46bac76e89f0d4de4f449210700b919e",
+      "linux_sha256": "9c6698d67766aba12db9bbd75c1648be46bac76e89f0d4de4f449210700b919e"
     },
     "tests/test_handshake_rounds.py": {
-      "upstream_sha256": "a03f27a3899c434d69e7c30012c477bef469082ac92ba27f66999224945d0178",
-      "linux_sha256": "a03f27a3899c434d69e7c30012c477bef469082ac92ba27f66999224945d0178"
+      "upstream_sha256": "79e35a587cc6a4026b388aa1918cbb670dc8936fdbed42638356344611a9c5cf",
+      "linux_sha256": "79e35a587cc6a4026b388aa1918cbb670dc8936fdbed42638356344611a9c5cf"
     },
     "tests/test_hcx_architectures.py": {
       "upstream_sha256": "2c6c0f50620e05b86800cc77f9a73eb2ed05d272206b1d3cdd14d5bab0e358f7",
@@ -9041,12 +9561,16 @@
       "linux_sha256": "92660e1cc87b54d4b61f857e5052626ee619bc3f54ebaeb36d3967931202ff1c"
     },
     "tests/test_inactive_radio_scan.py": {
-      "upstream_sha256": "b3fc55df22d6e2cb688128c15aa659d955a796a4bc0b41cbfa443144a174d343",
-      "linux_sha256": "b3fc55df22d6e2cb688128c15aa659d955a796a4bc0b41cbfa443144a174d343"
+      "upstream_sha256": "ec8782379690314115080f1f5aefabc80dff321db494c26b4b4343aeb77dce8d",
+      "linux_sha256": "ec8782379690314115080f1f5aefabc80dff321db494c26b4b4343aeb77dce8d"
     },
     "tests/test_info_docks.py": {
       "upstream_sha256": "cc5bf907441c5bd6b9da482c462aab7e35ad181e39a4c38adaa1227f6273af8b",
       "linux_sha256": "cc5bf907441c5bd6b9da482c462aab7e35ad181e39a4c38adaa1227f6273af8b"
+    },
+    "tests/test_info_incremental_render.py": {
+      "upstream_sha256": "2835845aa315a6c1f8df12dff018cbe2063dfd6eeee31aa5e82810f723e1a7e4",
+      "linux_sha256": "2835845aa315a6c1f8df12dff018cbe2063dfd6eeee31aa5e82810f723e1a7e4"
     },
     "tests/test_info_message_presentation.py": {
       "upstream_sha256": "364589dbb3401a8a8f98eab0785603fbe75f0ecb46d5471da4f13be4d7d7bc55",
@@ -9084,6 +9608,26 @@
       "upstream_sha256": "be203165c58f0af691593e09db0221dec7d097dd3965ecacc596fbef59bd6b5a",
       "linux_sha256": "be203165c58f0af691593e09db0221dec7d097dd3965ecacc596fbef59bd6b5a"
     },
+    "tests/test_installed_dependency_catalog.py": {
+      "upstream_sha256": "cea906c629db5b61be86dede6fa3e18f05450a02e182938979541675a273754b",
+      "linux_sha256": "cea906c629db5b61be86dede6fa3e18f05450a02e182938979541675a273754b"
+    },
+    "tests/test_ipsec_command_diagnostics.py": {
+      "upstream_sha256": "629c8e033811e20926dc1043cf53e3e16a5917f846b2437c89a24bb56e71d48d",
+      "linux_sha256": "629c8e033811e20926dc1043cf53e3e16a5917f846b2437c89a24bb56e71d48d"
+    },
+    "tests/test_ipsec_log_export.py": {
+      "upstream_sha256": "844f76a466cce8285341a5bb4ebbc0d21d86146b3e536818a403ef41eb8a11a1",
+      "linux_sha256": "844f76a466cce8285341a5bb4ebbc0d21d86146b3e536818a403ef41eb8a11a1"
+    },
+    "tests/test_ipsec_snapshot_verification.py": {
+      "upstream_sha256": "094a313cc568db92dd52728d49bfdd1494e3a68f73dee9e9ec099367abb86cef",
+      "linux_sha256": "094a313cc568db92dd52728d49bfdd1494e3a68f73dee9e9ec099367abb86cef"
+    },
+    "tests/test_ipsec_verification_diagnostics.py": {
+      "upstream_sha256": "354e2c5c351b4d157abf1d2afdc502a56991a3734e09b2ab933dbb9a6f9b7668",
+      "linux_sha256": "354e2c5c351b4d157abf1d2afdc502a56991a3734e09b2ab933dbb9a6f9b7668"
+    },
     "tests/test_lan_adapter_binding.py": {
       "upstream_sha256": "de66c99cbef0842a7e7b7cd8b097f4f090737f346dd09db384a817827ab3f021",
       "linux_sha256": "de66c99cbef0842a7e7b7cd8b097f4f090737f346dd09db384a817827ab3f021"
@@ -9096,6 +9640,10 @@
       "upstream_sha256": "9f18b717a8e0dcab7d3d34cb24bba97a92df9843e848c6d3cca20b5207ae6733",
       "linux_sha256": "9f18b717a8e0dcab7d3d34cb24bba97a92df9843e848c6d3cca20b5207ae6733"
     },
+    "tests/test_lan_cidr_policy.py": {
+      "upstream_sha256": "345734bc6151c7893b040a5f99e6c8ce087032ff844b38cf270e6ebb995791de",
+      "linux_sha256": "345734bc6151c7893b040a5f99e6c8ce087032ff844b38cf270e6ebb995791de"
+    },
     "tests/test_lan_client_recovery.py": {
       "upstream_sha256": "0ad81f144774de477c5a5b20eb3f4f4bb906ac2a014e116263910328738011ca",
       "linux_sha256": "0ad81f144774de477c5a5b20eb3f4f4bb906ac2a014e116263910328738011ca"
@@ -9107,6 +9655,10 @@
     "tests/test_lan_feedback.py": {
       "upstream_sha256": "be404b3c4efd6ff9dbf931567c440cfec7e397c455361b10004286c31cf7cca2",
       "linux_sha256": "be404b3c4efd6ff9dbf931567c440cfec7e397c455361b10004286c31cf7cca2"
+    },
+    "tests/test_lan_ipv4_form.py": {
+      "upstream_sha256": "53c3bbfe29525485c6517d3f8aafcc317618baa9af81cef99eb1f65b96593782",
+      "linux_sha256": "53c3bbfe29525485c6517d3f8aafcc317618baa9af81cef99eb1f65b96593782"
     },
     "tests/test_lan_lease_recovery.py": {
       "upstream_sha256": "203910ffc3ba0380aa722d71ad595da4b6959bb735fb5cc274209dd984f6261c",
@@ -9125,16 +9677,16 @@
       "linux_sha256": "e878a8c54fffe1f92f829054d5c04017fc7c8a701f9334fdfcaceb501687e722"
     },
     "tests/test_legacy_ipsec.py": {
-      "upstream_sha256": "a08966b6b03e0cb881adf7cc4d7c6d88cfe39e1db4c78c74761f17ffe61257ea",
-      "linux_sha256": "a08966b6b03e0cb881adf7cc4d7c6d88cfe39e1db4c78c74761f17ffe61257ea"
+      "upstream_sha256": "7a752b1c26de3783d566cc347345a474698ad4626cbacb518e8ef5e59dcbd484",
+      "linux_sha256": "7a752b1c26de3783d566cc347345a474698ad4626cbacb518e8ef5e59dcbd484"
     },
     "tests/test_legacy_ipsec_audit.py": {
-      "upstream_sha256": "cb9ca31455a7019f6bcbee9b33e9926c00f37ff8724fb8c5002796f2a1be68f7",
-      "linux_sha256": "cb9ca31455a7019f6bcbee9b33e9926c00f37ff8724fb8c5002796f2a1be68f7"
+      "upstream_sha256": "54597b81ab9288bb64730cfbe15f0b7180260c5980dd45f6629fde006af1d49e",
+      "linux_sha256": "54597b81ab9288bb64730cfbe15f0b7180260c5980dd45f6629fde006af1d49e"
     },
     "tests/test_legacy_ipsec_review2.py": {
-      "upstream_sha256": "49c954f0bbf8f823570f69a1cc5858defb63b1eb0e1fe3bb14579e28660e42e3",
-      "linux_sha256": "49c954f0bbf8f823570f69a1cc5858defb63b1eb0e1fe3bb14579e28660e42e3"
+      "upstream_sha256": "8ba77e7b2587229265de66d265046fa2142e8294511901bc0a21cb64d3dc1d2d",
+      "linux_sha256": "8ba77e7b2587229265de66d265046fa2142e8294511901bc0a21cb64d3dc1d2d"
     },
     "tests/test_linux_credentials.py": {
       "upstream_sha256": "2cb950fb01f24e3b6febc957593dc403e2b55029da76b518bcc46eb074185b80",
@@ -9165,8 +9717,8 @@
       "linux_sha256": "9689220385cc13c9aea432033a5bcf54de86e3a790fdae8acb0c124c4661430a"
     },
     "tests/test_linux_recovery_launcher.py": {
-      "upstream_sha256": "c011991f5cc18836fd4ed24c803e0ac7a64bb7fa663af379a4db44f67935a49c",
-      "linux_sha256": "c011991f5cc18836fd4ed24c803e0ac7a64bb7fa663af379a4db44f67935a49c"
+      "upstream_sha256": "e0d8b4a62efae5281b0396093e0151234425b103febf6a897da3c49b1bf6633a",
+      "linux_sha256": "e0d8b4a62efae5281b0396093e0151234425b103febf6a897da3c49b1bf6633a"
     },
     "tests/test_linux_release_build.py": {
       "upstream_sha256": "f85aa9b7dcbb2f6eee090938e5c411ef46eaa66eff5e1a0685d2308dea04b774",
@@ -9197,8 +9749,8 @@
       "linux_sha256": "49ab5d13d24f4183aa6ab39536544c57d49912bca713f7b63a46bfcd5542fd9d"
     },
     "tests/test_linux_update_admission.py": {
-      "upstream_sha256": "8b560dd7eab56fb6d9991329d91f2e4142231a1104bc19247ae90926eb6de9f0",
-      "linux_sha256": "8b560dd7eab56fb6d9991329d91f2e4142231a1104bc19247ae90926eb6de9f0"
+      "upstream_sha256": "2f67ca310ba9f766229759a51448c094ad075c87557a95867a1309262ca1411c",
+      "linux_sha256": "2f67ca310ba9f766229759a51448c094ad075c87557a95867a1309262ca1411c"
     },
     "tests/test_linux_update_catalog.py": {
       "upstream_sha256": "147a4c8324a07dcaebd8f278b25c0a8afee9d40381da78d36b21acbf9bd6fcb4",
@@ -9277,8 +9829,8 @@
       "linux_sha256": "7597a27822a4ec802a99f6ca97c40ec88fa559f53ad57084d700797dd9c1af81"
     },
     "tests/test_login_diagnostics.py": {
-      "upstream_sha256": "a5c16b98b1ab44d205beaf8bcd2450dbbea932369f963cd0afa013d6a77cb44b",
-      "linux_sha256": "a5c16b98b1ab44d205beaf8bcd2450dbbea932369f963cd0afa013d6a77cb44b"
+      "upstream_sha256": "3194936651d334aa6d48008e0a2ee4a51b1d20a8976867740d56f909c6270935",
+      "linux_sha256": "3194936651d334aa6d48008e0a2ee4a51b1d20a8976867740d56f909c6270935"
     },
     "tests/test_login_install_pipeline.py": {
       "upstream_sha256": "aa6e4ec5f0f9aefdd66f2a9fe25400f1393500323b970c847dcf58e1f0e83ff2",
@@ -9287,6 +9839,22 @@
     "tests/test_login_network_cancel.py": {
       "upstream_sha256": "f6bdd1f7ebccc0c684e76ab914efa79b9356c9f65efcfa0d3d0c6ad6515159f9",
       "linux_sha256": "f6bdd1f7ebccc0c684e76ab914efa79b9356c9f65efcfa0d3d0c6ad6515159f9"
+    },
+    "tests/test_login_policy_repair.py": {
+      "upstream_sha256": "3913f00662cdc12f7faa95bb36b2bff3d9819e95ce200b36da782a865d3e3cac",
+      "linux_sha256": "3913f00662cdc12f7faa95bb36b2bff3d9819e95ce200b36da782a865d3e3cac"
+    },
+    "tests/test_login_policy_repair_concurrency.py": {
+      "upstream_sha256": "77987e57de4f664c269d3c71ee4c810fd426b5b5d805793d90ea4056913a6db6",
+      "linux_sha256": "77987e57de4f664c269d3c71ee4c810fd426b5b5d805793d90ea4056913a6db6"
+    },
+    "tests/test_login_policy_repair_review.py": {
+      "upstream_sha256": "e19eee306648afc02c371a617c8c3cb6d808c259c7a745de885c2a74cc1cb039",
+      "linux_sha256": "e19eee306648afc02c371a617c8c3cb6d808c259c7a745de885c2a74cc1cb039"
+    },
+    "tests/test_login_recovery_admission.py": {
+      "upstream_sha256": "755d95584fb6c9d9fc58fcd64bd55c6d3ab06e9f3ff886898c3c98d2836cf4a9",
+      "linux_sha256": "755d95584fb6c9d9fc58fcd64bd55c6d3ab06e9f3ff886898c3c98d2836cf4a9"
     },
     "tests/test_login_review_boundaries.py": {
       "upstream_sha256": "4712daab3fa60b6c271ac355c6c704474e9fe4a3aab260da965a31bb77b41671",
@@ -9317,16 +9885,16 @@
       "linux_sha256": "978e2f9a28f4bda302eada7461ea460715d38b022219f7cf295949435195d91d"
     },
     "tests/test_management_execution.py": {
-      "upstream_sha256": "0fde5ff2baebbca04d6584ffbdf31f609a7dc77508316ad6e3eb7e999bad19d8",
-      "linux_sha256": "0fde5ff2baebbca04d6584ffbdf31f609a7dc77508316ad6e3eb7e999bad19d8"
+      "upstream_sha256": "9e54d4b26fa048d9ee054d695e9c064969afa7c0afba3a2935ace49429ed3bd7",
+      "linux_sha256": "9e54d4b26fa048d9ee054d695e9c064969afa7c0afba3a2935ace49429ed3bd7"
     },
     "tests/test_management_link.py": {
-      "upstream_sha256": "0cd8a103946b908c26b738adbb20d627cc2f1bfc5a0bf7632c1a5a2267a161ca",
-      "linux_sha256": "0cd8a103946b908c26b738adbb20d627cc2f1bfc5a0bf7632c1a5a2267a161ca"
+      "upstream_sha256": "4ff2427a0e30f56354c67886acd7e0108e34a9e5acd66e3d26c4bb5f88401452",
+      "linux_sha256": "4ff2427a0e30f56354c67886acd7e0108e34a9e5acd66e3d26c4bb5f88401452"
     },
     "tests/test_management_log_audit.py": {
-      "upstream_sha256": "86d7db016c14c862fefe95e3eaddd6a9553bd933122797adeac6a74626ea1e12",
-      "linux_sha256": "86d7db016c14c862fefe95e3eaddd6a9553bd933122797adeac6a74626ea1e12"
+      "upstream_sha256": "ba7529eb0614b6d5ed4173f49c63ebf9037c6b5aaa47ef054db99202048d304c",
+      "linux_sha256": "ba7529eb0614b6d5ed4173f49c63ebf9037c6b5aaa47ef054db99202048d304c"
     },
     "tests/test_management_probe_shell.py": {
       "upstream_sha256": "3da499515703e61a6152cc2a4fe2a05f6743cca06ea725d2d26dd6c333ad2518",
@@ -9344,17 +9912,21 @@
       "upstream_sha256": "1b057846394e71d483fd059dbf7c517368f52b336ac0851c88a4c062d058bd9e",
       "linux_sha256": "1b057846394e71d483fd059dbf7c517368f52b336ac0851c88a4c062d058bd9e"
     },
+    "tests/test_manual_recovery_cases.py": {
+      "upstream_sha256": "f2eb385afb46b9a880b63ed8d74f00c0a1381279e5f540d57f0211b4157610eb",
+      "linux_sha256": "f2eb385afb46b9a880b63ed8d74f00c0a1381279e5f540d57f0211b4157610eb"
+    },
     "tests/test_mirror_task_preference.py": {
-      "upstream_sha256": "23168ceb407b59ef8b85190ed991cd1e6a74ca545078e5ef4fd11aa2b16080e9",
-      "linux_sha256": "23168ceb407b59ef8b85190ed991cd1e6a74ca545078e5ef4fd11aa2b16080e9"
+      "upstream_sha256": "7fbeb6430f0d30c947f18e20859a08e0704968b027c5e3f116a8fa63099557c0",
+      "linux_sha256": "7fbeb6430f0d30c947f18e20859a08e0704968b027c5e3f116a8fa63099557c0"
     },
     "tests/test_monitor_creation_recovery.py": {
       "upstream_sha256": "44ae7d5a95cdc4424d34c02a6f7e0d38e367ec7dfd800b443cd212295a1e4f9c",
       "linux_sha256": "44ae7d5a95cdc4424d34c02a6f7e0d38e367ec7dfd800b443cd212295a1e4f9c"
     },
     "tests/test_monitor_preflight.py": {
-      "upstream_sha256": "d95366f557fc80321c1bf3ed723810b17865d27e88397de14d884e43d75d0c5d",
-      "linux_sha256": "d95366f557fc80321c1bf3ed723810b17865d27e88397de14d884e43d75d0c5d"
+      "upstream_sha256": "dd8035edfbc2b7d67117f966e234d6bd8297f90b1601d70f60afdbafa40f8f3e",
+      "linux_sha256": "dd8035edfbc2b7d67117f966e234d6bd8297f90b1601d70f60afdbafa40f8f3e"
     },
     "tests/test_monitor_residuals.py": {
       "upstream_sha256": "ce9c33a751cfaad9f6c100a7f2e6bdc97ff8f2c35f890bb2a1dcbf820bc54909",
@@ -9377,8 +9949,8 @@
       "linux_sha256": "16dc7463aaada79237b7615732414ad013910b7201ca084188bd278628b3395b"
     },
     "tests/test_official_openwrt_formats.py": {
-      "upstream_sha256": "7017668ca71fe3971517f871dfbee77e6701c5ce0c3c65d453c7aae7361e550e",
-      "linux_sha256": "7017668ca71fe3971517f871dfbee77e6701c5ce0c3c65d453c7aae7361e550e"
+      "upstream_sha256": "d1a616d8b4b8d9b480083d0ca46a33ea78bbb1321d58e2b041cf0ea077aaf929",
+      "linux_sha256": "d1a616d8b4b8d9b480083d0ca46a33ea78bbb1321d58e2b041cf0ea077aaf929"
     },
     "tests/test_offline_bundle_route_fallback.py": {
       "upstream_sha256": "1d1629ba9b88367b2936d601015947bc8606f61c4c60e8cb8e2db726747041b9",
@@ -9411,6 +9983,10 @@
     "tests/test_other_dependencies.py": {
       "upstream_sha256": "eec153d5434ea012960b4dc732482ba9e72d74969e74e796aa04a4fa8d5285fb",
       "linux_sha256": "eec153d5434ea012960b4dc732482ba9e72d74969e74e796aa04a4fa8d5285fb"
+    },
+    "tests/test_other_dependency_install_fix.py": {
+      "upstream_sha256": "2a64d1b4ea14f9e1774bb85ee3d4b611e534e0f48aa1a3b069abeacb43320853",
+      "linux_sha256": "2a64d1b4ea14f9e1774bb85ee3d4b611e534e0f48aa1a3b069abeacb43320853"
     },
     "tests/test_owned_cache_paths.py": {
       "upstream_sha256": "c297aba40961a7a51e65111a64a632e3f8b9d42830363736e342f109c649a705",
@@ -9485,8 +10061,8 @@
       "linux_sha256": "6b6c07beab6e373fb2167864417fa694a8a51ceb5c67b5d6a2e25e1e5c23fc26"
     },
     "tests/test_password_recovery_boundaries.py": {
-      "upstream_sha256": "b0fee0b83b13f44614ac0c78f5b74114519371990edf7534280e5ff65a9b2454",
-      "linux_sha256": "b0fee0b83b13f44614ac0c78f5b74114519371990edf7534280e5ff65a9b2454"
+      "upstream_sha256": "313ea7044eeb020d7a474b06290b5e8015133a2c148f8506ec7d9fb6dc9614b0",
+      "linux_sha256": "313ea7044eeb020d7a474b06290b5e8015133a2c148f8506ec7d9fb6dc9614b0"
     },
     "tests/test_password_restore.py": {
       "upstream_sha256": "93af1cf7ee2e43602cc978bd0084180ad0b16ce708135206c95e020cdcb785ce",
@@ -9497,8 +10073,8 @@
       "linux_sha256": "62eca48d4b6fb10177090d45b5b8e08e2faf99c4953075e935e32aa3c7fce8ee"
     },
     "tests/test_password_rounds.py": {
-      "upstream_sha256": "f1218a37e73318aa1a3bf06d6c069c6daf83e4476deeed74e6cd4ce594b16ae1",
-      "linux_sha256": "f1218a37e73318aa1a3bf06d6c069c6daf83e4476deeed74e6cd4ce594b16ae1"
+      "upstream_sha256": "07f3a4bdcb352ea8cba08ec0359bd386293448981682669d8ec23807a828395d",
+      "linux_sha256": "07f3a4bdcb352ea8cba08ec0359bd386293448981682669d8ec23807a828395d"
     },
     "tests/test_password_scan_history.py": {
       "upstream_sha256": "390cb630d6f0f7fc78bf1f12d2686ef932c1c5711d20582f1e4bd96192ae78ca",
@@ -9560,6 +10136,10 @@
       "upstream_sha256": "afa423271acede844433fa11fd86187f21eab3781248d20690cd6efcbf028fd6",
       "linux_sha256": "afa423271acede844433fa11fd86187f21eab3781248d20690cd6efcbf028fd6"
     },
+    "tests/test_portable_settings_policy.py": {
+      "upstream_sha256": "a5712aa2a06bf2e4daddcc828066c17b2ea0c49305ec19b236a95d1ba87a225f",
+      "linux_sha256": "a5712aa2a06bf2e4daddcc828066c17b2ea0c49305ec19b236a95d1ba87a225f"
+    },
     "tests/test_posix_shell.py": {
       "upstream_sha256": "28b3b0e3b86094fe0f209c14d844c900649226220e28d8750d90c48e58da1a51",
       "linux_sha256": "28b3b0e3b86094fe0f209c14d844c900649226220e28d8750d90c48e58da1a51"
@@ -9577,8 +10157,8 @@
       "linux_sha256": "c93106b9c40fdcf0b3e4690d5031d76eb15dd77489061530d3885339f80334fd"
     },
     "tests/test_proxy_direct_fallback.py": {
-      "upstream_sha256": "97b0e1a0e92fd31618d79fa6250dc18926d50a1070dc7209db073c843bc165a2",
-      "linux_sha256": "97b0e1a0e92fd31618d79fa6250dc18926d50a1070dc7209db073c843bc165a2"
+      "upstream_sha256": "365f5fefe737991b0d699e7c537b87c716ece4881c7e905011bf671ff45c52eb",
+      "linux_sha256": "365f5fefe737991b0d699e7c537b87c716ece4881c7e905011bf671ff45c52eb"
     },
     "tests/test_proxy_master_switch.py": {
       "upstream_sha256": "14a6e1f1d1e17b30c74fbc917a572a59e8e58d9cbe286fc8932c9e48490e8971",
@@ -9617,8 +10197,8 @@
       "linux_sha256": "077e3714c189c5e79e3e4ada049eb4ab57b2cfdbb0090ea67ac899b5ee9659f9"
     },
     "tests/test_radio_usage.py": {
-      "upstream_sha256": "58a6654b734a4b921378e6a92886093d4e367846d69a7873b69b6b38da92dc8c",
-      "linux_sha256": "58a6654b734a4b921378e6a92886093d4e367846d69a7873b69b6b38da92dc8c"
+      "upstream_sha256": "e6b4c4c025ae417f492cf1334b056f17ef3fa6ea130088c439ac3015ad93df60",
+      "linux_sha256": "e6b4c4c025ae417f492cf1334b056f17ef3fa6ea130088c439ac3015ad93df60"
     },
     "tests/test_radio_usage_feedback.py": {
       "upstream_sha256": "9370460507b8b7bf0a361bf59a46ae035f3be38d090ce1faf044ee4941fa43e3",
@@ -9628,9 +10208,21 @@
       "upstream_sha256": "3c7a5b2583add883b594844bec0e7acab43c70ee8b9ef92f723e43146387766c",
       "linux_sha256": "3c7a5b2583add883b594844bec0e7acab43c70ee8b9ef92f723e43146387766c"
     },
+    "tests/test_randomized_rpcd_savedir.py": {
+      "upstream_sha256": "e9200b277342a7c42950d7aff9eb003c231ffcdab5969b922b5f1ade3c216680",
+      "linux_sha256": "e9200b277342a7c42950d7aff9eb003c231ffcdab5969b922b5f1ade3c216680"
+    },
     "tests/test_read_only_probe_lifecycle.py": {
       "upstream_sha256": "f2372c90ee86134279877f147f85be8a643394b0ec941e80f0f95cabc4a34d4f",
       "linux_sha256": "f2372c90ee86134279877f147f85be8a643394b0ec941e80f0f95cabc4a34d4f"
+    },
+    "tests/test_recovery_access_prompt.py": {
+      "upstream_sha256": "861b241bd211de6538962b3b7753acf46ec015b8988783b3c01ca4dca92fba81",
+      "linux_sha256": "861b241bd211de6538962b3b7753acf46ec015b8988783b3c01ca4dca92fba81"
+    },
+    "tests/test_recovery_identity_snapshot.py": {
+      "upstream_sha256": "c0acb60c7b310460c006ceb927cd1526d6e9e77fcff5a1ddc965f634cd6f6c27",
+      "linux_sha256": "c0acb60c7b310460c006ceb927cd1526d6e9e77fcff5a1ddc965f634cd6f6c27"
     },
     "tests/test_release_channel_assets.py": {
       "upstream_sha256": "d974cb733d3267c4704774c4b0682ae8cf09c78e1e0e9422a9f7e6b29656cad5",
@@ -9712,9 +10304,13 @@
       "upstream_sha256": "62e409d5c95f63a4d0b590a50a6109f82b176bcad54e9602070c253b99e483de",
       "linux_sha256": "62e409d5c95f63a4d0b590a50a6109f82b176bcad54e9602070c253b99e483de"
     },
+    "tests/test_router_health_evidence.py": {
+      "upstream_sha256": "809c85bdbd6038b79ebcb322a3e8e33cd2cb303e472731e1dbc2f3f397d24def",
+      "linux_sha256": "809c85bdbd6038b79ebcb322a3e8e33cd2cb303e472731e1dbc2f3f397d24def"
+    },
     "tests/test_router_password.py": {
-      "upstream_sha256": "63bf0903a135e8f18231fbf7acc0ff97f2638427849cda2c8313cc2f50e43a3a",
-      "linux_sha256": "63bf0903a135e8f18231fbf7acc0ff97f2638427849cda2c8313cc2f50e43a3a"
+      "upstream_sha256": "3906d3a77f3c27bbfe26334632099c8e790082597700c00c55d622ccde83dcb2",
+      "linux_sha256": "3906d3a77f3c27bbfe26334632099c8e790082597700c00c55d622ccde83dcb2"
     },
     "tests/test_router_policy.py": {
       "upstream_sha256": "817d8560ccefc70fa07240f6d219985d7c17cade0588251136a4518c6a08fadf",
@@ -9733,8 +10329,8 @@
       "linux_sha256": "7d9ed0a0a5928b75116d0a4e6e054833c9f677a4f5608479daacfd614edf1981"
     },
     "tests/test_router_policy_ui.py": {
-      "upstream_sha256": "4b58673e76c3212b78e3572af1f8c2580df33694f9ea39387442e4880bfa7e58",
-      "linux_sha256": "4b58673e76c3212b78e3572af1f8c2580df33694f9ea39387442e4880bfa7e58"
+      "upstream_sha256": "c2754a8d43ea34c428e939c3375516de49eaddb3f9d3297eb98de826371d0563",
+      "linux_sha256": "c2754a8d43ea34c428e939c3375516de49eaddb3f9d3297eb98de826371d0563"
     },
     "tests/test_router_policy_worker.py": {
       "upstream_sha256": "41bded3d0b738e123ce988fdc86e446d3187865d7463a801453a43131d1c8553",
@@ -9748,45 +10344,69 @@
       "upstream_sha256": "688cea25a1a7205a3e636a109954b272220a198b274624b67d3e813d5aa72d06",
       "linux_sha256": "688cea25a1a7205a3e636a109954b272220a198b274624b67d3e813d5aa72d06"
     },
+    "tests/test_runtime_bundle_supplement.py": {
+      "upstream_sha256": "5b5265714a1959b9cd22611915610a2cb28cb72c10ea1a47befee603ebd517aa",
+      "linux_sha256": "5b5265714a1959b9cd22611915610a2cb28cb72c10ea1a47befee603ebd517aa"
+    },
     "tests/test_runtime_reload_completion.py": {
       "upstream_sha256": "498104df8dec59b246d23c0f92d31d60fe27b37bdf9e020d4a6f9032b6c0f8e0",
       "linux_sha256": "498104df8dec59b246d23c0f92d31d60fe27b37bdf9e020d4a6f9032b6c0f8e0"
     },
     "tests/test_safe_hcx_integration.py": {
-      "upstream_sha256": "ab89f955700b9419f8973ec22a0b8bbe1f7464706d20e744ee1ae3b76912566f",
-      "linux_sha256": "ab89f955700b9419f8973ec22a0b8bbe1f7464706d20e744ee1ae3b76912566f"
+      "upstream_sha256": "46fc20ec5b0790697f8d40f662dd7e879403c5fd9ccf5455967e7400408e1f64",
+      "linux_sha256": "46fc20ec5b0790697f8d40f662dd7e879403c5fd9ccf5455967e7400408e1f64"
     },
     "tests/test_safe_tool_uninstall.py": {
       "upstream_sha256": "59f7b3935b388be377499d4e0551d0f618353d1837d9a341b798d345c6c55523",
       "linux_sha256": "59f7b3935b388be377499d4e0551d0f618353d1837d9a341b798d345c6c55523"
     },
     "tests/test_save_only.py": {
-      "upstream_sha256": "353dfa22f5c2bae7b429234ee83ec70c39474658a564d1e4915c7bd63cf70301",
-      "linux_sha256": "353dfa22f5c2bae7b429234ee83ec70c39474658a564d1e4915c7bd63cf70301"
+      "upstream_sha256": "f8b1823ca777adc5057dd47f75a4292f665bc27db2d68ace5eed002a8e979d55",
+      "linux_sha256": "f8b1823ca777adc5057dd47f75a4292f665bc27db2d68ace5eed002a8e979d55"
     },
     "tests/test_save_only_ui.py": {
       "upstream_sha256": "35c10ac939b3e8afe3df9684dd679be84fdc256239de8b16fca1ec5120178d58",
       "linux_sha256": "35c10ac939b3e8afe3df9684dd679be84fdc256239de8b16fca1ec5120178d58"
+    },
+    "tests/test_saved_verification_evidence.py": {
+      "upstream_sha256": "4187f8b7bc5d6ac493989abb8ece763537c36f7e2dd9c8ac7774311bfb511aab",
+      "linux_sha256": "4187f8b7bc5d6ac493989abb8ece763537c36f7e2dd9c8ac7774311bfb511aab"
+    },
+    "tests/test_scan_default_band.py": {
+      "upstream_sha256": "f1434e286dd5c4c17c6ce918392263db23881d18468d1b0e7b0e68efaf2d5071",
+      "linux_sha256": "f1434e286dd5c4c17c6ce918392263db23881d18468d1b0e7b0e68efaf2d5071"
     },
     "tests/test_scan_entry_feedback.py": {
       "upstream_sha256": "2dfd8ae1396aaeea1cd916e484a03cb0f34e2713d34000035d5bb3c2f9c5bad2",
       "linux_sha256": "2dfd8ae1396aaeea1cd916e484a03cb0f34e2713d34000035d5bb3c2f9c5bad2"
     },
     "tests/test_scan_interface_selection.py": {
-      "upstream_sha256": "9c6bf23006053867e2773242fd83c2d062710ba743615841bfc2036deee57f1d",
-      "linux_sha256": "9c6bf23006053867e2773242fd83c2d062710ba743615841bfc2036deee57f1d"
+      "upstream_sha256": "7e034c23947072f640214a2c206e86ec4ec47b43020f8fed14543058e0909650",
+      "linux_sha256": "7e034c23947072f640214a2c206e86ec4ec47b43020f8fed14543058e0909650"
     },
     "tests/test_scan_link_ui.py": {
       "upstream_sha256": "04956c10199ded2b0ddf505bbe0156420ac2a04c9a6feaa2cb5e5646b0fcd252",
       "linux_sha256": "04956c10199ded2b0ddf505bbe0156420ac2a04c9a6feaa2cb5e5646b0fcd252"
     },
+    "tests/test_scan_takeover.py": {
+      "upstream_sha256": "0596a0cd921ef74798a7b02fb299ce4df30f22e044363855dccc3718de1ae0f6",
+      "linux_sha256": "0596a0cd921ef74798a7b02fb299ce4df30f22e044363855dccc3718de1ae0f6"
+    },
     "tests/test_scan_wait_budget.py": {
       "upstream_sha256": "5bba4d5bb7c75ad28ecf53262a1d3ef93513e962087c29c76141b3d1dfacaac5",
       "linux_sha256": "5bba4d5bb7c75ad28ecf53262a1d3ef93513e962087c29c76141b3d1dfacaac5"
     },
+    "tests/test_security_feedback_export.py": {
+      "upstream_sha256": "ebb692d8792f957122a7b8eed4a464720ac399a23b92a573be8505e64688e1c1",
+      "linux_sha256": "ebb692d8792f957122a7b8eed4a464720ac399a23b92a573be8505e64688e1c1"
+    },
     "tests/test_settings_impacts.py": {
       "upstream_sha256": "56f9d71cdf923b2c627994d27620dfea6cd301bcf84de68da511773a022ce56c",
       "linux_sha256": "56f9d71cdf923b2c627994d27620dfea6cd301bcf84de68da511773a022ce56c"
+    },
+    "tests/test_shared_bundle_packages.py": {
+      "upstream_sha256": "3f8cec13b720691946efac34d87bdf97addb3794e64f28c04d65189bf2facd69",
+      "linux_sha256": "3f8cec13b720691946efac34d87bdf97addb3794e64f28c04d65189bf2facd69"
     },
     "tests/test_shared_station_identity.py": {
       "upstream_sha256": "cb438f72ccc55003f8a4b222128f90c3b04a973f31550a34ccf0add26afbadcd",
@@ -9805,8 +10425,8 @@
       "linux_sha256": "a9d075b02c8d561853c67670d3ec24af8c92f7ad1961fe26a2aada01ef5ac3f1"
     },
     "tests/test_signal_actions_ui.py": {
-      "upstream_sha256": "a622dda0325136c062a087ee942702312d875c77690fb2c0b7f3c162ac81a650",
-      "linux_sha256": "a622dda0325136c062a087ee942702312d875c77690fb2c0b7f3c162ac81a650"
+      "upstream_sha256": "483fce2478e4228b04767a26a8eebe3e958a97ef84e50bbc6f70c93bfa4cd6b5",
+      "linux_sha256": "483fce2478e4228b04767a26a8eebe3e958a97ef84e50bbc6f70c93bfa4cd6b5"
     },
     "tests/test_signal_change_review_regressions.py": {
       "upstream_sha256": "53401b71ef7aa0a1abc683c577968bfc1a0a18f6ab7403277ed8482140bd5a0b",
@@ -9825,8 +10445,8 @@
       "linux_sha256": "31c15f364a95691bca666e504f476607471649631925db88d1346a2039b7f105"
     },
     "tests/test_signal_foreground_handoff.py": {
-      "upstream_sha256": "dbf4bd15afed2723e49dc61f7d85b3e16f299f5ccdfa5612764447069c870dfa",
-      "linux_sha256": "dbf4bd15afed2723e49dc61f7d85b3e16f299f5ccdfa5612764447069c870dfa"
+      "upstream_sha256": "86944582cf0a739aa115cabd17fa199f0830d2653ce79dfd74b6e3c0e899f923",
+      "linux_sha256": "86944582cf0a739aa115cabd17fa199f0830d2653ce79dfd74b6e3c0e899f923"
     },
     "tests/test_signal_initial_completion.py": {
       "upstream_sha256": "51bc2d3236e8d0dc2599af824b1f7177ef00a46b6c2753bc6a021ef9e1124e3b",
@@ -9845,12 +10465,20 @@
       "linux_sha256": "759068fe908573eacf9c360fe5da95553ab64ee38b49a659dfa33917bce76232"
     },
     "tests/test_signal_runtime.py": {
-      "upstream_sha256": "1d7db30fcd48a442e7ab4695d508de3fe62a0162af38f24c5148e0715da7fc29",
-      "linux_sha256": "1d7db30fcd48a442e7ab4695d508de3fe62a0162af38f24c5148e0715da7fc29"
+      "upstream_sha256": "01aee8250e2e0db9b24eae11a5e2b4e0cde5ccb0dd82f2949d99fb21a06ca899",
+      "linux_sha256": "01aee8250e2e0db9b24eae11a5e2b4e0cde5ccb0dd82f2949d99fb21a06ca899"
     },
     "tests/test_slow_network_probe.py": {
       "upstream_sha256": "3d5337184c71720e52497263e962b7c398cf6b85f388481d1844f670b003172c",
       "linux_sha256": "3d5337184c71720e52497263e962b7c398cf6b85f388481d1844f670b003172c"
+    },
+    "tests/test_snapshot_configuration.py": {
+      "upstream_sha256": "d521a04818c582d0240c6105474f2c3b35676e3628b4dd5a49088cfade939c9b",
+      "linux_sha256": "d521a04818c582d0240c6105474f2c3b35676e3628b4dd5a49088cfade939c9b"
+    },
+    "tests/test_snapshot_original_packages.py": {
+      "upstream_sha256": "2a4869c2770eb743a7b9b8f74ab7c7019195c885f4c79f6ca8e0b3d1c4aac96a",
+      "linux_sha256": "2a4869c2770eb743a7b9b8f74ab7c7019195c885f4c79f6ca8e0b3d1c4aac96a"
     },
     "tests/test_source_runtime.py": {
       "upstream_sha256": "c6b1ce1cb00550718f76b2d369c8afb02a7f4314f8992e6800531d964eb2ba96",
@@ -9861,16 +10489,16 @@
       "linux_sha256": "77c12f93ff141c067852ac853a276e445858fa60cb8dc827706211eff21a45c4"
     },
     "tests/test_ssh_compatibility.py": {
-      "upstream_sha256": "f56538cdf7e5734892135ebbd03bf7d0c8a6dac54ef8cfb3a6d61ea543e6917c",
-      "linux_sha256": "f56538cdf7e5734892135ebbd03bf7d0c8a6dac54ef8cfb3a6d61ea543e6917c"
+      "upstream_sha256": "d7058ebc9a5007a86c460fa711cdbe7993e14240ea0e88b47ccc68df9eb91482",
+      "linux_sha256": "d7058ebc9a5007a86c460fa711cdbe7993e14240ea0e88b47ccc68df9eb91482"
     },
     "tests/test_ssh_empty_password.py": {
-      "upstream_sha256": "e6f3170b30283641d0b0680781b6b710a7e3fbd0dfb5769b110145c88718d085",
-      "linux_sha256": "e6f3170b30283641d0b0680781b6b710a7e3fbd0dfb5769b110145c88718d085"
+      "upstream_sha256": "83c6d81dd65fbd1a5835e3cf6f41b523069bf7eac116a4cf1cabd4992e944c07",
+      "linux_sha256": "83c6d81dd65fbd1a5835e3cf6f41b523069bf7eac116a4cf1cabd4992e944c07"
     },
     "tests/test_stale_bundle_fallback.py": {
-      "upstream_sha256": "eaab56ff816751fb42f6fa990d3f69cdcfb9b0ba299656e4c40e48ff763831f5",
-      "linux_sha256": "eaab56ff816751fb42f6fa990d3f69cdcfb9b0ba299656e4c40e48ff763831f5"
+      "upstream_sha256": "4240684ad90dbe47d584021e90275731801de137bfe8692758eee1e5cfb286e9",
+      "linux_sha256": "4240684ad90dbe47d584021e90275731801de137bfe8692758eee1e5cfb286e9"
     },
     "tests/test_stale_lease_transition.py": {
       "upstream_sha256": "a18341e35f1a8afb3e2447c62c03f2a3fcd4a09301c2113ba7c056b0dbaad25d",
@@ -9907,6 +10535,10 @@
     "tests/test_station_batch_identity.py": {
       "upstream_sha256": "d1c12109ea0de84e44bd74ff92edcece302066d7c403c233ac6beba391ea20cb",
       "linux_sha256": "d1c12109ea0de84e44bd74ff92edcece302066d7c403c233ac6beba391ea20cb"
+    },
+    "tests/test_station_connection.py": {
+      "upstream_sha256": "c168d832eaba11960b306de5b9baf867523ca6d51a0b958a8ffd74ce09f2b1dd",
+      "linux_sha256": "c168d832eaba11960b306de5b9baf867523ca6d51a0b958a8ffd74ce09f2b1dd"
     },
     "tests/test_support_inventory.py": {
       "upstream_sha256": "eedfd029028377cf49df0eaa0c09e4f35c05e20c31f09af2d44c46da17203f68",
@@ -9957,8 +10589,8 @@
       "linux_sha256": "632cafb01cd746b54f253b10b7677629d3b35ee06d5dad6ef537af0bc0022c31"
     },
     "tests/test_ui_consistency.py": {
-      "upstream_sha256": "3ce8e2883512810ff8065d986ead4a10dc87b38baa3ae49dc9fdefe9df844d9d",
-      "linux_sha256": "3ce8e2883512810ff8065d986ead4a10dc87b38baa3ae49dc9fdefe9df844d9d"
+      "upstream_sha256": "4c275c3d4c4edf2d4bae2e092c4c09f615fb0a7de90f583949a10212532dafe9",
+      "linux_sha256": "4c275c3d4c4edf2d4bae2e092c4c09f615fb0a7de90f583949a10212532dafe9"
     },
     "tests/test_update_browser_fallback.py": {
       "upstream_sha256": "5726d01c2fbf49e6cfc6d9a2a1c32fc21fc5b47bb8c21154dabe6466b4cf6fda",
@@ -9967,6 +10599,10 @@
     "tests/test_update_cache_lifecycle.py": {
       "upstream_sha256": "623a25c04f38a5ee616880098ff05496221725afbdb4d51ac22cc3316d358906",
       "linux_sha256": "623a25c04f38a5ee616880098ff05496221725afbdb4d51ac22cc3316d358906"
+    },
+    "tests/test_update_config_fallback.py": {
+      "upstream_sha256": "ccfa563e1924380e3f7775cc83050dd7177de177498847a441b06c2c520b9dd6",
+      "linux_sha256": "ccfa563e1924380e3f7775cc83050dd7177de177498847a441b06c2c520b9dd6"
     },
     "tests/test_update_diagnostics_audit.py": {
       "upstream_sha256": "8c1ef657f254323dcc93a6618edf3adc98bc496377e06070049c2bf3d702284d",
@@ -10007,6 +10643,18 @@
     "tests/test_window_title_alignment.py": {
       "upstream_sha256": "899616634444e4a1ccae0f35715aa9d7de0380cfdfc053273ef3da3edc88a4d2",
       "linux_sha256": "899616634444e4a1ccae0f35715aa9d7de0380cfdfc053273ef3da3edc88a4d2"
+    },
+    "tests/test_windows_login_diagnostics.py": {
+      "upstream_sha256": "ae60d429d3b29d26fe5bd73299269386e3280797d950fee5df63c380137228f8",
+      "linux_sha256": "ae60d429d3b29d26fe5bd73299269386e3280797d950fee5df63c380137228f8"
+    },
+    "tests/test_windows_login_diagnostics_review.py": {
+      "upstream_sha256": "a45f4c3e2339d57b102a2ef3be0ed839a8935e27f9febf533137babf5d653ab9",
+      "linux_sha256": "a45f4c3e2339d57b102a2ef3be0ed839a8935e27f9febf533137babf5d653ab9"
+    },
+    "tests/test_windows_login_diagnostics_second_review.py": {
+      "upstream_sha256": "1c5af796abba251d4ce67bbc95d03f3d495c5c4e7b306ae6db2db1fe7323830c",
+      "linux_sha256": "1c5af796abba251d4ce67bbc95d03f3d495c5c4e7b306ae6db2db1fe7323830c"
     },
     "tests/test_wireless_boolean_compatibility.py": {
       "upstream_sha256": "560ab4a55911685b4d9a499e021e1b4a3f456660dd72cb1a8f1eef1e86120754",
@@ -10073,12 +10721,12 @@
       "linux_sha256": "0bb042b40196b7a283bd6efc8f5d346d73c352ebe96c7fd8bd89c15f0a4fb33b"
     },
     "tests/test_wireless_runtime_status.py": {
-      "upstream_sha256": "f2dcf8ba5645f7674a092e49511597c6806a669bf5fcb54af52c51ffb43a4ab1",
-      "linux_sha256": "f2dcf8ba5645f7674a092e49511597c6806a669bf5fcb54af52c51ffb43a4ab1"
+      "upstream_sha256": "c02b7020e5ca4cc6e04b22b9ab63bd33f9f087426c2eb347b5ef0ebcb7d2dd74",
+      "linux_sha256": "c02b7020e5ca4cc6e04b22b9ab63bd33f9f087426c2eb347b5ef0ebcb7d2dd74"
     },
     "tests/test_wireless_runtime_status_ui.py": {
-      "upstream_sha256": "4b7c8a159d128261407694fb717fd69f846f4c54fd95f7cc31260429dac8f127",
-      "linux_sha256": "4b7c8a159d128261407694fb717fd69f846f4c54fd95f7cc31260429dac8f127"
+      "upstream_sha256": "8dc4d2fc4a335ffbec07a68fda3c67aab2cd300f4f0d87fbdedb8f95c3249757",
+      "linux_sha256": "8dc4d2fc4a335ffbec07a68fda3c67aab2cd300f4f0d87fbdedb8f95c3249757"
     },
     "tests/test_wireless_service_edges.py": {
       "upstream_sha256": "1521ee20d83564a097632f83710b5fbb980aff5e259403ef4def68ac83da1b5f",
@@ -10087,6 +10735,10 @@
     "tests/test_wireless_setup.py": {
       "upstream_sha256": "2be59114c62e92874af8168664c812d9e9ba73fbed78c68a43cafeff33e1a445",
       "linux_sha256": "2be59114c62e92874af8168664c812d9e9ba73fbed78c68a43cafeff33e1a445"
+    },
+    "tests/test_wireless_setup_presets.py": {
+      "upstream_sha256": "4ae2f3d019434693269cf06d2fa81bc06291079c0047682e9044bd291b0cae03",
+      "linux_sha256": "4ae2f3d019434693269cf06d2fa81bc06291079c0047682e9044bd291b0cae03"
     },
     "tests/test_wireless_table.py": {
       "upstream_sha256": "6f793355d888cd33be84cf4668d836d75ca96dfdf529bd6128bc1a12f660ae46",
@@ -10104,9 +10756,13 @@
       "upstream_sha256": "b1b9c676221bb95c0aa6718965f54caf6b2b088281f483c9c9e573e2cf3ca20b",
       "linux_sha256": "b1b9c676221bb95c0aa6718965f54caf6b2b088281f483c9c9e573e2cf3ca20b"
     },
+    "tests/test_workspace_build_retention.py": {
+      "upstream_sha256": "abcd2f593b71c1beb2323ecd12b4ba48cff0d4b1412111332745d547d7ecfc44",
+      "linux_sha256": "abcd2f593b71c1beb2323ecd12b4ba48cff0d4b1412111332745d547d7ecfc44"
+    },
     "tests/test_wps_configuration_flow.py": {
-      "upstream_sha256": "50a71464085ea4961c154536bd822661fbf6ac247d2a172f1336ad42599b6984",
-      "linux_sha256": "50a71464085ea4961c154536bd822661fbf6ac247d2a172f1336ad42599b6984"
+      "upstream_sha256": "826451a714471fe8053777a508c4db980042564eb3a982bbb7eaddba3faa6314",
+      "linux_sha256": "826451a714471fe8053777a508c4db980042564eb3a982bbb7eaddba3faa6314"
     },
     "tests/test_wps_diagnostics.py": {
       "upstream_sha256": "d11e601840652021c4b7a566bf8783e5670624bb3cb41c4f87ab0b5f6da0558e",
@@ -10129,20 +10785,20 @@
       "linux_sha256": "a723beae782ae2232603a184317f8c3a4e6894f0691b6445ac69107c4f3538ee"
     },
     "tests/test_wps_quick_and_radio.py": {
-      "upstream_sha256": "0e8716d5797f888bfa0fa362638468886b2484f47046d3054bdfc46968a0912c",
-      "linux_sha256": "0e8716d5797f888bfa0fa362638468886b2484f47046d3054bdfc46968a0912c"
+      "upstream_sha256": "c658c6f92ea34d9cbeda1148a67d32386a3a3f209c8931c8b8b42e9283e4ae90",
+      "linux_sha256": "c658c6f92ea34d9cbeda1148a67d32386a3a3f209c8931c8b8b42e9283e4ae90"
     },
     "tests/test_wps_random_mac.py": {
-      "upstream_sha256": "f4036ba419f2cba96467098336cddc266976b868350fe1b641eed02349c0de29",
-      "linux_sha256": "f4036ba419f2cba96467098336cddc266976b868350fe1b641eed02349c0de29"
+      "upstream_sha256": "714e0eb0095fa71ca69270e925656d81af002c204e2a77a8809d0541dfe8f600",
+      "linux_sha256": "714e0eb0095fa71ca69270e925656d81af002c204e2a77a8809d0541dfe8f600"
     },
     "tests/test_wps_result_ui.py": {
       "upstream_sha256": "5019a3537c06709a3a4cc179dafb9c5ecd4320e76111bd13b078ba34b784bcab",
       "linux_sha256": "5019a3537c06709a3a4cc179dafb9c5ecd4320e76111bd13b078ba34b784bcab"
     },
     "tests/test_wps_rotation.py": {
-      "upstream_sha256": "c4ef9f32c06dad9d213d6a502e5fa6dc55aee7d39eb34b0c7994a955958bace9",
-      "linux_sha256": "c4ef9f32c06dad9d213d6a502e5fa6dc55aee7d39eb34b0c7994a955958bace9"
+      "upstream_sha256": "7b8e3c5feaa0002c4b73bbe4dcd24470c6499d5f2097d389cbfbb5b187107b63",
+      "linux_sha256": "7b8e3c5feaa0002c4b73bbe4dcd24470c6499d5f2097d389cbfbb5b187107b63"
     },
     "tests/test_wps_scan.py": {
       "upstream_sha256": "0bdd68223fa7db68eb86a2966107359d7c2c4d65c0751f57368b220396f10d64",
@@ -10205,12 +10861,12 @@
       "linux_sha256": "e5171686bcbc90759e31214f07f6fdccab8c5d8b5bd3e8fa166632867629d6af"
     },
     "themes/page_partials/packet_capture_dark.qss": {
-      "upstream_sha256": "48beccd4d1139bd82a8add0ae351060c92d31d60782b150d26af32f20747c1f4",
-      "linux_sha256": "48beccd4d1139bd82a8add0ae351060c92d31d60782b150d26af32f20747c1f4"
+      "upstream_sha256": "49dcc061c9daa752cc79d8448481fa0c73564d82be4e1dd61bdd9ee79bdac87c",
+      "linux_sha256": "49dcc061c9daa752cc79d8448481fa0c73564d82be4e1dd61bdd9ee79bdac87c"
     },
     "themes/page_partials/packet_capture_light.qss": {
-      "upstream_sha256": "ea1cc1dfe1794dc9912775e2439053be60e0ade11cdbe7a5fc1da87dcd453cf5",
-      "linux_sha256": "ea1cc1dfe1794dc9912775e2439053be60e0ade11cdbe7a5fc1da87dcd453cf5"
+      "upstream_sha256": "de44b3d02389334d47e921829bf6a648b97f20ab9dc2ac8f928b4377376c02ba",
+      "linux_sha256": "de44b3d02389334d47e921829bf6a648b97f20ab9dc2ac8f928b4377376c02ba"
     },
     "themes/quick_launcher_dark.qss": {
       "upstream_sha256": "2be36ac9767dc8b3dd019c8b0427acfead359c9784dcf2fe7812b4aae262c342",
@@ -10233,20 +10889,20 @@
       "linux_sha256": "86142878a68c5da861b92e93d76aba57e997e87f7afad1d0bca562b97fdb158b"
     },
     "themes/settings_partials/settings_dark.qss": {
-      "upstream_sha256": "0e5907829f99b487e104e364c615552b91ebd59c12f449410fae55a6f5ce6be9",
-      "linux_sha256": "0e5907829f99b487e104e364c615552b91ebd59c12f449410fae55a6f5ce6be9"
+      "upstream_sha256": "2d94c92a138280a28934505d1c5b494ff692775fb7d6300880d38f8ba0225e10",
+      "linux_sha256": "2d94c92a138280a28934505d1c5b494ff692775fb7d6300880d38f8ba0225e10"
     },
     "themes/settings_partials/settings_light.qss": {
-      "upstream_sha256": "73fcd25bed495add27b444cdefac0f5e9bf68a2c60ffab94ef2d3fadb9bccf41",
-      "linux_sha256": "73fcd25bed495add27b444cdefac0f5e9bf68a2c60ffab94ef2d3fadb9bccf41"
+      "upstream_sha256": "75ce39d12effabfd7f08ac14e3d04b7f448a205de2bda362ccfe99299fe17d11",
+      "linux_sha256": "75ce39d12effabfd7f08ac14e3d04b7f448a205de2bda362ccfe99299fe17d11"
     },
     "themes/spin_box_dark.qss": {
-      "upstream_sha256": "d2979c327b842c5037335aa5a4f1c631014b3f070f2819e37e3d1acb23912a2f",
-      "linux_sha256": "d2979c327b842c5037335aa5a4f1c631014b3f070f2819e37e3d1acb23912a2f"
+      "upstream_sha256": "c4cfe25c4aeb9d007a70819e610a61f373b1a75618debdf9d27746cba498bb15",
+      "linux_sha256": "c4cfe25c4aeb9d007a70819e610a61f373b1a75618debdf9d27746cba498bb15"
     },
     "themes/spin_box_light.qss": {
-      "upstream_sha256": "0359c5cc0da0125f2085683237f8511acee28616d253c6b6dce392c572bdb948",
-      "linux_sha256": "0359c5cc0da0125f2085683237f8511acee28616d253c6b6dce392c572bdb948"
+      "upstream_sha256": "d54444a9a2853d4a2ce60a9b2b14e6893803a0e9e674a574e8bbebfd5cbb8258",
+      "linux_sha256": "d54444a9a2853d4a2ce60a9b2b14e6893803a0e9e674a574e8bbebfd5cbb8258"
     },
     "themes/table_header_dark.qss": {
       "upstream_sha256": "811dbc726f5b2312ce8d7704e6487de5f505c422cb9284cc61a3dd82defadcc5",

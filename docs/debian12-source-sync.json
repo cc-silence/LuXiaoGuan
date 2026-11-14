@@ -2,15 +2,15 @@
   "schema": 1,
   "product": "RouterManager",
   "platform": "linux-x64",
-  "version": "1.0.49_alpha",
-  "upstream_commit": "752462b8994b7f64458a60d3edc9552c0ff8b97f",
-  "checked_date": "2026-11-06",
+  "version": "1.0.64_alpha",
+  "upstream_commit": "37ca8e7c9cb43b3fbfd6420ace9ab78e83cb881d",
+  "checked_date": "2026-11-13",
   "source_merge_reviewed": true,
   "linux_native_validated": false,
   "working_snapshot_reviewed": true,
   "reviewed_worktree": {},
   "source_inventory": {
     "path": "docs/debian12-source-inventory.json",
-    "sha256": "9c6608eb3aed1614acd3f1136e5f38dedff116d891ef818e30bb0ea25da70821"
+    "sha256": "9bf0b11a7896e9211ad2fafd0e39fc1e4aec54b5cfb8b616f46855375849a9cf"
   }
 }

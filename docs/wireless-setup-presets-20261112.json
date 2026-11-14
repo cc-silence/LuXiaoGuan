@@ -1,7 +1,7 @@
 {
-  "date": "2026-11-12",
+  "date": "2026-11-13",
   "scope": "AP and relay editor profile selection; no new router commands, package install, driver changes or automatic apply.",
-  "defaults": "Existing profile remains default. Selecting a profile repopulates its managed parameters in memory only. Name, password, AP network membership, channel, country, transmit power and device identity remain untouched.",
+  "defaults": "Existing profile remains default. Name/password, AP network membership, channel, transmit power and identity are preserved across profile switches. Recommended AP country selects TW only when advertised and supported; existing profile restores its original country selection.",
   "ap_recommendation": {
     "standard_width": "Existing capability-gated default_htmode: 2.4 GHz prefers 20 MHz; 5/6 GHz prefer 80/40/20 MHz when confirmed. Unknown bands are not guessed.",
     "security": "WPA2-PSK with optional PMF for confirmed 2/5 GHz; SAE with mandatory PMF only when 6 GHz and SAE support are confirmed.",
@@ -10,16 +10,17 @@
       "isolate": "1",
       "wmm": "1",
       "dtim_period": "2",
-      "beacon_int": "100"
+      "beacon_int": "100",
+      "country": "TW, only when advertised and option_supported"
     },
-    "scope": "Only individually confirmed options are submitted. Other advanced, identity, topology and regulatory options stay unchanged."
+    "scope": "Only individually confirmed options are submitted. Other advanced, identity and topology options stay unchanged. Country is radio-wide; no force-regdomain or transmit-power override is introduced."
   },
   "relay_recommendation": "Routed client, DHCP and automatically supplied DNS. Existing masquerading-enabled wan zone preferred if present; no zones are created, no static IP or device identity guessed. Other parameters remain unchanged.",
   "existing_flow": "Profile switching does no router I/O. Existing request validation, revision check, save-only/apply confirmation, management-link safety, rollback and startup verification are reused.",
   "checks": {
-    "tests": 47,
+    "tests": 60,
     "visual": "Actual Windows Qt dialogs, both themes, 100/125/150/175% scaling, select-disabled while busy.",
-    "native_save": "Real Lua interpreter with deterministic UCI fixture: recommended editor request confirmed; existing password/country/txpower/channel retained.",
+    "native_save": "Real Lua interpreter with deterministic UCI fixture: recommended editor request confirmed. Existing password/txpower/channel retained; country remains CN in fixture without advertised TW. Editor request tests cover advertised TW selection and exact restoration.",
     "limitations": "No physical router or native Debian 12 verification; no firmware/hardware-wide success claim. Exact schema fixtures are synthetic, not device captures."
   },
   "source_review": {
@@ -158,5 +159,95 @@
       "signalPrimaryLineEdit"
     ],
     "validation": "9 focused interaction tests; actual dark/light card pixels and input geometry checked at 100/125/150/175 percent on Windows. Native Debian pending."
+  },
+  "followup_20261113": {
+    "scope": "AP country recommendation uses existing country request and validation path; official OpenWrt review applies. Navigation and collapse coordinate checks are local UI only.",
+    "navigation": "Root cause: QSS content height plus margins disagreed with fixed outer height. Fresh startup page switch and subsequent refresh keep navigation coordinates at 100/125/150/175 percent.",
+    "collapse": {
+      "root_cause": "During overlapping animations, scroll content retained a previous smaller height while its layout had already grown. Ordinary QVBoxLayout could compress preceding items for a frame: profile y218 -> y200 -> y218, or y218 -> y156 -> y218. Primary card minimum height was still 192, causing overlap rather than legitimate resize.",
+      "fix": "Reuse NaturalHeightVBoxLayout and SetMinimumSize in the shared setup dialog. The content minimum grows before child arrangement, without timers, forced scroll positions or altered card styling. Applies to AP, relay and compact verification dialog.",
+      "checks": "14 related tests pass, including 120 interrupted toggle operations in each AP/relay, dark/light, 100/175 percent combination. Original reproduction: zero coordinate changes in 160 toggles after repair. Native Windows painting checked separately.",
+      "reference": "https://doc.qt.io/qt-6/qscrollarea.html#size-hints-and-layouts",
+      "reference_read_date": "2026-11-13",
+      "limitations": "No native Debian 12 desktop validation."
+    },
+    "country_sources": [
+      {
+        "series": "19.07",
+        "commit": "1da2e82c1182a3fd681da5760be96821213afadd",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/1da2e82c1182a3fd681da5760be96821213afadd/package/network/services/hostapd/files/hostapd.sh",
+        "sha256": "9eb944eab3f7c24025b0a0c1fde3ba538415c25bb80c2c1db5f6067c9a8454f4",
+        "country_lines": [
+          "91: config_add_string country",
+          "120: append base_cfg \"country_code=$country\" \"$N\""
+        ]
+      },
+      {
+        "series": "21.02",
+        "commit": "78e4cffcd882389cb8f0bf818303f85f8d1e9c8e",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/78e4cffcd882389cb8f0bf818303f85f8d1e9c8e/package/network/services/hostapd/files/hostapd.sh",
+        "sha256": "2aaa7f48e0e2644ea98c0532233c3447ed4b9794dd907e269bfad7deea2a1d71",
+        "country_lines": [
+          "96: config_add_string country country3",
+          "133: append base_cfg \"country_code=$country\" \"$N\""
+        ]
+      },
+      {
+        "series": "22.03",
+        "commit": "4e1d1b7df0ce6fa96d7462dc883917682f428046",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4e1d1b7df0ce6fa96d7462dc883917682f428046/package/network/services/hostapd/files/hostapd.sh",
+        "sha256": "a2215c9ccacdbe6bd6d5ff94c86dc9dcad5657578c3e4b3cd272121822a93acf",
+        "country_lines": [
+          "108: config_add_string country country3",
+          "148: append base_cfg \"country_code=$country\" \"$N\""
+        ]
+      },
+      {
+        "series": "23.05",
+        "commit": "33063b4ccf00d39393796499b23df55187b192dc",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/33063b4ccf00d39393796499b23df55187b192dc/package/network/services/hostapd/files/hostapd.sh",
+        "sha256": "3d8ddd69e00a3dcb384acceb843b9c2bdfb2ab73d6a9fae8eb8fa53ffff925dd",
+        "country_lines": [
+          "112: config_add_string country country3",
+          "154: append base_cfg \"country_code=$country\" \"$N\""
+        ]
+      },
+      {
+        "series": "24.10",
+        "commit": "f13f178df1c1be46d9a540ab5a6eb3fca6ca4f79",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/f13f178df1c1be46d9a540ab5a6eb3fca6ca4f79/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh",
+        "sha256": "108428f76006ff1152b72ece59338cab5caa4386b6c5ea3c89c50f7e7e5f8c88",
+        "country_lines": [
+          "112: config_add_string country country3",
+          "156: append base_cfg \"country_code=$country\" \"$N\""
+        ]
+      },
+      {
+        "series": "25.12",
+        "commit": "4a686570eb6495635279273f034caa2a0f37f36e",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh",
+        "sha256": "30f2e5a5241f471c590bc4498efa20c500673b99c584b7ccc5b02574d58f94b3",
+        "country_lines": [
+          "120: config_add_string country country3",
+          "165: append base_cfg \"country_code=$country\" \"$N\""
+        ]
+      },
+      {
+        "series": "25.12",
+        "commit": "4a686570eb6495635279273f034caa2a0f37f36e",
+        "url": "https://raw.githubusercontent.com/openwrt/openwrt/4a686570eb6495635279273f034caa2a0f37f36e/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh",
+        "sha256": "30f2e5a5241f471c590bc4498efa20c500673b99c584b7ccc5b02574d58f94b3",
+        "country_lines": [
+          "120: config_add_string country country3",
+          "165: append base_cfg \"country_code=$country\" \"$N\""
+        ]
+      }
+    ],
+    "regulatory_reference": {
+      "url": "https://wireless.docs.kernel.org/en/latest/en/developers/regulatory/processing_rules.html",
+      "read_date": "2026-11-13",
+      "conclusion": "Country hints are constrained by regulatory and device restrictions. Retain live countries/schema gates and normal save validation; no guarantee that TW is appropriate for every deployment."
+    },
+    "limitations": "Offline and local Windows rendering only. No physical router or native Debian 12 validation."
   }
 }
