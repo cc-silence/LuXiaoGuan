@@ -1,0 +1,36 @@
+{
+  "date": "2026-11-18",
+  "scope": "bounded command-channel retries and existing batch target isolation",
+  "root_cause": "The old text match recognized Channel closed but missed Channel is not open, and allowed only one retry. The original channel closure cause remains undetermined.",
+  "policy": {
+    "safe_queries": [
+      "snapshot_wireless",
+      "probe_phy_channel",
+      "read_monitor_channel",
+      "read_monitor_status",
+      "read_monitor_link"
+    ],
+    "attempts": 3,
+    "total_budget": "original timeout including queue time",
+    "identity": "same connection object, generation and host fingerprint",
+    "mutation": "No new replay after exec submission. Existing owner-authorized one-retry Channel-closed exception retained unchanged.",
+    "batch": "Existing target-local failure path continues only after confirmed cleanup and live connection; fatal conditions retained."
+  },
+  "verification": {
+    "tests": 80,
+    "result": "passed",
+    "real_local_ssh": "Three rejected read-only submissions on separate channels; next independent command succeeds."
+  },
+  "upstream": {
+    "url": "https://docs.paramiko.org/en/stable/api/channel.html",
+    "checked": "2026-11-18",
+    "conclusion": "exec_command may raise SSHException on rejection or closure; channel is not reusable after command completion. Replay after submission is restricted to explicitly audited read-only operations."
+  },
+  "compatibility": "No remote command, option or firmware-specific parser added. Changes are in shared local command orchestration.",
+  "limits": [
+    "No live-router test",
+    "No Debian native test",
+    "Not packaged",
+    "Two additional radio-diagnostics preflight tests encounter invalid recovery-device fingerprint in existing fixtures; not counted in the 80 passing tests."
+  ]
+}

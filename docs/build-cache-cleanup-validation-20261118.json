@@ -1,0 +1,14 @@
+{
+  "date": "2026-11-18",
+  "removed_bytes": 5220198835,
+  "removed_directories": 19,
+  "skipped": [],
+  "checks": "18 tests passed; three retained offline ZIPs verified by SHA256 and CRC; deletion under shared build lock after exact preview recheck.",
+  "retained_reasons": {
+    "toolchains": "Installed/build toolchain inputs may be required for native artifacts; retained.",
+    "archives": "Unique offline archives and all dist deliveries retained.",
+    "reports_and_scripts": "Audit reports, provenance, original scripts and unknown backups retained.",
+    "latest_build": "Last verified application build retained."
+  },
+  "automatic_scope": "Successful application builds consume completed registries; manual cleanup uses the same consumer. Future producers must acquire the shared lock and set registry building before work, complete after validation. Unregistered legacy material is not automatically deleted."
+}

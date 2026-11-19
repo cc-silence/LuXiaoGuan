@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-15",
+  "status": "windows_component_installed_and_verified",
+  "issue": "wide character continuation did not inherit the leading cell style on write",
+  "change": "copy full pen to continuation cells in libvterm putglyph",
+  "windows_candidate_sha256": "b36832b2b01abadd317a0ba36874150dd2a8f0f40b1e08015b775744cd2c3ef2",
+  "current_component_sha256": "71c6c059e8862311cd8f47e4fa2b848b4eb5c0285853ddaab57b2d91cd716cdb",
+  "candidate_verification": {
+    "qt_version": "6.3.2",
+    "dll_sha256": "b36832b2b01abadd317a0ba36874150dd2a8f0f40b1e08015b775744cd2c3ef2",
+    "source_files": 504
+  },
+  "old_component_replaced": true,
+  "candidate_regression": {
+    "run": 33,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "scope": "Qt native component: selected and unselected color backgrounds; scroll history and text copy; terminal interaction and session lifecycle"
+  },
+  "limitations": [
+    "Debian 12 binary and desktop not rebuilt or verified",
+    "No router action performed"
+  ],
+  "installed_component_sha256": "d3e280dbe4f284151689563b23e6f2c0c5040af444f7858361331229a88fe5a5",
+  "installed_verification": {
+    "qt_version": "6.3.2",
+    "dll_sha256": "d3e280dbe4f284151689563b23e6f2c0c5040af444f7858361331229a88fe5a5",
+    "source_files": 504
+  },
+  "backup_component_sha256": "71c6c059e8862311cd8f47e4fa2b848b4eb5c0285853ddaab57b2d91cd716cdb",
+  "backup_directory": "build/native-terminal/0226d22ebd0f4681999dd24bb070716d/previous",
+  "installed_regression": {
+    "run": 43,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "scope": "native terminal interaction, Chinese selection and copy, session reset, component manifest, install state"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "date": "2026-11-14",
+  "environment": "Windows Python 3.10, offline unit tests and official metadata",
+  "tests": 102,
+  "tests_result": "passed",
+  "profiles": 1930,
+  "combination_count": 450,
+  "added_package_references": {
+    "pixiewps": 1930,
+    "libpthread": 336,
+    "libgcc1": 98
+  },
+  "baseline_sha256": "11aeb5f24ea9573ddfe2b782a1abfff0cd7eeff598ed5d61a5fb3dcc9d040854",
+  "zip_sha256": "e0ea99ae61223b471f4ddf5321bfac5141a3a68c9e193742ba7b9bd2480c6eff",
+  "zip_bytes": 248336269,
+  "added_zip_bytes": 2478148,
+  "old_objects_retained": 1691,
+  "live_router": "not tested",
+  "coverage_limit": "Official release/target/architecture records already in baseline; third-party and unidentified SNAPSHOT firmware require independent verification."
+}

@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-18",
+  "root_cause": "Report widgets inserted raw summary and identities without subscribing to the global display privacy controller.",
+  "scope": [
+    "summary text and copying",
+    "SSID and BSSID table",
+    "report labels",
+    "live report updates"
+  ],
+  "tests": 24,
+  "result": "passed",
+  "visual": "Both themes rendered; dark table and light summary inspected. Existing layout retained.",
+  "limits": [
+    "Source changes only; package not rebuilt",
+    "Debian native desktop unverified"
+  ],
+  "data_integrity": "Raw report fields and capture files remain unchanged."
+}

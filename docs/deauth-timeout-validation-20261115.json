@@ -1,0 +1,56 @@
+{
+  "date": "2026-11-15",
+  "scope": "Shared OpenWrt directed-handshake sender and target timeout isolation; no driver, package, wireless configuration or UI visual changes.",
+  "evidence_archive": "XRJ_LuXiaoGuan_capture_20261115_135055.zip",
+  "device": "Xiaomi Redmi Router AC2100 (archive identity)",
+  "observations": [
+    "Four deauth_client execution timeouts at 25.015 to 25.046 seconds; connected remained true.",
+    "Repeated directed burst messages approximately 2.2 seconds apart; 0 ACKs does not establish why peers did not acknowledge."
+  ],
+  "changes": [
+    "Preserve aireplay-ng flags, bounded positive count and targeted client selection.",
+    "Budget 10 + 3 * count seconds; this is an allowance, not a universal driver runtime guarantee.",
+    "Record child PID plus Linux start token; on timeout/cancel use shared verified stop before proceeding. Unknown identity or failed cleanup remains fatal.",
+    "Skip only affected target for current round; continue group and batch, allow configured later rounds. Preserve an already usable capture."
+  ],
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/1.6/src/aireplay-ng/aireplay-ng.c",
+      "sha256": "96d34188cb15f986b6fae15b29426d10369d6a5664ac67aac96a6de46fbaeb46",
+      "review": "Finite positive count exits after directed bursts; each burst sends 64 frames each way and drains received frames. Driver TX and receive time are not bounded by count seconds."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/1.7/src/aireplay-ng/aireplay-ng.c",
+      "sha256": "db1d49d45a0cbc2de32dc969cb81806a49e4d36e96dd952819c884bf10d228a3",
+      "review": "Finite positive count exits after directed bursts; each burst sends 64 frames each way and drains received frames. Driver TX and receive time are not bounded by count seconds."
+    }
+  ],
+  "compatibility": "Same common logic for all supported router models and Windows/Debian hosts. No model/version branches or new router dependencies. Existing sed/cut/proc process identity and exact-PID stop contracts reused.",
+  "verification": {
+    "status": "offline passed",
+    "real_router": "Not run; retest failing AC2100 and one previously working router, with user-authorized targets only. Verify normal completion, timeout skip, cancellation and no owned sender remaining.",
+    "debian12": "Native execution not performed; common Python logic has no added host-specific branches.",
+    "hardware_scope": "AX3600, RT-ACRH17, AX6S, Q30 Pro and other supported devices remain pending real-device validation; no hardware-specific compatibility claim.",
+    "targeted_tests": 101,
+    "test_result": "OK; 8.729 seconds",
+    "checks": [
+      "Six edited/new Python files compiled",
+      "Strict UTF-8 decode and mojibake-marker scan passed",
+      "git diff --check passed for modified tracked files",
+      "Harmless real POSIX shell smoke test preserved stdout and exit status"
+    ],
+    "test_modules": [
+      "test_deauth_timeout",
+      "test_password_rounds",
+      "test_handshake_batch_radio",
+      "test_handshake_rounds",
+      "test_handshake_invalid_channels",
+      "test_capture_live_evidence",
+      "test_process_stop_verification",
+      "test_ssh_channel_isolation",
+      "test_client_observation",
+      "test_capture_artifact_retention",
+      "test_capture_integration_safety"
+    ]
+  }
+}

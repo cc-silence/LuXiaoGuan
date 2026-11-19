@@ -1,0 +1,58 @@
+{
+  "checked_at": "2026-11-14T05:39:06.856724+00:00",
+  "device_identity": "SSH fingerprint matched capture takeover journal; fingerprint not exported",
+  "device": "Xiaomi Mi Router 3G",
+  "release": "25.12.6",
+  "kernel": "6.12.112",
+  "mt76_package": "6.12.112.2026.03.19~39c960c3-r3",
+  "mac80211_package": "6.12.112.6.18.55-r2",
+  "aircrack_package": "1.7-r1",
+  "mt7603_module_sha256": "d966b0eb5bc5f1c014eaae532799928ca95af00d6a1b7bb5dfd89c03452f0928",
+  "panic_seconds": 3,
+  "panic_on_oops": 1,
+  "pstore_filesystem_available": false,
+  "netconsole_module_installed": false,
+  "reproduction_performed": false,
+  "router_configuration_modified": false,
+  "driver_or_packages_installed": false,
+  "findings": [
+    "User confirms reboot occurs with active deauthentication, not passive capture.",
+    "Prior boot identity change confirms a reboot, not just application disconnection.",
+    "Exact crash stack unavailable; kernel panic, lockup watchdog and other reset causes not distinguished.",
+    "Installed module taint O denotes out-of-tree module; not evidence of broken or unofficial driver.",
+    "apk simulation lacked cached repository indexes, so it does not prove netconsole package unavailable.",
+    "No evidence establishes an OpenWrt 25 policy prohibiting active injection."
+  ],
+  "status": "actual versions verified; reboot cause unresolved; active mode not accepted on this device",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/kernel/mt76/Makefile",
+      "mt76_commit": "39c960c3ada558b4c2e7915772483d3731573d09",
+      "source_archive_hash": "7a9f8ea21eee5324e6638ace627dd305b3650ae6ca86109317d9ee83702140eb"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/openwrt/mt76/39c960c3ada558b4c2e7915772483d3731573d09/mt7603/main.c",
+      "review": "tx and monitor paths exist; not a policy ban"
+    },
+    {
+      "url": "https://github.com/openwrt/mt76/issues/825",
+      "review": "different chipset; analogy only, not root-cause match"
+    }
+  ],
+  "proposed_next_step": {
+    "package": "kmod-netconsole",
+    "version": "6.12.112-r1",
+    "repository": "https://downloads.openwrt.org/releases/25.12.6/targets/ramips/mt7621/kmods/6.12.112-1-aa81475ddbdbcc69877f69037ae40cd8/packages.adb",
+    "simulation_exit_code": 0,
+    "simulation_plan": "Install exactly one new package; no existing driver or library replacement",
+    "installed": false,
+    "purpose": "Send kernel console over wired LAN to the computer during crash",
+    "requires_before_reproduction": [
+      "Verify actual wired egress interface and peer MAC",
+      "Verify UDP receiver receives a harmless kernel test message",
+      "Use only a user-authorized target",
+      "Obtain approval for one controlled test that may reboot the router"
+    ],
+    "rollback": "Stop receiver and unload diagnostic netconsole module; no wireless configuration changes planned"
+  }
+}

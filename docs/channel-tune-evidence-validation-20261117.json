@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-17",
+  "scope": "failure-only channel tune diagnostics",
+  "app_version": "1.0.80_alpha",
+  "checks": {
+    "capture_and_evidence": 32,
+    "diagnostic_export": 16,
+    "result": "passed"
+  },
+  "compatibility": "Reuses existing process status/log read APIs and existing read-only diagnostic commands; no router command/parameter changes. Local evidence assembly only.",
+  "limits": [
+    "8192 characters per tool-output snapshot",
+    "Existing remote read timeout retained",
+    "No normal-path queries added",
+    "No live router or Debian native validation",
+    "No release build"
+  ]
+}

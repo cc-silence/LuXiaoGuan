@@ -1,0 +1,19 @@
+{
+  "date": "2026-11-19",
+  "changes": [
+    "Regular capture scan and per-target timeout defaults are 60 seconds across settings validation, UI and execution fallbacks; saved custom values retained.",
+    "Bulk completion-history clearing resets CAPTURED rows even when this session retains verified artifacts. Artifact files and snapshots remain intact."
+  ],
+  "cause": "Bulk clear explicitly preserved targets with verified current-session artifacts; privacy mode was unrelated. Single-target clear already reset those markers.",
+  "verification": {
+    "passed": 39,
+    "skipped": 1,
+    "scope": "Defaults, bulk clear with privacy both on/off, retained artifacts/files, table refresh, settings save/reopen, status colors, history availability and capture rounds."
+  },
+  "limits": [
+    "Not packaged",
+    "No live router execution",
+    "No Debian native desktop validation"
+  ],
+  "compatibility": "No new router command or parameter; only defaults within existing accepted bounds and local state-reset semantics changed."
+}
