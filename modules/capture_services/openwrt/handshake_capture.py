@@ -12,6 +12,7 @@ from modules.capture_services.openwrt.command_builder import (
     normalize_channel,
     quote_argument,
 )
+from .deauth_command import DEAUTH_TIMEOUT_NOTE, DeauthTargetTimeout, run_deauth
 from modules.capture_services.openwrt.device_probe import monitor_lost_note
 from modules.capture_services.openwrt.models import CaptureCleanupError
 from modules.capture_services.openwrt.command_runner import require_command_completion
@@ -61,6 +62,7 @@ class HandshakeCaptureResult:
     content_fingerprint: str = ""
     has_usable_frames: bool = False
     no_clients_observed: bool = False
+    deauth_timed_out: bool = False
 
 
 @dataclass(frozen=True)
@@ -93,6 +95,7 @@ class DownloadedHandshake:
     deauth_rounds: int
     grouped: bool
     no_client_targets: tuple = ()
+    deauth_timeout_targets: tuple = ()
 
     def analyze(self):
         from .channel_capture import split_channel_cap
@@ -122,12 +125,15 @@ class DownloadedHandshake:
             detail = analysis.detail
             if key in self.no_client_targets and analysis.status in ("none", "partial"):
                 detail = "\u89c2\u5bdf\u671f\u95f4\u672a\u53d1\u73b0\u5ba2\u6237\u7aef\uff0c\u5df2\u7ed3\u675f\u672c\u8f6e\u3002"
+            if key in self.deauth_timeout_targets and analysis.status not in CONVERTIBLE_VERDICTS:
+                detail = DEAUTH_TIMEOUT_NOTE
             results.append(HandshakeCaptureResult(
                 str(paths[key]), key, str(item.ssid or ""), analysis.status,
                 detail, self.deauth_rounds,
                 has_usable_frames=bool(pairs),
                 content_fingerprint=handshake_content_fingerprint(analysis, pairs),
-                no_clients_observed=key in self.no_client_targets))
+                no_clients_observed=key in self.no_client_targets,
+                deauth_timed_out=key in self.deauth_timeout_targets))
         return tuple(results) if self.grouped else results[0]
     def release(self):
         """Release only this downloaded group's known disposable files after successful saving."""
@@ -210,26 +216,29 @@ class OpenWrtHandshakeCapture:
             # 看门狗：SSH 中死没人来停时，超时后进程自杀，不无限写盘撑爆 /tmp。
             max_runtime=max(600, duration + 300),
         )
+        tune_diag_name = ""
         try:
             try:
                 self._verify_tuned_channel(
                     handle, monitor_interface, channel, cancel_event, heal_link
                 )
             except ChannelTuneError as exc:
-                try:
-                    tool_detail = self.process_manager.early_exit_detail(handle, cancel_event)
-                except Exception:
-                    tool_detail = ""
+                from .channel_tune_diagnostics import tool_snapshot
+                tool_detail = tool_snapshot(self.process_manager, handle, cancel_event)
                 diag_name = collect_tool_failure_diagnostics(
                     self.command_runner, workspace, workspace_manager,
                     f"tune-{tag}", cancel_event,
                     tool_log="\n".join(filter(None, (
-                        str(exc), getattr(exc, "channel_trace", ""), tool_detail))),
+                        str(exc), "command=" + command,
+                        "requested_channel=" + str(channel),
+                        "monitor_interface=" + str(monitor_interface),
+                        getattr(exc, "channel_trace", ""), tool_detail))),
                     extra_commands=(
                         ("regulatory", "iw reg get"),
                         ("tool-versions", "uname -a; iw --version; airodump-ng --help 2>&1 | head -n 3"),
                         ("radio-drivers", "for p in /sys/class/ieee80211/phy*; do [ -e \"$p\" ] || continue; printf '%s ' \"$p\"; readlink \"$p/device/driver\"; done"),
                     ))
+                tune_diag_name = diag_name
                 if diag_name:
                     raise ChannelTuneError(str(exc) + "\uff1b\u65e0\u7ebf\u8bca\u65ad\u5df2\u4fdd\u5b58\u3002") from exc
                 raise
@@ -245,6 +254,7 @@ class OpenWrtHandshakeCapture:
             clients_by_target = {t.bssid: self._ordered_client_macs(t) for t in targets}
             unavailable = set()
             no_client_targets = set()
+            deauth_timeout_targets = set()
             observation = None
             current_clients = {}
             observed_clients = set()
@@ -338,6 +348,13 @@ class OpenWrtHandshakeCapture:
                         sent = self._deauth_clients(
                             active_bssid, client_macs, monitor_interface, cancel_event, batches=deauth_batches
                         )
+                    except DeauthTargetTimeout:
+                        unavailable.add(active_bssid)
+                        deauth_timeout_targets.add(active_bssid)
+                        if len(unavailable) == len(targets):
+                            break
+                        next_deauth = time.monotonic()
+                        continue
                     except TargetBeaconMissing:
                         if not stop_on_missing_beacon:
                             next_deauth = time.monotonic() + _DEAUTH_INTERVAL
@@ -361,6 +378,9 @@ class OpenWrtHandshakeCapture:
             cleanup_errors = []
             try:
                 self.process_manager.stop(handle)
+                if tune_diag_name:
+                    from .channel_tune_diagnostics import append_stopped_output
+                    append_stopped_output(workspace, tune_diag_name, self.process_manager, handle)
             except Exception as exc:
                 cleanup_errors.append(f"停止本任务抓包进程失败：{exc}")
             if cleanup_errors:
@@ -378,11 +398,14 @@ class OpenWrtHandshakeCapture:
             cancel_event=cancel_event,
         )
         if exists.exit_code != 0:
-            if no_client_targets and set(bssids) == no_client_targets:
+            if set(bssids).issubset(no_client_targets | deauth_timeout_targets):
                 empty = tuple(HandshakeCaptureResult(
                     "", normalize_bssid(item.bssid), str(item.ssid or ""), verdict="none",
                     verdict_detail="\u89c2\u5bdf\u671f\u95f4\u672a\u53d1\u73b0\u5ba2\u6237\u7aef\uff0c\u5df2\u7ed3\u675f\u672c\u8f6e\u3002",
-                    no_clients_observed=True) for item in targets)
+                    no_clients_observed=normalize_bssid(item.bssid) in no_client_targets,
+                    deauth_timed_out=normalize_bssid(item.bssid) in deauth_timeout_targets) for item in targets)
+                empty = tuple(replace(item, verdict_detail=DEAUTH_TIMEOUT_NOTE)
+                    if item.deauth_timed_out else item for item in empty)
                 return empty if group_targets else empty[0]
             raise RuntimeError(
                 "定向抓包没有生成原始 CAP，请确认目标仍在当前信道并检查无线驱动。"
@@ -400,7 +423,8 @@ class OpenWrtHandshakeCapture:
         if progress_callback is not None:
             progress_callback(HandshakeCaptureUpdate(duration, duration, stage="analyzing"))
         downloaded = DownloadedHandshake(local_cap, targets,
-            (), deauth_rounds, bool(group_targets), tuple(sorted(no_client_targets)))
+            (), deauth_rounds, bool(group_targets), tuple(sorted(no_client_targets)),
+            tuple(sorted(deauth_timeout_targets)))
         return downloaded if defer_analysis else downloaded.analyze()
 
     def _monitor_lost_note(self, monitor_interface, cancel_event):
@@ -564,9 +588,8 @@ class OpenWrtHandshakeCapture:
                 f"-c {quote_argument(mac)} {quote_argument(interface)} "
                 "--ignore-negative-one"
             )
-            result = self.command_runner.run(
-                "deauth_client", command, timeout=max(15,count+10), cancel_event=cancel_event
-            )
+            result = run_deauth(self.command_runner, self.process_manager,
+                command, count, cancel_event)
             if result.cancelled:
                 raise RuntimeError("定向握手抓包已取消。")
             require_command_completion(result)

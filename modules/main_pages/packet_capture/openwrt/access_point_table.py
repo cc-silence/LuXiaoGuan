@@ -135,6 +135,9 @@ class AccessPointTable(QTableWidget):
     @staticmethod
     def _selection_blocked(point):
         """已知名称的开放网络仍禁选；扫描器标记的隐藏信号允许勾选。"""
+        from modules.capture_services.openwrt.handshake_targets import has_valid_channel
+        if not has_valid_channel(point):
+            return True
         return (str(point.encryption or "").strip().upper() == "OPN"
                 and not point.ssid_hidden)
 
@@ -147,7 +150,7 @@ class AccessPointTable(QTableWidget):
         scale = UiScaleManager.for_widget(self)
         indicator = max(self.style().pixelMetric(QStyle.PM_IndicatorWidth),
                         scale.px(16))
-        return QFontMetrics(self.font()).horizontalAdvance("没有可用包") + indicator + scale.px(16)
+        return QFontMetrics(self.font()).horizontalAdvance("没有可用包") + indicator + scale.px(32)
 
     def _ensure_status_width(self):
         """只保护状态列，程序修正不触发用户列宽保存。"""
@@ -607,6 +610,15 @@ class AccessPointTable(QTableWidget):
         """
 
         status_item = self.item(row, self.STATUS_COLUMN)
+        from modules.capture_services.openwrt.handshake_targets import has_valid_channel
+        if not has_valid_channel(point):
+            flags = status_item.flags() | Qt.ItemIsUserCheckable
+            status_item.setFlags(flags & ~Qt.ItemIsEnabled)
+            status_item.setCheckState(Qt.Unchecked)
+            status_item.setText("信道错误")
+            status_item.setToolTip("未取得有效信道，此信号不可勾选；重新扫描获得有效信道后可再选择。")
+            status_item.setData(Qt.ForegroundRole, None)
+            return
         if self._selection_blocked(point):
             status_item.setFlags((status_item.flags() | Qt.ItemIsUserCheckable) & ~Qt.ItemIsEnabled)
             status_item.setCheckState(Qt.Unchecked)

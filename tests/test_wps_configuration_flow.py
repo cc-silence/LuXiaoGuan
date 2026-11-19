@@ -143,21 +143,44 @@ class WpsConfigurationFlowTests(unittest.TestCase):
             data = manager.load()
             self.assertEqual(data["openwrt"]["wps_defaults"]["quick_seconds"], 60)
             self.assertEqual(data["openwrt"]["wps_defaults"]["quick_rounds"], 1)
+            self.assertEqual(data["openwrt"]["wps_defaults"]["wps_sender"], "reaver")
+            self.assertFalse(data["openwrt"]["wps_defaults"]["system_offline_pixie"])
             data["openwrt"]["wps_defaults"]["quick_seconds"] = 9999
             data["openwrt"]["wps_defaults"]["quick_rounds"] = 0
+            data["openwrt"]["wps_defaults"]["wps_sender"] = "bogus"
+            data["openwrt"]["wps_defaults"]["system_offline_pixie"] = True
             manager.save(data)
             saved = manager.load()["openwrt"]["wps_defaults"]
             self.assertEqual(saved["quick_seconds"], 3600)
             self.assertEqual(saved["quick_rounds"], 1)
+            self.assertEqual(saved["wps_sender"], "reaver")
+            # reaver 模式本来就走离线 Pixie，这个开关必须归零。
+            self.assertFalse(saved["system_offline_pixie"])
+            data["openwrt"]["wps_defaults"]["wps_sender"] = "system"
+            data["openwrt"]["wps_defaults"]["system_offline_pixie"] = True
+            manager.save(data)
+            self.assertTrue(manager.load()["openwrt"]["wps_defaults"]["system_offline_pixie"])
             calls = []
             dialog = QuickWpsDialog(saved, None, clear_callback=lambda: calls.append(True))
             try:
                 self.assertEqual(dialog.get_settings(),
-                                 {"quick_seconds": 3600, "quick_rounds": 1})
+                                 {"quick_seconds": 3600, "quick_rounds": 1,
+                                  "wps_sender": "reaver",
+                                  "system_offline_pixie": False})
+                self.assertFalse(dialog.offline_box.isVisibleTo(dialog))
                 dialog.seconds.setValue(0)
                 dialog.rounds.setValue(20)
+                dialog.sender.setCurrentIndex(dialog.sender.findData("system"))
+                self.assertTrue(dialog.offline_box.isVisibleTo(dialog))
+                self.assertFalse(dialog.offline_pixie.isChecked())
                 self.assertEqual(dialog.get_settings(),
-                                 {"quick_seconds": 0, "quick_rounds": 20})
+                                 {"quick_seconds": 0, "quick_rounds": 20,
+                                  "wps_sender": "system",
+                                  "system_offline_pixie": False})
+                dialog.offline_pixie.setChecked(True)
+                self.assertTrue(dialog.get_settings()["system_offline_pixie"])
+                dialog.sender.setCurrentIndex(dialog.sender.findData("reaver"))
+                self.assertFalse(dialog.get_settings()["system_offline_pixie"])
                 dialog.clear_button.click()
                 self.assertTrue(calls)
             finally:

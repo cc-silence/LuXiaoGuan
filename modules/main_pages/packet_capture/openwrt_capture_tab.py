@@ -142,8 +142,8 @@ class OpenWrtCaptureTab(QWidget):
         self.port_spin.setValue(int(data.get("port", 22)))
         self.user_edit.setText(str(data.get("user", "root")))
         self.band_combo.setCurrentText(str(data.get("band", "2.4G")))
-        self.scan_spin.setValue(int(data.get("scan_seconds", 24)))
-        self.timeout_spin.setValue(int(data.get("idle_timeout_seconds", 180)))
+        self.scan_spin.setValue(int(data.get("scan_seconds", 60)))
+        self.timeout_spin.setValue(int(data.get("idle_timeout_seconds", 60)))
         self.deauth_check.setChecked(bool(data.get("active_deauth", False)))
         self.install_check.setChecked(bool(data.get("online_dependency_install", True)))
 

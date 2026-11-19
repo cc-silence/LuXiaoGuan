@@ -125,6 +125,32 @@ class WpsStartTests(unittest.TestCase):
         self.ready(busy=False)
         self.service.capture_openwrt_wps_async.assert_not_called()
 
+    def test_trimmed_wpad_switches_to_reaver_after_confirmation(self):
+        self.service.openwrt_snapshot.wps_system_support = 'basic'
+        self.confirm.return_value.exec.side_effect = [1, 1]
+        options = {'wps_defaults': {'wps_sender': 'system'}}
+        self.controller.start(options, (MAC,), 'second', 'quick')
+        self.ready(busy=False)
+        call = self.service.capture_openwrt_wps_async.call_args
+        self.assertEqual(call.args[0]['wps_defaults']['wps_sender'], 'reaver')
+
+    def test_trimmed_wpad_can_still_try_system_once(self):
+        self.service.openwrt_snapshot.wps_system_support = 'basic'
+        self.confirm.ActionNo = 2
+        self.confirm.return_value.exec.side_effect = [2, 1]
+        options = {'wps_defaults': {'wps_sender': 'system'}}
+        self.controller.start(options, (MAC,), 'second', 'quick')
+        self.ready(busy=False)
+        call = self.service.capture_openwrt_wps_async.call_args
+        self.assertEqual(call.args[0]['wps_defaults']['wps_sender'], 'system')
+
+    def test_cancelled_trimmed_wpad_prompt_does_not_launch(self):
+        self.service.openwrt_snapshot.wps_system_support = 'basic'
+        self.confirm.return_value.exec.return_value = 0
+        self.controller.start({'wps_defaults': {'wps_sender': 'system'}},
+                              (MAC,), 'second', 'quick')
+        self.ready(busy=False)
+        self.service.capture_openwrt_wps_async.assert_not_called()
     def test_existing_dialog_accepts_the_page_as_parent(self):
         from modules.common_widgets.common_dialogs import ConfirmDialog
         with patch(MODULE+'.ConfirmDialog', ConfirmDialog), patch.object(ConfirmDialog, 'exec', return_value=ConfirmDialog.Rejected):

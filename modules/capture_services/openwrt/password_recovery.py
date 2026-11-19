@@ -28,12 +28,12 @@ def _owned_or_absent(package,section,session,action=':'):
             'then :; else false; fi')
 
 
-def _original_or_disabled(name, original):
+def _original_or_disabled(name, original, task_value='1'):
     key=q('wireless.'+name+'.disabled')
     # Only explicit NOTFOUND proves that the original unset option is unchanged.
     return ('rm_recovery_value=$(uci get '+key+' 2>&1); rm_recovery_status=$?; '
             'if [ "$rm_recovery_status" -eq 0 ]; then '
-            '[ "$rm_recovery_value" = 1 ] || [ "$rm_recovery_value" = '+q(original or '')+' ]; '
+            '[ "$rm_recovery_value" = '+q(task_value)+' ] || [ "$rm_recovery_value" = '+q(original or '')+' ]; '
             'elif [ "$rm_recovery_status" -eq 1 ] && '
             '[ "$rm_recovery_value" = '+q('uci: Entry not found')+' ] && '
             + ('true' if original is None else 'false')+'; then :; else false; fi')
@@ -49,16 +49,21 @@ class PasswordRecoveryJournal:
     @property
     def net(self):return 'pwnet_'+self.session[:8]
 
-    def capture(self,disabled,devices,baseline):
+    def capture(self,disabled,devices,baseline,*,radio_disabled=None):
         if self.sta in devices:raise ValueError('Temporary section already belongs to existing configuration')
         self.data=dict(schema=1,session=self.session,fingerprint=self.fingerprint,
                        disabled=dict(disabled),devices=dict(devices),baseline=baseline,
                        modified=[],radios=[])
+        if radio_disabled is not None:
+            self.data.update(schema=2, radio_disabled=dict(radio_disabled), enabled_radios=[])
         self.store.save(self.data)
 
-    def arm(self,modified,radios):
+    def arm(self,modified,radios,*,enabled_radios=None):
         if self.data is None:raise RuntimeError('Recovery record was not prepared')
         candidate=dict(self.data,modified=sorted(modified),radios=sorted(radios))
+        if enabled_radios is not None:
+            if candidate['schema'] != 2: raise ValueError('Radio baseline not captured')
+            candidate['enabled_radios'] = sorted(enabled_radios)
         self.store.save(candidate)
         self.data=candidate
 
@@ -104,17 +109,22 @@ class PasswordRecoveryJournal:
             if budget<=0:raise TimeoutError('Recovery deadline exhausted')
             return budget
         remaining()
-        commands=snapshot_guards(runner,self.sta,self.net,self.data['modified'],
+        radio_flags = {name: self.data['radio_disabled'][name] for name in self.data.get('enabled_radios', ())}
+        commands=snapshot_guards(runner,self.sta,self.net,[*self.data['modified'], *radio_flags],
                                  cancel,timeout=min(10,remaining()))+self.setup_guards()
         for name in self.data['modified']:
             device=self.data['devices'][name]
             commands.append('[ "$(uci -q get '+q('wireless.'+name+'.device')+')" = '+q(device)+' ]')
             commands.append(_original_or_disabled(name,self.data['disabled'][name]))
+        for name, original in radio_flags.items():
+            commands.append('[ "$(uci -q get '+q('wireless.'+name)+')" = wifi-device ]')
+            commands.append(_original_or_disabled(name, original, '0'))
         commands.extend([
             _owned_or_absent('wireless',self.sta,self.session,'uci delete '+q('wireless.'+self.sta)),
             _owned_or_absent('network',self.net,self.session,'uci delete '+q('network.'+self.net)),
         ])
         commands.extend(restore_disabled(name,self.data['disabled'][name]) for name in self.data['modified'])
+        commands.extend(restore_disabled(name, original) for name, original in radio_flags.items())
         commands.extend(['uci commit wireless','uci commit network',RELOAD_CHANGED_CONFIG,'printf PASSWORD_RECOVERY_APPLIED'])
         command=' && '.join('( '+line+' )' for line in commands)
         result=_read(runner,'password_recovery_apply',command,cancel,timeout=min(60,remaining()))
@@ -123,7 +133,7 @@ class PasswordRecoveryJournal:
         check.affected_radios=set(self.data['radios'])
         error=check.verify(self.sta,self.net,self.data['disabled'],self.data['devices'],
                            self.data['modified'],wait_seconds=min(SIGNAL_READY_SECONDS,remaining()),
-                           cancel=cancel,deadline=deadline)
+                           cancel=cancel,deadline=deadline,radio_disabled=radio_flags)
         if error:raise RuntimeError(error)
         remaining()
         self.discard()

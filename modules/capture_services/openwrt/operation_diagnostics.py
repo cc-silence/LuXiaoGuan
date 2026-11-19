@@ -20,6 +20,9 @@ SAFE_VALUES = {
         "unexpected_error", "restore_reported_errors", "phase_completed", "native_identity_available",
         "native_identity_unavailable", "configuration_untouched"}),
 }
+SAFE_VALUES["operation"] |= {"ssh_liveness", "verify_process_stop"}
+SAFE_VALUES["reason"] |= {"channel_open_failure", "process_absent", "process_stop_unconfirmed"}
+SAFE_VALUES["reason"] |= {"process_state_" + state for state in ("R", "S", "D", "Z", "T", "I")}
 from .verification_diagnostics import RESTORE_OPERATIONS, RESTORE_STAGES, RESTORE_REASONS
 SAFE_VALUES["operation"] |= RESTORE_OPERATIONS
 SAFE_VALUES["stage"] |= RESTORE_STAGES
@@ -219,6 +222,9 @@ class OperationDiagnostics:
             if row.get("initial_security") is True:
                 self._initial_security.append(row)
             self._events.append(row)
+            from .capture_evidence import STOP_OPERATIONS
+            if event in {"command", "workflow", "cleanup"} and row.get("operation") in STOP_OPERATIONS:
+                self._capture_evidence.append("stop_events", row, self._identity)
             if row.get("connected_before") is True and row.get("connected_after") is False:
                 self.health.disconnected()
             if event=="command" and row.get("status") in {"failed","timeout"}:

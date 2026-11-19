@@ -12,7 +12,7 @@ class FactoryRecoveryRefresh(QObject):
         self.broker = broker
         self.jobs = {}
 
-    def refresh(self, key, requested=None):
+    def refresh(self, key, requested=None, *, reconnect=False):
         broker = self.broker
         item = broker.offers.get(key)
         if broker.owner._shutting_down or key not in broker.standalone or item is None or key in self.jobs:
@@ -118,7 +118,7 @@ class FactoryRecoveryRefresh(QObject):
                 gate.message = "\u8fde\u63a5\u65b9\u5f0f\u5df2\u53d8\u5316\uff0c\u8bf7\u9009\u62e9\u5f53\u524d\u7f51\u5361\u540e\u91cd\u8bd5\u3002"
             notify()
             if identity:
-                broker.request(key, identity, inventory_checked=True)
+                broker.request(key, identity, inventory_checked=True, reconnect=reconnect)
 
         def failed(message, detail):
             if not current():

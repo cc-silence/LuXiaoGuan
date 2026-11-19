@@ -178,7 +178,7 @@ class OpenWrtWpsCapture:
             raise RuntimeError("\u672a\u63d0\u4f9b\u5df2\u6838\u5b9e\u5f52\u5c5e\u7684 MAC \u5207\u6362\u63a7\u5236\uff0c\u672a\u542f\u52a8\u9010\u7801\u968f\u673a\u3002")
         if mode == "second":
             from .wps_quick import QuickWpsCapture
-            return QuickWpsCapture(self.process_manager, self._base_args).run(
+            return QuickWpsCapture(self.process_manager, self._base_args, self.command_runner).run(
                 workspace, monitor_interface, session_id, target, options,
                 local_output_dir, workspace_manager, index, total_targets,
                 cancel_event, progress_callback, diagnostic=diagnostic, source_rotation=source_rotation)

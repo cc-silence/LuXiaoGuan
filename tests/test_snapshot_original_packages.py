@@ -235,7 +235,7 @@ class OriginalTests(unittest.TestCase):
         task.reader=Mock()
         task.transfer=Mock()
         task.progress=Mock()
-        self.inventory['builtin']={}
+        self.inventory['builtin']={'curl':self.pkg}
         self.inventory['database_hash']='unchanged'
         task.reader.inventory.return_value=self.inventory
         task._workspace=Mock(return_value=self.source.remote)
@@ -258,6 +258,9 @@ class OriginalTests(unittest.TestCase):
         extracted=self.root/'restored';extracted.mkdir()
         manifest=load_snapshot(target,extracted,lambda:None)
         self.assertEqual(manifest['packages'][0]['version'],'1-r0')
+        self.assertFalse(manifest['packages'][0]['builtin'])
+        from modules.capture_services.openwrt.installed_dependency_catalog import restore_selection
+        self.assertEqual(restore_selection(manifest['packages'], {}), (('curl',), ()))
         self.assertGreater(inspect_package(extracted/'curl.opkg','opkg',manifest['packages'][0]),0)
         task._cleanup.assert_called_once()
 

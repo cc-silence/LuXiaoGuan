@@ -8,7 +8,7 @@ from pathlib import Path
 from threading import Event
 from uuid import uuid4
 from modules.platform_services.local_file_publish import publish_new_file
-from .backup_archive import MAX_ARCHIVE, inspect_archive, parent_guard, normalize_archive_path
+from .backup_archive import MAX_ARCHIVE, inspect_archive, normalize_archive_path
 from .command_builder import quote_argument as q
 from .command_runner import require_command_completion
 from modules.capture_services.capture_logging import LOGGER
@@ -48,7 +48,7 @@ class RouterBackupManager:
         require_command_completion(result)
         if result.exit_code:
             messages = {41: "请使用管理员账号登录。", 42: "路由器有待提交配置，请先处理后再操作。",
-                        43: "当前固件缺少所需的标准配置管理能力。", 44: "目标路径包含符号链接，未执行恢复。",
+                        43: "当前固件缺少所需的标准配置管理能力。",
                         45: "存储空间不足，未执行恢复。"}
             raise RuntimeError(messages.get(result.exit_code, "路由器操作未完成，请检查连接、权限和剩余空间。"))
         return result.stdout.strip()
@@ -140,14 +140,15 @@ class RouterBackupManager:
                 progress(dict(stage="\u6b63\u5728\u4e0b\u8f7d\u5907\u4efd\u5230\u7535\u8111\u2026\u2026",completed=0,total=0))
                 self.manager.transfer_file(False, downloaded, remote, cancel, progress)
                 progress(dict(stage="\u6b63\u5728\u6821\u9a8c\u5907\u4efd\u5b8c\u6574\u6027\u2026\u2026",completed=0,total=0))
-                info = inspect_archive(downloaded, cancel, for_restore=False)
+                info = inspect_archive(downloaded, cancel)
                 if info["sha256"] != digest:
                     raise RuntimeError("备份下载校验失败，未替换目标文件。")
                 progress(dict(stage="\u6b63\u5728\u4fdd\u5b58\u6821\u9a8c\u901a\u8fc7\u7684\u5907\u4efd\u2026\u2026",completed=0,total=0))
                 self._publish(downloaded, destination, expected, cancel)
         finally:
             cleanup_note = self._cleanup(workspace)
-        return dict(path=str(destination), sha256=digest, note="配置备份已生成并保存到电脑。备份含登录和 Wi-Fi 等敏感配置，请妥善保管。" + cleanup_note)
+        note = "\u914d\u7f6e\u5907\u4efd\u5df2\u751f\u6210\u5e76\u4fdd\u5b58\u5230\u7535\u8111\u3002\u5907\u4efd\u542b\u767b\u5f55\u548c Wi-Fi \u7b49\u654f\u611f\u914d\u7f6e\uff0c\u8bf7\u59a5\u5584\u4fdd\u7ba1\u3002"
+        return dict(path=str(destination), sha256=digest, note=note + cleanup_note)
 
     def execute(self, review, backup_path, backup_expected, cancel, progress):
         operation = review.get("operation")
@@ -202,7 +203,7 @@ class RouterBackupManager:
                 self.manager.transfer_file(True, snapshot, remote, cancel, progress)
                 if self._remote_digest(remote, cancel) != info["sha256"]:
                     raise RuntimeError("上传校验失败，未恢复配置。")
-                listing = self._run("restore_check", "tar -tzf " + q(remote) + " && " + parent_guard(info["records"]), cancel)
+                listing = self._run("restore_check", "tar -tzf " + q(remote), cancel)
                 native_names = [normalize_archive_path(line) for line in listing.splitlines()]
                 if len(native_names) != len(info["records"]) or set(native_names) != set(info["records"]):
                     raise RuntimeError("路由器与电脑读取的备份内容不一致，未执行恢复。")

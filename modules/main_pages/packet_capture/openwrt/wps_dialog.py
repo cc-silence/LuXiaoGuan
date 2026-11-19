@@ -90,6 +90,10 @@ class AdvancedWpsDialog(FramelessDialog):
         self.mode.addItem("Pin", "normal")
         self.mode.addItem("秒 Pin", "quick")
         self.mode.addItem("离线 Pin", "offline")
+        self.sender = QComboBox(card)
+        self.sender.setObjectName("captureComboBox")
+        self.sender.addItem("reaver（原来的方式）", "reaver")
+        self.sender.addItem("系统 WPS（和手机同样的方式）", "system")
         for label, control, tip in (
             ("Pin 速率", self.pin_speed, "两次尝试之间的等待时间，不是每秒尝试次数。建议保留 1 秒；不要盲目调小，尝试过快可能被目标限制。"),
             ("超时时间", self.pin_timeout, "等待一次回应的时间，建议保留 5 秒。信号弱、经常超时时可适当调大，但每次等待会更久。"),
@@ -99,6 +103,7 @@ class AdvancedWpsDialog(FramelessDialog):
             ("排序 Pin 码", self.pin_order, "不清楚就保留 0123456789。只调整尝试顺序，不是填写已知的 Pin 码；已知部分号码请填在下面。"),
             ("部分 Pin 码", self.partial_pin, "已知 Pin 前 4 位或完整 8 位时填写；不知道就留空。这里不是 Wi-Fi 密码。"),
             ("模式", self.mode, "“秒 Pin”先试 pin24、再试离线 Pin、最后补厂商公式；“Pin”逐个尝试；“离线 Pin”使用 Pixie Dust。只用于自有或已授权网络。"),
+            ("发送方式", self.sender, "只对秒 Pin 生效。reaver 在路由器上直接发无线帧；系统 WPS 让路由器按 WPS 协议正常连上去，和手机做法一致，但要求固件里的无线组件带 WPS。高级 Pin 始终使用 reaver。"),
         ):
             layout.addLayout(create_form_row(card, label, control, tip))
         layout.addLayout(create_path_row(card, "恢复进度", self.resume_file, self.resume_file_button,
@@ -146,6 +151,11 @@ class AdvancedWpsDialog(FramelessDialog):
             str(self.resource_picker.settings_manager.resolve_path(resume_value)) if resume_value else ""
         )
         self.mode.setCurrentIndex(max(0, self.mode.findData(settings.get("mode", "normal"))))
+        sender = str(settings.get("wps_sender", "reaver") or "reaver").strip().lower()
+        self.sender.setCurrentIndex(max(0, self.sender.findData(sender)))
+        # 高级弹窗不提供秒 Pin 的离线 Pixie 开关，但保存时必须原值带回，
+        # 否则从高级弹窗确认一次就会把用户在秒 Pin 里的选择清掉。
+        self._system_offline_pixie = bool(settings.get("system_offline_pixie", False))
         self._current_mode = self.mode.currentData()
         self._load_mode_values()
 
@@ -176,6 +186,7 @@ class AdvancedWpsDialog(FramelessDialog):
 
     def _sync_mode_controls(self, _index=None):
         quick = self.mode.currentData() == "quick"
+        self.sender.setEnabled(quick)
         self.attack_seconds.setSuffix(" 秒")
         self.attack_rounds.setSuffix(" 轮")
         self.partial_pin.setPlaceholderText("已知完整 8 位可填；留空自动匹配" if quick else "取值：[前4位，全部8位]")
@@ -237,5 +248,9 @@ class AdvancedWpsDialog(FramelessDialog):
             "random_order": self.random_order.isChecked(),
             "partial_pin": self.partial_pin.text().strip(),
             "resume_file": self.resume_file.text().strip(),
+            "wps_sender": self.sender.currentData(),
+            "system_offline_pixie": bool(
+                self.sender.currentData() == "system"
+                and getattr(self, "_system_offline_pixie", False)),
             "mode": self.mode.currentData(),
         }

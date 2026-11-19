@@ -11,10 +11,13 @@ class TerminalWorker(QThread):
     status = Signal(str)
     detail = Signal(str)
     clearFinished = Signal(bool, str)
-    def __init__(self,ssh,connection,parent=None,runner=None):
+    def __init__(self,ssh,connection,parent=None,runner=None,*,fresh=False,require_persistent=False,initial_command=None):
         super().__init__(parent)
         self.ssh,self.connection=ssh,connection
         self.runner=runner
+        self.fresh=fresh
+        self.require_persistent=require_persistent
+        self.initial_command=initial_command
         self.cancel=Event()
         self.clear_requested=Event()
         self.condition=Condition()
@@ -48,6 +51,10 @@ class TerminalWorker(QThread):
         # 失败时用 stage 说明卡在哪一步，界面才能给可读原因，而不是笼统一句“连接失败”。
         stage="准备终端"
         try:
+            if self.require_persistent and self.runner is None:
+                raise RuntimeError("Cannot reset retained session without a control runner")
+            with self.condition:
+                cols,rows=self.dimensions
             if self.runner is not None:
                 from .openwrt.command_runner import require_command_completion
                 stage="检测会话保留工具"
@@ -64,20 +71,29 @@ class TerminalWorker(QThread):
                     self.status.emit('persistent')
                 if self.ssh._client is not self.connection or not self.ssh.connected:
                     raise ConnectionError()
+                with self.condition:
+                    cols,rows=self.dimensions
+                if self.require_persistent and not persistent:
+                    raise RuntimeError("Cannot reset retained session without tmux")
                 if persistent:
                     if self.cancel.is_set():return
                     if self.ssh._client is not self.connection or not self.ssh.connected:
                         raise ConnectionError()
                     stage="打开终端通道"
+                    from .openwrt.terminal_session import session_command
                     channel=self.ssh.open_terminal(self.connection,self.cancel,
-                        command='exec tmux -u -L winbox -f /dev/null new-session -A -s winbox-terminal \\; set-option -t winbox-terminal mouse on')
+                        command=session_command(fresh=self.fresh,initial_command=self.initial_command),width=cols,height=rows)
                 else:
                     stage="打开终端通道"
-                    channel=self.ssh.open_terminal(self.connection,self.cancel)
+                    from .openwrt.terminal_session import startup_command
+                    kwargs={'command':startup_command(self.initial_command)} if self.initial_command else {}
+                    channel=self.ssh.open_terminal(self.connection,self.cancel,width=cols,height=rows,**kwargs)
             else:
                 self.status.emit('plain')
                 stage="打开终端通道"
-                channel=self.ssh.open_terminal(self.connection,self.cancel)
+                from .openwrt.terminal_session import startup_command
+                kwargs={'command':startup_command(self.initial_command)} if self.initial_command else {}
+                channel=self.ssh.open_terminal(self.connection,self.cancel,width=cols,height=rows,**kwargs)
             channel.settimeout(0.2)
             stage="读取终端输出"
             self.status.emit("connected")
@@ -178,16 +194,22 @@ class RouterTerminalService(QObject):
         self.state="idle"
         self.session_mode="unknown"
         self.failure_reason=""
+        self.dimensions=(80,24)
+        self._restart_connection=None
+        self._restart_persistent=False
+        self._restart_command=None
         owner.openwrtSnapshotChanged.connect(self._connection_changed)
 
     @property
     def active(self):
         return self.worker is not None
 
-    def start(self):
+    def start(self,*,fresh=False,require_persistent=False,initial_command=None):
         if self.active or self.owner._shutting_down or not self.ssh.connected:return False
-        worker=TerminalWorker(self.ssh,self.ssh._client,self,runner=getattr(self.owner.openwrt_backend,"command_runner",None))
+        worker=TerminalWorker(self.ssh,self.ssh._client,self,runner=getattr(self.owner.openwrt_backend,"command_runner",None),
+                              fresh=fresh,require_persistent=require_persistent,initial_command=initial_command)
         self.worker=worker
+        worker.resize(*self.dimensions)
         self.session_mode="unknown"
         self.failure_reason=""
         worker.output.connect(self.output)
@@ -200,6 +222,24 @@ class RouterTerminalService(QObject):
         worker.start()
         return True
 
+    @property
+    def restarting(self):
+        return self._restart_connection is not None
+
+    def restart(self,*,initial_command=None):
+        """Replace this console after its transport worker has fully stopped."""
+        if self.restarting or self.owner._shutting_down or not self.ssh.connected:
+            return False
+        if self.worker is None:
+            self.displayReset.emit()
+            return self.start(fresh=True,require_persistent=self.session_mode=='persistent',initial_command=initial_command)
+        self._restart_connection=self.ssh._client
+        self._restart_command=initial_command
+        self._restart_persistent=self.session_mode=='persistent'
+        self._set_state('stopping')
+        self.worker.stop()
+        return True
+
     def _set_state(self,state):
         self.state=state
         self.statusChanged.emit(state)
@@ -207,6 +247,7 @@ class RouterTerminalService(QObject):
 
     @Slot(str)
     def _status(self,state):
+        if self.restarting or (self.sender() is not None and self.sender() is not self.worker):return
         if state in {"plain","plain_missing","plain_unavailable","persistent"}:
             self.session_mode=state
             self._persist_diagnostic('session mode: ' + state)
@@ -248,7 +289,7 @@ class RouterTerminalService(QObject):
         self._set_state('failed')
 
     def send(self,text):
-        if self.state!="connected" or self.worker is None:return False
+        if self.restarting or self.state!="connected" or self.worker is None:return False
         data=text.encode("utf-8")
         if not self.worker.enqueue(data):
             self._set_state("input_full")
@@ -274,12 +315,15 @@ class RouterTerminalService(QObject):
         self.clearFinished.emit(success,reason)
 
     def resize(self,cols,rows):
-        if self.worker:self.worker.resize(max(2,min(cols,500)),max(2,min(rows,200)))
+        self.dimensions=(max(2,min(cols,500)),max(2,min(rows,200)))
+        if self.worker:self.worker.resize(*self.dimensions)
 
     def acknowledge(self,count):
         if self.worker:self.worker.acknowledge(max(0,min(count,32768)))
 
     def stop(self,*,clear_display=False):
+        self._restart_connection=None
+        self._restart_command=None
         if self.worker:
             self._clear_display_on_stop=self._clear_display_on_stop or clear_display
             self._set_state("stopping")
@@ -288,10 +332,21 @@ class RouterTerminalService(QObject):
     @Slot()
     def _finished(self):
         worker=self.worker
+        connection=self._restart_connection
+        persistent=self._restart_persistent
+        command,self._restart_command=self._restart_command,None
+        self._restart_connection=None
         self.worker=None
         if self.clear_pending:
             self.clear_pending=False
             self.clearFinished.emit(False,'Disconnected')
+        if (connection is not None and connection is self.ssh._client and self.ssh.connected
+                and not self.owner._shutting_down):
+            if worker:worker.deleteLater()
+            self._clear_display_on_stop=False
+            self.displayReset.emit()
+            self.start(fresh=True,require_persistent=persistent,initial_command=command)
+            return
         if self.state in {"connecting","connected","stopping"}:self._set_state("closed")
         else:self._set_state(self.state)
         if worker:worker.deleteLater()

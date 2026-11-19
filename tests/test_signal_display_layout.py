@@ -51,13 +51,16 @@ class SignalLayoutTests(unittest.TestCase):
                 self.assertTrue(page.grab().save(str(output / (('light' if light else 'dark')+str(scale)+'.png'))))
             owner.hide()
 
-    def test_names_use_runtime_ssid_and_never_disguise_label(self):
+    def test_relay_names_prefer_remark_without_changing_actual_ssid(self):
         page, service = self.create_page()
         row = RouterSignal("home", "old-name", "sta", "radio7", "2g", False, False, "active",
                            label="vivo-Y73s", runtime_ssid="202", runtime_band="5g")
-        self.assertEqual(page._display_name(row), "202")
+        self.assertEqual(page._display_name(row), "vivo-Y73s")
+        self.assertEqual((row.ssid, row.runtime_ssid), ("old-name", "202"))
+        self.assertEqual(page._display_name(replace(row, label=" ")), "202")
+        self.assertEqual(page._display_name(replace(row, mode="ap")), "202")
         self.assertEqual(page._band_text(row), "5G \u00b7 radio7")
-        self.assertEqual(page._display_name(replace(row, runtime_ssid="")), "old-name")
+        self.assertEqual(page._display_name(replace(row, runtime_ssid="", label="")), "old-name")
 
     def test_pending_button_green_breathing_and_resolved_cleanup(self):
         setup = PendingSetup()

@@ -6,7 +6,10 @@ local function delete_stage()
  local v=req.values
  if not name(v.section) then fail("section") end
  local old=c:get_all("wireless",v.section)
- if not old or (old.mode~="ap" and old.mode~="sta") or old.device~=v.radio then fail("changed") end
+ if not old or old[".type"]~="wifi-iface" or old[".anonymous"] or
+    (old.mode~="ap" and old.mode~="sta" and old.mode~="monitor") or
+    old.mode~=v.mode or old.device~=v.radio then fail("changed") end
+ if old.mode=="monitor" and (old.rm_bridge or old.rm_wds_backup) then fail("changed") end
  if old.rm_bridge then restore_bridge(c,old,false) end
  if old.rm_wds_backup and old.rm_suspended~="1" then restore_dhcp(c,old.rm_wds_backup) end
  local network=type(old.network)=="table" and #old.network==1 and old.network[1] or old.network

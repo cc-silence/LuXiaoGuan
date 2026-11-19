@@ -104,7 +104,9 @@ class OpenWrtCommandRunner:
         result = self._wait_command_slot(command_name, timeout, cancel_event)
         if result is None:
             try:
-                for attempt in range(2):
+                from .command_retry_policy import can_retry, channel_closed, connection_identity, legacy_retry
+                identity = connection_identity(self.ssh_client)
+                for attempt in range(3):
                     if cancel_event is not None and cancel_event.is_set():
                         result = RemoteCommandResult(command_name, -1, "", "", cancelled=True)
                         break
@@ -116,11 +118,17 @@ class OpenWrtCommandRunner:
                         result = self._run(command_name, command, remaining, cancel_event, output_limit=output_limit)
                         break
                     except Exception as exc:
-                        is_chan_closed = "channel closed" in str(exc).lower()
-                        can_retry = attempt == 0 and is_chan_closed and bool(self.ssh_client.connected)
-                        if can_retry and (cancel_event is None or not cancel_event.is_set()):
-                            LOGGER.info("Transient channel closed in %s, retrying after 0.3s...", command_name)
-                            time.sleep(0.3)
+                        is_chan_closed = channel_closed(exc)
+                        retry = ((attempt < 2 and can_retry(command_name, exc, self.ssh_client, identity))
+                                 or (attempt == 0 and legacy_retry(exc, self.ssh_client, identity)))
+                        if retry and (cancel_event is None or not cancel_event.is_set()):
+                            LOGGER.info("Transient command channel failure in %s; retry %d/2", command_name, attempt + 1)
+                            journal.record("command", expected_epoch=epoch, operation=command_name,
+                                operation_id=operation_id, status="failed",
+                                stage=getattr(exc, "ssh_stage", "unknown"),
+                                exception_type=type(exc).__name__, reason="channel_closed",
+                                connected_before=connected_before, connected_after=True,
+                                elapsed_seconds=time.monotonic() - started)
                             continue
                         reason = "channel_closed" if is_chan_closed else "exception"
                         journal.record("command", expected_epoch=epoch, operation=command_name, operation_id=operation_id,
@@ -200,6 +208,11 @@ class OpenWrtCommandRunner:
         except Exception as exc:
             exc.ssh_action = command_name
             exc.ssh_elapsed = time.monotonic() - started
+            liveness = getattr(exc, "ssh_liveness", "not_checked")
+            if liveness != "not_checked":
+                self.operation_diagnostics.record(
+                    "workflow", operation="ssh_liveness", status=liveness,
+                    reason="channel_open_failure", connected_after=bool(self.ssh_client.connected))
             record_failure(getattr(exc, "ssh_stage", "open_channel"), type(exc).__name__, connected_before)
             raise
         input_offset = 0

@@ -47,6 +47,8 @@ class TerminalBridge(QObject):
         super().__init__(page);self.page=page
     @Slot(str)
     def input(self,text):self.page.service.send(text)
+    def scroll_refresh(self):self.page.scroll_controller.request()
+    def scroll_to(self,value):self.page.scroll_controller.request(value)
     @Slot(int,int)
     def resize(self,cols,rows):self.page.service.resize(cols,rows)
     @Slot(int)
@@ -85,7 +87,6 @@ class RouterTerminalPage(QWidget):
         self.ready=False
         self.view=None
         self._start_requested=False
-        self._pending_command=None
         self._terminal_connection=None
         self._terminal_worker=None
         snapshot=getattr(service.owner,"openwrt_snapshot",None)
@@ -108,11 +109,13 @@ class RouterTerminalPage(QWidget):
         self.connect_button.clicked.connect(self.enter)
         self.close_button=create_page_text_button(self,"断开终端","只断开显示通道，路由器内的会话和脚本继续运行。")
         self.close_button.clicked.connect(self.close_terminal)
+        self.reset_button=create_page_text_button(self,"重置会话","结束旧终端会话，重新打开命令行。")
+        self.reset_button.clicked.connect(self.reset_terminal)
         self.clear_button=create_page_text_button(self,"清空屏幕","清除终端画面和滚动历史，不停止正在运行的脚本。")
         self.clear_button.clicked.connect(self.clear_terminal)
         self.export_button=create_page_text_button(self,"导出诊断","导出终端诊断信息（不含终端内容），便于反馈排查。")
         self.export_button.clicked.connect(self.export_diagnostics)
-        for button in (self.connect_button,self.close_button,self.clear_button,self.export_button):row.addWidget(button)
+        for button in (self.connect_button,self.close_button,self.reset_button,self.clear_button,self.export_button):row.addWidget(button)
         self.copy_button=create_page_icon_button(self,str(BASE_DIR/"images/icons/cil-clone.png"),"复制选中的终端文字")
         self.paste_button=create_page_icon_button(self,str(BASE_DIR/"images/icons/cil-clipboard.png"),"粘贴剪贴板内容；多行命令会先确认")
         self.copy_button.clicked.connect(lambda:self.control(action="copy"))
@@ -144,6 +147,10 @@ class RouterTerminalPage(QWidget):
         self.placeholder=QLabel("路由器终端：直接输入命令；Tab 补全，↑/↓ 历史，Ctrl+C 中断。",self)
         self.placeholder.setObjectName("captureDescription");layout.addWidget(self.placeholder,1)
         self.layout_root=layout
+        from modules.capture_services.terminal_scroll import TerminalScroll
+        self.scroll_controller=TerminalScroll(service,self)
+        self.scroll_controller.changed.connect(self._scroll_state)
+        self.scroll_controller.unavailable.connect(self._scroll_unavailable)
         self.bridge=TerminalBridge(self)
         service.output.connect(self.bridge.output)
         service.statusChanged.connect(self._status)
@@ -152,6 +159,14 @@ class RouterTerminalPage(QWidget):
         service.displayReset.connect(self._reset_display)
         service.owner.openwrtSnapshotChanged.connect(self._connection_changed)
         self._dependency_changed(getattr(dependency,"task",None))
+
+    def _scroll_state(self,history,position):
+        if self.view is not None:
+            self.view.remote_scroll_state(history,position)
+
+    def _scroll_unavailable(self):
+        if self.view is not None:
+            self.view.remote_bar.setEnabled(False)
 
     def control(self,**value):
         if self.ready:self.bridge.control.emit(json.dumps(value,ensure_ascii=False))
@@ -163,13 +178,17 @@ class RouterTerminalPage(QWidget):
         self.placeholder.hide();self.layout_root.addWidget(self.view,1)
         self.bridge.ready()
 
-    def enter(self):
-        self._failure_detail=""
+    def _prepare_view(self):
         try:
             self._load_view()
         except (ImportError, OSError, AttributeError) as exc:
             self.service.report_component_failure(exc)
-            return
+            return False
+        return True
+
+    def enter(self):
+        self._failure_detail=""
+        if not self._prepare_view():return
         self._start_requested=True
         if self.ready:self.service.start();self.control(action="focus")
 
@@ -185,11 +204,11 @@ class RouterTerminalPage(QWidget):
 
         model=getattr(getattr(snapshot,"device",None),"model","")
         self._device_name=model if isinstance(model,str) and self.service.ssh.connected else ""
-        if self._pending_command and self.service.ssh._client is not self._pending_command[1]:
-            self._pending_command=None
         self._status(self.service.state)
 
     def _status(self,state):
+        if state != "connected":
+            self.scroll_controller.invalidate()
         labels={"idle":"终端尚未连接","connecting":"正在连接终端…","connected":"终端已连接",
             "stopping":"正在关闭终端…","closed":"终端已关闭","disconnected":"终端连接已断开，点击重新连接",
             "failed":"终端连接失败，请检查路由器登录状态后重试","close_failed":"终端通道回收失败，请重新登录"}
@@ -227,18 +246,16 @@ class RouterTerminalPage(QWidget):
         self.connect_button.setText("重新连接终端" if state in {"failed","disconnected","closed"} else "连接终端")
         self.connect_button.setEnabled(self.service.ssh.connected and not self.service.active)
         self.close_button.setEnabled(self.service.active)
+        self.reset_button.setEnabled(self.service.ssh.connected and state not in {"connecting","stopping"})
         self.clear_button.setEnabled(not self.service.clear_pending)
         self.paste_button.setEnabled(self.ready and state=="connected")
         self.control(action="state",connected=state=="connected")
+        self.control(action="scrollMode",remote=persistent)
         if state=="connected" and (self._terminal_connection is not self.service.ssh._client or self._terminal_worker is not self.service.worker):
             self._terminal_connection=self.service.ssh._client
             self._terminal_worker=self.service.worker
             self.control(action="reset")
         self.close_button.setToolTip('只断开显示通道，脚本继续运行。' if persistent else '普通终端断开可能中断脚本。')
-        if state=="connected" and self._pending_command:
-            command,connection=self._pending_command;self._pending_command=None
-            if connection is self.service.ssh._client:self.service.send("\x05\x15"+command+"\r")
-        if state in {"closed","failed","disconnected","close_failed","tmux_missing","tmux_failed"}:self._pending_command=None
 
     def open_url(self,text):
         """在系统浏览器打开链接，不在本地终端页面执行远程内容。"""
@@ -263,6 +280,7 @@ class RouterTerminalPage(QWidget):
         add('全选',lambda:self.control(action='selectAll'))
         add('查找',self.bridge.findRequested)
         add('清空屏幕',self.clear_terminal,not self.service.clear_pending)
+        add('重置会话',self.reset_terminal,self.reset_button.isEnabled())
         try:menu.exec(self.view.mapToGlobal(QPoint(x,y)))
         finally:menu.deleteLater()
 
@@ -285,7 +303,16 @@ class RouterTerminalPage(QWidget):
         note=('只断开显示通道，脚本仍在路由器中运行，重连可接回。' if persistent else
               '当前为普通终端。断开可能中断正在运行的脚本。')
         if self.service.active and ConfirmDialog('断开路由器终端',note+'确认断开？',self).exec()==ConfirmDialog.Accepted:
-            self._pending_command=None;self.service.stop(clear_display=True)
+            self.service.stop(clear_display=True)
+
+    def reset_terminal(self):
+        note=("将关闭旧终端会话并建立全新命令行，不保留旧会话。\n\n"
+              "正在运行的程序会受到中断；已修改的路由器配置不会自动撤销，主动脱离终端的后台任务不保证结束。\n\n确认重置？")
+        if ConfirmDialog("重置终端会话",note,self).exec()!=ConfirmDialog.Accepted:return
+        if not self._prepare_view():return False
+        self._start_requested=True
+        self.service.restart()
+        self.control(action='focus')
 
     def install_session_support(self):
         """复用依赖服务和公共进度窗，不在主线程安装。"""
@@ -422,14 +449,21 @@ class RouterTerminalPage(QWidget):
 
     def open_path(self,path,script=False):
         command=terminal_command(path,script)
-        note=path+"\n\n"+command
-        if self.service.active:note+="\n\n请确认终端已回到命令提示符；其他命令运行中请先按 Ctrl+C 退出。未提交的命令输入将清除，再执行本次操作。"
-        if ConfirmDialog("在终端运行文件" if script else "在终端打开目录",note,self).exec()!=ConfirmDialog.Accepted:return False
+        note=("即将在路由器终端运行文件：\n" if script else "即将在路由器终端打开目录：\n")+path
+        if script and path.lower().endswith(".sh"):
+            note+="\n\n程序会根据脚本首行选择运行工具；如果缺少脚本要求的 Bash，会在终端单独提示。"
+        if script:
+            note+="\n\n终端显示执行命令属于正常现象，不代表报错。"
+        note+="\n\n本次操作会重建终端会话后执行，旧会话中的程序会受到中断。已修改的配置不会撤销，脱离终端的后台任务不保证结束。"
+        if ConfirmDialog("确认运行文件" if script else "确认打开目录",note,self).exec()!=ConfirmDialog.Accepted:return False
         connection=self.service.ssh._client
         if not self.service.ssh.connected:return False
-        self._pending_command=(command,connection)
-        self.enter()
-        if self.service.state=="connected":self._status("connected")
+        if self.service.state in {'connecting','stopping'}:return False
+        if not self._prepare_view():return False
+        self._start_requested=True
+        if not self.service.restart(initial_command=command):
+            return False
+        self.control(action='focus')
         return True
 
     def set_light_theme(self,enabled):
@@ -466,6 +500,7 @@ class RouterTerminalPage(QWidget):
         self.service.displayReset.disconnect(self._reset_display)
         self.service.owner.openwrtSnapshotChanged.disconnect(self._connection_changed)
         self._export_teardown()
+        self.scroll_controller.dispose()
         if self.view:
             self.view.dispose()
             self.view.deleteLater()

@@ -5,7 +5,7 @@ CAPTURE_PACKAGES = {
     "scan": ("aircrack-ng", "iw", "ip-tiny"),
     "handshake": ("aircrack-ng", "iw", "ip-tiny"),
     "pmkid": ("hcxdumptool", "aircrack-ng", "iw", "ip-tiny"),
-    "wps": ("reaver", "aircrack-ng", "iw", "ip-tiny"),
+    "wps": ("reaver", "pixiewps", "aircrack-ng", "iw", "ip-tiny"),
     "password": (),
 }
 CAPTURE_KEYS = frozenset(CAPTURE_PACKAGES)

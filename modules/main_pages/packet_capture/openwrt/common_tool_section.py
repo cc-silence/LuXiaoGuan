@@ -49,6 +49,17 @@ class CommonToolSection(QObject):
                 name.setText(name.text() + "（" + self.tool_by_key[key].summary + "）")
             if key in self.tool_keys:name.setToolTip(self.tool_by_key[key].description)
             self.layout.addWidget(container);self.rows[key]=(status,button)
+        self.curl_uninstall_button = None
+        if 'curl' in self.row_widgets:
+            row = self.row_widgets['curl']
+            self.curl_uninstall_button = create_page_text_button(row, '\u5378\u8f7d', 'curl')
+            self.curl_uninstall_button.setObjectName('captureSecondaryButton')
+            self.curl_uninstall_button.setProperty('compactDependency', True)
+            self.curl_uninstall_button.setProperty('dependencyKey', 'curl')
+            self.curl_uninstall_button.installEventFilter(self)
+            self.curl_uninstall_button.clicked.connect(lambda _checked=False: self._clicked('curl', force_uninstall=True))
+            row.layout().addWidget(self.curl_uninstall_button)
+            self.curl_uninstall_button.hide()
         self.install_all_button=create_page_text_button(self.card,self.bulk_text,"只读检查本组可选功能，不自动安装。" if other else "只补齐本组缺失项，复用统一安装流程。")
         self.install_all_button.setObjectName("captureSecondaryButton")
         self.install_all_button.setProperty("dependencyInstallPrimary", True)
@@ -108,6 +119,8 @@ class CommonToolSection(QObject):
         self.card.light_theme=bool(enabled)
         self.install_all_button.set_light_theme(bool(enabled))
         for status,button in self.rows.values():button.set_light_theme(bool(enabled))
+        if self.curl_uninstall_button is not None:
+            self.curl_uninstall_button.set_light_theme(bool(enabled))
 
     @Slot()
     def _activity_changed(self):
@@ -125,6 +138,10 @@ class CommonToolSection(QObject):
             own=task is not None and key in task.items and task.group in self.task_groups
             item=next((item for item in snapshot.dependencies if item.key==key),None)
             state=item.state.value if item is not None else 'unknown'
+            if key == 'curl' and self.curl_uninstall_button is not None:
+                show_uninstall = connected and not own and item is not None and state == 'unknown'
+                self.curl_uninstall_button.setVisible(show_uninstall)
+                self.curl_uninstall_button.setEnabled(show_uninstall and not self.owner.is_busy)
             set_dependency_row_installed(self.row_widgets[key], connected and not own and state in {'ready', 'upgradable', 'outdated'})
             if own and connected:
                 text={'install':'安装中','uninstall':'卸载中'}.get(task.action,'检测中')
@@ -146,23 +163,24 @@ class CommonToolSection(QObject):
             button.setText('安装' if state=='missing' else '卸载' if state=='ready' else '重新检查')
             button.setVisible(True);button.setEnabled(state!='checking' and not self.owner.is_busy)
             if key in self.tool_keys:
-                if state=='ready' and not self.tool_by_key[key].removable:button.setText('检查依赖')
+                if state=='ready' and not self.tool_by_key[key].removable:button.setVisible(False)
                 button.setToolTip(self.tool_by_key[key].description + ("\n这些是路由器共用组件，为避免影响其他插件，暂不提供一键卸载。点击只重新检查依赖是否齐全。" if not self.tool_by_key[key].removable else ""))
                 continue
             button.setToolTip('会话保留工具：断线后继续运行，重连可接回。卸载后普通终端仍可用，但无法重新接回保留会话。' if key=='terminal' else
                 '文件传输支持：用于浏览、上传和下载。卸载后文件管理不可用，SSH 登录不受影响。')
 
-    def _clicked(self,key='sftp'):
+    def _clicked(self,key='sftp', *, force_uninstall=False):
         if not self.service.ensure_available("selected_tool", key):return
         snapshot=self.owner.openwrt_snapshot
         item=next((item for item in snapshot.dependencies if item.key==key),None)
         state=item.state.value if item is not None else 'unknown'
         if key in self.tool_keys:
             tool=self.tool_by_key[key]
-            if state not in {'missing','ready'} or (state=='ready' and not tool.removable):
+            if not force_uninstall and (state not in {'missing','ready'} or (state=='ready' and not tool.removable)):
                 self.service.check_tool_async(key)
                 return
-            uninstall=state=='ready'
+            uninstall=state=='ready' or (force_uninstall and key=='curl' and state=='unknown')
+            if force_uninstall and not uninstall:return
             verb='卸载' if uninstall else '安装'
             note=verb+' '+tool.package+'。\n'+tool.description
             note+=('\n只卸载本项明确列出且实际安装的包。先检查卸载计划；如果有其他功能依赖，或会连带删除清单外的包，则停止并保留。逐包处理，中途停止时已卸载的包不会自动装回。卸载后本软件的相关功能也可能不可用，重装可恢复。' if uninstall else

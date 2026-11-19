@@ -76,6 +76,31 @@ class FileSelectionTests(unittest.TestCase):
         APP.processEvents()
         APP.setFont(self._original_font)
 
+    def test_file_names_stay_visible_with_privacy_enabled(self):
+        from modules.display_privacy import DisplayPrivacy
+        privacy = DisplayPrivacy(self.page)
+        self.page._privacy = privacy
+        privacy.changed.connect(self.page._refresh_privacy)
+        privacy.register_values(["PrivateNetwork"])
+        privacy.set_enabled(True)
+        for remote, path in ((True, "/root"), (False, "C:/test")):
+            self.page._navigate(remote, path)
+            key = self.service.calls[-1][0]
+            name = "script_PrivateNetwork.sh"
+            entry = dict(name=name, path=path+"/"+name, size=100, mode=stat.S_IFREG|0o644,
+                         modified=100, identity=(stat.S_IFREG|0o644, 100, 100, 0, 0))
+            self.service.completed.emit(key, dict(path=path, entries=[entry]))
+            APP.processEvents()
+            tree = self.page.remote_tree if remote else self.page.local_tree
+            item = tree.topLevelItem(0)
+            self.assertEqual(item.text(0), name)
+            self.assertNotIn("PrivateNetwork", item.toolTip(0))
+            for enabled in (False, True):
+                privacy.set_enabled(enabled)
+                APP.processEvents()
+                self.assertEqual(item.text(0), name)
+                self.assertEqual(item.data(0, Qt.UserRole)["path"], entry["path"])
+
     def theme(self, light):
         self.parent.light_theme = light
         styles = CapturePageStyleManager(self.parent)

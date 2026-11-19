@@ -33,7 +33,7 @@ def configure_ap(dialog, environment):
     radio = next(r for r in data["radios"] if r["name"] == dialog.radio_name)
     old = next((r for r in data["rows"] if dialog.row and r["section"] == dialog.row.section), {})
     dialog._old = old
-    dialog.password.set_stored_available(bool(old.get("has_key")))
+    dialog.password.set_stored_available(bool(old.get("has_key")) and str(old.get("encryption", "psk2")).split("+", 1)[0] not in ("none", "owe"))
     fill(dialog.channel, ([("自动", "auto")] if data.get("features", {}).get("ap_acs") else []) + [(str(c["channel"]) + (" · DFS" if c.get("restricted") else ""), str(c["channel"]))
          for c in radio.get("channels", []) if not c.get("restricted")], radio.get("channel"), preserve=True)
     from .signal_radio_fields import configure_radio_fields, power_current_label
@@ -63,10 +63,7 @@ def configure_ap(dialog, environment):
     if isinstance(network, list):
         network = network[0] if len(network) == 1 else None
     fill(dialog.network, [(n["name"], n["name"]) for n in data["networks"] if n.get("name") != "loopback"], old.get("network", "lan"), preserve=bool(dialog.row))
-    def encryption_changed():
-        dialog.password.setEnabled(str(dialog.encryption.currentData()).split("+")[0] not in ("none", "owe"))
-    bind_editor_update(dialog, "encryption", encryption_changed, dialog.encryption.currentIndexChanged)
-    encryption_changed()
+    dialog.password.setEnabled(True)
     if dialog.summary is not None:
         dialog.summary.setText(dialog._summary_base + " \u00b7 \u5f53\u524d\u4fe1\u9053 " + str(radio.get("channel", "\u81ea\u52a8")))
     dialog.expert_fields.configure(radio, old, data.get("features", {}))

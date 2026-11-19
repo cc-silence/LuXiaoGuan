@@ -158,8 +158,10 @@ class ApkOfflineInstaller:
         from .apk_plan import parse_actions
         actions = parse_actions(output)
         if not actions and any(line.startswith("OK:") for line in output.splitlines()):
+            self.tell("当前依赖已满足，本轮无需安装。", "info")
             return []
         planned = feed.parse_simulate_plan(output)
+        self.tell("本轮计划安装：" + "、".join(name + " " + version for name, version in planned), "info")
         if getattr(self, "candidate_trial", False):
             from .candidate_policy import verify_candidate_names
             verify_candidate_names(name for name, _version in planned)

@@ -84,9 +84,9 @@ class PresetEditorTests(unittest.TestCase):
                 self.assertEqual(d.ap_identity.value(), identity)
                 d.settings_profile.setCurrentIndex(0)
                 self.assertEqual(ap_request(d), before)
-            self.assertEqual(len(d._editor_updates), 3)
+            self.assertEqual(len(d._editor_updates), 2)
             configure_ap(d, env)
-            self.assertEqual(len(d._editor_updates), 3)
+            self.assertEqual(len(d._editor_updates), 2)
         finally:
             d.reject(); d.deleteLater(); APP.processEvents()
 

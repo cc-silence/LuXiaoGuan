@@ -427,7 +427,7 @@ exit 1
             raise SignalError("radio", "无法唯一识别所选无线硬件，未按编号猜测，请刷新。")
         return values[0]
 
-    def _wait_ready(self, request, section, cancel, bssid="", *, network="", temporary=False, expected_mac="", band="", hard_deadline=None):
+    def _wait_ready(self, request, section, cancel, bssid="", *, network="", temporary=False, expected_mac="", band="", hard_deadline=None, require_connection=True):
         """认证只看 COMPLETED 和所选接入点，不要求 IPv4 或访问外网。"""
         from .wireless_readiness_evidence import WirelessReadinessEvidence
         journal = getattr(self.runner, "operation_diagnostics", None)
@@ -443,8 +443,9 @@ exit 1
                     raise InterruptedError("无线操作已取消。")
                 status = self._call("status", cancel, radio=request.radio, section=section, mode=request.mode, timeout=min(8, max(0.1, deadline-time.monotonic())),
                                     network=network, expected_mac=expected_mac, downstream=request.options.get("network", ""),
-                                    bridge_mode="routed" if temporary else request.options.get("bridge_mode", "routed"))
-                matches = not bssid or str(status.get("bssid", "")).lower() == bssid.lower()
+                                    bridge_mode="routed" if temporary else request.options.get("bridge_mode", "routed"),
+                                    require_connection=require_connection)
+                matches = not require_connection or not bssid or str(status.get("bssid", "")).lower() == bssid.lower()
                 evidence.sample(status if matches else dict(status, ready=False, reason="wireless_association_pending"))
                 if not temporary and request.options.get("bridge_mode") == "relayd":
                     import ipaddress
@@ -551,7 +552,8 @@ exit 1
                     if time.monotonic() >= deadline: raise SignalError("unconfirmed", "无线配置更改后的运行状态未确认。")
                     if cancel.wait(1): raise InterruptedError("无线操作已取消。")
             else:
-                self._wait_ready(request, result["section"], cancel, bssid, network=result["network"], temporary=temporary, expected_mac=result.get("expected_mac", ""), band=radio_info.get("band", ""), hard_deadline=hard_deadline)
+                require_connection = not (not temporary and enabled is None and request.mode == "sta" and request.options.get("bridge_mode", "routed") == "routed")
+                self._wait_ready(request, result["section"], cancel, bssid, network=result["network"], temporary=temporary, expected_mac=result.get("expected_mac", ""), band=radio_info.get("band", ""), hard_deadline=hard_deadline, require_connection=require_connection)
             if not temporary:
                 if enabled is not None:
                     def observe_ap(section, radio, timeout):
@@ -599,7 +601,7 @@ exit 1
         if not isinstance(revision, str) or not re.fullmatch(r"(?:[a-fA-F0-9]{64}|[a-fA-F0-9]{192})", revision) or not env.data["revision"].startswith(revision):
             raise SignalError("changed", "配置已变化，请刷新后再删除。")
         old = next((r for r in env.data["rows"] if r["section"] == section), None)
-        if not old or old.get("mode") not in ("ap", "sta"):
+        if not old or old.get("mode") not in ("ap", "sta", "monitor"):
             raise SignalError("changed", "找不到可删除的信号配置。")
         request = WirelessRequest(old["mode"], old["device"], old.get("ssid", ""), section=section)
         message("正在删除信号并核对剩余无线状态。", "info")

@@ -187,9 +187,6 @@ static int putglyph(VTermGlyphInfo *info, VTermPos pos, void *user)
   if(i < VTERM_MAX_CHARS_PER_CELL)
     cell->chars[i] = 0;
 
-  for(int col = 1; col < info->width; col++)
-    getcell(screen, pos.row, pos.col + col)->chars[0] = (uint32_t)-1;
-
   VTermRect rect = {
     .start_row = pos.row,
     .end_row   = pos.row+1,
@@ -200,6 +197,12 @@ static int putglyph(VTermGlyphInfo *info, VTermPos pos, void *user)
   cell->pen.protected_cell = info->protected_cell;
   cell->pen.dwl            = info->dwl;
   cell->pen.dhl            = info->dhl;
+
+  for(int col = 1; col < info->width; col++) {
+    ScreenCell *continuation = getcell(screen, pos.row, pos.col + col);
+    continuation->chars[0] = (uint32_t)-1;
+    continuation->pen = cell->pen;
+  }
 
   damagerect(screen, rect);
 

@@ -1,6 +1,6 @@
 """Persistent result guidance and explicitly requested local network recovery."""
 from modules.common_widgets.frameless_dialog import FramelessDialog
-from modules.common_widgets.common_dialogs import apply_common_dialog_theme,_create_dialog_button
+from modules.common_widgets.common_dialogs import apply_common_dialog_theme,_create_dialog_button,ConfirmDialog
 from modules.ui_scale_manager import UiScaleManager
 from PySide6.QtWidgets import QCheckBox
 from .lan_recovery_panel import LanRecoveryPanel
@@ -32,6 +32,7 @@ class NetworkRecoveryResultDialog(FramelessDialog):
             self.panel.update_payload(self.broker.payload(self.offer))
             self.progress_signal.connect(self._progress)
             self.panel.requested.connect(self._request)
+            if self.waiting_for_restart:self.panel.reconnectRequested.connect(self._reconnect)
             if self.waiting_for_restart:self.ready.toggled.connect(self._ready)
             broker,key=self.broker,self.offer
             self.destroyed.connect(lambda *_:broker.release(key))
@@ -50,6 +51,13 @@ class NetworkRecoveryResultDialog(FramelessDialog):
 
     def _request(self,identity):
         if self.offer:self.broker.request(self.offer,identity)
+
+    def _reconnect(self,identity):
+        if not self.offer:
+            return
+        text="\u5c06\u91cd\u65b0\u8fde\u63a5\u6240\u9009\u7f51\u5361\u4e00\u6b21\uff0c\u8be5\u7f51\u5361\u4e0a\u7684\u7f51\u7edc\u8fde\u63a5\u4f1a\u77ed\u6682\u4e2d\u65ad\u3002\u786e\u5b9a\u7ee7\u7eed\uff1f"
+        if ConfirmDialog("\u91cd\u65b0\u8fde\u63a5\u7f51\u5361",text,self).exec()==ConfirmDialog.Accepted and self.offer:
+            self.broker.request(self.offer,identity,reconnect=True)
 
     def _progress(self,key,value):
         if key==self.offer and isinstance(value,dict) and isinstance(value.get('network_recovery'),dict):

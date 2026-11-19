@@ -1045,6 +1045,9 @@ class AutoCaptureRadioSession:
                     self.takeover_record = self._recovery.record
                     self.stats.recovery_report = self._recovery.publish(self.output_dir, self.radio_name)
                     self.stats.recovery_message = "; ".join(errors) if errors else "\u672c\u6b21\u672a\u6267\u884c\u65e0\u7ebf\u63a5\u7ba1\uff0c\u65e0\u9700\u6062\u590d\u3002" if not had_takeover else "\u65e0\u7ebf\u6062\u590d\u5df2\u6838\u5bf9\uff0c\u68c0\u67e5\u901a\u8fc7\u3002"
+                    if self._recovery.warnings and not errors:
+                        self.stats.recovery_message = "; ".join(self._recovery.warnings)
+                        self.service.messageGenerated.emit(self.stats.recovery_message, "warning")
                     report = self.stats.recovery_report
                     detail = self.stats.recovery_message + ("\n\u68c0\u67e5\u8bb0\u5f55: " + report if report else "")
                     if hasattr(self.service, 'diagnostics'):

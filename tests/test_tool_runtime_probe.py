@@ -49,8 +49,8 @@ class RuntimeProbeTests(unittest.TestCase):
         for key in ("iw","wpa_cli","iwinfo","curl","hcxdumptool"):
             with self.subTest(key=key):
                 self.assertEqual(self.execute(key),"MISSING")
-                self.assertEqual(self.execute(key,'echo "Error loading shared library" >&2; exit 127'),"BROKEN")
-                self.assertEqual(self.execute(key,'exit 0'),"BROKEN")
+                self.assertEqual(self.execute(key,'echo "Error loading shared library" >&2; exit 127').splitlines()[0],"BROKEN")
+                self.assertEqual(self.execute(key,'exit 0').splitlines()[0],"BROKEN")
 
     def test_rpc_helper_probe_executes_read_only_against_actual_posix_stubs(self):
         from modules.capture_services.openwrt.runtime_helper_dependencies import WIRELESS_RPC_PROBE
@@ -68,7 +68,13 @@ class RuntimeProbeTests(unittest.TestCase):
     def test_curl_requires_a_usable_https_build_without_contacting_a_website(self):
         good='test "$1" = --version || exit 7; printf "curl 8.0\\nProtocols: http https\\n"'
         self.assertEqual(self.execute('curl',good),'READY')
-        self.assertEqual(self.execute('curl','printf "curl 8.0\\nProtocols: http\\n"'),'BROKEN')
+        self.assertEqual(self.execute('curl','printf "curl 8.0\\nProtocols: http\\n"').splitlines()[0],'BROKEN')
+
+    def test_curl_loader_failure_survives_actual_shell_probe(self):
+        from modules.capture_services.openwrt.curl_probe_diagnostics import curl_failure_detail
+        output=self.execute('curl', 'echo "Error loading shared library libssl.so.3: No such file" >&2; exit 127')
+        self.assertIn('libssl.so.3',curl_failure_detail(output))
+        self.assertIn('127',curl_failure_detail(output))
 
     def test_broken_program_is_not_reported_ready_or_missing(self):
         class Runner:

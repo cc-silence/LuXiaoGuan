@@ -75,10 +75,12 @@ class PasswordInput(QWidget):
         super().__init__(parent)
         self._can_read_stored = False
         self._stored_password = None
+        self.user_edited = False
         layout = QHBoxLayout(self)
         UiScaleManager.for_widget(self).bind_layout(layout, margins=(0, 0, 0, 0), spacing=6)
         self.edit = text_input(self, placeholder=placeholder)
         self.edit.setEchoMode(QLineEdit.Password)
+        self.edit.textEdited.connect(self._mark_user_edited)
         self.toggle = create_themed_icon_button(self, ":/icons/images/icons/cil-low-vision.png", "显示密码")
         self.toggle.setCheckable(True)
         self.toggle.setAccessibleName("显示或隐藏密码")
@@ -87,6 +89,9 @@ class PasswordInput(QWidget):
         layout.addWidget(self.edit, 1)
         layout.addWidget(self.toggle)
         self.toggle.toggled.connect(self._toggle)
+
+    def _mark_user_edited(self, _text):
+        self.user_edited = True
 
     def _toggle(self, visible):
         """切换明文显示，不读取路由器、不生成日志。"""

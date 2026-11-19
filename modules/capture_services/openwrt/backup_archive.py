@@ -40,7 +40,15 @@ def normalize_archive_path(name):
     return name
 
 
-def inspect_archive(path, cancel, *, for_restore=True):
+def inspect_archive(path, cancel):
+    """Inspect a native sysupgrade archive without extracting it.
+
+    OpenWrt backs up every path listed in /etc/sysupgrade.conf and
+    /lib/upgrade/keep.d, including any directory and symlink, then restores
+    with ``tar -C / -xzf``. Keep the native scope: this inspection only guards
+    the container (size, paths, duplicates, special files) and never narrows
+    the file set that the router itself would accept.
+    """
     path = Path(path)
     before = path.lstat()
     if not stat.S_ISREG(before.st_mode) or path.is_symlink() or not 0 < before.st_size <= MAX_ARCHIVE:
@@ -75,16 +83,12 @@ def inspect_archive(path, cancel, *, for_restore=True):
                         raise ValueError("备份文件数量、路径长度或重复项目超出安全范围。")
                     if member.issparse() or not (member.isfile() or member.isdir() or member.issym()):
                         raise ValueError("备份包含不支持的特殊文件，未执行恢复。")
-                    if for_restore and name.split("/")[0] not in {"etc", "root"}:
-                        raise ValueError("此入口仅恢复 etc 和 root 下的配置；其他自定义路径请使用原管理页面核对。")
                     target = ""
                     if member.issym():
                         link = member.linkname
-                        if "\\" in link or any(ord(c) < 32 for c in link):
+                        if not link or "\\" in link or any(ord(c) < 32 for c in link):
                             raise ValueError("备份包含无效的符号链接。")
-                        target = posixpath.normpath(link.lstrip("/") if link.startswith("/") else posixpath.join(posixpath.dirname(name), link))
-                        if for_restore and (target.startswith("../") or target.split("/")[0] not in {"etc", "root"}):
-                            raise ValueError("备份的符号链接指向配置范围之外，请使用原管理页面核对恢复。")
+                        target = posixpath.normpath(link if link.startswith("/") else posixpath.join(posixpath.dirname(name), link))
                     expanded += member.size
                     if expanded > MAX_EXPANDED:
                         raise ValueError("备份内容超过安全上限。")
@@ -103,15 +107,3 @@ def inspect_archive(path, cancel, *, for_restore=True):
     if (before.st_size, before.st_mtime_ns, before.st_ino) != (after.st_size, after.st_mtime_ns, after.st_ino) or file_digest(path, cancel) != digest:
         raise ValueError("检查期间备份文件发生变化，请重新选择。")
     return dict(sha256=digest, size=before.st_size, expanded=expanded, entries=len(records), records=records)
-
-
-def parent_guard(records):
-    """Reject existing symlink parents before the native restore extracts files."""
-    paths = set()
-    for name, record in records.items():
-        parent = name if record["kind"] != "link" else posixpath.dirname(name)
-        while parent:
-            paths.add("/" + parent)
-            parent = posixpath.dirname(parent)
-    from .command_builder import quote_argument
-    return "for p in " + " ".join(quote_argument(p) for p in sorted(paths)) + '; do test ! -L "$p" || exit 44; done'

@@ -171,7 +171,7 @@ class SplitBundleTests(unittest.TestCase):
                 prepare_archive(f.archive,f.envelope,root/"resource",Event(),public_key=f.public,kind="capture")
                 repo=CommonBundleRepository(root/"resource",f.public,kind="capture")
                 profile=repo.profile(f.device)
-                self.assertEqual(set(profile["roots"]),{"iw","ip-tiny","aircrack-ng","hcxdumptool","reaver"})
+                self.assertEqual(set(profile["roots"]),{"iw","ip-tiny","aircrack-ng","hcxdumptool","reaver","pixiewps"})
                 self.assertEqual(len(profile["indexes"]),4 if apk else 0)
                 if apk:
                     commands=[];uploads=[]

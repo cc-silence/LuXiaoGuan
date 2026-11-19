@@ -909,7 +909,7 @@ QPushButton#settingsSubpageNavTab:checked {
 QRadioButton#settingsSubpageNavTab {
     background-color: transparent;
     color: #aeb8c5;
-    border: none;
+    border: 1px solid transparent;
     border-radius: 0;
     font: 10.5pt "Microsoft YaHei", "Segoe UI";
     padding: 0 12px;

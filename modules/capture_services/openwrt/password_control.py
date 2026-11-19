@@ -12,10 +12,6 @@ from .password_control_diagnostics import ControlEvidence, REQUESTS
 _REQUESTS = REQUESTS
 
 
-class AuthenticationTimeout(TimeoutError):
-    """No conclusive authentication result; this is not a wrong-key verdict."""
-
-
 class ControlRequestTimeout(TimeoutError):
     """Safe request metadata only, never credentials or remote output."""
     def __init__(self, operation):
@@ -221,12 +217,18 @@ class PasswordControl:
         try:
             while True:
                 self.check_cancel()
+                # Never poll status with a sliver of the remaining budget: a
+                # 15 ms poll would abort the target as a dead channel instead
+                # of reporting this candidate as unconfirmed.
+                remaining = deadline - self.clock()
+                if remaining <= 0:
+                    return self.outcome(None, 'authentication_unconfirmed', started)
                 # STATUS must identify this attempt, not an address from an old lease.
-                status=dict(line.split('=',1) for line in self.request('status',min(5,max(.01,deadline-self.clock()))) if '=' in line)
+                status=dict(line.split('=',1) for line in self.request('status',min(5,max(1.0,remaining))) if '=' in line)
                 if (status.get('wpa_state')=='COMPLETED' and status.get('id')==str(new)
                         and status.get('bssid','').lower()==bssid.lower()):return self.outcome(True,'authenticated',started)
                 if ('wrong_key',new) in self.events:return self.outcome(False,'wrong_key',started)
-                if self.clock()>=deadline:return self.outcome(False,'authentication_unconfirmed',started)
+                if self.clock()>=deadline:return self.outcome(None,'authentication_unconfirmed',started)
                 event_deadline=min(deadline,self.clock()+1)
                 try:
                     while True:
@@ -245,12 +247,12 @@ class PasswordControl:
             if not failed and (self.cancel is None or not self.cancel.is_set()):self.ok(f'disable_network {new}')
 
     def outcome(self, found, reason, started):
+        """True connected, False wrong key, None result unconfirmed (not wrong)."""
+
         if self.journal is not None:
             self.journal.record('workflow',operation='password_auth',stage='verify',
-                status='timeout' if reason=='authentication_unconfirmed' else 'completed',
+                status='unconfirmed' if reason=='authentication_unconfirmed' else 'completed',
                 reason=reason,elapsed_seconds=self.clock()-started)
-        if reason == "authentication_unconfirmed":
-            raise AuthenticationTimeout("Authentication result was not confirmed before the deadline")
         return found
 
     def close(self):

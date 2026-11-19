@@ -61,15 +61,14 @@ class BundleCompatibilityTests(unittest.TestCase):
                     chosen=repo.ipk_selection(profile,['tmux'],InstalledPackages({'libc':'1'}))
                     self.assertEqual([r.name for r in chosen],['tmux'])
 
-    def test_missing_required_root_is_an_update_bundle_error_even_with_an_extra_root(self):
+    def test_old_catalog_allows_missing_root_with_an_extra_root(self):
         with TemporaryDirectory() as folder:
             f=fixture(folder);data=copy.deepcopy(f.catalog)
             data['roots'].remove('curl');data['roots'].append('future-tool')
             p=data['profiles'][0];p['roots']=list(data['roots'])
             row=copy.deepcopy(p['packages'][0]);row['name']='future-tool'
             p['packages'].append(row)
-            with self.assertRaisesRegex(BundleCoverageUnavailable,'\u66f4\u65b0\u79bb\u7ebf'):
-                validate_catalog(data)
+            self.assertTrue(validate_catalog(data))
 
     def test_declared_extra_root_must_have_matching_profile_and_package(self):
         with TemporaryDirectory() as folder:

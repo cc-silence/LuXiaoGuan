@@ -205,7 +205,7 @@ def capture_parallel(backend, settings, targets, event, progress, message):
                 if event.is_set():
                     break
                 # 采集之外预留原有准备、三次有界传输、转换和清理时间。
-                deadline = _DeadlineEvent(event, int(options.get("idle_timeout_seconds", 180) or 180) + 600)
+                deadline = _DeadlineEvent(event, int(options.get("idle_timeout_seconds", 60) or 60) + 600)
 
                 def updated(update):
                     with lock:

@@ -15,6 +15,10 @@ class WpsTargetResult:
     result_file: str = ""
     wpc_file: str = ""
     note: str = ""
+    # 系统 WPS 不可用的结构化原因：basic_wpad / missing_tool / association ...
+    # 页面用 kind 决定是否提供“升级完整版 wpad”，reason 用于主日志提示。
+    unavailable_kind: str = ""
+    unavailable_reason: str = ""
     # 仅用于主线程弹窗与凭据库写入；repr 不显示，消息与快照也不读取。
     pin: str = field(default="", repr=False)
     pin_saved: bool = field(default=False, repr=False)

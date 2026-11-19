@@ -5,7 +5,8 @@ STAGES=frozenset({"control_open","control_ready","control_ping","control_help","
 REASONS=frozenset({"native_initialization_failed","native_request_timeout","native_control_rejected",
                    "native_cache_unsupported","native_daemon_unreachable","native_stream_ended",
                    "native_terminal_setup_unavailable","native_tool_missing","native_interface_ambiguous",
-                   "native_control_request_failed","native_readiness_timeout"})
+                   "native_control_request_failed","native_readiness_timeout",
+                   "native_control_lost","native_control_restarted","native_control_restart_failed"})
 ENUMS={
     "control_transport":frozenset({"pipe","pty"}),
     "control_request":REQUESTS|{"none","unknown"},

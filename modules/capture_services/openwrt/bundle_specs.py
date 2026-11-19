@@ -3,11 +3,11 @@ from dataclasses import dataclass
 from .wireless_dependencies import WIRELESS_HELPER_PACKAGES
 
 COMMON_ROOTS = frozenset((
-    "openssh-sftp-server", "tmux", "iw", "iwinfo", "curl", "luci-app-commands",
+    "openssh-sftp-server", "tmux", "iw", "iwinfo", "curl", "bash", "luci-app-commands",
     "luci-i18n-base-zh-cn", "luci-i18n-commands-zh-cn",
     *WIRELESS_HELPER_PACKAGES,
 ))
-CAPTURE_ROOTS = frozenset(("aircrack-ng", "hcxdumptool", "reaver", "iw", "ip-tiny"))
+CAPTURE_ROOTS = frozenset(("aircrack-ng", "hcxdumptool", "reaver", "pixiewps", "iw", "ip-tiny"))
 
 @dataclass(frozen=True)
 class BundleSpec:

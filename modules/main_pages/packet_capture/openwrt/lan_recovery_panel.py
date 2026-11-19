@@ -9,6 +9,7 @@ from modules.ui_scale_manager import UiScaleManager
 
 class LanRecoveryPanel(QWidget):
     requested=Signal(str)
+    reconnectRequested=Signal(str)
     def __init__(self,parent):
         super().__init__(parent);self.signature=None;self.payload={}
         layout=QVBoxLayout(self);layout.setContentsMargins(0,0,0,0)
@@ -22,6 +23,10 @@ class LanRecoveryPanel(QWidget):
         self.button=_create_dialog_button('\u91cd\u65b0\u83b7\u53d6\u7f51\u7edc\u5730\u5740',parent,'settingsSecondaryButton')
         layout.addWidget(self.guide);layout.addWidget(self.adapters);layout.addWidget(self.status);layout.addWidget(self.button)
         self.button.setEnabled(False)
+        self.reconnect_button=_create_dialog_button("\u91cd\u65b0\u8fde\u63a5\u7f51\u5361",parent,"settingsSecondaryButton")
+        self.reconnect_button.hide()
+        layout.addWidget(self.reconnect_button)
+        self.reconnect_button.clicked.connect(self._reconnect)
         self.adapters.currentIndexChanged.connect(self._sync)
         self.button.clicked.connect(self._request)
     def update_payload(self,value):
@@ -46,6 +51,8 @@ class LanRecoveryPanel(QWidget):
         self.button.setText('\u8c03\u6574\u56fa\u5b9a IP' if selected.get('static_recovery') else '\u91cd\u65b0\u83b7\u53d6\u7f51\u7edc\u5730\u5740')
         enabled=bool(identity) and self.payload.get('can_renew',False) and not self.payload.get('busy') and not self.payload.get('closed') and identity not in self.payload.get('used',[]) and identity not in self.payload.get('busy_adapters',[])
         self.button.setEnabled(enabled)
+        self.reconnect_button.setVisible(bool(self.payload.get('reconnect_available')))
+        self.reconnect_button.setEnabled(bool(enabled and selected.get('dhcp') is True))
         recommended=bool(enabled and self.payload.get("manual_recommended"))
         if self.button.property("recoveryActionReady") != recommended:
             self.button.setProperty("recoveryActionReady",recommended)
@@ -53,6 +60,11 @@ class LanRecoveryPanel(QWidget):
             self.button.style().polish(self.button)
             self.button.update()
         self.adapters.setEnabled(not self.payload.get('busy') and not self.payload.get('closed'))
+    def _reconnect(self):
+        identity=self.adapters.currentData()
+        if identity and self.reconnect_button.isEnabled():
+            self.reconnectRequested.emit(str(identity))
+
     def _request(self):
         identity=self.adapters.currentData()
         if identity and self.button.isEnabled():

@@ -34,6 +34,7 @@ class ToolCardTests(unittest.TestCase):
                     self.assertIs(panel.password_button.parentWidget(),panel.password_pause_button.parentWidget())
                     self.assertIsNot(panel.password_button.parentWidget(),panel.wps_button.parentWidget())
                     self.assertIs(panel.settings_button.parentWidget(),panel.open_dir_button.parentWidget())
+                    self.assertFalse(hasattr(panel, "wpad_upgrade_button"))
                     for state,pause,expected in (('idle','','password'),('capturing','running','stop'),
                                                  ('capturing','paused','stop'),('stopping','cleaning','stop'),('idle','','password')):
                         busy=state!='idle'
@@ -64,6 +65,19 @@ class ToolCardTests(unittest.TestCase):
                     self.assertLess(panel.password_button.parentWidget().y(),panel.wps_button.parentWidget().y())
                 finally:
                     owner.close();owner.deleteLater();APP.processEvents()
+
+    def test_wpad_upgrade_entry_is_in_quick_dialog(self):
+        from modules.main_pages.packet_capture.openwrt.quick_wps_dialog import QuickWpsDialog
+        for available in (False, True):
+            dialog = QuickWpsDialog({}, upgrade_available=available)
+            try:
+                self.assertEqual(dialog.wpad_upgrade_button.isHidden(), not available)
+                if available:
+                    dialog.wpad_upgrade_button.click()
+                    self.assertEqual(dialog.result(), QuickWpsDialog.UpgradeRequested)
+                    self.assertNotEqual(dialog.result(), QuickWpsDialog.Accepted)
+            finally:
+                dialog.deleteLater();APP.processEvents()
 
 
 if __name__=='__main__':

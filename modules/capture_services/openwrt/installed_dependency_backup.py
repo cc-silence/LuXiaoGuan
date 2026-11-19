@@ -36,10 +36,12 @@ class InstalledDependencyBackup:
         selected = dependency_closure(before["packages"], roots, before["manager"])
         if not selected:
             raise ValueError("\u8def\u7531\u5668\u672a\u5b89\u88c5\u53ef\u5907\u4efd\u7684\u8def\u5c0f\u7ba1\u4f9d\u8d56\u3002")
-        addons = [pkg for pkg in selected if pkg.name not in before["builtin"]
-                  or pkg.version != before["builtin"][pkg.name].version]
+        # Every selected package must carry a restorable payload, including
+        # packages originally supplied by the firmware. Legacy snapshots still
+        # retain their existing builtin-only representation when read.
+        addons = list(selected)
         self.reader.enrich(before, addons)
-        builtin = [pkg for pkg in selected if pkg not in addons]
+        builtin = []
         self.reader.configuration_ownership(before, builtin)
         from .snapshot_configuration import config_path
         paths = {path for pkg in builtin for path in pkg.files if config_path(path)}

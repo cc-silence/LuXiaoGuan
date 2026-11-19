@@ -52,14 +52,14 @@ class CaptureSettingsManager:
             "private_key_path": "",
             "mode": "filter",
             "band": "2.4G",
-            "scan_seconds": 24,
+            "scan_seconds": 60,
             "skip_scan_confirmation": False,
             "skip_scan_takeover_confirmation": False,
             "skip_radio_takeover_confirmation": False,
             "skip_handshake_confirmation": False,
             "access_point_column_widths": [],
             "refresh_seconds": 10,
-            "idle_timeout_seconds": 180,
+            "idle_timeout_seconds": 60,
             "pmkid_idle_timeout_seconds": 180,
             "pmkid_duration_seconds": 0,
             "no_client_observation_seconds": 30,
@@ -91,6 +91,8 @@ class CaptureSettingsManager:
                 "attack_rounds": 1,
                 "quick_seconds": 60,
                 "quick_rounds": 1,
+                "wps_sender": "reaver",
+                "system_offline_pixie": False,
                 "additional_args": "-S -N -l 30",
                 "spoof_mac_enabled": False,
                 "rotate_mac_each_pin": False,
@@ -350,7 +352,7 @@ class CaptureSettingsManager:
         openwrt["private_key_path"] = self._portable_optional_path(openwrt.get("private_key_path"), roots=roots)
         openwrt["mode"] = "global" if openwrt.get("mode") == "global" else "filter"
         openwrt["band"] = "5G" if openwrt.get("band") == "5G" else "2.4G"
-        openwrt["scan_seconds"] = self._clamp_int(openwrt.get("scan_seconds"), 5, 120, 24)
+        openwrt["scan_seconds"] = self._clamp_int(openwrt.get("scan_seconds"), 5, 120, 60)
         openwrt["skip_scan_confirmation"] = self._bool(
             openwrt.get("skip_scan_confirmation"),
             False,
@@ -372,7 +374,7 @@ class CaptureSettingsManager:
             for width in (widths if isinstance(widths, list) else [])[:8]
         ]
         openwrt["refresh_seconds"] = self._clamp_int(openwrt.get("refresh_seconds"), 1, 60, 10)
-        openwrt["idle_timeout_seconds"] = self._clamp_int(openwrt.get("idle_timeout_seconds"), 0, 3600, 180)
+        openwrt["idle_timeout_seconds"] = self._clamp_int(openwrt.get("idle_timeout_seconds"), 0, 3600, 60)
         openwrt["pmkid_idle_timeout_seconds"] = self._clamp_int(openwrt.get("pmkid_idle_timeout_seconds"), 0, 3600, 180)
         openwrt["pmkid_duration_seconds"] = self._clamp_int(openwrt.get("pmkid_duration_seconds"), 0, 3600, 0)
         openwrt["no_client_observation_seconds"] = self._clamp_int(openwrt.get("no_client_observation_seconds"), 20, 90, 30)
@@ -418,6 +420,13 @@ class CaptureSettingsManager:
         wps["attack_rounds"] = self._clamp_int(wps.get("attack_rounds"), 1, 20, 1)
         wps["quick_seconds"] = self._clamp_int(wps.get("quick_seconds"), 0, 3600, 60)
         wps["quick_rounds"] = self._clamp_int(wps.get("quick_rounds"), 1, 20, 1)
+        wps["wps_sender"] = (str(wps.get("wps_sender", "") or "").strip().lower()
+                             if str(wps.get("wps_sender", "") or "").strip().lower() in {"reaver", "system"}
+                             else "reaver")
+        # 只有系统 WPS 才有这个开关；reaver 模式本来就走离线 Pixie。
+        wps["system_offline_pixie"] = (
+            wps["wps_sender"] == "system"
+            and self._bool(wps.get("system_offline_pixie"), False))
         wps["additional_args"] = str(wps.get("additional_args", "")).strip()
         wps["spoof_mac_enabled"] = self._bool(wps.get("spoof_mac_enabled"), False)
         wps["spoof_mac"] = str(wps.get("spoof_mac", "")).strip()

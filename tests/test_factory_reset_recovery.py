@@ -145,6 +145,25 @@ class FactoryRecoveryTests(unittest.TestCase):
             self.assertFalse(broker.request(key,adapter()['id']));call.assert_not_called()
         broker.release(key)
 
+    def test_failed_reset_renew_offers_one_explicit_reconnect(self):
+        owner=self.owner();broker=owner.lan_recovery
+        plan=factory_reset_plan(dict(adapters=[adapter()]))
+        plan["factory_refresh_defaults"]={}
+        key=broker.create_offer(plan)
+        with patch("modules.platform_services.lan_network.renew",side_effect=RuntimeError("failed")):
+            self.assertTrue(broker.request(key,adapter()["id"],inventory_checked=True))
+            deadline=time.monotonic()+3
+            while owner._openwrt_workers and time.monotonic()<deadline:APP.processEvents();time.sleep(.01)
+        self.assertTrue(broker.payload(key)["reconnect_available"])
+        with patch("modules.platform_services.lan_adapter_reconnect.reconnect") as reconnect, patch(
+                "modules.platform_services.lan_network.renew",return_value=adapter()):
+            self.assertTrue(broker.request(key,adapter()["id"],inventory_checked=True,reconnect=True))
+            deadline=time.monotonic()+3
+            while owner._openwrt_workers and time.monotonic()<deadline:APP.processEvents();time.sleep(.01)
+            reconnect.assert_called_once()
+        self.assertFalse(broker.payload(key)["reconnect_available"])
+        broker.release(key)
+
     def test_closed_offer_revokes_permission_while_worker_finishes_safely(self):
         owner=self.owner();broker=owner.lan_recovery
         key=broker.create_offer(factory_reset_plan(dict(adapters=[adapter()])))

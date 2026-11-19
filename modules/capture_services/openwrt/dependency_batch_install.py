@@ -9,6 +9,9 @@ def must_stop(error, runner, cancel, connection):
     ssh = getattr(runner, 'ssh_client', None)
     if ssh is not None and (ssh.connected is False or getattr(ssh, '_client', None) is not connection):
         return True
+    from .signal_package_feed import PackageDownloadUnavailable
+    if isinstance(error, PackageDownloadUnavailable):
+        return False
     if not isinstance(error, SignalError) or error.code in {'cancelled','internal','disconnected'}:
         return True
     text = (str(error) + '\n' + getattr(error, 'package_diagnostic', '')).lower()
@@ -59,7 +62,24 @@ def _install_packages(manager, checked, device, cache_dir, sftp_available, cance
         if package in completed:
             continue
         batch = (package,)
+        tell(f"正在处理依赖：{package}（第 {index + 1}/{len(wanted)} 项）。", "info")
         try:
+            if package == 'curl' and getattr(device, 'distribution', '') == 'OpenWrt' and getattr(device, 'package_manager', '') == 'opkg':
+                from .curl_version_diagnostics import query_versions
+                versions = query_versions(manager.command_runner, cancel)
+                if versions.get('libcurl4') and not versions.get('curl'):
+                    from .curl_repair import repair
+                    repair(manager, device, cancel, tell, **({} if allow_local_bundle else {"allow_local_bundle": False}))
+                    sources.append('\u5339\u914d\u7248\u672c\u7684 curl \u5b89\u88c5\u5305')
+                    continue
+            if package == 'curl' and allow_local_bundle and getattr(device, 'distribution', '') == 'OpenWrt' and getattr(device, 'package_manager', '') == 'apk':
+                from .curl_version_diagnostics import query_versions
+                versions = query_versions(manager.command_runner, cancel)
+                if versions.get('libcurl4') and not versions.get('curl'):
+                    from .curl_apk_variant import install_local
+                    if install_local(manager, device, versions['libcurl4'], cancel, tell):
+                        sources.append('matched curl offline package')
+                        continue
             source = install_with_sources(
                 (lambda: install_from_local(manager,batch,device,cache_dir,sftp_available,cancel,tell,uploader)) if allow_local_bundle else None,
                 lambda: manager._install_online(batch,cancel,tell),

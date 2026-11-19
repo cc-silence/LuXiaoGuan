@@ -542,9 +542,13 @@ def fetch_bytes(url, timeout=60, cancel_event=None, limit=_MAX_INDEX_BYTES):
     _raise_download_failure(errors, cancel_event)
 
 
+class PackageDownloadUnavailable(RuntimeError):
+    """All network routes failed before a package was obtained."""
+
+
 def _raise_download_failure(errors, cancel_event):
     _check_cancel(cancel_event)
-    raise RuntimeError("下载失败（线路不可用或超出等待时间）：" + "；".join(errors))
+    raise PackageDownloadUnavailable("下载失败（线路不可用或超出等待时间）：" + "；".join(errors))
 
 
 def _check_cancel(cancel_event):

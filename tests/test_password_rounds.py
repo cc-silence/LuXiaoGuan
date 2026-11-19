@@ -77,8 +77,9 @@ class PasswordRoundsTests(unittest.TestCase):
         for value,expected in ((1,1),(20,20),(0,1),(1000,20),('bad',10)):
             with self.subTest(value=value),patch('modules.capture_services.openwrt.handshake_capture.time.sleep'):
                 capture._deauth_clients(TARGETS[0].bssid,['02:11:22:33:44:77'],'owned',None,batches=value)
-                self.assertIn(f'-0 {expected} ',runner.run.call_args.args[1])
-                self.assertLessEqual(runner.run.call_args.kwargs['timeout'],30)
+                call = next(c for c in reversed(runner.run.call_args_list) if c.args[0] == 'deauth_client')
+                self.assertIn(f'-0 {expected} ',call.args[1])
+                self.assertEqual(call.kwargs['timeout'],10 + 3 * expected)
 
     def test_new_preferences_persist_and_normalize(self):
         with TemporaryDirectory() as folder:

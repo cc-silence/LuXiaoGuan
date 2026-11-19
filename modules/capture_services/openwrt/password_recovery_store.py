@@ -31,7 +31,9 @@ def root_directory():
 
 def validate(data):
     keys={'schema','session','fingerprint','disabled','devices','baseline','modified','radios'}
-    if not isinstance(data,dict) or set(data)!=keys or type(data['schema']) is not int or data['schema']!=1:
+    if isinstance(data, dict) and data.get('schema') == 2:
+        keys |= {'radio_disabled', 'enabled_radios'}
+    if not isinstance(data,dict) or set(data)!=keys or type(data['schema']) is not int or data['schema'] not in (1, 2):
         raise ValueError('Invalid recovery schema')
     if not isinstance(data['session'],str) or not SID.fullmatch(data['session']):
         raise ValueError('Invalid recovery session')
@@ -64,6 +66,21 @@ def validate(data):
         raise ValueError('Temporary section collides with original configuration')
     if any(devices[name] not in data['radios'] for name in data['modified']):
         raise ValueError('Modified interface is outside affected recovery radios')
+    if data['schema'] == 2:
+        flags, enabled = data['radio_disabled'], data['enabled_radios']
+        if (not isinstance(flags, dict) or len(flags) > 64
+                or any(not isinstance(n, str) or not NAME.fullmatch(n) or v not in FLAGS
+                       for n, v in flags.items())):
+            raise ValueError('Invalid original radio flags')
+        if (not isinstance(enabled, list) or len(enabled) > 64
+                or any(not isinstance(n, str) for n in enabled)
+                or len(set(enabled)) != len(enabled)
+                or not set(enabled) <= set(flags) & set(data['radios'])):
+            raise ValueError('Invalid enabled recovery radios')
+        for name in enabled:
+            if (flags[name] not in ('1', 'true', 'yes', 'on')
+                    or baseline[name]['disabled'] is not True or baseline[name]['up'] is not False):
+                raise ValueError('Original disabled radio state is unavailable')
     return data
 
 
@@ -118,7 +135,7 @@ class RecoveryStore:
                 if re.fullmatch(re.escape(prefix) + r'[0-9a-f]{32}\.json', path.name):
                     raise RecoveryRecordCorrupt(path, hashlib.sha256(raw).hexdigest(), fingerprint) from error
                 raise
-            if isinstance(decoded, dict) and decoded.get('schema') != 1:
+            if isinstance(decoded, dict) and decoded.get('schema') not in (1, 2):
                 raise ValueError('Unsupported recovery record schema')
             try:
                 data = validate(decoded)

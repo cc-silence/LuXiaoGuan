@@ -13,6 +13,13 @@ MAX_TOOLS = 16
 MAX_LINES = 128
 MAX_STATES = 16
 MAX_SCAN_CONTEXTS = 8
+MAX_STOP_EVENTS = 64
+STOP_OPERATIONS = frozenset({
+    'deauth_client', 'stop_airodump-ng', 'verify_stop_airodump-ng',
+    'verify_process_stop', 'restore_wireless', 'finish_capture',
+})
+STOP_STATUSES = frozenset({'started', 'completed', 'failed', 'timeout', 'cancelled', 'uncertain'})
+STOP_STAGES = frozenset({'execute', 'result', 'command_queue', 'read_channel', 'open_channel', 'script_input', 'unknown'})
 STATES = frozenset({'starting', 'running', 'cancelled', 'ended', 'failed', 'unsupported', 'deadline', 'limit', 'disconnected'})
 
 
@@ -31,7 +38,7 @@ def sanitize_capture_evidence(data, masker):
     from modules.diagnostic_redaction import valid_timestamp
     if not isinstance(data, dict): raise ValueError('Invalid capture evidence')
     result = {'schema': 1}
-    for name, limit in (('tool_failures', MAX_TOOLS), ('system_lines', MAX_LINES), ('stream_states', MAX_STATES), ('scan_contexts', MAX_SCAN_CONTEXTS)):
+    for name, limit in (('tool_failures', MAX_TOOLS), ('system_lines', MAX_LINES), ('stream_states', MAX_STATES), ('scan_contexts', MAX_SCAN_CONTEXTS), ('stop_events', MAX_STOP_EVENTS)):
         rows = data.get(name, [])
         if not isinstance(rows, list) or len(rows) > limit: raise ValueError('Capture evidence limit exceeded')
         result[name] = []
@@ -39,11 +46,14 @@ def sanitize_capture_evidence(data, masker):
             if not isinstance(row, dict): raise ValueError('Invalid capture row')
             clean = {}
             if valid_timestamp(row.get('timestamp')): clean['timestamp'] = row['timestamp']
-            if row.get('operation') in TOOL_NAMES: clean['operation'] = row['operation']
+            if row.get('operation') in TOOL_NAMES or (name == 'stop_events' and row.get('operation') in STOP_OPERATIONS): clean['operation'] = row['operation']
+            if name == 'stop_events' and row.get('status') in STOP_STATUSES: clean['status'] = row['status']
+            if name == 'stop_events' and row.get('stage') in STOP_STAGES: clean['stage'] = row['stage']
+            if name == 'stop_events' and row.get('reason') in {'process_absent', 'process_stop_unconfirmed', 'restore_confirmed', 'restore_unconfirmed', 'reconnect_recovery_pending'}: clean['reason'] = row['reason']
             if row.get('state') in STATES: clean['state'] = row['state']
             if row.get('reason') in {'process_exit', 'unexpected_eof'}: clean['reason'] = row['reason']
             if isinstance(row.get('radio'), str) and re.fullmatch(r'radio[0-9]{1,3}', row['radio']): clean['radio'] = row['radio']
-            for key in ('exit_code', 'timed_out', 'cancelled', 'elapsed_seconds', 'connected'):
+            for key in ('exit_code', 'timed_out', 'cancelled', 'elapsed_seconds', 'connected', 'connected_before', 'connected_after', 'pending_processes', 'wireless_cleanup_confirmed'):
                 value = row.get(key)
                 if type(value) in (int, bool) or (type(value) is float and -1e12 < value < 1e12): clean[key] = value
             if row.get('band') in ('2.4G', '5G'): clean['band'] = row['band']
@@ -64,6 +74,7 @@ class CaptureEvidence:
         self.lines = deque(maxlen=MAX_LINES)
         self.states = deque(maxlen=MAX_STATES)
         self.scan_contexts = deque(maxlen=MAX_SCAN_CONTEXTS)
+        self.stop_events = deque(maxlen=MAX_STOP_EVENTS)
 
     def append(self, bucket, row, identity):
         from modules.log_history import HistoryMasker, current_history
@@ -71,7 +82,7 @@ class CaptureEvidence:
         history = current_history()
         masker = history.masker if history is not None else HistoryMasker()
         clean = sanitize_capture_evidence({bucket: [row]}, masker)[bucket][0]
-        {'tool_failures': self.tools, 'system_lines': self.lines, 'stream_states': self.states, 'scan_contexts': self.scan_contexts}[bucket].append(clean)
+        {'tool_failures': self.tools, 'system_lines': self.lines, 'stream_states': self.states, 'scan_contexts': self.scan_contexts, 'stop_events': self.stop_events}[bucket].append(clean)
         if history is not None and isinstance(identity, str) and identity:
             device = hashlib.sha256(identity.encode()).hexdigest()
             try:
@@ -84,7 +95,7 @@ class CaptureEvidence:
     def snapshot(self):
         return deepcopy({'schema': 1, 'tool_failures': list(self.tools),
                          'system_lines': list(self.lines), 'stream_states': list(self.states),
-                         'scan_contexts': list(self.scan_contexts)})
+                         'scan_contexts': list(self.scan_contexts), 'stop_events': list(self.stop_events)})
 
 
 def record_auto_exit(session, *, reason, exit_code=None):
