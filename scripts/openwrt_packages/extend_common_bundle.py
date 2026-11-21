@@ -92,6 +92,8 @@ def main():
         metadata = json.loads(path.read_text(encoding="utf-8"))
         for profile in group:
             extended = extend_profile(profile, metadata["rows"])
+            if metadata.get("bash_evidence"):
+                extended["bash_evidence"] = metadata["bash_evidence"]
             if metadata.get("refresh_indexes"):
                 extended["indexes"] = ([item for item in profile["indexes"] if item["feed"] == "target"] +
                                        [item for item in metadata["indexes"] if item["feed"] != "target"])

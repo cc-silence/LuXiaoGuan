@@ -57,11 +57,13 @@ class BatchRadioTests(unittest.TestCase):
 
     def test_absent_beacon_distinguished_from_other_errors(self):
         runner = Mock()
-        runner.run.return_value = RemoteCommandResult("deauth_client", 1, "No such BSSID available.", "")
+        runner.run.side_effect = lambda name, *a, **k: RemoteCommandResult(name,
+            1 if name == "deauth_client" else 0, "No such BSSID available." if name == "deauth_client" else "")
         capture = OpenWrtHandshakeCapture(runner, Mock())
         with self.assertRaises(TargetBeaconMissing):
             capture._deauth_clients("02:11:22:33:44:55", ["02:11:22:33:44:66"], "wbmon1", None)
-        runner.run.return_value = RemoteCommandResult("deauth_client", 1, "other failure", "")
+        runner.run.side_effect = lambda name, *a, **k: RemoteCommandResult(name,
+            1 if name == "deauth_client" else 0, "other failure" if name == "deauth_client" else "")
         with patch("modules.capture_services.openwrt.handshake_capture.time.sleep"):
             self.assertEqual(capture._deauth_clients("02:11:22:33:44:55", ["02:11:22:33:44:66"], "wbmon1", None), 0)
 

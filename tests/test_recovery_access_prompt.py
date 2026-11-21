@@ -50,7 +50,7 @@ class RecoveryReviewTests(unittest.TestCase):
         with TemporaryDirectory() as folder:
             store=RecoveryStore(Path(folder)/'records');store.root.mkdir()
             path=store._path(FP,'a'*32)
-            content=json.dumps({'schema':2,'fingerprint':FP,'session':'a'*32}).encode()
+            content=json.dumps({'schema':3,'fingerprint':FP,'session':'a'*32}).encode()
             path.write_bytes(content)
             with self.assertRaises(ValueError) as caught:store.records(FP)
             self.assertNotIsInstance(caught.exception,RecoveryRecordCorrupt)

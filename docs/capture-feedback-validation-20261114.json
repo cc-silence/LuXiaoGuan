@@ -1,0 +1,58 @@
+{
+  "checked_at": "2026-11-14T04:03:05.449654+00:00",
+  "scope": "Windows offline/loopback SSH/fake procfs/offscreen Qt; no real router or native Debian acceptance",
+  "head": "54e70bd87358db2f9c3ed0b4fcbeedb8f6521764",
+  "python": "3.10.11 (tags/v3.10.11:7d4cc5a, Apr  5 2023, 00:38:17) [MSC v.1929 64 bit (AMD64)]",
+  "platform": "Windows-10-10.0.19044-SP0",
+  "modules": [
+    "test_handshake_invalid_channels",
+    "test_process_stop_verification",
+    "test_ssh_liveness",
+    "test_ssh_channel_isolation",
+    "test_ssh_compatibility",
+    "test_handshake_batch_radio",
+    "test_handshake_rounds",
+    "test_process_recovery_boundaries",
+    "test_radio_diagnostics",
+    "test_capture_monitor_cleanup",
+    "test_initial_reconnect",
+    "test_capture_status_color",
+    "test_scan_takeover",
+    "test_official_openwrt_formats",
+    "test_capture_live_evidence"
+  ],
+  "tests_run": 149,
+  "success": true,
+  "failures": [],
+  "errors": [],
+  "skips": [],
+  "source_sha256": {
+    "modules/capture_services/capture_service.py": "8ada82904e6ab25ee93d0fbdea7f0a72b000bf34190c89a85e5a3e7ff36434de",
+    "modules/capture_services/backends/openwrt_backend.py": "b815ebd7c08e9ef39ddebed06fdbf66412bc21dd73b3d1322cabf54d80ea109d",
+    "modules/capture_services/openwrt/handshake_targets.py": "47444810310e717d6278b884c7ea8a293de3b663f9c212e633f6954185e33637",
+    "modules/capture_services/openwrt/process_stop_verification.py": "f78d59850a98d1f1d7377b5d70a998284c92c66e89e8230c99bfe6d7fac2e21f",
+    "modules/capture_services/openwrt/ssh_liveness.py": "e32fdf7f866a4adc14fbad9ad3cd3d0550d6a249c11e79bef40a69bb31b51e8b",
+    "modules/capture_services/openwrt/remote_process.py": "ecfacc697211b1863e12143731eb3ee45d4f6084034cdf0ab2d863166886ad92",
+    "modules/capture_services/openwrt/ssh_client.py": "9f535f71ca36b7aad7c620f3fd32ed3040016244a3bc773ab3e5475657208388",
+    "modules/capture_services/openwrt/command_runner.py": "48c090cb1dfa2e657012c03b09f8799f01c8df02d20c476dae140aa2b6532b59",
+    "modules/capture_services/openwrt/operation_diagnostics.py": "9139b8f62c727dbcd5cd25ecb6164ae9eef0c53c541283aa7a435f725e20045d",
+    "modules/capture_services/openwrt/reconnect_cleanup.py": "e1b3236c1abb3f217eb53a9178b50444c137737f82c2eb02dde5f9bd701a893d",
+    "modules/main_pages/packet_capture_page.py": "a81e5a21de2717d9befb1c19fbd671eb86e46fc4583ec7ff381b361aed716bbc",
+    "modules/main_pages/packet_capture/openwrt/access_point_table.py": "e5b1f9caea89a804320c964cd59140a5133ad38aebd8440f11863ebfa9b9ec68"
+  },
+  "real_router_retest": "pending",
+  "legacy_router_retest": "pending",
+  "native_debian_acceptance": "pending",
+  "visual_check": {
+    "method": "Windows Qt offscreen render and visual inspection",
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "images": [
+      "build/previews/capture-invalid-channel/light.png",
+      "build/previews/capture-invalid-channel/dark.png"
+    ],
+    "result": "channel error and pending labels readable; desktop and native Debian acceptance pending"
+  }
+}

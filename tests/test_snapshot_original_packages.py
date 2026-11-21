@@ -261,6 +261,37 @@ class OriginalTests(unittest.TestCase):
         self.assertGreater(inspect_package(extracted/'curl.opkg','opkg',manifest['packages'][0]),0)
         task._cleanup.assert_called_once()
 
+    def test_firmware_package_is_recorded_without_rebuilding_install_payload(self):
+        from modules.capture_services.openwrt.dependency_snapshot_archive import load_snapshot
+        from modules.capture_services.openwrt.installed_dependency_catalog import restore_selection
+        task = object.__new__(InstalledDependencyBackup)
+        task.guard = self.task.guard
+        task.reader = Mock()
+        task.transfer = Mock()
+        task.progress = Mock()
+        self.inventory['builtin'] = {'curl': self.pkg}
+        self.inventory['database_hash'] = 'unchanged'
+        task.reader.inventory.return_value = self.inventory
+        task.reader.configuration_ownership.side_effect = lambda inventory, packages: setattr(self.pkg, 'files', ())
+        task._workspace = Mock(return_value=self.source.remote)
+        task._cleanup = Mock()
+        task._unchanged = Mock()
+        target = self.root / 'firmware-backup.zip'
+        with patch('modules.capture_services.openwrt.installed_dependency_backup.SnapshotOriginalPackages') as original:
+            result = task.backup(target)
+        self.assertEqual(result['stored'], 0)
+        original.assert_not_called()
+        task.reader.enrich.assert_called_once_with(self.inventory, [])
+        extracted = self.root / 'firmware-extracted'
+        extracted.mkdir()
+        manifest = load_snapshot(target, extracted, lambda: None)
+        row = manifest['packages'][0]
+        self.assertTrue(row['builtin'])
+        self.assertNotIn('file', row)
+        self.assertEqual(restore_selection([row], {'curl': self.pkg}), ((), ('curl',)))
+        with self.assertRaises(ValueError):
+            restore_selection([row], {})
+
     def test_many_consumed_files_do_not_expand_ssh_exec_request(self):
         self.inventory['manager']='apk'
         paths={'etc/uci-defaults/'+str(i)+'-'+'x'*80 for i in range(150)}

@@ -52,9 +52,9 @@ class ClientSnapshotTests(unittest.TestCase):
     def test_seconds_default_and_bounds(self):
         with TemporaryDirectory() as folder:
             manager = CaptureSettingsManager(Path(folder)/"settings.json")
-            self.assertEqual(manager.normalize({})["openwrt"]["no_client_observation_seconds"], 30)
-            self.assertEqual(manager.normalize({"openwrt":{"no_client_observation_seconds": 120}})["openwrt"]["no_client_observation_seconds"], 90)
-            self.assertEqual(manager.normalize({"openwrt":{"no_client_observation_seconds": -1}})["openwrt"]["no_client_observation_seconds"], 20)
+            self.assertEqual(manager.normalize({})["openwrt"]["no_client_observation_seconds"], 10)
+            self.assertEqual(manager.normalize({"openwrt":{"no_client_observation_seconds": 120}})["openwrt"]["no_client_observation_seconds"], 60)
+            self.assertEqual(manager.normalize({"openwrt":{"no_client_observation_seconds": -1}})["openwrt"]["no_client_observation_seconds"], 5)
 
     def run_capture(self, contents, *, seconds=40, observation_seconds=20):
         with TemporaryDirectory() as folder:

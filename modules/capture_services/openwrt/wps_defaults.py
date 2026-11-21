@@ -5,8 +5,10 @@ from .command_builder import normalize_bssid
 
 MAX_CANDIDATES = 8
 MAX_FALLBACK_CANDIDATES = 17
-DEFAULT_QUICK_SECONDS = 60
+DEFAULT_QUICK_SECONDS = 0
 DEFAULT_QUICK_ROUNDS = 1
+DEFAULT_SENDER = "reaver"
+SENDERS = ("reaver", "system")
 
 
 @dataclass(frozen=True)
@@ -20,6 +22,13 @@ def validate_quick_options(options):
     if partial and not (partial.isascii() and partial.isdigit() and len(partial) == 8):
         raise ValueError("默认 PIN 速测只接受完整 8 位 PIN；仅知前 4 位请使用常规 Pin。")
     return partial
+
+
+def wps_sender(options):
+    """Return the validated 秒 Pin sender; unknown values fall back to reaver."""
+
+    value = str((options or {}).get("wps_sender", "") or "").strip().lower()
+    return value if value in SENDERS else DEFAULT_SENDER
 
 
 @lru_cache(maxsize=1)
@@ -66,7 +75,20 @@ def default_pin_candidates(bssid, options=None):
 def wps_mode_description(mode):
     if mode == "second":
         return (f"默认 PIN 速测：先试 pin24，再试一次离线 Pin，最后按厂商公式补试；"
-                f"每个候选默认 {DEFAULT_QUICK_SECONDS} 秒，可设轮数；不进入穷举。")
+                f"默认不限制单个候选时长，可设轮数；不进入穷举。")
     if mode == "offline":
         return "离线 Pin 使用 Pixie Dust，需要先与目标交换 WPS 数据；仅对存在相应弱点的设备有效，不保证成功。"
     return "逐个尝试 Pin 可能耗时较长（分钟到小时级）。"
+
+
+def wps_sender_note(mode, options):
+    """一行开始提示；只有秒 Pin 且选择系统 WPS 时才额外说明。"""
+
+    if mode != "second" or wps_sender(options) != "system":
+        return ""
+    note = "本次秒 Pin 使用系统 WPS（和手机同样的方式）发送 PIN；固件不支持时会提示改回 reaver。"
+    if (options or {}).get("system_offline_pixie"):
+        note += "另会跑一次离线 Pixie（由 reaver 发帧）。"
+    else:
+        note += "本次不跑离线 Pixie。"
+    return note

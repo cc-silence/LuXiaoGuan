@@ -1,0 +1,53 @@
+{
+  "date": "2026-11-19",
+  "scope": "OpenWrt 秒 Pin: make the reaver speed flags unconditional and stop abandoning a slow candidate after a fixed 60 seconds.",
+  "background": "Compared two community 秒 PIN shell scripts (crack_wps_2025-0907.sh, reaver_v5-2.sh) with the in-app quick WPS flow. The scripts run reaver -S -N -d0 -t5 and wait for an explicit reaver outcome instead of a fixed per-candidate deadline.",
+  "findings": [
+    "The app previously carried -S -N only through the default additional_args value '-S -N -l 30'. A user who cleared or replaced that field silently lost the speed flags, so they were not guaranteed.",
+    "The quick flow defaulted to 60 seconds per candidate and the quick dialog offered 0 = unlimited, but most saved profiles kept 60.",
+    "The system WPS sender already treats 0 as one bounded registration attempt (120 seconds), so the new default does not make that path unbounded."
+  ],
+  "changes": [
+    "reaver base command now always includes -S (small DH) and -N (no NACK); -S/-N tokens in additional_args are ignored so the command never duplicates them.",
+    "quick_seconds default is now 0 (no per-candidate time cap); the settings, dialogs, diagnostics and remembered-PIN path all use the same default.",
+    "One-time settings migration: an existing profile without wps_quick_defaults_version and with quick_seconds == 60 is moved to 0; after the marker is written, a user-chosen 60 is preserved.",
+    "Quick WPS dialog and advanced tooltips now state the unlimited default and the fixed -S/-N behavior."
+  ],
+  "official_verification": {
+    "reaver": {
+      "source": "https://github.com/t6x/reaver-wps-fork-t6x",
+      "commit": "5282f4a01f12a1e36f01b1af5d1888f55b248400",
+      "commit_date": "2026-11-17T23:52:25Z",
+      "tarball_sha256": "8f53a3e91db7e567d83351449d3486c52291e1ef579ca8ec5e72ac084e56c72b",
+      "files": [
+        {"path": "src/argsparser.c", "sha256": "67a1e04206735561752ef1a06ff7475657c1a9269d953060e498884f6774d3a1", "finding": "-S calls set_dh_small(1); -N calls set_oo_send_nack(0)"},
+        {"path": "src/exchange.c", "sha256": "1da2bcb601005adc472bd4038259f0b21453501916bc5539e1c3051a662176c8", "finding": "with NACK sending disabled the receive timer is started manually, so the comment about waiting 'infinitely' is explicitly mitigated"},
+        {"path": "src/pixie.c", "sha256": "9607c83ae6b0966310b3f2a9f9efc70781b5c847928d859bfc7c31359da167f7", "finding": "pixie passes -S to pixiewps when small DH is enabled, so the flags stay consistent in offline mode"}
+      ]
+    },
+    "pixiewps": {
+      "source": "https://github.com/wiire/pixiewps",
+      "readme_sha256": "2c03a1aea33f34954c8825290fda075c0d0129d242aa944a8985af779c1d53c0",
+      "finding": "-S/--dh-small means private key = 1 and public key = 2; pixiewps exploits this and stays compatible with the reaver small-DH mode"
+    }
+  },
+  "tests": {
+    "command": "python -m unittest tests.test_wps_* (all 17 wps test modules)",
+    "total": 174,
+    "failures": 0,
+    "new_coverage": [
+      "quick default keeps max_runtime 0 (no per-candidate cap)",
+      "online and offline quick commands contain -S and -N",
+      "additional_args -S -N are ignored without duplicating the flags; other forbidden tokens still raise",
+      "explicit quick_seconds still produces a finite max_runtime",
+      "legacy quick_seconds 60 migrates to 0 exactly once, and a later explicit 60 is kept"
+    ],
+    "ui_check": "Quick WPS dialog rendered offscreen in light and dark themes; description, unlimited value and button row show no clipping or overlap"
+  },
+  "limitations": [
+    "No live router comparison against the community scripts; speed gain and lock behavior are unverified on real hardware.",
+    "No native Debian 12 run.",
+    "Default remains 1 second attempt delay (-d) and -l 30; the scripts use -d0 -l61. Changing these defaults was not requested and could increase WPS lock risk.",
+    "Hardlinks and special archive entries are unrelated to this change and remain rejected by the backup path."
+  ]
+}

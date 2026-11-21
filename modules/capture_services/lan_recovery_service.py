@@ -61,14 +61,15 @@ class LanRecoveryService(QObject):
                 if current is None or current[0] is not gate:continue
                 self.owner.configurationProgressChanged.emit(key,dict(current[1],network_recovery=self.payload(key)))
 
-    def request(self,key,identity,*,automatic=False,inventory_checked=False):
+    def request(self,key,identity,*,automatic=False,inventory_checked=False,reconnect=False):
         item=self.offers.get(key)
         if getattr(self.owner,"_shutting_down",False):return False
         if item is None or (key not in self.standalone and key not in self.owner._openwrt_workers):return False
         if key in self.standalone and "factory_refresh_defaults" in item[0].plan and not inventory_checked:
-            return self.factory_refresh.refresh(key, requested=str(identity))
+            return self.factory_refresh.refresh(key, requested=str(identity), reconnect=reconnect)
         identity=str(identity)
         gate,value=item
+        if reconnect and (key not in self.standalone or 'factory_refresh_defaults' not in gate.plan or not gate.reconnect_available):return False
         if identity in self.adapter_jobs:
             self.owner.configurationProgressChanged.emit(key,dict(value,network_recovery=self.payload(key)))
             return False
@@ -106,6 +107,12 @@ class LanRecoveryService(QObject):
                         if key not in self.standalone or automatic:raise RuntimeError('Static recovery requires an explicit post-task request')
                         from modules.platform_services.local_static_recovery import recover
                         return recover(gate.plan['static_migration'],cancel,permitted,timeout=timeout)
+                    if reconnect:
+                        from modules.platform_services.lan_adapter_reconnect import reconnect as reconnect_adapter
+                        started_at=time.monotonic()
+                        reconnect_adapter(adapter,timeout,permitted)
+                        remaining=timeout-(time.monotonic()-started_at)
+                        return renew(adapter,remaining,permitted)
                     return renew(adapter,timeout,permitted)
             return trace.execute(perform,cancel,lambda *_:None)
         def completed(result):
@@ -116,6 +123,7 @@ class LanRecoveryService(QObject):
             if addresses:message+='\u5f53\u524d\u5730\u5740\uff1a'+addresses+'\u3002'
             message+=('\u8bf7\u7528\u8def\u7531\u5668\u5f53\u524d\u5730\u5740\u767b\u5f55\u3002' if key in self.standalone else
                       '\u6b63\u5728\u5c1d\u8bd5\u8fde\u63a5\u8def\u7531\u5668\u3002')
+            gate.reconnect_available=False
             finish(message,result)
         def failed(message,detail):
             prefix='\u81ea\u52a8\u91cd\u65b0\u83b7\u53d6\u5730\u5740\u5931\u8d25\uff1a' if automatic else '\u91cd\u65b0\u83b7\u53d6\u672a\u5b8c\u6210\uff1a'
@@ -123,6 +131,7 @@ class LanRecoveryService(QObject):
             if adapter.get('dhcp') is False:
                 prefix='\u56fa\u5b9a IP \u8c03\u6574\u672a\u5b8c\u6210\uff1a'
                 retry='\n\u8bf7\u6838\u5bf9\u7535\u8111 IP \u548c\u7f51\u5173\uff0c\u786e\u8ba4\u8fde\u63a5\u5230\u6062\u590d\u540e\u7684\u8def\u7531\u5668\uff0c\u518d\u70b9\u51fb\u201c\u8c03\u6574\u56fa\u5b9a IP\u201d\u91cd\u8bd5\u3002'
+            gate.reconnect_available=bool(key in self.standalone and 'factory_refresh_defaults' in gate.plan and adapter.get('dhcp') is True and not reconnect)
             finish(prefix+message+retry,manual_recommended=True)
         self._notify_adapter(identity)
         from .task_completion import start_capture_task

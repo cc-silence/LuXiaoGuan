@@ -70,7 +70,23 @@ def _install_downloaded(manager, wanted, device, cache_dir, sftp_available, canc
                             ("distribution", "version", "target", "package_architecture", "package_manager")) +
                  "。请检查并更新离线依赖包；若最新版仍不匹配，需要补齐该固件的依赖。不会强行安装其他固件的离线包。", "info")
             return False
+        missing_roots = sorted(set(wanted) - {row['name'] for row in profile['packages']})
+        if missing_roots:
+            tell('\u672c\u5730\u79bb\u7ebf\u5305\u4e0d\u5305\u542b\u672c\u6b21\u9700\u8981\u7684\u4f9d\u8d56\uff1a' + '\u3001'.join(missing_roots)
+                 + '\uff1b\u5c06\u5c1d\u8bd5\u5176\u4ed6\u5b89\u88c5\u6765\u6e90\u3002', 'info')
+            available = tuple(name for name in wanted if name not in missing_roots)
+            if available:
+                _install_downloaded(manager, available, device, cache_dir, sftp_available,
+                                    cancel, tell, uploader, repository)
+            return False
         tell("\u4f7f\u7528\u5df2\u4e0b\u8f7d\u7684\u79bb\u7ebf\u4f9d\u8d56\u5305\uff0c\u65e0\u9700\u8054\u7f51\u8bfb\u53d6\u8f6f\u4ef6\u6e90\u3002", "info")
+        has_rules = any(row['release'] == profile['release'] and row['architecture'] == profile['architecture'] and row['package_manager'] == profile['package_manager'] for row in repository.catalog.get('package_variants', ()))
+        if not requires_candidate(device) and profile['package_manager'] == 'opkg' and has_rules:
+            text = manager._execute_stage('dependency_list_installed', 'opkg list-installed',
+                                          30, cancel, 'Read installed package versions')
+            installed = parse_installed(text)
+            from .bundle_variants import apply_ipk_rules
+            profile = apply_ipk_rules(profile, repository.catalog, device, wanted, installed.versions)
         if not requires_candidate(device):
             from .shared_bundle_packages import SharedBundlePackages
             repository = SharedBundlePackages(repository, profile, device, retain, cancel, tell)
@@ -107,6 +123,17 @@ def _install_downloaded(manager, wanted, device, cache_dir, sftp_available, canc
                                                  local_packages={p.name: p.version for p in selected},
                                                  candidate_trial=requires_candidate(device))
             else:
+                primary = getattr(repository, 'primary', repository)
+                if not requires_candidate(device) and has_rules:
+                    from .apk_variant_installer import installed_versions, install, resolve_packages
+                    versions = installed_versions(manager, cancel)
+                    try:
+                        variants = resolve_packages(profile, primary.catalog, device, wanted, versions)
+                    except ValueError as exc:
+                        tell('Offline candidate dependencies could not be resolved: ' + str(exc), 'warning')
+                        variants = None
+                    if variants:
+                        return install(manager, device, variants, primary, cancel, tell, uploader)
                 from .apk_offline import ApkOfflineInstaller
                 package_manager = manager._preflight(0, cancel)
                 if package_manager.name != "apk":

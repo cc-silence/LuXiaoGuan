@@ -2,7 +2,7 @@
 import re
 from pathlib import PureWindowsPath
 from PySide6.QtCore import QObject, Signal
-from PySide6.QtWidgets import QLabel, QProgressBar
+from PySide6.QtWidgets import QLabel, QProgressBar, QTextEdit, QLineEdit
 MASKED_TEXT = "\u2022" * 6
 
 
@@ -186,6 +186,49 @@ class PrivacyLabel(QLabel):
     def _refresh_privacy(self):
         QLabel.setText(self, self._project(self._raw_text))
         QLabel.setToolTip(self, self._project(self._raw_tooltip))
+
+
+class PrivacyInputController(QObject):
+    """Hide an editable value without changing the value being edited."""
+
+    def __init__(self, edit):
+        super().__init__(edit)
+        self.edit = edit
+        self.privacy = controller_for(edit)
+        if self.privacy is not None:
+            self.privacy.changed.connect(self.refresh)
+        self.refresh()
+
+    def refresh(self):
+        private = bool(self.privacy and self.privacy.enabled)
+        self.edit.setEchoMode(QLineEdit.Password if private else QLineEdit.Normal)
+
+
+def protect_input(edit):
+    return PrivacyInputController(edit)
+
+
+class PrivacyTextEdit(QTextEdit):
+    """Read-only text with reversible local privacy projection."""
+
+    def __init__(self, parent=None, *, private_values=()):
+        super().__init__(parent)
+        self._raw_text = ""
+        self._privacy = controller_for(self)
+        self._local_masker = masker_for(private_values)
+        if self._privacy is not None:
+            self._privacy.changed.connect(self._refresh_privacy)
+
+    def setPlainText(self, text):
+        self._raw_text = str(text or "")
+        self._refresh_privacy()
+
+    def _refresh_privacy(self):
+        value = self._raw_text
+        if self._privacy is not None and self._privacy.enabled:
+            value = self._privacy.text(self._local_masker.text(value))
+        if QTextEdit.toPlainText(self) != value:
+            QTextEdit.setPlainText(self, value)
 
 
 from modules.common_widgets.rounded_progress_bar import RoundedProgressBar

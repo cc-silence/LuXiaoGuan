@@ -164,8 +164,23 @@ class DefaultPinTests(unittest.TestCase):
                 result=capture.run_targets(NS(local_dir=Path(folder),remote_dir='/tmp/owned'),'ownedmon','owned',(AccessPointInfo(MAC,channel=1,wps_supported=True),),'second',{'quick_seconds':10},folder,Mock())[0]
         self.assertEqual(result.tried_seconds,20)
         self.assertEqual(manager.start.call_count,2)
+        self.assertEqual(manager.start.call_args_list[0].kwargs['max_runtime'],20)
         self.assertIn('未取得密码',result.note)
         self.assertNotIn('均已确认未通过',result.note)
+
+    def test_quick_default_is_unlimited_and_forces_speed_flags(self):
+        with TemporaryDirectory() as folder:
+            result, manager, _, _ = self.run_quick(folder, '[+] Quitting after 1 crack attempts')
+        command = shlex.split(manager.start.call_args_list[0].args[1])
+        self.assertIn('-S', command)
+        self.assertIn('-N', command)
+        self.assertEqual(manager.start.call_args_list[0].kwargs['max_runtime'], 0)
+
+    def test_extra_args_do_not_duplicate_program_controlled_speed_flags(self):
+        self.assertEqual(OpenWrtWpsCapture.sanitize_extra_args('-S -N -l 30'), '-l 30')
+        self.assertEqual(OpenWrtWpsCapture.sanitize_extra_args('-S'), '')
+        with self.assertRaises(RuntimeError):
+            OpenWrtWpsCapture.sanitize_extra_args('-S -b 02:11:22:33:44:55')
 
 class WpsRadioTests(unittest.TestCase):
     def setUp(self):

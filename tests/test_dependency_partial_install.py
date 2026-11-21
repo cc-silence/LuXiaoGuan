@@ -38,6 +38,15 @@ class PartialInstallTests(unittest.TestCase):
             self.assertEqual(calls,list(names));self.assertEqual(installed,set(names[1:]))
             self.assertIn(names[0],str(error));self.assertIn('native error evidence',error.package_diagnostic)
 
+    def test_download_failure_continues_but_cancel_still_stops(self):
+        from modules.capture_services.openwrt.dependency_batch_install import must_stop
+        from modules.capture_services.openwrt.signal_package_feed import PackageDownloadUnavailable
+        runner=Mock();runner.ssh_client.connected=True;runner.ssh_client._client=object()
+        event=threading.Event(); error=PackageDownloadUnavailable('download timed out')
+        self.assertFalse(must_stop(error,runner,event,runner.ssh_client._client))
+        event.set()
+        self.assertTrue(must_stop(error,runner,event,runner.ssh_client._client))
+
     def test_cancel_or_disconnect_stops_following_transactions(self):
         for options in [dict(cancel=True),dict(disconnect=True)]:
             error,calls,installed=self.exercise(('curl','wpa-cli'),**options)

@@ -32,7 +32,7 @@ def _create_dialog_button(text, parent, object_name):
     return button
 
 
-def _add_message_content(dialog, message):
+def _add_message_content(dialog, message, private_values=None):
     """按正文长度向弹窗添加标签或可滚动只读文本框。
 
     参数：dialog 是 FramelessDialog 子类；message 是用户可见正文。
@@ -40,9 +40,13 @@ def _add_message_content(dialog, message):
     副作用：会向 content_layout 添加控件；长文本会把弹窗调整为 560x340。
     """
     message_text = str(message or "")
-    if "\n" in message_text or len(message_text) > 180:
+    if private_values is not None or "\n" in message_text or len(message_text) > 180:
         dialog.set_scaled_size((460, 220), (560, 340))
-        message_box = QTextEdit(dialog)
+        if private_values is None:
+            message_box = QTextEdit(dialog)
+        else:
+            from modules.display_privacy import PrivacyTextEdit
+            message_box = PrivacyTextEdit(dialog, private_values=private_values)
         message_box.setObjectName("settingsMessageText")
         message_box.setReadOnly(True)
         message_box.setPlainText(message_text)
@@ -50,7 +54,12 @@ def _add_message_content(dialog, message):
         dialog.content_layout.addWidget(message_box, 1)
         return
 
-    message_label = QLabel(message_text, dialog)
+    if private_values is None:
+        message_label = QLabel(message_text, dialog)
+    else:
+        from modules.display_privacy import PrivacyLabel, masker_for
+        message_label = PrivacyLabel(message_text, dialog)
+        message_label.set_local_masker(masker_for(private_values))
     message_label.setObjectName("settingsHint")
     message_label.setWordWrap(True)
     dialog.content_layout.addWidget(message_label, 1)
@@ -88,7 +97,7 @@ class ConfirmDialog(FramelessDialog):
     RESULT_CANCEL = "cancel"
     ActionNo = 2
 
-    def __init__(self, title, message, parent=None, remember_option_text="", yes_text="确定", no_text="取消", cancel_text=""):
+    def __init__(self, title, message, parent=None, remember_option_text="", yes_text="确定", no_text="取消", cancel_text="", private_values=None):
         # 公共确认弹窗不能继承页面或快捷面板的局部 QSS，否则外壳会被不完整的样式覆盖。
         super().__init__(title, parent, inherit_parent_stylesheet=False, window_controls=False)
         apply_common_dialog_theme(self, parent)
@@ -100,7 +109,7 @@ class ConfirmDialog(FramelessDialog):
         self.remember_checked = False
         self.secondary_selected = False
         self.result_action = None
-        _add_message_content(self, message)
+        _add_message_content(self, message, private_values)
         self.remember_option = None
         if remember_option_text:
             self.remember_option = QCheckBox(str(remember_option_text), self)

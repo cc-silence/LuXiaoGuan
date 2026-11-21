@@ -43,7 +43,6 @@ def validate_catalog(data, kind="common"):
 
 def _validate_catalog(data, kind="common"):
     """\u6821\u9a8c\u9002\u914d\u7ec4\u5408\u548c\u6240\u6709\u5bf9\u8c61\u8fb9\u754c\uff0c\u8fd4\u56de\u53bb\u91cd\u5bf9\u8c61\u8868\u3002"""
-    required = bundle_spec(kind).roots
     if not isinstance(data, dict):
         raise ValueError("Invalid offline catalog")
     require_schema(data.get("schema_version"))
@@ -92,6 +91,12 @@ def _validate_catalog(data, kind="common"):
             previous = objects.setdefault(sha, row)
             if previous["size"] != row["size"]:
                 raise ValueError("\u5171\u4eab\u79bb\u7ebf\u5bf9\u8c61\u8bb0\u5f55\u4e0d\u4e00\u81f4\u3002")
+    if "package_variants" in data:
+        from .bundle_variants import validate_variants
+        for sha, row in validate_variants(data["package_variants"], profiles).items():
+            previous = objects.setdefault(sha, row)
+            if previous["size"] != row["size"]:
+                raise ValueError("Conflicting package variant object size")
     if "hcx_variants" in data:
         if kind != "capture":
             raise ValueError("Designated hcx payloads belong only to the capture bundle")
@@ -100,9 +105,6 @@ def _validate_catalog(data, kind="common"):
             previous = objects.setdefault(sha, row)
             if previous["size"] != row["size"]:
                 raise ValueError("Conflicting shared hcx object size")
-    if not required.issubset(roots):
-        raise BundleCoverageUnavailable(
-            "\u79bb\u7ebf\u4f9d\u8d56\u5305\u7248\u672c\u8fc7\u65e7\uff0c\u7f3a\u5c11\u5f53\u524d\u8f6f\u4ef6\u6240\u9700\u7ec4\u4ef6\uff0c\u8bf7\u66f4\u65b0\u79bb\u7ebf\u4f9d\u8d56\u5305\u540e\u91cd\u8bd5\u3002")
     return objects
 
 

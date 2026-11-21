@@ -70,9 +70,9 @@ class HandshakeRoundTests(unittest.TestCase):
         calls, _, _ = self.run_tune_batch({1, 2, 3}, rounds=2)
         self.assertEqual(calls, [1, 2])
 
-    def test_other_capture_path_keeps_existing_failure_behavior(self):
+    def test_ungrouped_capture_also_retries_channel_failure(self):
         calls, _, _ = self.run_tune_batch({1, 2, 3}, grouped=False)
-        self.assertEqual(calls, [1])
+        self.assertEqual(calls, [1, 2, 3])
 
     def test_unlimited_repeats_identical_content_until_success(self):
         calls,result=self.run_batch(infinite=True)

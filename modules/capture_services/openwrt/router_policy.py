@@ -6,7 +6,7 @@ import secrets
 from threading import Event
 from .command_runner import require_command_completion
 from .router_policy_commands import policy_command, CONFIGS, FILES
-from .router_policy_plan import build_plan, boot_state
+from .router_policy_plan import build_plan, boot_state, boot_state_reason
 from .uci_booleans import netifd_bool
 from .management_requirements import require_management
 from .signal_manager import RouterSignalManager
@@ -110,6 +110,7 @@ class RouterPolicyManager:
         if value.get("pages")=={}:value["pages"]=[]
         if not isinstance(value.get("pages"),list):raise RuntimeError("\u7ba1\u7406\u9875\u9762\u6e05\u5355\u4e0d\u5b8c\u6574\u3002")
         value["boot_state"]=boot_state(value)
+        if value["boot_state"] is None:value["boot_reason"]=boot_state_reason(value)
         value["signature"]=signature(value)
         return value
 

@@ -65,7 +65,7 @@ class OpenWrtDependencyManager:
         "scan": ("airodump-ng",),
         "handshake": ("airodump-ng", "aireplay-ng"),
         "pmkid": ("hcxdumptool",),
-        "wps": ("reaver",),
+        "wps": ("reaver", "pixiewps"),
         # 在线密码验证使用 OpenWrt 固件基础命令，不对应额外第三方根包。
         "password": ("uci", "wifi", "ip"),
     }
@@ -266,6 +266,9 @@ class OpenWrtDependencyManager:
     def _probe_version(self, command, cancel_event):
         """hcxdumptool 单次读帮助且透传失败；其他工具沿用原版本显示探针。"""
 
+        if command == "pixiewps":
+            from .pixiewps_probe import read_version
+            return read_version(self.command_runner, cancel_event)
         if command == "hcxdumptool":
             try:
                 return read_hcx_capabilities(self.command_runner, cancel_event).version

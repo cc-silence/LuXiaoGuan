@@ -3,9 +3,9 @@ import base64
 import ctypes
 import json
 from pathlib import Path
-from PySide6.QtCore import QEvent, Qt, Signal, QUrl, QRectF, qVersion
+from PySide6.QtCore import QEvent, Qt, Signal, QUrl, QRectF, QSignalBlocker, qVersion
 from PySide6.QtGui import QPainterPath, QRegion, QPalette
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QApplication
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QApplication, QScrollBar
 from shiboken6 import getCppPointer, wrapInstance
 
 _WRITE = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int)
@@ -36,6 +36,8 @@ class NativeTerminalView(QWidget):
         self._dll = library
         self._bridge = bridge
         self._connected = False
+        self._remote_scroll = False
+        self._remote_wheel_wait = False
         self._disposed = False
         self._press_point = None
         self._pending_link = ''
@@ -47,12 +49,25 @@ class NativeTerminalView(QWidget):
         if not self._pointer:
             raise OSError('Native terminal creation failed')
         self.terminal = wrapInstance(self._pointer, QWidget)
+        self._scroll_bar = self.terminal.findChild(QScrollBar)
         self.terminal.setAttribute(Qt.WA_InputMethodEnabled, True)
         self.terminal.installEventFilter(self)
         self.terminal.setCursor(Qt.IBeamCursor)
-        layout = QVBoxLayout(self)
+        layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
-        layout.addWidget(self.terminal)
+        layout.setSpacing(0)
+        layout.addWidget(self.terminal, 1)
+        self.remote_bar = QScrollBar(Qt.Vertical, self)
+        self.remote_bar.setObjectName("terminalRemoteScrollBar")
+        self.remote_bar.setRange(0, 10000)
+        self.remote_bar.setPageStep(1000)
+        self.remote_bar.setValue(10000)
+        self.remote_bar.setTracking(False)
+        self.remote_bar.setEnabled(False)
+        self.remote_bar.hide()
+        self.remote_bar.installEventFilter(self)
+        self.remote_bar.valueChanged.connect(self._remote_bar_changed)
+        layout.addWidget(self.remote_bar)
         self._selectionRefresh.connect(self._refresh_selection, Qt.QueuedConnection)
         bridge.output.connect(self.receive_output)
         bridge.control.connect(self.apply_control)
@@ -110,6 +125,21 @@ class NativeTerminalView(QWidget):
         data = base64.b64decode(encoded, validate=True)
         self._dll.wb_feed(self._pointer, data, len(data))
         self._bridge.ack(len(data))
+        if self._remote_wheel_wait:
+            self._remote_wheel_wait = False
+            self._bridge.scroll_refresh()
+
+    def _remote_bar_changed(self, value):
+        if self._remote_scroll and self._connected and self.remote_bar.isEnabled():
+            self._bridge.scroll_to(value)
+
+    def remote_scroll_state(self, history, position):
+        if self._disposed or not self._remote_scroll or self.remote_bar.isSliderDown():
+            return
+        with QSignalBlocker(self.remote_bar):
+            self.remote_bar.setEnabled(self._connected)
+            self.remote_bar.setSingleStep(max(1, 30000 // max(1, history)))
+            self.remote_bar.setValue(10000 if history == 0 else max(0, min(10000, 10000 - position * 10000 // history)))
 
     def terminal_text(self, selected=False):
         if self._disposed:
@@ -146,7 +176,20 @@ class NativeTerminalView(QWidget):
         value = json.loads(encoded)
         action = value.get('action')
         if action == 'state':
-            self._connected = bool(value['connected'])
+            connected = bool(value['connected'])
+            changed = connected != self._connected
+            self._connected = connected
+            if not connected:
+                self.remote_bar.setEnabled(False)
+            elif changed and self._remote_scroll:
+                self._bridge.scroll_refresh()
+        elif action == 'scrollMode':
+            remote = bool(value.get('remote', False))
+            changed = remote != self._remote_scroll
+            self._remote_scroll = remote
+            self.remote_bar.setVisible(remote)
+            if changed and remote and self._connected:
+                self._bridge.scroll_refresh()
         elif action == 'theme':
             size = int(value['fontSize'])
             if size != self._font_size:
@@ -177,9 +220,13 @@ class NativeTerminalView(QWidget):
             self._bridge.resize(*self._size)
 
     def eventFilter(self, watched, event):
-        if self._disposed or watched is not self.terminal:
+        if self._disposed or watched not in (self.terminal, getattr(self, "remote_bar", None)):
             return super().eventFilter(watched, event)
         kind = event.type()
+        if watched is getattr(self, "remote_bar", None):
+            if kind == QEvent.Enter and self._remote_scroll and self._connected:
+                self._bridge.scroll_refresh()
+            return super().eventFilter(watched, event)
         if kind == QEvent.KeyPress:
             modifiers = event.modifiers()
             control = bool(modifiers & Qt.ControlModifier)
@@ -200,6 +247,14 @@ class NativeTerminalView(QWidget):
             delta = event.angleDelta().y()
             if delta:
                 self._bridge.zoom(1 if delta > 0 else -1)
+            event.accept(); return True
+        elif kind == QEvent.Wheel and self._remote_scroll:
+            self._remote_wheel_wait = True
+        elif kind == QEvent.Wheel and not self._remote_scroll:
+            # Ordinary consoles own local history even if a remote program left
+            # mouse reporting enabled. Retained tmux consoles own remote history.
+            if self._scroll_bar is not None:
+                self._scroll_bar.event(event)
             event.accept(); return True
         elif kind == QEvent.ContextMenu:
             point = event.pos()
@@ -242,3 +297,4 @@ class NativeTerminalView(QWidget):
         self._bridge.control.disconnect(self.apply_control)
         self._dll.wb_detach(self._pointer)
         self.terminal.removeEventFilter(self)
+        self.remote_bar.removeEventFilter(self)

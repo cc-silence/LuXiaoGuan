@@ -55,3 +55,29 @@ def isolated_network(net_name):
 # netifd applies configuration differences. The legacy wifi reload wrapper also
 # runs legacy driver hooks without forwarding the requested device on OpenWrt 23.05.
 RELOAD_CHANGED_CONFIG='ubus call network reload >/dev/null 2>&1'
+
+
+DISABLED_VALUES = frozenset(('1', 'true', 'yes', 'on'))
+
+
+def radio_disabled_snapshot(text):
+    """Retain exact device flags, including absent options; never retain secrets."""
+    if not isinstance(text, str) or len(text) > 1024 * 1024:
+        raise ValueError('Invalid wireless radio snapshot')
+    records = shlex.shlex(text, posix=True)
+    records.whitespace = '\r\n'; records.whitespace_split = True; records.commenters = ''
+    devices = set(); flags = {}; seen = set()
+    for index, record in enumerate(records):
+        if index >= 16384: raise ValueError('Wireless radio snapshot exceeds limit')
+        key, sep, value = record.partition('=')
+        if not sep or key in seen: raise ValueError('Invalid wireless radio record')
+        seen.add(key)
+        match = re.fullmatch(r'wireless\.([A-Za-z0-9_]+)(\.disabled)?', key)
+        if not match: continue
+        name, option = match.groups()
+        if option is None and value == 'wifi-device': devices.add(name)
+        elif option:
+            if value not in ('0','1','true','false','yes','no','on','off'):
+                raise ValueError('Invalid radio disabled flag')
+            flags[name] = value
+    return {name: flags.get(name) for name in devices}

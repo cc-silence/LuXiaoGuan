@@ -37,6 +37,8 @@ def prepare(kind, archive, coverage, *, min_app_version=None):
         raw = zipped.read("catalog.json")
         catalog = json.loads(raw)
         objects = validate_catalog(catalog, kind)
+        if not spec.roots.issubset(set(catalog['roots'])):
+            raise ValueError('New publication must cover all current bundle roots')
         from modules.app_update_services.manifest import version_key
         declared_minimum = catalog.get("min_app_version")
         if min_app_version is not None:

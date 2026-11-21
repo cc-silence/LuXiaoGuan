@@ -51,3 +51,6 @@ SITE_MODULES |= {"router_homepage_dialog"}
 CODES |= {"firewall_shared_local"}
 
 SITE_MODULES |= {"local_static_recovery","factory_client_recovery"}
+
+BOOT_REASONS=frozenset({"old_watch", "script_symlink", "missing_script_link", "hash_unavailable",
+    "hash_unrecognized", "invalid_link", "connection_changed", "probe_unexpected"})

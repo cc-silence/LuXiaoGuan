@@ -53,7 +53,7 @@ def runtime_snapshot(text):
     return radios
 
 
-def _configuration_command(sta, net, disabled, devices, modified):
+def _configuration_command(sta, net, disabled, devices, modified, radio_disabled=None):
     """Output only fixed evidence tokens, not UCI contents or credentials."""
     if any(not isinstance(n, str) or not _NAME.fullmatch(n) for n in [sta, net, *modified]):
         raise ValueError("Invalid recovery section identity")
@@ -75,6 +75,15 @@ def _configuration_command(sta, net, disabled, devices, modified):
             commands.append(absent('wireless.' + name + '.disabled'))
         else:
             commands.append('[ "$(uci -q get '+key+')" = '+quote_argument(disabled[name])+' ]')
+    for name, original in (radio_disabled or {}).items():
+        if not isinstance(name, str) or not _NAME.fullmatch(name):
+            raise ValueError('Invalid recovery radio identity')
+        commands.append('[ "$(uci -q get '+quote_argument('wireless.'+name)+')" = wifi-device ]')
+        key = quote_argument('wireless.'+name+'.disabled')
+        if original is None:
+            commands.append(absent('wireless.'+name+'.disabled'))
+        else:
+            commands.append('[ "$(uci -q get '+key+')" = '+quote_argument(original)+' ]')
     commands.append("printf RESTORE_CONFIG_OK")
     return ' && '.join('( '+command+' )' for command in commands)
 
@@ -103,7 +112,7 @@ class PasswordRestoreCheck:
                            status='completed' if reason == 'verified' else 'failed', reason=reason)
 
     def verify(self, sta, net, disabled, devices, modified, *, wait_seconds=0,
-               cancel=None, deadline=None):
+               cancel=None, deadline=None, radio_disabled=None):
         def remaining(limit):
             if cancel is not None and cancel.is_set():
                 raise InterruptedError('Recovery verification cancelled')
@@ -113,7 +122,7 @@ class PasswordRestoreCheck:
             return budget
         try:
             text = _read(self.runner, 'password_restore_config_check',
-                         _configuration_command(sta, net, disabled, devices, modified),
+                         _configuration_command(sta, net, disabled, devices, modified, radio_disabled),
                          cancel, timeout=remaining(10))
             if text.strip() != 'RESTORE_CONFIG_OK':
                 raise ValueError('Unexpected recovery evidence')

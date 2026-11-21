@@ -5,7 +5,7 @@ import os
 import unittest
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from PySide6.QtCore import QObject, Signal, Qt, QPoint, QPointF, QEvent, QCoreApplication
-from PySide6.QtGui import QWheelEvent, QMouseEvent
+from PySide6.QtGui import QWheelEvent, QMouseEvent, QFontMetrics
 from PySide6.QtWidgets import QApplication, QScrollBar
 from modules.terminal_widgets.native_view import NativeTerminalView
 
@@ -15,8 +15,10 @@ class Bridge(QObject):
     output=Signal(str)
     control=Signal(str)
     def __init__(self):
-        super().__init__();self.sent=[];self.copied=[];self.zoomed=[]
+        super().__init__();self.sent=[];self.copied=[];self.zoomed=[];self.scrolls=[];self.refreshes=0
     def input(self,value): self.sent.append(value)
+    def scroll_refresh(self): self.refreshes+=1
+    def scroll_to(self,value): self.scrolls.append(value)
     def resize(self,*value): pass
     def ack(self,value): pass
     def selectionChanged(self,value): pass
@@ -43,6 +45,28 @@ class TerminalInteractionTests(unittest.TestCase):
         event=QWheelEvent(QPointF(point),QPointF(self.view.terminal.mapToGlobal(point)),
             QPoint(),QPoint(0,delta),Qt.NoButton,modifiers,Qt.NoScrollPhase,False)
         APP.sendEvent(self.view.terminal,event);APP.processEvents()
+    def test_colored_wide_character_background_is_consistent_when_selected(self):
+        line='\u4e2d'*8
+        self.feed(('\x1b[31;44m'+line+'\x1b[0m\r\n').encode('utf-8'))
+        metrics=QFontMetrics(self.view.terminal.font())
+        width=metrics.horizontalAdvance('W');y=metrics.height()-1
+        def check_background():
+            image=self.view.terminal.grab().toImage()
+            for index in range(8):
+                left=image.pixelColor((2*index)*width+1,y)
+                right=image.pixelColor((2*index+1)*width+1,y)
+                self.assertEqual(left,right,'A wide character has two background colors')
+        check_background()
+        self.control(action='selectAll')
+        check_background()
+        self.assertIn(line,self.view.terminal_text(True))
+        self.control(action='reset')
+        self.feed(('\x1b[31;44m'+(line+'\r\n')*100+'\x1b[0m').encode('utf-8'))
+        self.view.terminal.findChild(QScrollBar).setValue(0)
+        self.control(action='selectAll')
+        check_background()
+        self.assertIn(line,self.view.terminal_text(True))
+
     def test_wide_history_restores_background_after_font_resize(self):
         line='\u4f1a\u8bdd\u65e5\u5fd7 /root/cap/ \u7ed3\u675f '*4
         self.feed(('\x1b[32m'+(line+'\r\n')*100+'\x1b[0m').encode('utf-8'))
@@ -60,11 +84,37 @@ class TerminalInteractionTests(unittest.TestCase):
         self.wheel()
         self.assertLess(bar.value(),before);self.assertEqual(self.bridge.sent,[])
     def test_tmux_wheel_reports_mouse_but_ctrl_wheel_only_zooms(self):
+        self.control(action='scrollMode',remote=True)
         self.feed(b'\x1b[?1049h\x1b[?1000h\x1b[?1006h')
         self.wheel()
         self.assertTrue(any(value.startswith('\x1b[<64;') for value in self.bridge.sent))
         self.bridge.sent.clear();self.wheel(modifiers=Qt.ControlModifier)
         self.assertEqual(self.bridge.sent,[]);self.assertEqual(self.bridge.zoomed,[1])
+    def test_plain_wheel_uses_local_history_even_with_remote_mouse_enabled(self):
+        self.feed(b'\r\n'.join(('line%03d'%i).encode() for i in range(100)))
+        self.feed(b'\x1b[?1000h\x1b[?1006h')
+        bar=self.view.terminal.findChild(QScrollBar);before=bar.value()
+        self.wheel()
+        self.assertLess(bar.value(),before)
+        self.assertEqual(self.bridge.sent,[])
+
+    def test_remote_scrollbar_tracks_history_and_never_types_commands(self):
+        self.control(action='scrollMode',remote=True)
+        self.feed(b'\\x1b[?1049h\\x1b[?1000h\\x1b[?1006h')
+        bar=self.view.remote_bar
+        self.assertTrue(bar.isVisible())
+        self.view.remote_scroll_state(100,25)
+        self.assertTrue(bar.isEnabled())
+        self.assertEqual(bar.value(),7500)
+        self.assertEqual(self.bridge.scrolls,[])
+        bar.setValue(2000)
+        self.assertEqual(self.bridge.scrolls,[2000])
+        self.assertEqual(self.bridge.sent,[])
+        self.control(action='state',connected=False)
+        self.assertFalse(bar.isEnabled())
+        self.control(action='scrollMode',remote=False)
+        self.assertFalse(bar.isVisible())
+
     def test_tmux_mouse_mode_keeps_local_selection(self):
         self.feed(b'\x1b[?1049h\x1b[?1000h\x1b[?1006hselect this text')
         for kind,point,button,buttons in (

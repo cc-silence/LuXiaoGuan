@@ -81,6 +81,7 @@ class CaptureAdmissionTests(unittest.TestCase):
     def setUp(self):
         from modules.capture_services.backends.openwrt_backend import OpenWrtCaptureBackend
         self.backend=object.__new__(OpenWrtCaptureBackend)
+        self.backend.reconnect_cleanup=Mock()
         self.backend.command_runner=Mock()
         self.backend._phy_supports_band=Mock(return_value=True)
         self.backend._phy_supports_channel=Mock(return_value=True)

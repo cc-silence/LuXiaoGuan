@@ -109,6 +109,9 @@ class PacketCapturePage(QFrame):
         self._pending_wps_pins = []
         self._wps_pin_dialog_open = False
         self.capture_service.takeoverProbeFinished.connect(self._on_takeover_probe_finished)
+        self.capture_service.wpadUpgradeSuggested.connect(self._prompt_wpad_upgrade)
+        self.capture_service.dependency_service.wpadUpgradeFinished.connect(
+            self._on_wpad_upgrade_finished)
         # 射频预检的待认领请求（probe_id, 设置副本, 勾选快照），结果过期直接丢弃。
         self._pending_takeover_probe = None
         self.capture_service.messageGenerated.connect(self.info_panel.append_info)
@@ -284,6 +287,9 @@ class PacketCapturePage(QFrame):
             self._start_openwrt_wps(
                 {"normal": "normal", "quick": "second", "offline": "offline"}.get(dialog_mode, "normal"), entry="advanced"
             )
+            return
+        if action == "wpad_upgrade":
+            self._prompt_wpad_upgrade()
             return
         if action.startswith("capture_dependency:"):
             from .packet_capture.openwrt.dependency_actions import operate_capture
@@ -561,9 +567,17 @@ class PacketCapturePage(QFrame):
             self.info_panel.append_info(message, "warning")
             MessageDialog("请选择目标", message, self).exec()
             return
+        from modules.capture_services.openwrt.handshake_targets import has_valid_channel
         target_points = [
-            point for point in snapshot.access_points if point.bssid in selected
+            point for point in snapshot.access_points
+            if point.bssid in selected and has_valid_channel(point)
         ]
+        skipped = len(selected) - len(target_points)
+        if skipped:
+            self.info_panel.append_info(
+                f"已跳过 {skipped} 个信道错误的信号，其他目标继续。", "warning")
+        if not target_points:
+            return
         from modules.capture_services.openwrt.models import AccessPointCaptureState
         if all(point.capture_state == AccessPointCaptureState.CAPTURED for point in target_points):
             self.info_panel.append_info(
@@ -603,8 +617,10 @@ class PacketCapturePage(QFrame):
             self.info_panel.append_info("检测期间目标选择已变化，请重新开始定向任务。", "warning")
             return
         by_bssid = {str(entry.bssid).upper(): entry for entry in entries or ()}
+        from modules.capture_services.openwrt.handshake_targets import has_valid_channel
         target_points = [
-            point for point in snapshot.access_points if point.bssid in selected
+            point for point in snapshot.access_points
+            if point.bssid in selected and has_valid_channel(point)
         ]
         failed = []
         takeovers = []
@@ -795,17 +811,82 @@ class PacketCapturePage(QFrame):
         if not self.capture_service.capture_openwrt_password_async(settings, selected):
             self.info_panel.append_info("当前任务条件不满足或已有任务运行，不能开始猜密码。", "warning")
 
+    def _prompt_wpad_upgrade(self):
+        """抓包界面的独立入口：两步确认后升级完整版 wpad。"""
+
+        if self.capture_service.task_controller.busy:
+            self.info_panel.append_info("已有任务在运行，请等结束后再升级无线组件。", "warning")
+            return
+        support = str(getattr(
+            self.capture_service.openwrt_snapshot, "wps_system_support", "") or "")
+        if support != "basic":
+            if support == "full":
+                self.info_panel.append_info("当前无线组件已是完整版，无需升级。", "info")
+            else:
+                self.info_panel.append_info(
+                    "还不能确认无线组件是不是精简版；请先登录路由器，再点升级入口。",
+                    "warning")
+            return
+        first = ConfirmDialog(
+            "系统 WPS 需要完整版无线组件",
+            "当前路由器的无线组件是精简版，不含 WPS 功能。\n\n"
+            "可以把它换成完整版，换好后系统 WPS 就能像手机一样发送 PIN。"
+            "也可以用原来的 reaver 方式，不需要改路由器。",
+            self,
+            yes_text="看看怎么升级",
+            no_text="先不用",
+        )
+        if first.exec() != ConfirmDialog.Accepted:
+            return
+        risk = ConfirmDialog(
+            "升级无线组件的风险",
+            "这一步会替换路由器上的无线组件（wpad），不是普通软件安装：\n\n"
+            "1. 升级瞬间 2.4G 和 5G 会短暂重启，所有 Wi-Fi 设备都会掉线重连。\n"
+            "2. 必须用网线登录路由器；走 Wi-Fi 会当场断线，没法确认结果。\n"
+            "3. 最坏情况无线组件暂时不可用，需要在电脑上用网线 SSH 登录后回滚。\n"
+            "4. 软件会先备份配置和原精简包，失败时自动装回；不会动引导、内核和固件。\n\n"
+            "生产环境正在用的路由器不建议升级；普通家用、可随时插网线处理再考虑。",
+            self,
+            yes_text="我已插好网线，开始升级",
+            no_text="取消",
+        )
+        if risk.exec() != ConfirmDialog.Accepted:
+            return
+        if not self.capture_service.dependency_service.upgrade_wpad_async():
+            self.info_panel.append_info(
+                self.capture_service.dependency_service.last_rejection_reason
+                or "升级任务没有启动，请稍后重试。", "warning")
+
+    def _on_wpad_upgrade_finished(self, success, message):
+        """升级结束时在抓包页给出结论，不只写到依赖信息窗。"""
+
+        level = "success" if success else "warning"
+        self.info_panel.append_info(message, level)
+        if success:
+            return
+        MessageDialog("无线组件升级未完成", message, self).exec()
+
     def _prompt_quick_wps(self):
         """Ask for per-candidate seconds and online rounds before a quick WPS task."""
         defaults = (self.settings.get("openwrt", {}) or {}).get("wps_defaults", {}) or {}
         from .packet_capture.openwrt.quick_wps_dialog import QuickWpsDialog
-        dialog = QuickWpsDialog(defaults, self, clear_callback=self._clear_remembered_wps_pins)
+        snapshot = self.capture_service.openwrt_snapshot
+        upgrade_available = (snapshot.connection_state.value == "connected"
+            and not self.capture_service.task_controller.busy
+            and getattr(snapshot, "wps_system_support", "") == "basic")
+        dialog = QuickWpsDialog(defaults, self, clear_callback=self._clear_remembered_wps_pins,
+            upgrade_available=upgrade_available)
         try:
-            if dialog.exec() != QuickWpsDialog.Accepted:
-                return
-            values = dialog.get_settings()
+            outcome = dialog.exec()
+            if outcome == QuickWpsDialog.Accepted:
+                values = dialog.get_settings()
         finally:
             dialog.deleteLater()
+        if outcome == QuickWpsDialog.UpgradeRequested:
+            self._prompt_wpad_upgrade()
+            return
+        if outcome != QuickWpsDialog.Accepted:
+            return
         openwrt = self.settings.setdefault("openwrt", {})
         wps = openwrt.setdefault("wps_defaults", {})
         wps.update(values)

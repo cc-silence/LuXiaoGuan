@@ -446,6 +446,10 @@ class RemoteProcessManager:
                     break
             if cancel_event is not None and cancel_event.is_set():
                 break
+        from .process_stop_verification import confirm_stopped
+        if confirm_stopped(self, handle):
+            self.forget(handle.session_id)
+            return True
         raise RuntimeError(
             f"停止远端 {handle.program} 失败：{last_detail}。"
             "已保留进程恢复记录，请保持设备在线后重试清理。"

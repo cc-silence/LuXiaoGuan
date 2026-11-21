@@ -49,6 +49,7 @@ def _looks_like_network(message):
 
 
 _REASONS = {
+    "monitor": "监听模式：仅支持删除配置。",
     "mode": "此无线模式不支持启停，仅展示配置。",
     "anonymous": "匿名配置不能稳定定位；请在路由器管理界面处理。",
     "radio": "父 radio 无法唯一识别，请检查无线配置。",
@@ -409,7 +410,9 @@ class RouterSignalManager:
                 if item["running"] not in {"active", "inactive", "unknown"}:
                     raise ValueError()
                 reason = _REASONS.get(item["reason"], "设备返回不支持的配置，请在路由器管理界面处理。") if item["reason"] else ""
-                if item["mode"] not in {"ap", "sta"}:
+                if item["mode"] == "monitor" and item["reason"] == "mode":
+                    reason = _REASONS["monitor"]
+                elif item["mode"] not in {"ap", "sta"} and not reason:
                     reason = _REASONS["mode"]
                 if not re.fullmatch(r"[A-Za-z0-9_]+", item["section"]):
                     reason = _REASONS["anonymous"]

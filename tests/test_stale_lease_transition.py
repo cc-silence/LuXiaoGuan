@@ -33,12 +33,12 @@ class StaleLeaseTests(unittest.TestCase):
         self.assertEqual(request.call_count,2)
         self.assertEqual(sum(r['reason']=='old_lease_retained' for r in records),1)
         self.assertEqual(records[-1]['reason'],'address_ready')
-        self.assertEqual(elapsed,0)
+        self.assertEqual(elapsed,5)
 
-    def test_persistent_old_server_does_not_loop_or_reset_deadline(self):
+    def test_persistent_old_server_retries_until_deadline(self):
         result,request,_,elapsed=self.run_case(stays_old=True)
         self.assertIsInstance(result,TimeoutError)
-        self.assertEqual(request.call_count,2)
+        self.assertEqual(request.call_count,5)
         self.assertEqual(elapsed,30)
 
     def test_failed_request_is_observed_without_replay(self):

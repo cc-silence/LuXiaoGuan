@@ -90,6 +90,31 @@ class NativeWindowVisibilityTests(unittest.TestCase):
         finally:
             window.window_frame.show()
 
+    def test_filled_screen_corners_are_square_and_restore_to_round(self):
+        from pathlib import Path
+        from PySide6.QtGui import QPalette
+        output = Path("build/windows-surface-review")
+        output.mkdir(parents=True, exist_ok=True)
+        for theme in ("dark.qss", "light.qss"):
+            self.window.apply_appearance(100, "default", theme)
+            for show in (self.window.showMaximized, self.window.showFullScreen):
+                show()
+                standalone.APP.processEvents()
+                self.assertTrue(self.window.window_frame.property("windowSquare"))
+                self.assertTrue(self.window.title_bar.property("windowSquare"))
+                self.assertTrue(self.window.mask().contains(self.window.rect().topLeft()))
+                self.assert_presented()
+                frame = self.window.window_frame
+                image = frame.grab().toImage()
+                expected = self.window.title_bar.palette().color(QPalette.Window)
+                self.assertEqual(image.pixelColor(2, 2), expected)
+                self.assertTrue(self.window.grab().save(str(output / (theme + "-square.png"))))
+                self.window.showNormal()
+                standalone.APP.processEvents()
+                self.assertFalse(self.window.window_frame.property("windowSquare"))
+                self.assertFalse(self.window.mask().contains(self.window.rect().topLeft()))
+                self.assert_presented()
+
     def test_actual_presentation_survives_theme_and_restore(self):
         for theme in ("dark.qss", "light.qss"):
             self.window.apply_appearance(100, "default", theme)

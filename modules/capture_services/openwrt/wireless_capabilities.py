@@ -4,7 +4,7 @@ from .wireless_options import AP_ADVANCED, RADIO_KEYS
 
 RADIO_SETTINGS = tuple(dict.fromkeys(("channel", "htmode", "country", "txpower", *RADIO_KEYS)))
 IFACE_SETTINGS = tuple(dict.fromkeys(("mode", "ssid", "encryption", "hidden", "isolate", "maxassoc",
-    "wmm", "ieee80211w", "dtim_period", "bssid", "macaddr", *(o.key for o in AP_ADVANCED if o.scope == "iface"))))
+    "wmm", "ieee80211w", "dtim_period", "bssid", "macaddr", "ifname", *(o.key for o in AP_ADVANCED if o.scope == "iface"))))
 
 
 def option_supported(radio, key):

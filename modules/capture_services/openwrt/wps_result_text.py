@@ -9,7 +9,20 @@ def result_message(entry):
         message, level = "\u5df2\u627e\u5230 PIN\uff0c\u6682\u672a\u53d6\u5f97 Wi-Fi \u5bc6\u7801\u3002", "success"
     else:
         level = "warning"
-        if "\u4e1a\u52a1\u63a5\u53e3" in note and "\u672c\u6b21\u5c1a\u672a\u6388\u6743" in note:
+        unavailable = str(getattr(entry, "unavailable_reason", "") or "").strip()
+        if unavailable:
+            kind = str(getattr(entry, "unavailable_kind", "") or "")
+            if kind == "basic_wpad":
+                message = ("当前路由器的无线组件是精简版，不支持系统 WPS。"
+                           "请改回 reaver，或升级完整版 wpad 后再试。")
+            else:
+                first = unavailable.splitlines()[0].strip()
+                if len(first) > 120:
+                    first = first[:117] + "..."
+                message = f"系统 WPS 用不了：{first}"
+                if "reaver" not in message:
+                    message += "请改回 reaver 后重试。"
+        elif "\u4e1a\u52a1\u63a5\u53e3" in note and "\u672c\u6b21\u5c1a\u672a\u6388\u6743" in note:
             message = "\u672a\u542f\u52a8\uff1a\u6240\u9009\u65e0\u7ebf\u7f51\u5361\u6b63\u5728\u4f7f\u7528\uff0c\u672c\u6b21\u672a\u786e\u8ba4\u4e34\u65f6\u63a5\u7ba1\u3002"
         elif "\u5df2\u9501\u5b9a" in note and not entry.tried_seconds:
             message = "\u8def\u7531\u5668 WPS \u5df2\u9501\u5b9a\uff0c\u5df2\u8df3\u8fc7\u3002"

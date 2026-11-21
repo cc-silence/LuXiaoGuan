@@ -19,7 +19,7 @@ from modules.capture_services.password_target_status import begin,finish,apply_u
 from modules.main_pages.packet_capture.openwrt.access_point_table import AccessPointTable
 from modules.ui_scale_manager import UiScaleManager
 
-POINTS=tuple(AccessPointInfo('02:11:22:33:44:'+format(i,'02X'),ssid='Target '+str(i),encryption='WPA2-PSK',selected=True) for i in range(1,7))
+POINTS=tuple(AccessPointInfo('02:11:22:33:44:'+format(i,'02X'),ssid='Target '+str(i),encryption='WPA2-PSK',channel=6,selected=True) for i in range(1,7))
 class Service(QObject):
     _publish_failure = CaptureService._publish_failure
     openwrtSnapshotChanged=Signal(object)

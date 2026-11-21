@@ -74,14 +74,16 @@ def prepare_takeover(takeover, ssh, workspace, session_id, phy, cancel_event,
         return record
 
 
-def restore_takeover(takeover, ssh, workspace, record, cancel_event=None, notify=None):
-    """Return every restore/audit/persistence error; retain recovery on uncertainty."""
+def restore_takeover(takeover, ssh, workspace, record, cancel_event=None, notify=None,
+                     warning_callback=None):
+    """Attempt radio restore after owned resources are cleared; retain precise results."""
     with takeover_transaction(cancel_event):
         if record is None:
             record = takeover.pending_record
         if record is None:
             return []
         errors = []
+        warnings = []
         journals = []
         fingerprint = ""
         try:
@@ -90,39 +92,60 @@ def restore_takeover(takeover, ssh, workspace, record, cancel_event=None, notify
                 if data.get("config_token") == record.config_token:
                     journals.append((path, data))
                     fingerprint = str(data.get("device_fingerprint", ""))
-            if not journals or not fingerprint or fingerprint != ssh.host_fingerprint:
-                raise RuntimeError("恢复记录与当前设备身份未核实，未执行恢复。")
+            if (not journals or not fingerprint or fingerprint != ssh.host_fingerprint
+                    or str(record.session_id) != str(workspace.session_id)
+                    or any(str(data.get("session_id", "")) != str(workspace.session_id)
+                           or str(data.get("device_fingerprint", "")) != fingerprint
+                           for _, data in journals)):
+                raise RuntimeError("\u6062\u590d\u8bb0\u5f55\u4e0e\u5f53\u524d\u8bbe\u5907\u8eab\u4efd\u672a\u6838\u5b9e\uff0c\u672a\u6267\u884c\u6062\u590d\u3002")
             if not ssh.connected:
-                raise RuntimeError("SSH 已断开，恢复记录已保留，请重新连接后核实。")
-            takeover.restore(record, cancel_event=cancel_event)
-            note = takeover.audit_restore(record, cancel_event=cancel_event)
-            if note:
-                errors.append(str(note))
-            if not errors and notify is not None:
-                if not notify(cancel_event):
-                    errors.append("无线恢复已核对，但页面状态同步未完成。")
+                raise RuntimeError("SSH \u5df2\u65ad\u5f00\uff0c\u6062\u590d\u8bb0\u5f55\u5df2\u4fdd\u7559\u3002")
+            try:
+                takeover.restore(record, cancel_event=cancel_event)
+                note = takeover.audit_restore(record, cancel_event=cancel_event)
+                if note:
+                    warnings.append(str(note))
+            except Exception as exc:
+                if not ssh.connected or (cancel_event is not None and cancel_event.is_set()):
+                    raise
+                warnings.append(str(exc) or type(exc).__name__)
+            if notify is not None:
+                try:
+                    synced = notify(cancel_event)
+                except Exception:
+                    if not ssh.connected or (cancel_event is not None and cancel_event.is_set()):
+                        raise
+                    synced = False
+                if not synced:
+                    warnings.append("\u4fe1\u53f7\u72b6\u6001\u540c\u6b65\u672a\u5b8c\u6210\uff0c\u8bf7\u5237\u65b0\u67e5\u770b\u3002")
         except Exception as exc:
             errors.append(str(exc) or type(exc).__name__)
+        status = "pending" if errors else "released" if warnings else "restored"
         report = workspace.local_dir / "takeover-restore-audit.txt"
         try:
-            report.write_text("\n".join(errors) + "\n" if errors else
-                              "无线配置和运行接口已恢复，恢复后检查通过。\n", encoding="utf-8")
+            message = "\n".join(errors or warnings) if (errors or warnings) else "\u65e0\u7ebf\u914d\u7f6e\u548c\u8fd0\u884c\u63a5\u53e3\u5df2\u6062\u590d\uff0c\u6062\u590d\u540e\u68c0\u67e5\u901a\u8fc7\u3002"
+            report.write_text(message + "\n", encoding="utf-8")
             receipt = {"config_token": record.config_token, "device_fingerprint": fingerprint,
-                       "radio": record.radio, "status": "pending" if errors else "restored"}
+                       "radio": record.radio, "status": status}
             path = workspace.local_dir / "takeover-recovery-result.json"
             temporary = path.with_suffix(".json.part")
             temporary.write_text(json.dumps(receipt, ensure_ascii=True), encoding="utf-8")
             temporary.replace(path)
             if not errors:
                 for path, data in journals:
-                    data["cleanup_stage"] = "restored"
+                    data["cleanup_stage"] = status
                     temporary = path.with_suffix(".json.part")
                     temporary.write_text(json.dumps(data, ensure_ascii=True), encoding="utf-8")
                     temporary.replace(path)
         except (OSError, ValueError, TypeError) as exc:
-            errors.append("恢复检查记录保存失败：" + str(exc))
+            errors.append("\u6062\u590d\u68c0\u67e5\u8bb0\u5f55\u4fdd\u5b58\u5931\u8d25\uff1a" + str(exc))
         if errors:
             takeover.pending_record = record
-        elif takeover.pending_record == record:
-            takeover.pending_record = None
+        else:
+            pending = takeover.pending_record
+            if (pending is not None and pending.session_id == record.session_id
+                    and pending.config_token == record.config_token and pending.radio == record.radio):
+                takeover.pending_record = None
+            if warnings and warning_callback is not None:
+                warning_callback("\u91c7\u96c6\u8fdb\u7a0b\u548c\u4e34\u65f6\u65e0\u7ebf\u63a5\u53e3\u5df2\u6e05\u7406\uff0c\u65e0\u7ebf\u4fe1\u53f7\u672a\u80fd\u5b8c\u5168\u6062\u590d\uff1b\u5df2\u4fdd\u7559\u5f53\u524d\u8bbe\u7f6e\uff0c\u8bf7\u5728\u4fe1\u53f7\u7ba1\u7406\u4e2d\u6838\u5bf9\u5e76\u6309\u9700\u5f00\u542f\u3002\u539f\u56e0\uff1a" + "\uff1b".join(warnings))
         return errors

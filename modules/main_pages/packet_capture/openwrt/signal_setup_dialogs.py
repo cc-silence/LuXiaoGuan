@@ -253,7 +253,7 @@ class RelaySetupDialog(_SetupDialog):
         group, layout = self._basic("中继连接", primary=True)
         self._basic_layout = layout
         self.name_edit = text_input(group, ssid, "例如：客厅上级网络")
-        self.target_label = hint(ssid or "隐藏网络", group)
+        self.target_label = text_input(group, ssid) if row else hint(ssid or "隐藏网络", group)
         add_field(layout, group, "信号名称", self.target_label, "实际连接的网络。")
         self.connection_label = hint("当前连接：" + (row.running if row else "待保存"), group)
         layout.addWidget(self.connection_label)
@@ -270,7 +270,11 @@ class RelaySetupDialog(_SetupDialog):
         self.lock_bssid = add_field(layout, page, "锁定到 BSSID", ConfigCheckBox(page),
             "BSSID 是接入点的无线地址。启用锁定时，只连接扫描选中的接入点；解除锁定后允许连接同名 Wi-Fi。")
         self.lock_bssid.configure("1", preserve=False)
+        self.current_bssid = add_field(layout, page, "上级无线地址", text_input(page), "")
+        self.current_encryption = add_field(layout, page, "加密方式", choice(page, ()), "")
         page, layout = self.other_tabs.pages["网络设置"]
+        self.current_network = add_field(layout, page, "当前关联网络", hint("", page), "")
+        self.uplink_network = add_field(layout, page, "更换关联网络", choice(page, ()), "选择已存在的网络；不修改该网络的地址和防火墙设置。")
         self.bridge_mode = add_field(layout, page, "连接方式", choice(page, (
             ("无线上网（独立子网）", "routed"),
             ("WDS 透明桥接", "wds"),
@@ -290,9 +294,13 @@ class RelaySetupDialog(_SetupDialog):
         self.bridge_mode.currentIndexChanged.connect(self._network_mode_changed)
         self._network_mode_changed()
         page, layout = self.other_tabs.pages["高级选项"]
+        self.interface_name = add_field(layout, page, "无线接口名称", text_input(page), "留空使用系统自动生成的接口名称。")
+        self.management = add_field(layout, page, "管理帧保护", choice(page, (("沿用当前", None), ("关闭", "0"), ("可选", "1"), ("必需", "2"))), "无线管理帧保护，需要与上级的加密设置兼容。")
         self.zone = add_field(layout, page, "防火墙区域", choice(page, ()), "通常使用现有 wan 区域，沿用其转发和地址转换规则。")
         self.metric_edit = add_field(layout, page, "网关跃点", text_input(page, placeholder="留空沿用系统设置"),
             "多条上网线路同时存在时数值越小越优先。")
+        self.uplink_network.currentIndexChanged.connect(self._network_mode_changed)
+        self._network_mode_changed()
         page, layout = self.other_tabs.pages["设备身份"]
         self.identity_fields = IdentityFields(page, layout, self.bridge_mode)
         self.form.addWidget(hint("这是连接上级网络的设置；需要分享 Wi-Fi 时，在“发射信号”中新增。", self.body))
@@ -300,7 +308,11 @@ class RelaySetupDialog(_SetupDialog):
 
     def _network_mode_changed(self):
         mode = self.bridge_mode.currentData()
+        self.uplink_network.setVisible(bool(self.row) and mode == "routed")
+        self.uplink_network._form_label.setVisible(bool(self.row) and mode == "routed")
         self.bridge_network.setEnabled(mode != "routed")
+        self.bridge_network.setVisible(mode != "routed")
+        self.bridge_network._form_label.setVisible(mode != "routed")
         self.relay_ip.setEnabled(mode == "relayd")
         self.protocol.setEnabled(mode != "wds")
         manual = mode != "wds" and self.protocol.currentData() == "static"
@@ -311,6 +323,17 @@ class RelaySetupDialog(_SetupDialog):
         }.get(mode, ""))
         for field in (self.address, self.netmask, self.gateway):
             field.setEnabled(manual)
+        switching = bool(self.row) and mode == "routed" and self.uplink_network.currentData() is not None
+        for field in (self.protocol, self.address, self.netmask, self.gateway, self.dns):
+            field.setVisible(not switching)
+            field._form_label.setVisible(not switching)
+        for name in ("zone", "metric_edit"):
+            field = getattr(self, name, None)
+            if field is not None:
+                field.setVisible(not switching)
+                field._form_label.setVisible(not switching)
+        if switching:
+            self.bridge_hint.setText("\u4fdd\u5b58\u540e\u91cd\u65b0\u6253\u5f00\uff0c\u53ef\u67e5\u770b\u6240\u9009\u7f51\u7edc\u7684\u5730\u5740\u4e0e\u9632\u706b\u5899\u8bbe\u7f6e\u3002")
 
 
 class RelayPasswordDialog(_SetupDialog):

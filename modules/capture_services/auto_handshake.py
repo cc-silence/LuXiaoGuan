@@ -58,8 +58,8 @@ class AutoHandshakeRequest:
         if band not in {"2.4G", "5G"}:
             raise ValueError("自动扫描频段无效，请选择 2.4G 或 5G。")
         try:
-            scan = max(5, min(int(settings.get("scan_seconds", 24)), 120))
-            capture = max(5, min(int(settings.get("idle_timeout_seconds", 180)) or 180, 3600))
+            scan = max(5, min(int(settings.get("scan_seconds", 60)), 120))
+            capture = max(5, min(int(settings.get("idle_timeout_seconds", 60)) or 60, 3600))
             refresh = max(1, min(int(settings.get("refresh_seconds", 10)), scan))
         except (TypeError, ValueError, OverflowError) as exc:
             raise ValueError("自动抓包时间无效，请重新设置扫描时间和单目标超时。") from exc

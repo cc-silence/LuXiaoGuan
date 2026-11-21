@@ -57,25 +57,53 @@ def checked_package(name, version, metadata, files=()):
     return InstalledPackage(name, version, metadata, tuple(dict.fromkeys(files)))
 
 
-def parse_opkg(text, file_lists=None, *, require_clean=False):
+class OpkgRecordError(ValueError):
+    """Malformed opkg record with bounded, value-free diagnostic context."""
+
+
+def _opkg_record_error(paragraph, number, line_number, key, reason, line=""):
+    known_fields = {"Package", "Version", "Status", "Architecture", "Depends",
+                    "Provides", "Description", "Installed-Time", "Auto-Installed",
+                    "Conffiles", "Source", "Maintainer", "Section", "Essential"}
+    candidates = [line.partition(":")[2].strip() for line in paragraph.splitlines()
+                  if line.startswith("Package:")]
+    package = candidates[0] if len(candidates) == 1 else ""
+    if not package or len(package) > 100 or not NAME.fullmatch(package):
+        package = "无法确定"
+    field = key if key in known_fields else "未知"
+    label = "上一字段" if reason == "字段行缺少冒号" else "字段"
+    shape = "有缩进" if line[:1].isspace() else "无缩进"
+    return OpkgRecordError(
+        "opkg 已安装软件清单格式无法解析："
+        f"第 {number} 条，记录内第 {line_number} 行，"
+        f"软件包 {package}，{label} {field}，原因：{reason}，该行{shape}。")
+
+
+def parse_opkg(text, file_lists=None, *, require_clean=False, control_record=False):
+    if require_clean and control_record:
+        raise ValueError("Control records cannot verify installed database state")
     result = {}
-    for paragraph in re.split(r"\n\s*\n", text.strip()):
+    # A whitespace-only continuation line belongs to the preceding field.
+    # Only a truly empty line separates opkg records.
+    for number, paragraph in enumerate(re.split(r"\n\n+", text.replace("\r\n", "\n").strip()), 1):
         if not paragraph.strip():
             continue
         fields, last = {}, None
-        for line in paragraph.splitlines():
+        for line_number, line in enumerate(paragraph.splitlines(), 1):
             if line[:1].isspace() and last:
                 fields[last] += "\n" + line
                 continue
             key, sep, value = line.partition(":")
-            if not sep or key in fields:
-                raise ValueError("Invalid opkg database record")
+            if not sep:
+                raise _opkg_record_error(paragraph, number, line_number, last, "字段行缺少冒号", line)
+            if key in fields:
+                raise _opkg_record_error(paragraph, number, line_number, key, "字段重复", line)
             fields[key], last = value.strip(), key
         status = fields.get("Status", "").split()
         if require_clean and (len(status) != 3 or "reinstreq" in status
                               or status[-1] not in {"installed", "not-installed", "config-files"}):
             raise ValueError("Pending package operation must be resolved first: " + fields.get("Package", "?"))
-        if status[-1:] != ["installed"]:
+        if not control_record and status[-1:] != ["installed"]:
             continue
         pkg = checked_package(fields.get("Package", ""), fields.get("Version", ""), fields)
         if file_lists is not None:
@@ -191,7 +219,7 @@ def restore_selection(rows, installed):
             # Keep the existing package; the native solver validates version constraints.
             skipped.append(row["name"])
         elif row.get("builtin"):
-            raise ValueError("Firmware dependency is missing: " + row["name"])
+            raise ValueError("\u65e7\u4f9d\u8d56\u5907\u4efd\u672a\u5305\u542b\u56fa\u4ef6\u5185\u7f6e\u7ec4\u4ef6\u7684\u5b89\u88c5\u6587\u4ef6\uff0c\u5f53\u524d\u7f3a\u5c11\uff1a" + row["name"] + "\u3002\u8bf7\u5148\u4ece\u4e0e\u5f53\u524d\u56fa\u4ef6\u5339\u914d\u7684\u8f6f\u4ef6\u6e90\u6216\u79bb\u7ebf\u4f9d\u8d56\u5305\u5b89\u88c5\u8be5\u7ec4\u4ef6\uff0c\u518d\u91cd\u8bd5\u6062\u590d\u3002")
         else:
             missing.append(row["name"])
     return tuple(missing), tuple(skipped)

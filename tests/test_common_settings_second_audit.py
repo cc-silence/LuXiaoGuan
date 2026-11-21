@@ -60,7 +60,7 @@ class CommonSettingsSecondAuditTests(unittest.TestCase):
             name='ConfirmDialog' if targets else 'MessageDialog'
             with patch('modules.main_pages.packet_capture.openwrt.signal_relocation_actions.'+name) as factory:
                 factory.return_value.exec.return_value=0;factory.Accepted=1
-                RelocationActions._completed(context,WirelessTaskResult('move_preview',dict(targets=targets,preserve_access_points=True,access_points=[])))
+                RelocationActions._completed(context,WirelessTaskResult('move_preview',dict(targets=targets,preserve_access_points=True,access_points=[],rows=[],plan={})))
             factory.return_value.deleteLater.assert_called_once_with()
         context=NS(_waiting=True,page=NS(),_sync=Mock(),_current=Mock(return_value=True))
         with patch('modules.main_pages.packet_capture.openwrt.signal_orphan_actions.MessageDialog') as factory:

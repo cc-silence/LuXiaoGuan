@@ -82,11 +82,11 @@ def client_plan(review,values):
 class RenewalGate:
     def __init__(self,plan):
         self.plan=copy.deepcopy(plan);self.adapters=copy.deepcopy(self.plan["adapters"]);self.lock=threading.Lock();self.busy=False;self.closed=False
-        self.selected_id=None;self.armed=False;self.deadline=0;self.message='';self.attempted=set();self.restoring=False;self.automatic_started=False;self.automatic_enabled=False;self.manual_recommended=False
+        self.selected_id=None;self.armed=False;self.deadline=0;self.message='';self.attempted=set();self.restoring=False;self.automatic_started=False;self.automatic_enabled=False;self.manual_recommended=False;self.reconnect_available=False
     def payload(self):
         with self.lock:
             return dict(control=self,guide=self.restore_guide() if self.restoring else self.plan['guide'],adapters=copy.deepcopy(self.adapters),used=list(self.attempted),
-                        manual_recommended=self.manual_recommended,busy=self.busy,can_renew=self.armed and not self.closed and self.deadline-time.monotonic()>=15,closed=self.closed or not self.armed,message=self.message,selection_required=self.plan.get("selection_required",False))
+                        manual_recommended=self.manual_recommended,reconnect_available=self.reconnect_available,busy=self.busy,can_renew=self.armed and not self.closed and self.deadline-time.monotonic()>=15,closed=self.closed or not self.armed,message=self.message,selection_required=self.plan.get("selection_required",False))
     def start(self,deadline,restoring=False):
         with self.lock:
             self.deadline=deadline;self.closed=False;self.armed=False;self.attempted.clear();self.restoring=restoring;self.automatic_started=False;self.automatic_enabled=False;self.manual_recommended=False
@@ -115,7 +115,8 @@ class RenewalGate:
             self.selected_id=identity;self.busy=True;self.manual_recommended=False;self.attempted.add(identity);self.message='\u6b63\u5728\u91cd\u65b0\u83b7\u53d6\u6240\u9009\u7f51\u5361\u5730\u5740\uff0c\u8bf7\u7b49\u5f85\u3002'
             selected=copy.deepcopy(row)
             selected["expected_addresses"]=copy.deepcopy(self.plan.get("old_addresses" if self.restoring else "new_addresses",[]))
-            return selected,min(60,self.deadline-time.monotonic()-8)
+            remaining=self.deadline-time.monotonic()-8
+            return selected,min(60,remaining) if 'factory_refresh_defaults' in self.plan else remaining
     def permit(self):
         with self.lock:return self.armed and not self.closed and self.deadline-time.monotonic()>8
     def finish_renewal(self,message,current=None,*,manual_recommended=False):

@@ -18,6 +18,13 @@ class WindowSurface(QObject):
 
     def sync(self):
         window = self.window
+        square = window.isMaximized() or window.isFullScreen()
+        for widget in (window.window_frame, window.title_bar):
+            if widget.property("windowSquare") != square:
+                widget.setProperty("windowSquare", square)
+                widget.style().unpolish(widget)
+                widget.style().polish(widget)
+                widget.update()
         style = window.styleSheet()
         color = QColor(window.window_frame.palette().color(QPalette.Window))
         color.setAlpha(255)
@@ -29,6 +36,8 @@ class WindowSurface(QObject):
         try:
             radius = max(0.0, float(value.removesuffix("px").strip()))
         except ValueError:
+            radius = 0.0
+        if square:
             radius = 0.0
         rect = window.window_frame.geometry()
         key = (rect.x(), rect.y(), rect.width(), rect.height(), radius)

@@ -60,7 +60,7 @@ class CaptureSettingsPage(QWidget):
     def _build_common_options(self, parent, root, settings):
         """创建通用设置：扫描、常规抓包、WPS 都用；猜密码不受影响。"""
 
-        card, layout = create_capture_card(parent, "通用设置", "扫描、常规抓包和 WPS 使用这些设置。猜密码使用下方的独立设置。")
+        card, layout = create_capture_card(parent, "通用设置")
         self.output_dir = QLineEdit(card)
         self.output_dir.setObjectName("captureLineEdit")
         self.output_dir_button = create_page_icon_button(
@@ -109,20 +109,25 @@ class CaptureSettingsPage(QWidget):
     def _build_handshake_options(self, parent, root, settings):
         """创建常规抓包专用设置：只管手动「常规抓包」按钮。"""
 
-        card, layout = create_capture_card(parent, "常规抓包", "用于勾选目标后的常规抓包。")
+        card, layout = create_capture_card(parent, "常规抓包")
         self.active_deauth = QCheckBox("允许主动断连（默认开启）", card)
         self.active_deauth.setObjectName("captureCheckBox")
         self.active_deauth.setToolTip(
             "只影响常规抓包。开启会让目标设备短暂断网并重新连接，以便抓到连接数据；不想影响正在上网的设备就关闭。仅用于自有或明确授权的网络，开始前会要求确认。部分路由器可能因此断开无线连接，遇到这种情况请关闭。"
         )
         layout.addWidget(self.active_deauth)
+        self.deauth_options = QWidget(card)
+        options_layout = QVBoxLayout(self.deauth_options)
+        options_layout.setContentsMargins(0, 0, 0, 0)
+        options_layout.setSpacing(layout.spacing())
+        layout.addWidget(self.deauth_options)
         self.no_client_observation = DiscreteTickSlider(Qt.Horizontal, card)
-        self.no_client_observation.setRange(20, 90)
+        self.no_client_observation.setRange(5, 60)
         self.no_client_observation.setSingleStep(5)
-        self.no_client_observation.set_tick_configuration(range(20, 91, 5))
+        self.no_client_observation.set_tick_configuration(range(5, 61, 5))
         self.no_client_observation.setTracking(False)
         self.no_client_observation.set_light_theme(detect_light_theme(self))
-        self.no_client_observation.setValue(int(settings.get("no_client_observation_seconds", 30)))
+        self.no_client_observation.setValue(int(settings.get("no_client_observation_seconds", 10)))
         self.no_client_value = QLabel(f"{self.no_client_observation.value()} \u79d2", card)
         self.no_client_value.setObjectName("captureDescription")
         self.no_client_observation.valueChanged.connect(
@@ -137,7 +142,7 @@ class CaptureSettingsPage(QWidget):
         observation_layout.setContentsMargins(0, 0, 0, 0)
         observation_layout.addWidget(self.no_client_observation, 1)
         observation_layout.addWidget(self.no_client_value)
-        layout.addLayout(create_form_row(card, "\u65e0\u5ba2\u6237\u7aef\u89c2\u5bdf\u65f6\u95f4", observation_row, self.no_client_observation.toolTip()))
+        options_layout.addLayout(create_form_row(self.deauth_options, "\u65e0\u5ba2\u6237\u7aef\u89c2\u5bdf\u65f6\u95f4", observation_row, self.no_client_observation.toolTip()))
         self.deauth_batches = DiscreteTickSlider(Qt.Horizontal, card)
         self.deauth_batches.set_tick_configuration(range(1, 21))
         self.deauth_batches.setSingleStep(1)
@@ -155,13 +160,15 @@ class CaptureSettingsPage(QWidget):
         slider_layout.setContentsMargins(0, 0, 0, 0)
         slider_layout.addWidget(self.deauth_batches, 1)
         slider_layout.addWidget(self.deauth_value)
-        layout.addLayout(create_form_row(card, "单次主动断连批次", slider_row, self.deauth_batches.toolTip()))
+        options_layout.addLayout(create_form_row(self.deauth_options, "单次主动断连批次", slider_row, self.deauth_batches.toolTip()))
         self.deauth_batches.setEnabled(self.active_deauth.isChecked())
         self.active_deauth.toggled.connect(self.deauth_batches.setEnabled)
+        self.active_deauth.toggled.connect(self.deauth_options.setVisible)
         self.deauth_batches.valueChanged.connect(lambda _value: self.settingsChanged.emit())
         root.addWidget(card)
         self.active_deauth.setChecked(bool(settings.get("active_deauth", True)))
         self.deauth_batches.setEnabled(self.active_deauth.isChecked())
+        self.deauth_options.setVisible(self.active_deauth.isChecked())
         self.active_deauth.toggled.connect(lambda _checked: self.settingsChanged.emit())
 
     def _refresh_history_button(self):
@@ -179,7 +186,7 @@ class CaptureSettingsPage(QWidget):
     def _build_password_options(self, parent, root, settings):
         """创建在线密码验证的独立设置分组；这里只保存字典路径，不运行验证。"""
 
-        card, layout = create_capture_card(parent, "猜密码设置", "这是会修改路由器无线/网络配置的高风险功能。字典路径只保存位置，执行前必须再次确认并完成备份。")
+        card, layout = create_capture_card(parent, "猜密码设置")
         self.password_dictionary = PasswordDictionaryEditor(card)
         self.password_dictionary.setPlainText("\n".join(dictionary_paths(settings)))
         layout.addWidget(self.password_dictionary)

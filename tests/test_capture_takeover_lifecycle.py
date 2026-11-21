@@ -73,21 +73,46 @@ class TakeoverLifecycleTests(unittest.TestCase):
         with patch.object(Path,'write_text',write),self.assertRaises(RuntimeError):self.prepare()
         self.takeover._config_command.assert_not_called()
 
-    def test_audit_warning_keeps_journal_pending_and_is_written(self):
+    def test_audit_warning_releases_gate_and_remains_visible(self):
         record=self.prepare();self.takeover.audit_restore.return_value='business still missing'
-        errors=restore_takeover(self.takeover,self.ssh,self.workspace,record)
-        self.assertIn('business still missing',errors)
-        self.assertNotEqual(self.journal()['cleanup_stage'],'restored')
-        self.assertIs(self.takeover.pending_record,record)
+        warnings=[]
+        errors=restore_takeover(self.takeover,self.ssh,self.workspace,record,warning_callback=warnings.append)
+        self.assertEqual(errors,[])
+        self.assertEqual(self.journal()['cleanup_stage'],'released')
+        self.assertIsNone(self.takeover.pending_record)
+        self.assertIn('business still missing',warnings[0])
         report=(self.workspace.local_dir/'takeover-restore-audit.txt').read_text(encoding='utf-8')
         self.assertIn('business still missing',report)
         receipt=json.loads((self.workspace.local_dir/'takeover-recovery-result.json').read_text())
-        self.assertEqual(receipt['status'],'pending')
+        self.assertEqual(receipt['status'],'released')
 
-    def test_audit_exception_never_becomes_success(self):
+    def test_audit_exception_is_reported_as_warning_not_restored(self):
         record=self.prepare();self.takeover.audit_restore.side_effect=RuntimeError('probe failed')
-        self.assertIn('probe failed',restore_takeover(self.takeover,self.ssh,self.workspace,record))
-        self.assertNotEqual(self.journal()['cleanup_stage'],'restored')
+        warnings=[]
+        self.assertEqual(restore_takeover(self.takeover,self.ssh,self.workspace,record,warning_callback=warnings.append),[])
+        self.assertIn('probe failed',warnings[0])
+        self.assertEqual(self.journal()['cleanup_stage'],'released')
+
+    def test_restore_conflict_does_not_overwrite_or_block(self):
+        record=self.prepare();self.takeover._config_command.reset_mock()
+        self.takeover._config_command.side_effect=RuntimeError('configuration changed')
+        warnings=[]
+        self.assertEqual(restore_takeover(self.takeover,self.ssh,self.workspace,record,warning_callback=warnings.append),[])
+        self.assertEqual(self.takeover._config_command.call_count,1)
+        self.assertEqual(self.takeover._config_command.call_args.args[0], 'takeover_restore')
+        self.assertIn('configuration changed',warnings[0])
+        self.assertEqual(self.journal()['cleanup_stage'],'released')
+        self.assertIsNone(self.takeover.pending_record)
+
+    def test_lost_connection_during_restore_keeps_gate(self):
+        record=self.prepare()
+        def disconnect(*args, **kwargs):
+            self.ssh.connected=False
+            raise RuntimeError('connection lost')
+        self.takeover._config_command.side_effect=disconnect
+        self.assertTrue(restore_takeover(self.takeover,self.ssh,self.workspace,record))
+        self.assertIsNotNone(self.takeover.pending_record)
+        self.assertNotEqual(self.journal()['cleanup_stage'],'released')
 
     def test_changed_device_never_receives_restore_command(self):
         record=self.prepare();self.takeover._config_command.reset_mock()
@@ -99,6 +124,41 @@ class TakeoverLifecycleTests(unittest.TestCase):
         record=self.prepare();self.takeover._config_command.reset_mock();self.ssh.connected=False
         self.assertTrue(restore_takeover(self.takeover,self.ssh,self.workspace,record))
         self.takeover._config_command.assert_not_called()
+
+    def test_unrelated_task_does_not_restore_old_takeover(self):
+        old = RadioTakeoverRecord('b' * 32, 'radio7', 'phy2', ('business',), 'c' * 32)
+        backend = OpenWrtCaptureBackend()
+        backend.ssh_client = self.ssh
+        backend.radio_takeover.pending_record = old
+        backend.radio_session.restore = Mock()
+        backend._notify_signal_changed = Mock(return_value=True)
+        backend.process_manager.handles = Mock(return_value=())
+        with patch('modules.capture_services.openwrt.capture_takeover.restore_takeover') as restore:
+            self.assertEqual(backend._restore_task_wireless(self.workspace, None), [])
+        restore.assert_not_called()
+        self.assertIs(backend.radio_takeover.pending_record, old)
+
+    def test_monitor_cleanup_failure_retains_takeover_and_blocks_release(self):
+        old = RadioTakeoverRecord(self.workspace.session_id, 'radio7', 'phy2', ('business',), 'c' * 32)
+        backend = OpenWrtCaptureBackend()
+        backend.ssh_client = self.ssh
+        backend.radio_takeover.pending_record = old
+        backend.radio_session.restore = Mock(side_effect=RuntimeError('monitor still present'))
+        backend.process_manager.handles = Mock(return_value=())
+        with patch('modules.capture_services.openwrt.capture_takeover.restore_takeover') as restore:
+            errors = backend._restore_task_wireless(self.workspace, old)
+        self.assertTrue(errors)
+        restore.assert_not_called()
+        self.assertIs(backend.radio_takeover.pending_record, old)
+
+    def test_pending_takeover_blocks_new_task_before_workspace_creation(self):
+        backend = OpenWrtCaptureBackend()
+        backend.ssh_client = self.ssh
+        backend.radio_takeover.pending_record = RadioTakeoverRecord(
+            'b' * 32, 'radio7', 'phy2', ('business',), 'c' * 32)
+        with self.assertRaises(RuntimeError):
+            backend.reconnect_cleanup.require_ready()
+        self.assertIsNotNone(backend.radio_takeover.pending_record)
 
     def test_wrong_radio_ownership_prevents_prepare(self):
         self.takeover.resolve_radio.return_value='radio8'

@@ -14,6 +14,7 @@ class AutoCaptureRecovery:
         self.workspace = None
         self.record = None
         self.fingerprint = ""
+        self.warnings = []
 
     @property
     def report_path(self):
@@ -24,8 +25,9 @@ class AutoCaptureRecovery:
             return True
         try:
             receipt = json.loads((self.workspace.local_dir / "takeover-recovery-result.json").read_text(encoding="utf-8"))
-            confirmed = receipt == {"config_token": self.record.config_token,
-                "device_fingerprint": self.fingerprint, "radio": self.record.radio, "status": "restored"}
+            confirmed = (receipt.get("status") in ("restored", "released") and
+                receipt == {"config_token": self.record.config_token,
+                "device_fingerprint": self.fingerprint, "radio": self.record.radio, "status": receipt.get("status")})
         except (OSError, ValueError, TypeError):
             return False
         if confirmed and self.backend.ssh_client.host_fingerprint == self.fingerprint:
@@ -70,14 +72,16 @@ class AutoCaptureRecovery:
             self.report_path.write_text(f"\u4e34\u65f6\u8d44\u6e90\u505c\u6b62\u672a\u786e\u8ba4{reason}\uff0c\u65e0\u7ebf\u6062\u590d\u6682\u7f13\u3002\n", encoding="utf-8")
             acknowledge_session(self.workspace, False)
             return [f"\u4e34\u65f6\u8d44\u6e90\u505c\u6b62\u672a\u786e\u8ba4{reason}\uff0c\u65e0\u7ebf\u6062\u590d\u6682\u7f13\uff1b\u8bb0\u5f55\u5df2\u4fdd\u7559\u3002"]
+        self.warnings = []
         errors = restore_takeover(self.takeover, self.backend.ssh_client,
                                   self.workspace, self.record, cancel_event=None,
-                                  notify=self.backend._notify_signal_changed)
+                                  notify=self.backend._notify_signal_changed,
+                                  warning_callback=self.warnings.append)
         if not errors:
             self.record = None
             for path in self.workspace.local_dir.glob("takeover-journal*.json"):
                 data = json.loads(path.read_text(encoding="utf-8"))
-                if data.get("cleanup_stage") == "restored":
+                if data.get("cleanup_stage") in ("restored", "released"):
                     path.unlink()
         acknowledge_session(self.workspace, not errors)
         return errors

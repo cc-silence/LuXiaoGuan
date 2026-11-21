@@ -23,7 +23,7 @@ def header_state(row, snapshot, default_text, default_kind):
     if not all(n.association_known for n in networks):
         return unknown
     if not all(n.associated and n.connection_state == 'connected' for n in networks):
-        return enabled, 'ready', ' \u00b7 \u94fe\u63a5\u5931\u8d25', 'blocked', ''
+        return enabled, 'ready', ' \u00b7 \u672a\u8fde\u63a5', 'blocked', ''
     prefix = enabled + ' \u00b7 \u8fde\u63a5\u6210\u529f'
     proofs = [n.internet for n in networks]
     if not all(internet_status_recent(p) for p in proofs):

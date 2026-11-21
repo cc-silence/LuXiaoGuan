@@ -1,6 +1,6 @@
 {
   "qt_version": "6.3.2",
-  "dll_sha256": "71c6c059e8862311cd8f47e4fa2b848b4eb5c0285853ddaab57b2d91cd716cdb",
+  "dll_sha256": "d3e280dbe4f284151689563b23e6f2c0c5040af444f7858361331229a88fe5a5",
   "source_sha256": {
     "adaptations.patch": "40fc81f9becfc6914541e36dfa54afc32c2f73c06da17d05b8700c0a5ced15d3",
     "bridge.cpp": "cc69aa65ff39ab6434bb7c8e2723926d561bcf4258216ce7ce0acc22f0953137",
@@ -500,7 +500,7 @@
     "vendor/libvterm/src/parser.c": "237220e912ab95795f78c013d6734b88080b00595010dab87d11980c24d025af",
     "vendor/libvterm/src/pen.c": "f97dde69a6e7e7f9c3a6fdb7575e965ef9a17077bf196609759f9f181982ca2b",
     "vendor/libvterm/src/rect.h": "8ac51df5e5c7e092b5c3feedc930a5238327f204da50febd3ae635788ba1de06",
-    "vendor/libvterm/src/screen.c": "281bb4244a17e978c1190360d2d51b2ddf48bacd8a4b8a321f9ec326c9fe1565",
+    "vendor/libvterm/src/screen.c": "0924cf4b6a75d36efa386cf38397574b2a6b444a83ffa98a6cd66ed936a659df",
     "vendor/libvterm/src/state.c": "2f37323e09f69d3e9be1a78e316b3ff5fb9922e9030a05e8ac73520c52fe1e26",
     "vendor/libvterm/src/unicode.c": "a3905a313d8825aa95b4e26a8cb72a06c5c88a80c665cdf093ebaa8b874d7026",
     "vendor/libvterm/src/utf8.h": "2a1c6ffd176d2750e077debbd8bc43f9d7b8bd451eb37b7bbe7e7b60ed29a974",

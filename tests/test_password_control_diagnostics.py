@@ -96,6 +96,14 @@ class PasswordDiagnosticTests(unittest.TestCase):
         self.assertEqual(event["control_exit_code"],126)
         self.assertEqual(event["control_transport"],"pty")
 
+    def test_channel_recovery_reasons_survive_feedback_export(self):
+        journal=OperationDiagnostics()
+        reasons=('native_control_lost','native_control_restarted','native_control_restart_failed')
+        for reason in reasons:
+            journal.record('workflow',operation='password_auth',stage='capabilities',status='completed',reason=reason)
+        data=sanitized_operation_evidence(journal.snapshot(),masker_for([]))
+        self.assertTrue(set(reasons)<={row.get('reason') for row in data['workflows']})
+
     def test_runtime_flags_survive_feedback_export(self):
         runner=Mock();runner.operation_diagnostics=OperationDiagnostics()
         runner.run.return_value=RemoteCommandResult("probe",0,json.dumps({

@@ -399,7 +399,7 @@ class PassiveWpsTests(unittest.TestCase):
         from modules.capture_services.signal_list_export import signal_rows
         table = AccessPointTable()
         reader = WpsScanReader(); reader.feed(pcap(beacon(True)))
-        point = AccessPointInfo(MAC, ssid="offline", selected=True)
+        point = AccessPointInfo(MAC, ssid="offline", selected=True, channel=6)
         locked = reader.apply([point])[0]
         table.set_access_points([locked])
         item = table.item(0,6)

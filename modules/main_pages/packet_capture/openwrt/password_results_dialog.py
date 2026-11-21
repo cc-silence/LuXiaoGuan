@@ -86,7 +86,7 @@ class PasswordResultsDialog(FramelessDialog):
         return self.tables[int(self._found)]
 
     def _make_table(self,parent,found):
-        headers = ('\u4fe1\u53f7\u540d\u79f0','MAC','\u6700\u7ec8\u5bc6\u7801') if found else ('\u4fe1\u53f7\u540d\u79f0','MAC','\u7ed3\u679c','\u5df2\u8bd5/\u603b\u6570')
+        headers = ('\u4fe1\u53f7\u540d\u79f0','MAC','\u6700\u7ec8\u5bc6\u7801') if found else ('\u4fe1\u53f7\u540d\u79f0','MAC','\u7ed3\u679c','\u5df2\u8bd5/\u603b\u6570','\u672a\u786e\u8ba4')
         table = QTableWidget(0,len(headers),parent)
         table.setObjectName('captureAccessPointTable')
         table.setProperty('passwordRecords',True)
@@ -109,6 +109,7 @@ class PasswordResultsDialog(FramelessDialog):
         if not found:
             table.setColumnWidth(2,self.scale_manager.px(90))
             table.setColumnWidth(3,self.scale_manager.px(110))
+            table.setColumnWidth(4,self.scale_manager.px(80))
         table.setVerticalScrollBar(AutoHideScrollBar(Qt.Vertical,table))
         table.setHorizontalScrollBar(AutoHideScrollBar(Qt.Horizontal,table))
         table.verticalScrollBar().valueChanged.connect(self._maybe_more)
@@ -132,7 +133,7 @@ class PasswordResultsDialog(FramelessDialog):
             self._seen.clear()
             self.table.clearContents()
             self.table.setRowCount(0)
-            self.hint.setText('\u70b9\u51fb\u6700\u7ec8\u5bc6\u7801\u53ef\u590d\u5236\u3002' if self._found else '\u5404\u5b57\u5178\u8fdb\u5ea6\u5408\u8ba1\uff1b\u672a\u786e\u8ba4\u4e0d\u8ba1\u5165\u5df2\u8bd5\uff1b? \u8868\u793a\u65e7\u8bb0\u5f55\u7f3a\u5c11\u603b\u6570\u3002')
+            self.hint.setText('\u70b9\u51fb\u6700\u7ec8\u5bc6\u7801\u53ef\u590d\u5236\u3002' if self._found else '\u5404\u5b57\u5178\u8fdb\u5ea6\u5408\u8ba1\uff1b\u672a\u786e\u8ba4\u4e0d\u8ba1\u5165\u5df2\u8bd5\uff0c\u4e0b\u6b21\u91cd\u8dd1\u4f1a\u91cd\u65b0\u8bd5\uff1b? \u8868\u793a\u65e7\u8bb0\u5f55\u7f3a\u5c11\u603b\u6570\u3002')
         self._loading = self.reader.load(self._found,self._next_page)
         self.counter.setText('\u6b63\u5728\u8bfb\u53d6\u2026')
         self._sync_buttons()
@@ -156,7 +157,7 @@ class PasswordResultsDialog(FramelessDialog):
             index = self.table.rowCount()
             self.table.insertRow(index)
             added += 1
-            values = (row['ssid'],row['bssid'],row['password'] or '\u7ed3\u679c\u6587\u4ef6\u4e0d\u53ef\u7528') if self._found else (row['ssid'],row['bssid'],LABELS.get(row['state'],(row['state'],''))[0],row['progress'])
+            values = (row['ssid'],row['bssid'],row['password'] or '\u7ed3\u679c\u6587\u4ef6\u4e0d\u53ef\u7528') if self._found else (row['ssid'],row['bssid'],LABELS.get(row['state'],(row['state'],''))[0],row['progress'],str(row.get('unconfirmed',0)))
             for column,value in enumerate(values):
                 raw = value
                 if column<2 and self._privacy is not None:value=self._privacy.text(value)
