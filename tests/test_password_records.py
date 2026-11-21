@@ -20,7 +20,7 @@ from modules.capture_services.openwrt.password_rounds import CandidateRound, ver
 from modules.main_pages.packet_capture.openwrt.access_point_table import AccessPointTable
 from modules.ui_scale_manager import UiScaleManager
 
-TARGET = AccessPointInfo('02:11:22:33:44:55', ssid='fixture', encryption='WPA2-PSK')
+TARGET = AccessPointInfo('02:11:22:33:44:55', ssid='fixture', encryption='WPA2-PSK', channel=6)
 
 
 class RecordTests(unittest.TestCase):
