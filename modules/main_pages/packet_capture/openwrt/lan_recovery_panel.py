@@ -1,10 +1,12 @@
 """Optional adapter guidance and explicitly requested recovery in the shared task dialog."""
+import re
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QWidget,QVBoxLayout,QTextEdit,QLabel
 from modules.common_widgets.combo_box import CommonComboBox
 from modules.common_widgets.common_dialogs import _create_dialog_button
 from modules.ui_scale_manager import UiScaleManager
+from modules.display_privacy import controller_for, MASKED_TEXT
 
 
 class LanRecoveryPanel(QWidget):
@@ -12,6 +14,8 @@ class LanRecoveryPanel(QWidget):
     reconnectRequested=Signal(str)
     def __init__(self,parent):
         super().__init__(parent);self.signature=None;self.payload={}
+        self._privacy=controller_for(self)
+        if self._privacy is not None:self._privacy.changed.connect(self._refresh_privacy)
         layout=QVBoxLayout(self);layout.setContentsMargins(0,0,0,0)
         self.guide=QTextEdit(self);self.guide.setReadOnly(True);self.guide.setObjectName("settingsMessageText");self.guide.document().setMaximumBlockCount(64)
         scale=UiScaleManager.for_widget(parent)
@@ -31,20 +35,28 @@ class LanRecoveryPanel(QWidget):
         self.button.clicked.connect(self._request)
     def update_payload(self,value):
         self.payload=value
-        text=str(value.get('guide',''))
+        text=self._display(value.get('guide',''))
         if self.guide.toPlainText()!=text:self.guide.setPlainText(text)
         rows=[r for r in value.get('adapters',[]) if (r.get('dhcp') is True and r.get('renewable')) or (r.get('dhcp') is False and r.get('static_recovery'))]
-        signature=(bool(value.get('selection_required')),tuple((r['id'],r.get('name',''),tuple(r.get('addresses',[]))) for r in rows))
+        signature=(bool(self._privacy and self._privacy.enabled),bool(value.get('selection_required')),tuple((r['id'],r.get('name',''),tuple(r.get('addresses',[]))) for r in rows))
         if signature!=self.signature:
             selected=self.adapters.currentData()
             self.signature=signature;self.adapters.clear()
             if len(rows)!=1 or value.get("selection_required"):self.adapters.addItem('\u8bf7\u9009\u62e9\u8981\u66f4\u65b0\u7684\u7f51\u5361',None)
-            for row in rows:self.adapters.addItem(str(row.get('name') or row['id'])+'  '+', '.join(row.get('addresses',[])),row['id'])
+            for row in rows:self.adapters.addItem(self._display(str(row.get('name') or row['id'])+'  '+', '.join(row.get('addresses',[]))),row['id'])
             index=self.adapters.findData(selected) if selected else -1
             if index>=0:self.adapters.setCurrentIndex(index)
         self.adapters.setVisible(bool(rows));self.button.setVisible(bool(rows))
-        self.status.setText(str(value.get('message','')))
+        self.status.setText(self._display(value.get('message','')))
         self._sync();self.show()
+    def _display(self, value):
+        text=str(value or '')
+        if self._privacy is not None and self._privacy.enabled:
+            text=self._privacy.text(text)
+            text=re.sub(r'(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w.])', MASKED_TEXT, text)
+        return text
+    def _refresh_privacy(self):
+        self.update_payload(self.payload)
     def _sync(self,*_):
         identity=self.adapters.currentData()
         selected=next((r for r in self.payload.get('adapters',[]) if r.get('id')==identity),{})

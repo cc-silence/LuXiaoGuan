@@ -444,7 +444,8 @@ exit 1
                 status = self._call("status", cancel, radio=request.radio, section=section, mode=request.mode, timeout=min(8, max(0.1, deadline-time.monotonic())),
                                     network=network, expected_mac=expected_mac, downstream=request.options.get("network", ""),
                                     bridge_mode="routed" if temporary else request.options.get("bridge_mode", "routed"),
-                                    require_connection=require_connection)
+                                    require_connection=require_connection,
+                                    verify_network=bool(request.options.get("bind_network")))
                 matches = not require_connection or not bssid or str(status.get("bssid", "")).lower() == bssid.lower()
                 evidence.sample(status if matches else dict(status, ready=False, reason="wireless_association_pending"))
                 if not temporary and request.options.get("bridge_mode") == "relayd":
@@ -552,7 +553,18 @@ exit 1
                     if time.monotonic() >= deadline: raise SignalError("unconfirmed", "无线配置更改后的运行状态未确认。")
                     if cancel.wait(1): raise InterruptedError("无线操作已取消。")
             else:
-                require_connection = not (not temporary and enabled is None and request.mode == "sta" and request.options.get("bridge_mode", "routed") == "routed")
+                previous = next((r for r in env.data["rows"] if r.get("section") == request.section), {})
+                credentials_changed = (not request.section or request.ssid != previous.get("ssid")
+                                       or bool(request.password)
+                                       or request.options.get("encryption") != previous.get("encryption")
+                                       or ("bssid" in request.options and request.options["bssid"] != (previous.get("bssid") or ""))
+                                       or ("ieee80211w" in request.options and request.options["ieee80211w"] != previous.get("ieee80211w"))
+                                       or ("ifname" in request.options and request.options["ifname"] != (previous.get("ifname") or ""))
+                                       or bool(request.options.get("bind_network"))
+                                       or bool(request.options.get("identity_action")))
+                require_connection = not (not temporary and enabled is None and request.mode == "sta"
+                                          and request.options.get("bridge_mode", "routed") == "routed"
+                                          and not credentials_changed)
                 self._wait_ready(request, result["section"], cancel, bssid, network=result["network"], temporary=temporary, expected_mac=result.get("expected_mac", ""), band=radio_info.get("band", ""), hard_deadline=hard_deadline, require_connection=require_connection)
             if not temporary:
                 if enabled is not None:
@@ -684,10 +696,14 @@ exit 1
         self._require_ready(env)
         if request.revision and request.revision != env.data["revision"]:
             raise SignalError("changed", "配置已在编辑期间变化，请重新检测并打开设置。")
-        if (request.mode == "sta" and encryption_base(request.options.get("encryption")) == "sae-mixed"
+        if (request.mode == "sta" and not request.section and encryption_base(request.options.get("encryption")) == "sae-mixed"
                 and not env.data["features"].get("sta_sae")):
             request = replace(request, options={**request.options, "encryption": "psk2"})
         radio = self._radio(env, request.radio)
+        if request.mode == "ap" and request.options.get("recommended_auto"):
+            from .wireless_setup_presets import ap_recommendations
+            if ap_recommendations(env.data, request.radio).get("channel") != "auto":
+                raise SignalError("changed", "\u7f51\u5361\u6216\u4e2d\u7ee7\u72b6\u6001\u5df2\u53d8\u5316\u6216\u65e0\u6cd5\u786e\u8ba4\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u65b0\u9009\u62e9\u8bbe\u7f6e\u65b9\u6848\u3002")
         current_mode = radio.get("htmode")
         if request.mode == "ap" and "htmode" not in request.options and not (isinstance(current_mode, str) and current_mode.strip()):
             fallback = default_htmode(radio, env.data["features"])

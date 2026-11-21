@@ -75,10 +75,15 @@ def words(value):
     return value if isinstance(value,list) else str(value or "").split()
 
 
-def boot_state(s):
-    if s.get("capabilities",{}).get("old_watch"):return None
+def boot_state_reason(s):
+    if s.get("capabilities",{}).get("old_watch"):return "old_watch"
     digest=s.get("files",{}).get("/etc/init.d/luxiaoguan-wifi-policy","absent")
-    if digest!="absent" and digest not in BOOT_SCRIPT_HASHES:return None
+    if digest!="absent" and digest not in BOOT_SCRIPT_HASHES:return "hash_unrecognized"
+    return None
+
+
+def boot_state(s):
+    if boot_state_reason(s):return None
     return not bool(s.get("capabilities",{}).get("boot_hook_enabled"))
 
 

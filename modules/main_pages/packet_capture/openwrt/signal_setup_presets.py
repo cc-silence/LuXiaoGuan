@@ -50,7 +50,7 @@ def _apply(control, value):
 
 def bind_settings_profile(dialog, environment, kind):
     if kind == "ap":
-        controls = {"standard": dialog.standard_combo, "htmode": dialog.bandwidth_combo,
+        controls = {"channel": dialog.channel, "standard": dialog.standard_combo, "htmode": dialog.bandwidth_combo,
                     "encryption": dialog.encryption, "hidden": dialog.hidden,
                     "isolate": dialog.isolation, "wmm": dialog.wmm,
                     "ieee80211w": dialog.management, "dtim_period": dialog.dtim,

@@ -48,6 +48,142 @@ class BridgeTests(unittest.TestCase):
         value=self.manager.save(request,self.cancel,self.message)
         return request,value
 
+    def test_existing_station_preserves_network_settings_when_editing_wireless(self):
+        for mode in ("routed", "wds"):
+            with self.subTest(mode=mode):
+                device = RuntimeDevice()
+                device.config["wireless"]["upper"] = {
+                    ".type": "wifi-iface", "ssid": "Before", "device": "radio7",
+                    "mode": "sta", "network": "wan", "encryption": "psk2",
+                    "key": "test-password", "wds": "1" if mode == "wds" else "0"}
+                device.config["network"]["wan"].update(peerdns="0", dns=["1.1.1.1"], metric="45")
+                device.config["dhcp"] = {"wan": {".type": "dhcp", "interface": "wan", "ignore": "0"}}
+                before = copy.deepcopy({key: device.config[key] for key in ("network", "firewall", "dhcp")})
+                manager = WirelessSetupManager(device)
+                options = {"encryption": "psk2", "bridge_mode": mode, "preserve_network": True}
+                if mode == "wds":
+                    options["network"] = "wan"
+                request = WirelessRequest("sta", "radio7", "After", section="upper",
+                                          label="After", options=options)
+                with patch.object(manager, "_wait_ready"):
+                    manager.save(request, self.cancel, self.message)
+                self.assertEqual({key: device.config[key] for key in before}, before)
+                self.assertEqual(device.config["wireless"]["upper"]["ssid"], "After")
+                self.assertNotIn("rm_wds_backup", device.config["wireless"]["upper"])
+
+    def test_existing_multiple_networks_are_preserved_or_rebound_without_network_edits(self):
+        for selected in (None, "other"):
+            with self.subTest(selected=selected):
+                device = RuntimeDevice()
+                device.config["wireless"]["upper"] = {
+                    ".type": "wifi-iface", "ssid": "Before", "device": "radio7",
+                    "mode": "sta", "network": ["wan", "guest"], "encryption": "psk2",
+                    "key": "test-password"}
+                device.config["network"]["guest"] = {".type": "interface", "proto": "none"}
+                device.config["network"]["other"] = {".type": "interface", "proto": "dhcp", "peerdns": "0"}
+                before = copy.deepcopy({key: device.config[key] for key in ("network", "firewall", "dhcp")})
+                manager = WirelessSetupManager(device)
+                options = {"encryption": "psk2", "bridge_mode": "routed",
+                           "preserve_network": True, "preserve_networks": ["wan", "guest"]}
+                if selected:
+                    options["bind_network"] = selected
+                request = WirelessRequest("sta", "radio7", "After", section="upper",
+                                          label="After", options=options)
+                with patch.object(manager, "_wait_ready"):
+                    manager.save(request, self.cancel, self.message)
+                self.assertEqual({key: device.config[key] for key in before}, before)
+                self.assertEqual(device.config["wireless"]["upper"]["network"],
+                                 selected or ["wan", "guest"])
+
+    def test_existing_station_saves_wireless_security_without_rewriting_network(self):
+        device = RuntimeDevice()
+        device.config["wireless"]["upper"] = {
+            ".type": "wifi-iface", "ssid": "Before", "device": "radio7",
+            "mode": "sta", "network": "wan", "encryption": "psk2",
+            "key": "test-password", "bssid": "02:11:22:33:44:55"}
+        before = copy.deepcopy(device.config["network"])
+        manager = WirelessSetupManager(device)
+        options = {"encryption": "psk", "bssid": "02:11:22:33:44:66",
+                   "ieee80211w": "1", "ifname": "sta-test", "bridge_mode": "routed",
+                   "preserve_network": True, "preserve_networks": ["wan"]}
+        request = WirelessRequest("sta", "radio7", "After", section="upper",
+                                  label="After", options=options)
+        with patch.object(manager, "_wait_ready"):
+            manager.save(request, self.cancel, self.message)
+        wifi = device.config["wireless"]["upper"]
+        self.assertEqual((wifi["ssid"], wifi["bssid"], wifi["encryption"], wifi["ieee80211w"]),
+                         ("After", "02:11:22:33:44:66", "psk", "1"))
+        self.assertEqual(wifi["ifname"], "sta-test")
+        self.assertEqual(device.config["network"], before)
+
+    def test_changed_station_credentials_require_connection_confirmation(self):
+        device = RuntimeDevice()
+        device.config["wireless"]["upper"] = {
+            ".type": "wifi-iface", "ssid": "Before", "device": "radio7",
+            "mode": "sta", "network": "wan", "encryption": "psk2",
+            "key": "test-password"}
+        manager = WirelessSetupManager(device)
+        request = WirelessRequest("sta", "radio7", "After", section="upper", label="After",
+            options={"encryption": "psk2", "bridge_mode": "routed",
+                     "preserve_network": True, "preserve_networks": ["wan"]})
+        with patch.object(manager, "_wait_ready") as wait:
+            manager.save(request, self.cancel, self.message)
+        self.assertTrue(wait.call_args.kwargs["require_connection"])
+
+    def test_security_and_binding_changes_require_connection_confirmation(self):
+        for change in ({"ieee80211w": "1"}, {"bind_network": "other"}):
+            with self.subTest(change=change):
+                device = RuntimeDevice()
+                device.config["wireless"]["upper"] = {
+                    ".type": "wifi-iface", "ssid": "Same", "device": "radio7",
+                    "mode": "sta", "network": "wan", "encryption": "psk2",
+                    "key": "test-password"}
+                device.config["network"]["other"] = {".type": "interface", "proto": "dhcp"}
+                manager = WirelessSetupManager(device)
+                options = {"encryption": "psk2", "bridge_mode": "routed",
+                           "preserve_network": True, "preserve_networks": ["wan"], **change}
+                request = WirelessRequest("sta", "radio7", "Same", section="upper",
+                                          label="Same", options=options)
+                with patch.object(manager, "_wait_ready") as wait:
+                    manager.save(request, self.cancel, self.message)
+                self.assertTrue(wait.call_args.kwargs["require_connection"])
+
+    def test_rebound_network_must_report_up_before_confirmation(self):
+        device = RuntimeDevice()
+        device.config["wireless"]["upper"] = {
+            ".type": "wifi-iface", "ssid": "Same", "device": "radio7",
+            "mode": "sta", "network": "wan", "encryption": "psk2", "key": "test-password"}
+        manager = WirelessSetupManager(device)
+        def status():
+            return manager._call("status", self.cancel, radio="radio7", section="upper",
+                                 mode="sta", network="wan", bridge_mode="routed",
+                                 require_connection=True, verify_network=True)
+        self.assertTrue(status()["ready"])
+        original = device.call
+        def network_down(obj, method, args):
+            if obj == "network.interface.wan" and method == "status":
+                return device.wrap({"up": False}), None
+            return original(obj, method, args)
+        device.lua.globals().bridge_call = network_down
+        result = status()
+        self.assertFalse(result["ready"])
+        self.assertEqual(result["reason"], "network_interface_pending")
+
+    def test_existing_true_wds_is_preserved_in_lua(self):
+        device = RuntimeDevice()
+        device.config["wireless"]["upper"] = {
+            ".type": "wifi-iface", "ssid": "Same", "device": "radio7",
+            "mode": "sta", "network": "wan", "encryption": "psk2",
+            "key": "test-password", "wds": "true"}
+        manager = WirelessSetupManager(device)
+        options = {"encryption": "psk2", "bridge_mode": "wds", "network": "wan",
+                   "preserve_network": True, "preserve_networks": ["wan"]}
+        request = WirelessRequest("sta", "radio7", "Same", section="upper",
+                                  label="Same", options=options)
+        with patch.object(manager, "_wait_ready"):
+            manager.save(request, self.cancel, self.message)
+        self.assertEqual(device.config["wireless"]["upper"]["wds"], "true")
+
     def test_relay_uses_separate_uplink_and_preserves_dhcp_backup(self):
         request,value=self.create("relayd")
         wifi=self.device.config["wireless"][value["section"]]

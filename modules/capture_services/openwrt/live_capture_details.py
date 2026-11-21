@@ -62,6 +62,8 @@ class LiveCaptureDetails:
                     channel=target.channel or previous.channel,
                     has_pmkid=target.has_pmkid or previous.has_pmkid,
                     has_eapol=target.has_eapol or previous.has_eapol,
+                    tool_handshake=target.tool_handshake or previous.tool_handshake,
+                    tool_handshake_kind="m123" if "m123" in (target.tool_handshake_kind, previous.tool_handshake_kind) else target.tool_handshake_kind or previous.tool_handshake_kind,
                     handshake_frames="+".join(f for f in ("M1", "M2", "M3", "M4") if f in frames),
                     details=target.details or previous.details)
             if merged != previous:

@@ -52,7 +52,7 @@ class CaptureSettingsManager:
             "private_key_path": "",
             "mode": "filter",
             "band": "2.4G",
-            "scan_seconds": 60,
+            "scan_seconds": 120,
             "skip_scan_confirmation": False,
             "skip_scan_takeover_confirmation": False,
             "skip_radio_takeover_confirmation": False,
@@ -62,7 +62,7 @@ class CaptureSettingsManager:
             "idle_timeout_seconds": 60,
             "pmkid_idle_timeout_seconds": 180,
             "pmkid_duration_seconds": 0,
-            "no_client_observation_seconds": 30,
+            "no_client_observation_seconds": 10,
             "handshake_rounds": 3,
             "handshake_rounds_infinite": False,
             "remote_work_root": "/tmp/winbox-capture",
@@ -89,7 +89,7 @@ class CaptureSettingsManager:
                 "pin_timeout": 5.0,
                 "attack_seconds": 0,
                 "attack_rounds": 1,
-                "quick_seconds": 60,
+                "quick_seconds": 0,
                 "quick_rounds": 1,
                 "wps_sender": "reaver",
                 "system_offline_pixie": False,
@@ -352,7 +352,7 @@ class CaptureSettingsManager:
         openwrt["private_key_path"] = self._portable_optional_path(openwrt.get("private_key_path"), roots=roots)
         openwrt["mode"] = "global" if openwrt.get("mode") == "global" else "filter"
         openwrt["band"] = "5G" if openwrt.get("band") == "5G" else "2.4G"
-        openwrt["scan_seconds"] = self._clamp_int(openwrt.get("scan_seconds"), 5, 120, 60)
+        openwrt["scan_seconds"] = self._clamp_int(openwrt.get("scan_seconds"), 5, 120, 120)
         openwrt["skip_scan_confirmation"] = self._bool(
             openwrt.get("skip_scan_confirmation"),
             False,
@@ -377,7 +377,7 @@ class CaptureSettingsManager:
         openwrt["idle_timeout_seconds"] = self._clamp_int(openwrt.get("idle_timeout_seconds"), 0, 3600, 60)
         openwrt["pmkid_idle_timeout_seconds"] = self._clamp_int(openwrt.get("pmkid_idle_timeout_seconds"), 0, 3600, 180)
         openwrt["pmkid_duration_seconds"] = self._clamp_int(openwrt.get("pmkid_duration_seconds"), 0, 3600, 0)
-        openwrt["no_client_observation_seconds"] = self._clamp_int(openwrt.get("no_client_observation_seconds"), 20, 90, 30)
+        openwrt["no_client_observation_seconds"] = self._clamp_int(openwrt.get("no_client_observation_seconds"), 5, 60, 10)
         openwrt["handshake_rounds"] = self._clamp_int(openwrt.get("handshake_rounds"), 1, 99, 3)
         openwrt["handshake_rounds_infinite"] = self._bool(openwrt.get("handshake_rounds_infinite"), False)
         remote_root = str(openwrt.get("remote_work_root", "/tmp/winbox-capture")).strip()
@@ -414,11 +414,17 @@ class CaptureSettingsManager:
         wps = copy.deepcopy(wps_defaults)
         if isinstance(wps_source, dict):
             wps.update({key: wps_source[key] for key in wps if key in wps_source})
+        if isinstance(value, dict) and "wps_quick_defaults_version" not in value:
+            # 旧版本默认“每个候选 60 秒”；一次性迁移到新的“不限制”默认。
+            # 迁移后写入版本标记，用户日后主动改回 60 秒会被保留。
+            if wps.get("quick_seconds") == 60:
+                wps["quick_seconds"] = 0
+        openwrt["wps_quick_defaults_version"] = 2
         wps["pin_speed"] = self._clamp_float(wps.get("pin_speed"), 0.0, 100.0, 1.0)
         wps["pin_timeout"] = self._clamp_float(wps.get("pin_timeout"), 0.0, 100.0, 5.0)
         wps["attack_seconds"] = self._clamp_int(wps.get("attack_seconds"), 0, 3600, 0)
         wps["attack_rounds"] = self._clamp_int(wps.get("attack_rounds"), 1, 20, 1)
-        wps["quick_seconds"] = self._clamp_int(wps.get("quick_seconds"), 0, 3600, 60)
+        wps["quick_seconds"] = self._clamp_int(wps.get("quick_seconds"), 0, 3600, 0)
         wps["quick_rounds"] = self._clamp_int(wps.get("quick_rounds"), 1, 20, 1)
         wps["wps_sender"] = (str(wps.get("wps_sender", "") or "").strip().lower()
                              if str(wps.get("wps_sender", "") or "").strip().lower() in {"reaver", "system"}

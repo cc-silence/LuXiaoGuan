@@ -12,6 +12,7 @@ from modules.capture_services.openwrt.uci_booleans import netifd_bool
 from modules.platform_services.static_network import StaticMigrationError
 from .signal_setup_forms import text_input, choice, add_field, hint
 from .lan_ipv4_form import LanIpv4Form
+from modules.display_privacy import protect_input
 
 
 class RouterConfigDialog(FramelessDialog):
@@ -55,6 +56,7 @@ class RouterConfigDialog(FramelessDialog):
         layout.addWidget(hint("\u4fee\u6539\u8def\u7531\u5668\u81ea\u5df1\u7684\u540d\u79f0\u548c\u5f53\u5730\u65f6\u95f4\u3002\u4e3b\u673a\u540d\u4e0d\u4f1a\u6539\u53d8 Wi-Fi \u540d\u79f0\u6216\u767b\u5f55\u5730\u5740\u3002",body))
         row=RandomNameInput(body,old.get("hostname",""))
         host=row.edit
+        protect_input(host)
         self.controls["hostname"]=host
         self.hostname_random_button=row.random_button
         scale=UiScaleManager.for_widget(self)
@@ -76,6 +78,16 @@ class RouterConfigDialog(FramelessDialog):
         labels={"Asia/Shanghai":"\u4e2d\u56fd / \u5317\u4eac\u65f6\u95f4","Asia/Hong_Kong":"\u4e2d\u56fd / \u9999\u6e2f","Asia/Taipei":"\u4e2d\u56fd / \u53f0\u5317",
                 "Asia/Tokyo":"\u65e5\u672c / \u4e1c\u4eac","Asia/Seoul":"\u97e9\u56fd / \u9996\u5c14","Asia/Singapore":"\u65b0\u52a0\u5761",
                 "Europe/London":"\u82f1\u56fd / \u4f26\u6566","America/New_York":"\u7f8e\u56fd / \u7ebd\u7ea6","Australia/Sydney":"\u6fb3\u5927\u5229\u4e9a / \u6089\u5c3c"}
+        china_labels={"Asia/Shanghai":"\u4e2d\u56fd / \u5317\u4eac\u65f6\u95f4\uff08UTC+8\uff09",
+                      "Asia/Chongqing":"\u4e2d\u56fd / \u91cd\u5e86\uff08UTC+8\uff09",
+                      "Asia/Chungking":"\u4e2d\u56fd / \u91cd\u5e86\uff08UTC+8\uff09",
+                      "Asia/Harbin":"\u4e2d\u56fd / \u54c8\u5c14\u6ee8\uff08UTC+8\uff09",
+                      "Asia/Urumqi":"\u4e2d\u56fd / \u4e4c\u9c81\u6728\u9f50\uff08UTC+6\uff09",
+                      "Asia/Kashgar":"\u4e2d\u56fd / \u5580\u4ec0\uff08UTC+6\uff09",
+                      "Asia/Hong_Kong":"\u4e2d\u56fd / \u9999\u6e2f\uff08UTC+8\uff09",
+                      "Asia/Macau":"\u4e2d\u56fd / \u6fb3\u95e8\uff08UTC+8\uff09",
+                      "Asia/Macao":"\u4e2d\u56fd / \u6fb3\u95e8\uff08UTC+8\uff09",
+                      "Asia/Taipei":"\u4e2d\u56fd / \u53f0\u5317\uff08UTC+8\uff09"}
         options=[("\u4e16\u754c\u6807\u51c6\u65f6\u95f4\uff08UTC\uff09",("Etc/UTC","UTC0"))]
         seen={options[0][1]}
         for pair in sorted(zones):
@@ -83,8 +95,8 @@ class RouterConfigDialog(FramelessDialog):
             seen.add(pair)
             name=pair[0]
             label=labels.get(name)
-            options.append((name+("\uff08"+label+"\uff09" if label else ""),pair))
-        if current not in seen:options.insert(0,("\u5f53\u524d\u65f6\u533a\uff1a"+(current[0] or current[1]),current))
+            options.append((china_labels.get(name) or name+("\uff08"+label+"\uff09" if label else ""),pair))
+        if current not in seen:options.insert(0,("\u5f53\u524d\u65f6\u533a\uff1a"+(china_labels.get(current[0]) or current[0] or current[1]),current))
         zone=choice(body,options)
         zone.setCurrentIndex(next(i for i,(_,value) in enumerate(options) if value==current))
         zone.setMaxVisibleItems(12)
@@ -136,6 +148,10 @@ class RouterConfigDialog(FramelessDialog):
                 edit.setInsertPolicy(edit.NoInsert)
                 edit.setEditText(value)
             else:edit=text_input(body,value)
+            if isinstance(edit, ConfigValueList):
+                edit.set_privacy_protected()
+            elif hasattr(edit, "setEchoMode"):
+                protect_input(edit)
             self.controls[key]=edit
             add_field(layout,body,label,edit,description)
             if key in {"ipaddr","netmask","gateway","broadcast"}:self.static_controls.append(edit)

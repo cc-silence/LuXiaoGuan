@@ -50,7 +50,7 @@ class CaptureToolPanel(QWidget):
         self.band_combo.addItems(["2.4G", "5G"])
         self.band_combo.setToolTip("选择目标 Wi-Fi 所在频段，路由器网卡也必须支持。找不到信号时可换另一个频段重新扫描；每次只扫描所选频段。")
         self.scan_seconds = self._spin(scan_group, 5, 120, " 秒")
-        self.scan_seconds.setToolTip("建议先用 60 秒。信号少或设备不活跃时可适当延长，更容易看到新信号和连接设备；时间越长等待越久。")
+        self.scan_seconds.setToolTip("建议先用 120 秒。信号少或设备不活跃时可适当延长，更容易看到新信号和连接设备；时间越长等待越久。")
         scan_grid = QGridLayout()
         scan_grid.setHorizontalSpacing(6)
         scan_grid.setVerticalSpacing(5)
@@ -215,7 +215,7 @@ class CaptureToolPanel(QWidget):
 
         self.dictionary_rounds_check.setChecked(bool(settings.get("password_dictionary_rounds", False)))
         self.band_combo.setCurrentText(str(settings.get("band", "2.4G")))
-        self.scan_seconds.setValue(int(settings.get("scan_seconds", 60)))
+        self.scan_seconds.setValue(int(settings.get("scan_seconds", 120)))
         self.capture_seconds.setValue(int(settings.get("idle_timeout_seconds", 60)))
         self.handshake_rounds.setValue(int(settings.get("handshake_rounds", 3)))
         self.handshake_rounds_mode.setCurrentIndex(1 if bool(settings.get("handshake_rounds_infinite", False)) else 0)

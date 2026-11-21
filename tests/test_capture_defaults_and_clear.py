@@ -16,16 +16,16 @@ from modules.main_pages.packet_capture.openwrt.capture_tool_panel import Capture
 
 
 class CaptureDefaultsAndClearTests(unittest.TestCase):
-    def test_defaults_and_invalid_values_are_sixty_but_saved_values_survive(self):
+    def test_scan_defaults_to_one_twenty_but_saved_values_survive(self):
         with TemporaryDirectory() as folder:
             manager=CaptureSettingsManager(Path(folder)/'settings.json')
             for settings in ({},{'openwrt':{'scan_seconds':'bad','idle_timeout_seconds':'bad'}}):
                 values=manager.normalize(settings)['openwrt']
-                self.assertEqual((values['scan_seconds'],values['idle_timeout_seconds']),(60,60))
+                self.assertEqual((values['scan_seconds'],values['idle_timeout_seconds']),(120,60))
             values=manager.normalize({'openwrt':{'scan_seconds':24,'idle_timeout_seconds':180}})['openwrt']
             self.assertEqual((values['scan_seconds'],values['idle_timeout_seconds']),(24,180))
         panel=CaptureToolPanel({})
-        self.assertEqual((panel.scan_seconds.value(),panel.capture_seconds.value()),(60,60))
+        self.assertEqual((panel.scan_seconds.value(),panel.capture_seconds.value()),(120,60))
         panel.deleteLater();APP.processEvents()
 
     def test_clear_includes_current_artifact_targets_with_privacy_on_or_off(self):

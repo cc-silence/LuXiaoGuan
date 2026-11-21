@@ -97,9 +97,9 @@ class AdvancedWpsDialog(FramelessDialog):
         for label, control, tip in (
             ("Pin 速率", self.pin_speed, "两次尝试之间的等待时间，不是每秒尝试次数。建议保留 1 秒；不要盲目调小，尝试过快可能被目标限制。"),
             ("超时时间", self.pin_timeout, "等待一次回应的时间，建议保留 5 秒。信号弱、经常超时时可适当调大，但每次等待会更久。"),
-            ("攻击时间", self.attack_seconds, "0 表示不限制；常规/离线为每目标每轮上限，秒 Pin 为每个候选的上限。"),
+            ("攻击时间", self.attack_seconds, "0 表示不限制；常规/离线为每目标每轮上限，秒 Pin 为每个候选的上限。秒 Pin 默认 0，不因固定秒数提前放弃。"),
             ("攻击轮数", self.attack_rounds, "秒 Pin 只重复在线候选，离线每个目标只试一次；增加轮数会延长总时间。"),
-            ("附加参数", self.additional_args, "高级用户使用。普通用户保留原值，不要粘贴整条命令；不支持的参数会被拒绝。"),
+            ("附加参数", self.additional_args, "高级用户使用。普通用户保留原值，不要粘贴整条命令；不支持的参数会被拒绝。-S/-N 已固定开启，无需重复填写。"),
             ("排序 Pin 码", self.pin_order, "不清楚就保留 0123456789。只调整尝试顺序，不是填写已知的 Pin 码；已知部分号码请填在下面。"),
             ("部分 Pin 码", self.partial_pin, "已知 Pin 前 4 位或完整 8 位时填写；不知道就留空。这里不是 Wi-Fi 密码。"),
             ("模式", self.mode, "“秒 Pin”先试 pin24、再试离线 Pin、最后补厂商公式；“Pin”逐个尝试；“离线 Pin”使用 Pixie Dust。只用于自有或已授权网络。"),
@@ -137,7 +137,7 @@ class AdvancedWpsDialog(FramelessDialog):
         self.pin_timeout.setValue(float(settings.get("pin_timeout", 5.0)))
         self._normal_seconds = int(settings.get("attack_seconds", 0) or 0)
         self._normal_rounds = int(settings.get("attack_rounds", 1) or 1)
-        self._quick_seconds = int(settings.get("quick_seconds", 60) or 0)
+        self._quick_seconds = int(settings.get("quick_seconds", 0) or 0)
         self._quick_rounds = int(settings.get("quick_rounds", 1) or 1)
         self.additional_args.setText(str(settings.get("additional_args", "-S -N -l 30")))
         self.spoof_mac.setText(str(settings.get("spoof_mac", "")))

@@ -32,7 +32,7 @@ class QuickWpsDialog(FramelessDialog):
         card, layout = create_capture_card(
             self,
             "秒 Pin 参数",
-            "先试 pin24，再按发送方式补试其余候选；全部失败后不进入穷举。",
+            "先试 pin24，再按发送方式补试其余候选；默认不限制单个候选时长，并固定启用小 DH（-S）和不回 NACK（-N）提速；全部失败后不进入穷举。",
         )
         self.seconds = QSpinBox(card)
         self.seconds.setObjectName("captureSpinBox")
@@ -49,7 +49,8 @@ class QuickWpsDialog(FramelessDialog):
         self.sender.addItem("系统 WPS（和手机同样的方式）", "system")
         layout.addLayout(create_form_row(
             card, "每个候选时间", self.seconds,
-            "每个候选 PIN 最多验证多久；0 表示不限制。离线 Pin 和验证已获取的 PIN 也使用这个时间。"))
+            "每个候选 PIN 最多验证多久；默认 0 表示不限制，像秒 Pin 脚本一样等目标给出明确结果。"
+            "离线 Pin 和验证已获取的 PIN 也使用这个时间。"))
         layout.addLayout(create_form_row(
             card, "在线轮数", self.rounds,
             "在线候选（pin24、其他公式）重复几轮；离线 Pin 每个目标只试一次。"))
@@ -110,7 +111,7 @@ class QuickWpsDialog(FramelessDialog):
 
     def _load(self, settings):
         data = settings if isinstance(settings, dict) else {}
-        self.seconds.setValue(int(data.get("quick_seconds", 60) or 0))
+        self.seconds.setValue(int(data.get("quick_seconds", 0) or 0))
         self.rounds.setValue(int(data.get("quick_rounds", 1) or 1))
         sender = str(data.get("wps_sender", "reaver") or "reaver").strip().lower()
         self.sender.setCurrentIndex(max(0, self.sender.findData(sender)))

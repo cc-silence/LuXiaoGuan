@@ -540,7 +540,7 @@ class CaptureService(QObject):
         )
         self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
         band = "5G" if options.get("band") == "5G" else "2.4G"
-        seconds = options.get("scan_seconds", 60)
+        seconds = options.get("scan_seconds", 120)
         self.messageGenerated.emit(
             f"开始扫描 Wi-Fi 信号：频段 {band}，约 {seconds} 秒。",
             "info",

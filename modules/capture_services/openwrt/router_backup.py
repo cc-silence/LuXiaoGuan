@@ -76,6 +76,7 @@ class RouterBackupManager:
                 raise RuntimeError("当前设备未确认支持标准恢复出厂设置；请使用固件自己的管理页面。")
         else:
             info = inspect_archive(source, cancel)
+            review["restore_lan"] = info.get("restore_lan")
             review.update(source=str(Path(source).absolute()), sha256=info["sha256"],
                           size=info["size"], entries=info["entries"], files=list(info["records"])[:80])
         return review

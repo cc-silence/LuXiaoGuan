@@ -94,10 +94,13 @@ local function inspect(readonly)
   if not name(s[".name"]) then fail("radio") end
   local phy=optional("iwinfo","phyname",{section=s[".name"]}).phyname or ""
   local rs=status[s[".name"]] or {};local ifnames={}
-  for _,iface in ipairs(rs.interfaces or {}) do
-   if type(iface.ifname)=="string" and iface.ifname:match("^[%w_.:%-]+$") then
+  local complete=type(rs.up)=="boolean" and rs.pending==false and type(rs.interfaces)=="table"
+  for _,iface in ipairs(type(rs.interfaces)=="table" and rs.interfaces or {}) do
+   if type(iface)~="table" or type(iface.section)~="string" or type(iface.ifname)~="string" or not iface.ifname:match("^[%w_.:%-]+$") then complete=false
+   else
     ifnames[#ifnames+1]=iface.ifname
     local ds=optional("network.device","status",{name=iface.ifname})
+    if type(ds.up)~="boolean" then complete=false end
     local mac=runtime_mac(iface.ifname)
     if type(iface.section)=="string" and mac then runtime_macs[iface.section]=mac end
     if rs.up==true and not rs.pending and ds.up==true then active[#active+1]=iface.section end
@@ -108,7 +111,7 @@ local function inspect(readonly)
   local device=ifnames[1] or phy
   local info=device~="" and optional("iwinfo","info",{device=device}) or {}
   local out=fields(s,{"type","band","hwmode","channel","htmode","country","txpower",__RADIO_KEYS__,"disabled"})
-  out.name=s[".name"];out.phy=phy;out.interfaces=ifnames;out.runtime_up=rs.up==true;out.runtime_pending=rs.pending==true;out.capabilities=caps:sub(1,32768)
+  out.name=s[".name"];out.phy=phy;out.interfaces=ifnames;out.runtime_up=rs.up==true;out.runtime_pending=rs.pending==true;out.runtime_complete=complete;out.capabilities=caps:sub(1,32768)
   out.channels=optional("iwinfo","freqlist",{device=device}).results or {}
   out.powers=optional("iwinfo","txpowerlist",{device=device}).results or {}
   out.countries=optional("iwinfo","countrylist",{device=device}).results or {}
@@ -117,7 +120,7 @@ local function inspect(readonly)
   radios[#radios+1]=out
  end)
  c:foreach("wireless","wifi-iface",function(s)
-  local out=fields(s,{"ssid","mode","device","network","encryption","hidden","isolate","maxassoc","description","rm_bridge","rm_wds_backup","rm_suspended","rm_identity_backup","macaddr","disabled","bssid","wmm","ieee80211w","dtim_period",__IFACE_KEYS__})
+  local out=fields(s,{"ssid","mode","device","network","encryption","hidden","isolate","maxassoc","description","rm_bridge","rm_wds_backup","rm_suspended","rm_identity_backup","macaddr","ifname","disabled","bssid","wmm","ieee80211w","dtim_period",__IFACE_KEYS__})
   out.runtime_mac=runtime_macs[s[".name"]]
   out.section=s[".name"];out.has_key=type(s.key)=="string" and #s.key>0
   rows[#rows+1]=out
@@ -189,6 +192,24 @@ local function stage()
  if v.section~="" and (not old or old.mode~=v.mode or old.device~=radio) then fail("changed") end
  if v.section=="" and old then fail("changed") end
  local opts=v.options or {}
+ if v.mode=="ap" and opts.recommended_auto==true then
+  local stations={}
+  c:foreach("wireless","wifi-iface",function(w)
+   if w.device==radio and w.mode=="sta" then
+    if netifd_bool(w.disabled,false)~=true or type(w[".name"])~="string" then fail("changed") end
+    stations[w[".name"]]=true
+   end
+  end)
+  if next(stations) then
+   local rs=rpc("network.wireless","status",{})[radio] or {}
+   if type(rs.up)~="boolean" or rs.pending~=false or type(rs.interfaces)~="table" then fail("changed") end
+   for _,iface in ipairs(rs.interfaces) do
+    if type(iface)~="table" or type(iface.section)~="string" or type(iface.ifname)~="string" or not iface.ifname:match("^[%w_.:%-]+$") then fail("changed") end
+    local ds=optional("network.device","status",{name=iface.ifname})
+    if type(ds.up)~="boolean" or (stations[iface.section] and rs.up==true and ds.up==true) then fail("changed") end
+   end
+  end
+ end
  local shared_station=not req.temporary and v.mode=="sta" and old and identity_shared_edit(c,old,section,opts)
  if not req.temporary and old and ((old.rm_bridge and opts.bridge_mode=="wds") or (old.rm_wds_backup and opts.bridge_mode=="relayd")) then fail("bridge_transition") end
 
@@ -196,10 +217,23 @@ local function stage()
   if old.rm_suspended~="1" then restore_dhcp(c,old.rm_wds_backup) end;remove("wireless",section,"rm_wds_backup")
  end
  if old and old.rm_bridge and not shared_station and not req.temporary and opts.bridge_mode~="relayd" then restore_bridge(c,old,false) end
+ local preserve_network=v.mode=="sta" and old and not req.temporary and opts.preserve_network==true
  local bridged=v.mode=="sta" and not req.temporary and opts.bridge_mode=="wds"
- local network=(old and old.rm_wds_backup and not bridged and not req.temporary and ("wbnet_"..req.token)) or (bridged and opts.network) or (v.mode=="ap" and opts.network) or (old and old.network) or (v.mode=="ap" and "lan" or ("wbnet_"..req.token))
- if type(network)=="table" and #network==1 then network=network[1] end
- if v.mode=="sta" and old and not bridged and not shared_station then
+ local network=(old and old.rm_wds_backup and not bridged and not req.temporary and ("wbnet_"..req.token)) or (preserve_network and old.network) or (bridged and opts.network) or (v.mode=="ap" and opts.network) or (old and old.network) or (v.mode=="ap" and "lan" or ("wbnet_"..req.token))
+ if preserve_network then
+  local original=identity_words(old.network)
+  if #original==0 then fail("network") end
+  if opts.preserve_networks then
+   if #opts.preserve_networks~=#original then fail("changed") end
+   for i,n in ipairs(original) do if opts.preserve_networks[i]~=n then fail("changed") end end
+  elseif #original~=1 then fail("network") end
+  network=original[1]
+  if opts.bind_network then
+   if netifd_bool(old.wds,false)~=false or old.rm_bridge or old.rm_wds_backup or opts.bind_network=="lan" or opts.bind_network=="loopback" or c:get("network",opts.bind_network)~="interface" then fail("network") end
+   network=opts.bind_network
+  end
+ elseif type(network)=="table" and #network==1 then network=network[1] end
+ if v.mode=="sta" and old and not bridged and not shared_station and not preserve_network then
   if network=="lan" or network=="loopback" then fail("shared_network") end
   c:foreach("wireless","wifi-iface",function(s)
    if s[".name"]~=section then
@@ -213,7 +247,14 @@ local function stage()
   for _,n in ipairs(network) do if not name(n) or c:get("network",n)~="interface" then fail("network") end end
  elseif type(network)~="string" or not name(network) then fail("network") end
  local wf={ssid=v.ssid,mode=v.mode,device=radio,network=network,disabled=req.save_only==true and "1" or "0"}
- if v.mode=="ap" then
+ if preserve_network then
+  local existing_wds=netifd_bool(old.wds,false)
+  if existing_wds==nil or existing_wds~=bridged then fail("changed") end
+  wf.network=opts.bind_network or old.network
+  wf.encryption=opts.encryption or old.encryption or "psk2"
+  wf.description=v.label
+  if opts.bssid and opts.bssid~="" then wf.bssid=opts.bssid end
+ elseif v.mode=="ap" then
   if opts.macaddr~=nil then
    if not identity_mac(opts.macaddr) then fail("identity") end
    identity_unique(c,section,opts.macaddr)
@@ -273,6 +314,10 @@ local function stage()
    end
   end
  end
+ if v.mode=="sta" and opts.ieee80211w~=nil then wf.ieee80211w=opts.ieee80211w end
+ if v.mode=="sta" and opts.ifname~=nil then
+  if opts.ifname=="" then remove("wireless",section,"ifname") else wf.ifname=opts.ifname end
+ end
  if v.password~="" then wf.key=v.password end
  if wf.encryption~="none" and wf.encryption~="owe" and v.password=="" and not (old and type(old.key)=="string" and #old.key>0) then fail("password") end
  if shared_station then wf.rm_suspended=old.rm_suspended
@@ -284,7 +329,7 @@ local function stage()
  if v.mode=="sta" and old and opts.bssid=="" and old.bssid then
   rpc("uci","delete",{ubus_rpc_session=sid(),config="wireless",section=section,option="bssid"})
  end
- if v.mode=="sta" and not req.temporary and not bridged and not shared_station then
+ if v.mode=="sta" and not req.temporary and not bridged and not shared_station and not preserve_network then
   local original=c:get_all("network",network) or {}
   for _,key in ipairs({"ipaddr","netmask","gateway","dns"}) do
    local clear=(key=="dns" and opts.dns=="") or (opts.proto=="dhcp" and key~="dns")
@@ -319,9 +364,9 @@ local function saved_status()
  if row.ssid~=v.ssid then saved_fail("iface.ssid",row.ssid,v.ssid) end
  if row.disabled~=(req.save_only==true and "1" or "0") then saved_fail("iface.disabled",row.disabled,req.save_only==true and "1" or "0") end
  if v.password~="" and row.key~=v.password then saved_fail("iface.key",row.key,v.password) end
- local keys=v.mode=="ap" and {"macaddr","encryption","hidden","isolate","maxassoc","wmm","ieee80211w","dtim_period",__IFACE_KEYS__} or {"encryption","bssid"}
+ local keys=v.mode=="ap" and {"macaddr","encryption","hidden","isolate","maxassoc","wmm","ieee80211w","dtim_period",__IFACE_KEYS__} or {"encryption","bssid","ieee80211w","ifname"}
  for _,key in ipairs(keys) do
-  if opts[key]~=nil and not (key=="bssid" and opts[key]=="") and key~="maclist" and row[key]~=opts[key] then saved_fail("iface."..key,row[key],opts[key]) end
+  if opts[key]~=nil and not ((key=="bssid" or key=="ifname") and opts[key]=="") and key~="maclist" and row[key]~=opts[key] then saved_fail("iface."..key,row[key],opts[key]) end
  end
  if v.mode=="ap" then
   if opts.network and row.network~=opts.network then saved_fail("iface.network",row.network,opts.network or req.network) end
@@ -335,12 +380,21 @@ local function saved_status()
  if v.mode=="sta" then
   local shared_station=identity_shared_edit(c,row,req.section,opts)
   if row.description~=v.label then saved_fail("iface.description",row.description,v.label) end
-  if row.network~=req.network then saved_fail("iface.network",row.network,req.network) end
+  if opts.bind_network then
+   if row.network~=opts.bind_network then saved_fail("iface.network",row.network,opts.bind_network) end
+  elseif opts.preserve_networks then
+   local current=identity_words(row.network)
+   if #current~=#opts.preserve_networks then saved_fail("iface.network",row.network,opts.preserve_networks) end
+   for i,n in ipairs(current) do if n~=opts.preserve_networks[i] then saved_fail("iface.network",row.network,opts.preserve_networks) end end
+  elseif type(row.network)=="table" then
+   if #row.network~=1 or row.network[1]~=req.network then saved_fail("iface.network",row.network,req.network) end
+  elseif row.network~=req.network then saved_fail("iface.network",row.network,req.network) end
   if opts.bssid=="" and row.bssid then saved_fail("iface.bssid",row.bssid,nil) end
+  if opts.ifname=="" and row.ifname then saved_fail("iface.ifname",row.ifname,nil) end
   if req.expected_mac and row.macaddr~=req.expected_mac then saved_fail("iface.macaddr",row.macaddr,req.expected_mac or opts.macaddr) end
   if opts.identity_action=="default" and row.macaddr then saved_fail("iface.macaddr",row.macaddr,nil) end
   if opts.hostname and c:get("network",req.network,"hostname")~=opts.hostname then saved_fail("network.hostname",c:get("network",req.network,"hostname"),opts.hostname) end
-  if opts.bridge_mode~="wds" then
+  if opts.bridge_mode~="wds" and not opts.preserve_network then
    for _,key in ipairs({"proto","ipaddr","netmask","gateway","metric"}) do
     if opts[key]~=nil and c:get("network",req.network,key)~=opts[key] then saved_fail("network."..key,c:get("network",req.network,key),opts[key]) end
    end
@@ -419,7 +473,13 @@ local function status()
  local text=read("wpa_cli -i "..q(iface).." status")
  local state=text:match("\nwpa_state=([^\r\n]+)") or text:match("^wpa_state=([^\r\n]+)")
  local bssid=text:match("\nbssid=([^\r\n]+)") or text:match("^bssid=([^\r\n]+)")
- return observed(bridge_status(iface,state=="COMPLETED",bssid))
+ local result=bridge_status(iface,state=="COMPLETED",bssid)
+ if result.ready and req.verify_network then
+  if not name(req.network) then fail("network") end
+  local linked=optional("network.interface."..req.network,"status",{})
+  if linked.up~=true then result.ready=false;result.reason="network_interface_pending" end
+ end
+ return observed(result)
 end
 __BRIDGE_TOGGLE__
 __DELETE__

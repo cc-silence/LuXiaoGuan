@@ -1,6 +1,7 @@
 """Plain-language policy editors and immutable review displays."""
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget,QVBoxLayout,QCheckBox,QTextEdit,QFrame
+from modules.display_privacy import PrivacyTextEdit
 from modules.common_widgets.frameless_dialog import FramelessDialog
 from modules.common_widgets.common_dialogs import apply_common_dialog_theme,MessageDialog
 from modules.common_widgets.bounce_scroll_area import BounceScrollArea
@@ -152,7 +153,11 @@ class PolicyReviewDialog(FramelessDialog):
             self.content_layout.addWidget(hint(text+"\n当前连接和自己发出的热点不变。",self))
             self.content_layout.addStretch(1)
         else:
-            text=QTextEdit(self);text.setObjectName("settingsMessageText");text.setReadOnly(True)
+            private_values=[value for row in review.get("identities", []) for value in (row.get("old", ""), row.get("name", ""), row.get("mac", ""))]
+            ap=review.get("new_ap") or {}
+            private_values.extend(ap.get(key, "") for key in ("ssid", "password", "mac"))
+            private_values.append(review.get("new_address", ""))
+            text=PrivacyTextEdit(self,private_values=private_values);text.setObjectName("settingsMessageText");text.setReadOnly(True)
             text.setPlainText(review_text(review));self.content_layout.addWidget(text,1)
             self.ack=QCheckBox("我已确认以上修改和断线提醒",self)
             self.content_layout.addWidget(self.ack)

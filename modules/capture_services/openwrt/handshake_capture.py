@@ -248,7 +248,7 @@ class OpenWrtHandshakeCapture:
             next_content_check = started + 15
             # 开关打开就每轮都尝试：初始名单可能为空（扫描时无客户端），但中途
             # 可能有设备上线，现读 CSV 后再决定打谁；全程无客户端则自然空转。
-            next_deauth = started + _DEAUTH_INTERVAL if active_deauth else None
+            next_deauth = started if active_deauth else None
             deauth_rounds = 0
             deauth_index = 0
             clients_by_target = {t.bssid: self._ordered_client_macs(t) for t in targets}
@@ -263,9 +263,9 @@ class OpenWrtHandshakeCapture:
                 from .client_observation import ClientObservation
                 observation = ClientObservation()
                 try:
-                    observation_seconds = max(20, min(90, int(no_client_observation_seconds)))
+                    observation_seconds = max(5, min(60, int(no_client_observation_seconds)))
                 except (TypeError, ValueError):
-                    observation_seconds = 30
+                    observation_seconds = 10
                 observation_deadline = started + min(duration, observation_seconds)
                 next_observation = started
             while time.monotonic() < deadline:

@@ -86,13 +86,104 @@ class WirelessControlTests(unittest.TestCase):
         dialog.lock_bssid.setChecked(False)
         request = relay_request(dialog, target, "proof")
         self.assertEqual(request.options["bssid"], "")
-        self.assertEqual(request.options["metric"], "37")
-        self.assertEqual(request.options["dns"], "1.1.1.1 8.8.8.8")
+        self.assertTrue(request.options["preserve_network"])
+        self.assertNotIn("metric", request.options)
+        self.assertNotIn("dns", request.options)
         self.assertNotIn("identity_action", request.options)
         dialog.bridge_mode.setCurrentIndex(dialog.bridge_mode.findData("wds"))
         request = relay_request(dialog, target, "proof")
         self.assertNotIn("dns", request.options)
         self.assertNotIn("metric", request.options)
+
+    def test_relay_displays_actual_networks_and_security(self):
+        env = environment()
+        env.data["rows"].append(dict(section="upper", ssid="Upstream", device="radio7",
+            mode="sta", network=["wan", "guest"], encryption="psk2+ccmp",
+            bssid="02:11:22:33:44:55", has_key=True))
+        row = SimpleNamespace(section="upper", ssid="Upstream", running="active")
+        dialog = RelaySetupDialog("Upstream", radio_name="radio7", row=row)
+        self.addCleanup(dialog.reject)
+        configure_relay(dialog, env)
+        self.assertEqual(dialog.current_network.text(), "wan\u3001guest")
+        self.assertEqual(dialog.current_bssid.text(), "02:11:22:33:44:55")
+        self.assertEqual(dialog.current_encryption.currentData(), "psk2+ccmp")
+        self.assertTrue(dialog.bridge_network.isHidden())
+
+    def test_relay_edit_submits_explicit_wireless_values_and_network_rebinding(self):
+        env = environment()
+        env.data["networks"].append(dict(name="other", proto="dhcp"))
+        env.data["rows"].append(dict(section="upper", ssid="Upstream", device="radio7",
+            mode="sta", network="wan", encryption="psk2", bssid="02:11:22:33:44:55", has_key=True))
+        row = SimpleNamespace(section="upper", ssid="Upstream", running="active")
+        dialog = RelaySetupDialog("Upstream", radio_name="radio7", row=row)
+        self.addCleanup(dialog.reject)
+        configure_relay(dialog, env)
+        dialog._current_radio_channel = "auto"
+        dialog.target_label.setText("Other SSID")
+        dialog.current_bssid.setText("02:11:22:33:44:66")
+        dialog.current_encryption.setCurrentIndex(dialog.current_encryption.findData("psk"))
+        dialog.management.setCurrentIndex(dialog.management.findData("1"))
+        dialog.uplink_network.setCurrentIndex(dialog.uplink_network.findData("other"))
+        target = WirelessNetwork("radio7", "02:11:22:33:44:55", "Upstream", 36, "5G", -40, "psk2")
+        result = relay_request(dialog, target)
+        self.assertEqual(result.ssid, "Other SSID")
+        self.assertEqual(result.options["bssid"], "02:11:22:33:44:66")
+        self.assertEqual(result.options["encryption"], "psk")
+        self.assertEqual(result.options["ieee80211w"], "1")
+        self.assertEqual(result.options["bind_network"], "other")
+        self.assertEqual(result.options["preserve_networks"], ["wan"])
+
+    def test_relay_target_change_does_not_reuse_old_channel_or_address(self):
+        env = environment()
+        env.data["radios"][0]["channel"] = "auto"
+        env.data["networks"].append(dict(name="other", proto="static", ipaddr="10.9.0.2"))
+        env.data["rows"].append(dict(section="upper", ssid="Old", device="radio7",
+            mode="sta", network="wan", encryption="psk2", has_key=True))
+        row = SimpleNamespace(section="upper", ssid="Old", running="active")
+        dialog = RelaySetupDialog("Old", radio_name="radio7", row=row)
+        self.addCleanup(dialog.reject)
+        configure_relay(dialog, env)
+        target = WirelessNetwork("radio7", "", "Old", 36, "5G", -40, "psk2")
+        dialog.target_label.setText("New")
+        dialog.uplink_network.setCurrentIndex(dialog.uplink_network.findData("other"))
+        result = relay_request(dialog, target)
+        self.assertNotIn("channel", result.options)
+        self.assertEqual(result.options["bind_network"], "other")
+        self.assertTrue(dialog.protocol.isHidden())
+        self.assertTrue(dialog.zone.isHidden())
+        dialog.bridge_mode.setCurrentIndex(dialog.bridge_mode.findData("wds"))
+        self.assertTrue(dialog.uplink_network.isHidden())
+        self.assertEqual(relay_request(dialog, target).options["bridge_mode"], "wds")
+
+    def test_fixed_channel_rejects_unknown_new_uplink_before_save(self):
+        env = environment()
+        env.data["rows"].append(dict(section="upper", ssid="Old", device="radio7",
+            mode="sta", network="wan", encryption="psk2", has_key=True))
+        row = SimpleNamespace(section="upper", ssid="Old", running="active")
+        dialog = RelaySetupDialog("Old", radio_name="radio7", row=row)
+        self.addCleanup(dialog.reject)
+        configure_relay(dialog, env)
+        dialog.target_label.setText("New")
+        target = WirelessNetwork("radio7", "", "Old", 36, "5G", -40, "psk2")
+        with self.assertRaises(ValueError):
+            relay_request(dialog, target)
+
+    def test_existing_wds_boolean_is_interpreted_or_rejected(self):
+        for value, expected in (("1", "wds"), ("true", "wds"),
+                                ("0", "routed"), ("false", "routed"),
+                                ("yes", "unknown")):
+            with self.subTest(value=value):
+                env = environment()
+                env.data["rows"].append(dict(section="upper", ssid="Old", device="radio7",
+                    mode="sta", network="wan", encryption="psk2", has_key=True, wds=value))
+                row = SimpleNamespace(section="upper", ssid="Old", running="active")
+                dialog = RelaySetupDialog("Old", radio_name="radio7", row=row)
+                try:
+                    configure_relay(dialog, env)
+                    self.assertEqual(dialog.bridge_mode.currentData(), expected)
+                    self.assertEqual(dialog.save_button.isEnabled(), expected != "unknown")
+                finally:
+                    dialog.reject()
 
     def test_dynamic_list_removal_releases_widgets_and_limits_growth(self):
         editor = ConfigValueList()

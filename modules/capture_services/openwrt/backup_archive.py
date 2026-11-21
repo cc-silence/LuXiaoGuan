@@ -55,6 +55,7 @@ def inspect_archive(path, cancel):
         raise ValueError("请选择不超过 32 MiB 的普通配置备份文件。")
     digest = file_digest(path, cancel)
     records = {}
+    network_config = None
     expanded = 0
     name_bytes = 0
     try:
@@ -93,6 +94,9 @@ def inspect_archive(path, cancel):
                     if expanded > MAX_EXPANDED:
                         raise ValueError("备份内容超过安全上限。")
                     records[name] = dict(kind="link" if member.issym() else "dir" if member.isdir() else "file", target=target)
+                    if name == "etc/config/network" and member.isfile() and member.size <= 262144:
+                        stream = archive.extractfile(member)
+                        if stream is not None: network_config = stream.read(262145)
         if not records or not any(n.startswith("etc/config/") and r["kind"] == "file" for n, r in records.items()):
             raise ValueError("没有找到 OpenWrt 配置文件，请选择由生成备份导出的 tar.gz 文件。")
         for name in records:
@@ -106,4 +110,5 @@ def inspect_archive(path, cancel):
     after = path.lstat()
     if (before.st_size, before.st_mtime_ns, before.st_ino) != (after.st_size, after.st_mtime_ns, after.st_ino) or file_digest(path, cancel) != digest:
         raise ValueError("检查期间备份文件发生变化，请重新选择。")
-    return dict(sha256=digest, size=before.st_size, expanded=expanded, entries=len(records), records=records)
+    from .restore_network_inspection import backup_lan_address
+    return dict(sha256=digest, size=before.st_size, expanded=expanded, entries=len(records), records=records, restore_lan=backup_lan_address(network_config))

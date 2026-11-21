@@ -4,22 +4,22 @@ from .command_runner import require_command_completion
 
 STATUS_SH=r'''
 path=/etc/init.d/luxiaoguan-wifi-policy
-if test -f /etc/rc.local && sed '/^[[:space:]]*#/d' /etc/rc.local | grep -Eq 'watch_wifi[.]sh|keep_wifi[.]sh'; then printf unknown;exit 0;fi
-if test -L "$path";then printf unknown;exit 0;fi
+if test -f /etc/rc.local && sed '/^[[:space:]]*#/d' /etc/rc.local | grep -Eq 'watch_wifi[.]sh|keep_wifi[.]sh'; then printf unknown:old_watch;exit 0;fi
+if test -L "$path";then printf unknown:script_symlink;exit 0;fi
 if test ! -e "$path";then
  for link in /etc/rc.d/S??luxiaoguan-wifi-policy;do
-  if test -e "$link" -o -L "$link";then printf unknown;exit 0;fi
+  if test -e "$link" -o -L "$link";then printf unknown:missing_script_link;exit 0;fi
  done
  printf on;exit 0
 fi
-digest=$(sha256sum "$path" 2>/dev/null) || { printf unknown;exit 0; }
+digest=$(sha256sum "$path" 2>/dev/null) || { printf unknown:hash_unavailable;exit 0; }
 digest=$(printf '%s' "$digest" | cut -d ' ' -f 1)
-case "$digest" in __KNOWN__) :;; *) printf unknown;exit 0;; esac
+case "$digest" in __KNOWN__) :;; *) printf unknown:hash_unrecognized;exit 0;; esac
 for link in /etc/rc.d/S??luxiaoguan-wifi-policy;do
  if test ! -e "$link" -a ! -L "$link";then continue;fi
  test "$link" = /etc/rc.d/S18luxiaoguan-wifi-policy && test -L "$link" &&
  test "$(readlink "$link")" = ../init.d/luxiaoguan-wifi-policy && test -x "$link" ||
- { printf unknown;exit 0; }
+ { printf unknown:invalid_link;exit 0; }
 done
 if test -L /etc/rc.d/S18luxiaoguan-wifi-policy;then printf off;else printf on;fi
 '''.replace("__KNOWN__","|".join(sorted(BOOT_SCRIPT_HASHES)))
@@ -31,6 +31,12 @@ def read_boot_status(manager,cancel):
     value=manager.runner.run("router_policy_status",STATUS_SH,timeout=8,cancel_event=cancel,output_limit=64)
     require_command_completion(value)
     if ssh._client is not connection or ssh.host_fingerprint!=fingerprint or not ssh.connected:
-        return dict(boot_state=None)
+        return dict(boot_state=None, boot_reason="connection_changed")
     state=value.stdout.strip()
-    return dict(boot_state=(state=="on") if value.exit_code==0 and state in {"on","off"} else None)
+    if value.exit_code==0 and state in {"on","off"}:
+        return dict(boot_state=state=="on")
+    reasons={"old_watch", "script_symlink", "missing_script_link", "hash_unavailable", "hash_unrecognized", "invalid_link"}
+    reason=state.removeprefix("unknown:") if state.startswith("unknown:") else "probe_unexpected"
+    if value.exit_code!=0 or reason not in reasons:
+        reason="probe_unexpected"
+    return dict(boot_state=None, boot_reason=reason)

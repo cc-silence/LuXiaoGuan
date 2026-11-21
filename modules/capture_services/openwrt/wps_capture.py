@@ -28,6 +28,8 @@ _PSK_RE = re.compile(r"WPA PSK:\s*(.+)", re.IGNORECASE)
 # 附加参数白名单：无值开关与带数值开关。-i/-b/-c/-s/-p/-m/-K/信道类由程序控制，
 # 一律拒绝，避免用户输入改写关键目标参数；长选项全部拒绝。
 _EXTRA_FLAG_OK = frozenset({"-S", "-N", "-E", "-L", "-P", "-q", "-v"})
+# 提速参数由程序固定开启，避免升级后旧设置漏掉，也避免重复拼接。
+_CONTROLLED_FLAGS = frozenset({"-S", "-N"})
 _EXTRA_VALUE_OK = {
     "-l": (1, 1000),
     "-d": (0, 100),
@@ -54,7 +56,7 @@ class OpenWrtWpsCapture:
         """把用户附加参数限制在白名单内，返回可拼接的命令片段。
 
         参数 text 是设置页原文。非法 token 直接抛错（不静默丢弃，避免用户以为
-        生效）。数值开关钳制到允许范围。
+        生效）。数值开关钳制到允许范围。-S/-N 已由程序固定开启，这里忽略重复项。
         """
 
         parts = []
@@ -62,7 +64,9 @@ class OpenWrtWpsCapture:
         index = 0
         while index < len(tokens):
             token = tokens[index]
-            if token in _EXTRA_FLAG_OK:
+            if token in _CONTROLLED_FLAGS:
+                index += 1
+            elif token in _EXTRA_FLAG_OK:
                 parts.append(token)
                 index += 1
             elif token in _EXTRA_VALUE_OK:
@@ -328,9 +332,9 @@ class OpenWrtWpsCapture:
                 workspace, monitor_interface, target, "second", options,
                 workspace_manager, cancel_event, session_path=session_path)
             try:
-                remembered_seconds = int(options.get("quick_seconds", 60))
+                remembered_seconds = int(options.get("quick_seconds", 0))
             except (TypeError, ValueError, OverflowError):
-                remembered_seconds = 60
+                remembered_seconds = 0
             remembered_seconds = max(0, min(remembered_seconds, 3600))
 
             def remembered_report(phase, _current, _status, _started):
@@ -476,6 +480,10 @@ class OpenWrtWpsCapture:
             f"-b {quote_argument(bssid)}",
             f"-c {channel}",
             "-vv",
+            # 与社区秒 Pin 脚本一致：小 DH 密钥 + 不回 NACK，明显加快握手；
+            # pixiewps 官方说明 -S 等价于私钥=1、公钥=2，离线 Pin 同样受益。
+            "-S",
+            "-N",
             "-f",
             f"-d {max(0, min(int(options.get('pin_speed', 1) or 1), 100))}",
             # Mint 误把速率同时填进 -t；这里 -t 必须用超时时间。

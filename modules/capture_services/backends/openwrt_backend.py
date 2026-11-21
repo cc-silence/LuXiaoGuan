@@ -940,7 +940,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 record.interface,
                 session_id,
                 band,
-                settings.get("scan_seconds", 60),
+                settings.get("scan_seconds", 120),
                 settings.get("refresh_seconds", 10),
                 self.workspace_manager,
                 cancel_event=cancel_event,
@@ -1166,7 +1166,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 "",
                 lambda: self.radio_session.heal_link(cancel_event),
                 deauth_batches=settings.get("deauth_batches", 10),
-                no_client_observation_seconds=settings.get("no_client_observation_seconds", 30),
+                no_client_observation_seconds=settings.get("no_client_observation_seconds", 10),
             )
             if result.verdict in ("none", "partial"):
                 # 包里没有 EAPOL，或有 EAPOL 但凑不出可跑包组合，密码学上无价值，
@@ -1862,7 +1862,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 lambda: self.radio_session.heal_link(cancel_event),
                 deauth_batches=settings.get("deauth_batches", 10),
                 stop_on_missing_beacon=True,
-                **({"no_client_observation_seconds": settings.get("no_client_observation_seconds", 30)} if observe_clients else {}),
+                **({"no_client_observation_seconds": settings.get("no_client_observation_seconds", 10)} if observe_clients else {}),
                 **({"group_targets": group} if group_targets else {}),
                 defer_analysis=True,
             )

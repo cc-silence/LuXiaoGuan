@@ -19,7 +19,6 @@ class NetworkRecoveryResultDialog(FramelessDialog):
         verified=result.get('checked_apply') is True and result.get('applied') is True and result.get('outcome') not in {'restored','uncertain'} and not self.waiting_for_restart
         if self.waiting_for_restart:
             self.ready=QCheckBox("我已确认路由器重启完成，网线或 Wi-Fi 已连接",self)
-            self.content_layout.addWidget(self.ready)
         plan['guide']=result['note'] if verified else result['note']+'\n\n'+plan['guide']
         if verified:plan['adapters']=[]
         self.panel=LanRecoveryPanel(self)
@@ -27,6 +26,7 @@ class NetworkRecoveryResultDialog(FramelessDialog):
         self.panel.guide.setMinimumHeight(scale.px(230))
         self.panel.guide.setMaximumHeight(scale.px(300))
         self.content_layout.addWidget(self.panel,1)
+        if self.waiting_for_restart:self.content_layout.addWidget(self.ready)
         if not verified and self.broker is not None and self.progress_signal is not None:
             self.offer=self.broker.create_offer(plan,ready=not self.waiting_for_restart)
             self.panel.update_payload(self.broker.payload(self.offer))

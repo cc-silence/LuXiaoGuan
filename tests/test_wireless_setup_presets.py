@@ -15,7 +15,8 @@ def configured_environment():
     env = environment()
     env.data['features'].update(ap_11ax=True, ap_11ac=True)
     env.data['radios'][0].update(htmode='HE160', htmodes=['HE20', 'HE80', 'HE160'],
-                                country='CN', txpower='17', beacon_int='300')
+                                country='CN', txpower='17', beacon_int='300',
+                                runtime_complete=True, runtime_pending=False)
     env.data['rows'][0].update(hidden='1', isolate='0', wmm='0', dtim_period='7')
     return env
 
@@ -37,6 +38,76 @@ class PresetPolicyTests(unittest.TestCase):
                 self.assertNotIn('network', values)
         env.data['radios'][0]['option_support'] = {}
         self.assertEqual(ap_recommendations(env.data, 'radio7'), {})
+
+    def test_auto_channel_requires_confirmed_capability(self):
+        env = configured_environment()
+        env.data["features"]["ap_acs"] = True
+        self.assertEqual(ap_recommendations(env.data, "radio7")["channel"], "auto")
+        d = AccessPointSetupDialog("radio7", "5G")
+        try:
+            configure_ap(d, env)
+            self.assertIsNone(d.channel.currentData())
+            d.settings_profile.setCurrentIndex(1)
+            self.assertEqual(d.channel.currentData(), "auto")
+            d.settings_profile.setCurrentIndex(0)
+            self.assertIsNone(d.channel.currentData())
+        finally:
+            d.reject()
+        env.data["features"]["ap_acs"] = False
+        self.assertNotIn("channel", ap_recommendations(env.data, "radio7"))
+
+    def test_auto_channel_recommendation_preserves_station_radio(self):
+        env = configured_environment()
+        env.data["features"]["ap_acs"] = True
+        env.data["rows"].append(dict(section="upper", device="radio7", mode="sta"))
+        self.assertNotIn("channel", ap_recommendations(env.data, "radio7"))
+        env.data["rows"][-1]["device"] = "another"
+        self.assertEqual(ap_recommendations(env.data, "radio7")["channel"], "auto")
+
+    def test_disabled_station_allows_auto_only_if_not_running(self):
+        for disabled, active, expected in (
+            ("1", [], True), ("true", [], True),
+            ("0", [], False), ("false", [], False), (None, [], False),
+            ("yes", [], False), ("1", ["upper"], False), ("1", None, False),
+        ):
+            with self.subTest(disabled=disabled, active=active):
+                env = configured_environment()
+                env.data["features"]["ap_acs"] = True
+                env.data["active"] = active
+                env.data["rows"].append(dict(section="upper", device="radio7",
+                                             mode="sta", disabled=disabled))
+                values = ap_recommendations(env.data, "radio7")
+                self.assertEqual(values.get("channel") == "auto", expected)
+
+    def test_disabled_station_requires_complete_stable_runtime(self):
+        for complete, pending, expected in ((True, False, "auto"),
+                                             (False, True, None),
+                                             (True, True, None),
+                                             (True, None, None),
+                                             (False, False, None),
+                                             (None, False, None)):
+            with self.subTest(complete=complete, pending=pending):
+                env = configured_environment()
+                env.data["features"]["ap_acs"] = True
+                env.data["radios"][0].update(runtime_complete=complete, runtime_pending=pending)
+                env.data["rows"].append(dict(section="upper", device="radio7", mode="sta", disabled="1"))
+                self.assertEqual(ap_recommendations(env.data, "radio7").get("channel"), expected)
+
+    def test_disabled_station_recommendation_updates_editor_and_restores(self):
+        env = configured_environment()
+        env.data["features"]["ap_acs"] = True
+        env.data["rows"].append(dict(section="upper", device="radio7",
+                                     mode="sta", disabled="1"))
+        d = AccessPointSetupDialog("radio7", "5G")
+        try:
+            configure_ap(d, env)
+            self.assertIsNone(d.channel.currentData())
+            d.settings_profile.setCurrentIndex(1)
+            self.assertEqual(d.channel.currentData(), "auto")
+            d.settings_profile.setCurrentIndex(0)
+            self.assertIsNone(d.channel.currentData())
+        finally:
+            d.reject()
 
     def test_bands_and_unknown_capabilities_are_not_guessed(self):
         env = configured_environment()
@@ -152,6 +223,52 @@ class PresetEditorTests(unittest.TestCase):
 
 
 class PresetNativeSaveTests(unittest.TestCase):
+    def test_runtime_completeness_and_staging_recheck(self):
+        from threading import Event
+        from unittest.mock import patch
+        from tests.test_wireless_setup import LuaDevice
+        from modules.capture_services.openwrt.wireless_setup_manager import WirelessSetupManager
+        from modules.capture_services.openwrt.wireless_setup_models import WirelessRequest
+        device = LuaDevice()
+        device.config["wireless"]["upper"] = {
+            ".type": "wifi-iface", "ssid": "Upper", "device": "radio7", "mode": "sta",
+            "network": "wan", "encryption": "psk2", "disabled": "1"}
+        manager = WirelessSetupManager(device)
+        event = Event()
+        stable = manager.inspect(event)
+        self.assertTrue(stable.data["radios"][0]["runtime_complete"])
+        self.assertEqual(ap_recommendations(stable.data, "radio7").get("channel"), "auto")
+        original = device.call
+        def pending(obj, method, args):
+            value, error = original(obj, method, args)
+            if obj == "network.wireless" and method == "status" and not error:
+                value["radio7"]["pending"] = True
+            return value, error
+        device.lua.globals().bridge_call = pending
+        unstable = manager.inspect(event)
+        self.assertFalse(unstable.data["radios"][0]["runtime_complete"])
+        self.assertNotIn("channel", ap_recommendations(unstable.data, "radio7"))
+        def unavailable(obj, method, args):
+            if obj == "network.device" and method == "status":
+                return None, 2
+            return original(obj, method, args)
+        device.lua.globals().bridge_call = unavailable
+        incomplete = manager.inspect(event)
+        self.assertFalse(incomplete.data["radios"][0]["runtime_complete"])
+        self.assertNotIn("channel", ap_recommendations(incomplete.data, "radio7"))
+        device.lua.globals().bridge_call = original
+        request = WirelessRequest("ap", "radio7", "Home", section="home",
+                                  options={"channel": "auto", "recommended_auto": True, "encryption": "psk2"})
+        call = manager._call
+        def alter_before_stage(action, *args, **kwargs):
+            if action == "stage":
+                device.lua.globals().bridge_call = pending
+            return call(action, *args, **kwargs)
+        with patch.object(manager, "_call", side_effect=alter_before_stage):
+            with self.assertRaises(Exception):
+                manager.save(request, event, lambda *_: None, apply=False)
+        self.assertEqual(device.config["wireless"]["radio7"]["channel"], "36")
+
     def test_recommended_ap_request_reaches_existing_lua_save_and_keeps_secret(self):
         from dataclasses import replace
         from threading import Event
@@ -173,7 +290,7 @@ class PresetNativeSaveTests(unittest.TestCase):
             manager.save(request, event, Mock())
             radio, row = device.config['wireless']['radio7'], device.config['wireless']['home']
             self.assertEqual(radio['htmode'], 'HE80')
-            self.assertEqual((radio['country'], radio['txpower'], radio['channel']), ('CN', '17', '36'))
+            self.assertEqual((radio['country'], radio['txpower'], radio['channel']), ('CN', '17', 'auto'))
             self.assertEqual((row['wmm'], row['hidden'], row['dtim_period']), ('1', '0', '2'))
             self.assertEqual(row['key'], 'original-password')
             self.assertIn(('uci', 'confirm'), device.calls)

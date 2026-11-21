@@ -5,7 +5,7 @@ from .command_builder import normalize_bssid
 
 MAX_CANDIDATES = 8
 MAX_FALLBACK_CANDIDATES = 17
-DEFAULT_QUICK_SECONDS = 60
+DEFAULT_QUICK_SECONDS = 0
 DEFAULT_QUICK_ROUNDS = 1
 DEFAULT_SENDER = "reaver"
 SENDERS = ("reaver", "system")
@@ -75,7 +75,7 @@ def default_pin_candidates(bssid, options=None):
 def wps_mode_description(mode):
     if mode == "second":
         return (f"默认 PIN 速测：先试 pin24，再试一次离线 Pin，最后按厂商公式补试；"
-                f"每个候选默认 {DEFAULT_QUICK_SECONDS} 秒，可设轮数；不进入穷举。")
+                f"默认不限制单个候选时长，可设轮数；不进入穷举。")
     if mode == "offline":
         return "离线 Pin 使用 Pixie Dust，需要先与目标交换 WPS 数据；仅对存在相应弱点的设备有效，不保证成功。"
     return "逐个尝试 Pin 可能耗时较长（分钟到小时级）。"

@@ -141,7 +141,7 @@ class WpsConfigurationFlowTests(unittest.TestCase):
         with TemporaryDirectory() as folder:
             manager = CaptureSettingsManager(Path(folder) / "settings.json")
             data = manager.load()
-            self.assertEqual(data["openwrt"]["wps_defaults"]["quick_seconds"], 60)
+            self.assertEqual(data["openwrt"]["wps_defaults"]["quick_seconds"], 0)
             self.assertEqual(data["openwrt"]["wps_defaults"]["quick_rounds"], 1)
             self.assertEqual(data["openwrt"]["wps_defaults"]["wps_sender"], "reaver")
             self.assertFalse(data["openwrt"]["wps_defaults"]["system_offline_pixie"])
@@ -186,6 +186,21 @@ class WpsConfigurationFlowTests(unittest.TestCase):
             finally:
                 dialog.deleteLater()
                 APP.processEvents()
+
+    def test_legacy_quick_seconds_default_migrates_once(self):
+        import json
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "settings.json"
+            path.write_text(json.dumps({"openwrt": {"wps_defaults": {"quick_seconds": 60}}}), encoding="utf-8")
+            data = CaptureSettingsManager(path).load()
+            self.assertEqual(data["openwrt"]["wps_defaults"]["quick_seconds"], 0)
+            self.assertEqual(data["openwrt"]["wps_quick_defaults_version"], 2)
+            manager = CaptureSettingsManager(path)
+            saved = manager.load()
+            saved["openwrt"]["wps_defaults"]["quick_seconds"] = 60
+            manager.save(saved)
+            self.assertEqual(
+                CaptureSettingsManager(path).load()["openwrt"]["wps_defaults"]["quick_seconds"], 60)
 
     def test_remembered_pin_is_tried_before_generated_candidates(self):
         from modules.capture_services.openwrt.wps_defaults import DefaultPinCandidate

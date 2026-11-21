@@ -52,6 +52,7 @@ class ConfigValueList(QWidget):
     def __init__(self, parent=None, *, placeholder=""):
         super().__init__(parent)
         self._rows = []
+        self._privacy_protected = False
         self._validator = None
         self._required = False
         self._validation_message = ""
@@ -74,6 +75,9 @@ class ConfigValueList(QWidget):
         scale = UiScaleManager.for_widget(self)
         scale.bind_layout(layout, margins=(0, 0, 0, 0), spacing=4)
         edit = QLineEdit(str(value), row)
+        if self._privacy_protected:
+            from modules.display_privacy import protect_input
+            protect_input(edit)
         edit.setPlaceholderText(self._placeholder)
         edit.textChanged.connect(lambda _text: self.validate())
         remove = create_themed_icon_button(row, ":/icons/images/icons/cil-minus.png", "删除此项")
@@ -85,6 +89,13 @@ class ConfigValueList(QWidget):
         self._layout.insertWidget(self._layout.count() - 1, row)
         remove.clicked.connect(lambda: self._remove(row))
         self.add_button.setEnabled(len(self._rows) < self.MAX_ENTRIES)
+
+    def set_privacy_protected(self):
+        from modules.display_privacy import protect_input
+        if not self._privacy_protected:
+            self._privacy_protected = True
+            for _, edit in self._rows:
+                protect_input(edit)
 
     def _remove(self, row):
         self._rows = [(widget, edit) for widget, edit in self._rows if widget is not row]

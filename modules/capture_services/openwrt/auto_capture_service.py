@@ -900,7 +900,7 @@ class AutoCaptureRadioSession:
             m_sta = hcx_sta_tbl_pat.match(line)
             if m_sta:
                 _time, flags, ap_hex, _sta_hex, _essid = m_sta.groups()
-                if "+" in flags:
+                if len(flags) > 2 and flags[2] == "+":
                     self._eapol_set.add(format_mac(ap_hex))
                 continue
 

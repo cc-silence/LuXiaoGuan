@@ -67,7 +67,7 @@ class WpsDiagnosticTrace:
         self.empty = False
         self.event("target_started", mode=mode if mode in {"normal", "second", "offline", "combo"} else "unknown",
                    channel=_number(target.channel), band=target.band if target.band in {"2.4G", "5G"} else "unknown",
-                   seconds=(_number(options.get("quick_seconds", 60)) if mode == "second"
+                   seconds=(_number(options.get("quick_seconds", 0)) if mode == "second"
                             else _number(options.get("attack_seconds"))),
                    rounds=(_number(options.get("quick_rounds", 1)) if mode == "second"
                            else _number(options.get("attack_rounds", 1))),

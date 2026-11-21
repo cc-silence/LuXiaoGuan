@@ -6,7 +6,7 @@ from math import isfinite
 from threading import RLock, local
 from contextlib import contextmanager
 from .readiness_diagnostics import FLAGS as READINESS_FLAGS, NUMBERS as READINESS_NUMBERS, FAILURES as AP_FAILURES
-from ..management_diagnostic_schema import ACTIONS,KINDS,CODES,SITE_MODULES
+from ..management_diagnostic_schema import ACTIONS,KINDS,CODES,SITE_MODULES,BOOT_REASONS
 from .password_control_diagnostics import ENUMS as CONTROL_ENUMS, NUMBERS as CONTROL_NUMBERS, STAGES as CONTROL_STAGES, REASONS as CONTROL_REASONS
 
 # Exact protocol constants may survive text redaction; arbitrary strings may not.
@@ -55,6 +55,7 @@ SAFE_VALUES["scan_error"] = frozenset({"scan_native", "scan_interface_read", "sc
 SAFE_VALUES["band"] = frozenset({"2g", "5g", "6g"})
 SAFE_VALUES["ap_failure"] = AP_FAILURES
 SAFE_VALUES["ap_state"] = frozenset({"UNINITIALIZED", "DISABLED", "COUNTRY_UPDATE", "ACS", "HT_SCAN", "DFS", "ENABLED"})
+SAFE_VALUES["boot_reason"] = BOOT_REASONS
 SAFE_VALUES["kind"] = KINDS
 SAFE_VALUES["outcome"] = frozenset({"reconnect","uncertain","saved","applied","restored"})
 SAFE_VALUES["reason"] |= CODES
@@ -92,6 +93,7 @@ MAX_CONFIGURATION = 128
 MAX_CONFIGURATION_FAILURES = 16
 STRING_FIELDS = frozenset({"timestamp", "event", "operation", "status", "stage", "kind",
     "selection_source", "connection_reason", "exception_type", "cause_reason", "cause_type", "cause_site", "reason", "code_site", "last_stage", "last_reason", "outcome", "transport", "band", "source", "task_band", "ap_state", "ap_failure", "interface_state", "scan_interface", "scan_radio", "scan_error", "scan_target"})
+STRING_FIELDS |= {"boot_reason"}
 STRING_FIELDS |= frozenset(CONTROL_ENUMS) | {"verification_field", "verification_actual_type", "verification_expected_type"}
 NUMBER_FIELDS = frozenset({"id", "errno", "winerror", "operation_id", "elapsed_seconds", "connected_before",
     "connected_after", "exit_code", "timed_out", "cancelled", "request_bytes",

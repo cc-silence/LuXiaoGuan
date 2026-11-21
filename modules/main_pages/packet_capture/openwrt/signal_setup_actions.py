@@ -161,6 +161,8 @@ class SignalSetupActions(QObject):
         if env is None:
             return
         dialog = RelaySetupDialog(network.ssid, self.panels.page, radio_name=network.radio, password=password, row=row)
+        dialog._target_bssid = network.bssid
+        dialog._target_encryption = network.encryption
         configure_relay(dialog, env)
         load_password = self._bind_stored_password(dialog, env, row)
         if row:
