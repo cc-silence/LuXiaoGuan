@@ -176,3 +176,27 @@ Offline intelligent-analysis summary, AP SSID/MAC table and report labels now fo
 Scan and per-target timeout defaults are both 60 seconds; persisted custom values and PMKID-specific settings remain unchanged. Bulk clear now resets all CAPTURED targets including those with current-session artifacts, consistent with single-target clear. Files and artifact entries remain intact; revision invalidation and snapshot/history signals are retained. Privacy-on and privacy-off table updates verified.
 
 39 checks passed, 1 existing environment skip; includes settings save/reopen and status/result-presence regressions. No live router or native Debian validation, no package built. Evidence: [validation](capture-defaults-clear-validation-20261119.json).
+
+
+## 2026-11-19 秒 Pin 提速与候选时长
+
+秒 Pin 现在固定带 `-S`（小 DH）和 `-N`（不回 NACK），与社区秒 Pin 脚本一致；附加参数里再写 `-S -N` 会被忽略，不会重复拼接。单个候选默认不再按 60 秒放弃，`0` 表示等 reaver 给出明确结果（被拒、超时、终止或拿到凭据），用户仍可在秒 Pin 设置里设上限。
+
+- 必需满足：`-S/-N` 不能被用户附加参数覆盖或重复；附加参数仍拒绝 `-i/-b/-c/-s/-p/-m/-K`；`-g 1` 继续保证每个候选只试一次；系统 WPS 发送方式对单次注册仍最多等 120 秒。
+- 旧配置迁移：没有新版本标记且 `quick_seconds == 60` 的配置一次性改为 `0`；迁移后用户主动改回 60 会保留。
+- 检查依据：17 个 WPS 测试模块共 174 项通过；新增覆盖默认不限时、命令行含 `-S/-N`、附加参数去重、显式时长仍有限、旧配置迁移一次；秒 Pin 设置亮/暗离屏截图核对，文案无裁切。
+- 资料：reaver t6x 源码 `argsparser.c`（`-S`/`-N` 语义）、`exchange.c`（关闭 NACK 时手动起定时器，不会无限等待）、`pixie.c`（开启小 DH 时给 pixiewps 传 `-S`）、pixiewps README（`-S` 即私钥=1、公钥=2，兼容离线 Pin）。固定提交与文件哈希见证据文件。
+- 状态：离线通过；真机与脚本的速度对比、WPS 锁定行为待验证。证据：[验证记录](wps-quick-speed-unlimited-validation-20261119.json)。
+
+
+## 2026-11-21 CAP-12
+
+自动抓包前台和离线报告统一按已识别的帧类型判断：M1+M2、M2+M3 和完整四次握手显示可用；M1+M4 、M3+M4 不计入可用。此判断不确认同一会话或口令。真机和 Debian 12 待验证。
+
+补充：两个结果窗口支持表头排序，实时刷新和隐私切换后保持数据对应。Windows 离线定向回归 45 项通过；真机和 Debian 12 待验证。
+
+补充：核对 hcxdumptool 6.3.4/6.3.5 源码，将状态表 3 列的握手完成信号与单个 M3 区分，客户端 E 不再误作 M2。用实际状态行格式做前台更新与离线测试，Windows 47 项通过；无该用户的实时终端日志，真机和 Debian 12 待复测。
+
+补充：前台和报告区分工具报告的 M1+M2+M3 与 M1+M2，不再把第三列展示成容易误解的 M1+M3。原始包 hcxmon1_20261121_113857 已做只读解析，离线回归 47 项通过；真机实时输出和 Debian 12 待验证。
+
+补充：常规抓包扫描时间默认 120 秒，原有已保存时长保留。Windows 离线回归 15 项通过；真机与 Debian 12 待验证。
