@@ -46,6 +46,7 @@ Restart-NetAdapter -InputObject $nic -Confirm:$false -ErrorAction Stop
 
 def _linux(adapter, timeout, permit):
     from .lan_network_linux import inspect, command
+    deadline = time.monotonic() + timeout
     rows = inspect(timeout=min(5, timeout / 4), adapter_id=adapter["id"])
     current = next((r for r in rows if r["id"] == adapter["id"]), None)
     if (not current or current["mac"] != adapter["mac"] or
@@ -54,7 +55,19 @@ def _linux(adapter, timeout, permit):
     if not permit():
         raise InterruptedError("Network recovery request expired")
     name, connection = current["name"], current["connection"]
+    remaining = deadline - time.monotonic()
+    if remaining < 10:
+        raise TimeoutError("Insufficient time to safely reconnect the adapter")
+    # Reserve time to restore the same connection even if disconnect fails.
+    disconnect_timeout = min(10, remaining - 6)
     try:
-        command(["nmcli", "--wait", "8", "device", "disconnect", name], 10)
+        command(["nmcli", "--wait", str(max(1, int(disconnect_timeout - 1))),
+                 "device", "disconnect", name], disconnect_timeout)
     finally:
-        command(["nmcli", "--wait", "15", "connection", "up", "uuid", connection, "ifname", name], 18)
+        remaining = deadline - time.monotonic()
+        if remaining <= 1:
+            raise TimeoutError("Connection restoration time expired")
+        command(["nmcli", "--wait", str(max(1, int(remaining - 1))),
+                 "connection", "up", "uuid", connection, "ifname", name], remaining)
+    if not permit():
+        raise InterruptedError("Network recovery request expired")
