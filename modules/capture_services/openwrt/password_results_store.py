@@ -63,7 +63,11 @@ def read_password_file(path):
     lines = path.read_text(encoding='utf-8-sig').splitlines()
     if len(lines) < 2:
         raise ValueError('Invalid result file')
-    values = lines[1].split('\t')
+    labels = ("Wi-Fi名称：", "MAC：", "密码：")
+    if len(lines) >= 3 and all(lines[i].startswith(label) for i, label in enumerate(labels)):
+        values = [lines[i][len(label):] for i, label in enumerate(labels)]
+    else:
+        values = lines[1].split('\t')
     if len(values) != 3:
         raise ValueError('Invalid result file')
     def decode(value):
@@ -170,7 +174,9 @@ class PasswordResultCatalog:
         if not directory.is_dir():
             return
         known = {row[0] for row in self.connection.execute("SELECT result_file FROM password_targets WHERE result_file<>''")}
-        for index, path in enumerate(directory.glob('*-password.txt')):
+        from itertools import chain
+        paths = chain(directory.glob('*-password.txt'), directory.glob('*-密码.txt'))
+        for index, path in enumerate(paths):
             if index >= MAX_TARGETS or cancel.is_set():
                 break
             if str(path) in known or path.is_symlink():

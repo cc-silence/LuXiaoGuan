@@ -281,7 +281,6 @@ local function stage()
   if opts.bssid and opts.bssid~="" then wf.bssid=opts.bssid end
   if opts.channel then set("wireless",radio,{channel=opts.channel}) end
  else
-  wf.wds="0"
   if opts.channel then set("wireless",radio,{channel=opts.channel}) end
   wf.encryption=opts.encryption or (old and old.encryption) or "psk2"
   wf.description=v.label
@@ -323,6 +322,9 @@ local function stage()
  if shared_station then wf.rm_suspended=old.rm_suspended
  elseif req.save_only==true and (wf.rm_bridge or wf.rm_wds_backup) then wf.rm_suspended="1"
  elseif old and old.rm_suspended and not req.temporary then remove("wireless",section,"rm_suspended") end
+ if v.mode=="sta" and not req.temporary and not bridged and old and old.wds~=nil then
+  remove("wireless",section,"wds")
+ end
  if old then set("wireless",section,wf) else add("wireless","wifi-iface",section,wf) end
  local expected_mac=v.mode=="ap" and (opts.macaddr or (old and identity_mac(old.macaddr) and old.macaddr)) or nil
  if v.mode=="sta" and not req.temporary then expected_mac=stage_identity(c,old,section,network,opts,bridged) end

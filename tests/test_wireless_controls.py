@@ -64,7 +64,7 @@ class WirelessControlTests(unittest.TestCase):
         self.assertTrue(reopened.expert_fields.controls["skip_inactivity_poll"].isChecked())
         self.assertFalse(reopened.expert_fields.controls["disassoc_low_ack"].isChecked())
         self.assertNotIn("skip_inactivity_poll", ap_request(reopened).options)
-        self.assertIn("86400", reopened.expert_fields.controls["max_inactivity"].placeholderText())
+        self.assertEqual("86400", reopened.expert_fields.controls["max_inactivity"].text())
         dialog.dtim.setText("256")
         with self.assertRaises(ValueError):
             ap_request(dialog)
@@ -152,7 +152,7 @@ class WirelessControlTests(unittest.TestCase):
         self.assertTrue(dialog.protocol.isHidden())
         self.assertTrue(dialog.zone.isHidden())
         dialog.bridge_mode.setCurrentIndex(dialog.bridge_mode.findData("wds"))
-        self.assertTrue(dialog.uplink_network.isHidden())
+        self.assertFalse(dialog.uplink_network.isEnabled())
         self.assertEqual(relay_request(dialog, target).options["bridge_mode"], "wds")
 
     def test_fixed_channel_rejects_unknown_new_uplink_before_save(self):

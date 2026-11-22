@@ -188,6 +188,15 @@ class PrivacyLabel(QLabel):
         QLabel.setToolTip(self, self._project(self._raw_tooltip))
 
 
+class PrivacySensitiveLabel(PrivacyLabel):
+    """Hide the entire value when display privacy is enabled."""
+
+    def _project(self, text):
+        if self._privacy and self._privacy.enabled and text:
+            return MASKED_TEXT
+        return str(text)
+
+
 class PrivacyInputController(QObject):
     """Hide an editable value without changing the value being edited."""
 

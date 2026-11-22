@@ -6,6 +6,7 @@ from modules.common_widgets.natural_height_layout import NaturalHeightVBoxLayout
 from modules.common_widgets.config_fields import ConfigCheckBox, ConfigValueList
 from modules.common_widgets.collapsible_section import CollapsibleSection
 from modules.common_widgets.frameless_dialog import FramelessDialog
+from modules.display_privacy import PrivacySensitiveLabel, protect_input
 from modules.config_manager import ConfigManager
 from modules.dialog_theme import build_base_stylesheet, detect_light_theme
 from modules.settings_pages.settings_widgets import create_dialog_ok_cancel_buttons
@@ -195,6 +196,7 @@ class AccessPointSetupDialog(_SetupDialog):
         group, layout = self._basic("Wi-Fi \u540d\u79f0\u4e0e\u5bc6\u7801" if editing else "", primary=True)
         self.name_input = RandomNameInput(group, row.ssid if editing else "", "输入手机和电脑搜索到的 Wi-Fi 名称")
         self.name_edit = self.name_input.edit
+        protect_input(self.name_edit)
         add_field(layout, group, "信号名称", self.name_input, "最多 32 字节，约 10 个汉字或 32 个英文字母。")
         self._emphasize_input(self.name_input, self.name_edit)
         self.password = PasswordInput(group, "留空保留原密码" if editing else "至少 8 位，建议使用字母和数字")
@@ -253,12 +255,20 @@ class RelaySetupDialog(_SetupDialog):
         group, layout = self._basic("中继连接", primary=True)
         self._basic_layout = layout
         self.name_edit = text_input(group, ssid, "例如：客厅上级网络")
-        self.target_label = text_input(group, ssid) if row else hint(ssid or "隐藏网络", group)
+        self.target_label = text_input(group, ssid) if row else PrivacySensitiveLabel(ssid or "隐藏网络", group)
+        protect_input(self.name_edit)
+        if row:
+            protect_input(self.target_label)
+        else:
+            self.target_label.setObjectName("settingsHint")
+            self.target_label.setTextFormat(Qt.PlainText)
+            self.target_label.setWordWrap(True)
+            self.target_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         add_field(layout, group, "信号名称", self.target_label, "实际连接的网络。")
         self.connection_label = hint("当前连接：" + (row.running if row else "待保存"), group)
         layout.addWidget(self.connection_label)
-        self.other_section, self.other_tabs = self._section("其他设置", ("连接与密码", "网络设置", "高级选项", "设备身份"))
-        page, layout = self.other_tabs.pages["连接与密码"]
+        self.other_section, self.other_tabs = self._section("其他设置", ("常规设置", "无线安全", "高级设置", "设备身份"))
+        page, layout = self.other_tabs.pages["常规设置"]
         add_field(layout, page, "备注名称", self.name_edit, "仅用于辨认此连接，不修改上级 Wi-Fi 名称。")
         self.password = PasswordInput(group, "留空沿用原密码，点眼睛可查看" if row else "输入上级 Wi-Fi 密码")
         self.password.edit.setText(password)
@@ -270,11 +280,10 @@ class RelaySetupDialog(_SetupDialog):
         self.lock_bssid = add_field(layout, page, "锁定到 BSSID", ConfigCheckBox(page),
             "BSSID 是接入点的无线地址。启用锁定时，只连接扫描选中的接入点；解除锁定后允许连接同名 Wi-Fi。")
         self.lock_bssid.configure("1", preserve=False)
-        self.current_bssid = add_field(layout, page, "上级无线地址", text_input(page), "")
-        self.current_encryption = add_field(layout, page, "加密方式", choice(page, ()), "")
-        page, layout = self.other_tabs.pages["网络设置"]
-        self.current_network = add_field(layout, page, "当前关联网络", hint("", page), "")
-        self.uplink_network = add_field(layout, page, "更换关联网络", choice(page, ()), "选择已存在的网络；不修改该网络的地址和防火墙设置。")
+        self.current_bssid = add_field(layout, page, "BSSID", text_input(page), "上级接入点的无线地址。")
+        self.current_network = hint("", page)
+        self.current_network.hide()
+        self.uplink_network = add_field(layout, page, "网络", choice(page, ()), "显示当前关联网络；选择其他网络时更换关联。")
         self.bridge_mode = add_field(layout, page, "连接方式", choice(page, (
             ("无线上网（独立子网）", "routed"),
             ("WDS 透明桥接", "wds"),
@@ -284,18 +293,24 @@ class RelaySetupDialog(_SetupDialog):
         self.relay_ip = add_field(layout, page, "本机 IPv4 地址", text_input(page), "可选：relayd 在上级网段内的本地 IPv4 地址；需要避免与其他设备冲突。")
         self.bridge_hint = hint("", page)
         layout.addWidget(self.bridge_hint)
+        page, layout = self.other_tabs.pages["高级设置"]
         self.protocol = add_field(layout, page, "协议", choice(page, (("DHCP 客户端", "dhcp"), ("静态地址", "static"))),
                                   "DHCP 客户端由上级自动分配地址；静态地址需要手动填写 IPv4 地址等参数。连接验证只要求无线认证成功，不要求获得地址。")
         self.address = add_field(layout, page, "IPv4 地址", text_input(page, placeholder="例如 192.168.1.10"), "此路由器在上级网络中使用的地址。")
         self.netmask = add_field(layout, page, "IPv4 子网掩码", text_input(page, placeholder="例如 255.255.255.0"), "仅在协议为“静态地址”时填写。")
         self.gateway = add_field(layout, page, "IPv4 网关", text_input(page, placeholder="例如 192.168.1.1"), "上级网络出口地址。")
         self.dns = add_field(layout, page, "使用自定义的 DNS 服务器", ConfigValueList(page, placeholder="留空自动获取"), "每项填写一个 DNS 服务器地址，使用加减按钮增删；留空使用上级提供的域名解析服务。")
+        for control in (self.current_bssid, self.relay_ip, self.address, self.gateway):
+            protect_input(control)
+        self.dns.set_privacy_protected()
         self.protocol.currentIndexChanged.connect(self._network_mode_changed)
         self.bridge_mode.currentIndexChanged.connect(self._network_mode_changed)
         self._network_mode_changed()
-        page, layout = self.other_tabs.pages["高级选项"]
-        self.interface_name = add_field(layout, page, "无线接口名称", text_input(page), "留空使用系统自动生成的接口名称。")
-        self.management = add_field(layout, page, "管理帧保护", choice(page, (("沿用当前", None), ("关闭", "0"), ("可选", "1"), ("必需", "2"))), "无线管理帧保护，需要与上级的加密设置兼容。")
+        page, layout = self.other_tabs.pages["无线安全"]
+        self.current_encryption = add_field(layout, page, "加密", choice(page, ()), "")
+        self.management = add_field(layout, page, "802.11w 管理帧保护", choice(page, (("沿用当前", None), ("关闭", "0"), ("可选", "1"), ("必需", "2"))), "无线管理帧保护，需要与上级的加密设置兼容。")
+        page, layout = self.other_tabs.pages["高级设置"]
+        self.interface_name = add_field(layout, page, "接口名称", text_input(page), "留空使用系统自动生成的接口名称。")
         self.zone = add_field(layout, page, "防火墙区域", choice(page, ()), "通常使用现有 wan 区域，沿用其转发和地址转换规则。")
         self.metric_edit = add_field(layout, page, "网关跃点", text_input(page, placeholder="留空沿用系统设置"),
             "多条上网线路同时存在时数值越小越优先。")
@@ -308,8 +323,9 @@ class RelaySetupDialog(_SetupDialog):
 
     def _network_mode_changed(self):
         mode = self.bridge_mode.currentData()
-        self.uplink_network.setVisible(bool(self.row) and mode == "routed")
-        self.uplink_network._form_label.setVisible(bool(self.row) and mode == "routed")
+        self.uplink_network.setVisible(True)
+        self.uplink_network.setEnabled(bool(self.row) and mode == "routed")
+        self.uplink_network._form_label.setVisible(True)
         self.bridge_network.setEnabled(mode != "routed")
         self.bridge_network.setVisible(mode != "routed")
         self.bridge_network._form_label.setVisible(mode != "routed")

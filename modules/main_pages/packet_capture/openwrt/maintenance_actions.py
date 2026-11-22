@@ -30,7 +30,9 @@ class MaintenanceActions:
         return self.page.manager.manager.ssh.connected and identity == self._identity()
 
     def _destination(self, before=False):
-        default = backup_filename("操作" if before is True else before)
+        snapshot = getattr(self.page.capture_service, "openwrt_snapshot", None)
+        device = getattr(snapshot, "device", None)
+        default = backup_filename("操作" if before is True else before, device=device)
         path, _ = QFileDialog.getSaveFileName(self.page, "保存操作前备份" if before else "保存配置备份", default,
                                              "OpenWrt 配置备份 (*.tar.gz)")
         if not path:

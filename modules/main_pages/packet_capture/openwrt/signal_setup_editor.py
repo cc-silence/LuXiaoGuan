@@ -108,7 +108,11 @@ def configure_relay(dialog, environment):
     network = old.get("network", "")
     names = network if isinstance(network, list) else str(network or "").split()
     dialog.current_network.setText("、".join(names) if names else ("尚未读取" if dialog.row else "保存时自动创建"))
-    fill(dialog.uplink_network, [("保留当前关联", None)] + [(n["name"], n["name"]) for n in data["networks"] if n.get("name") not in ("lan", "loopback") and n.get("proto") != "relay"], None)
+    network_label = "、".join(names) if names else ("尚未读取" if dialog.row else "保存时自动创建")
+    choices = [(network_label, None)]
+    if dialog.row:
+        choices += [(n["name"], n["name"]) for n in data["networks"] if n.get("name") not in ("lan", "loopback") and n.get("proto") != "relay" and n.get("name") not in names]
+    fill(dialog.uplink_network, choices, None)
     dialog.current_bssid.setText(old.get("bssid", "") or getattr(dialog, "_target_bssid", ""))
     dialog.current_bssid.setEnabled(dialog.lock_bssid.isEnabled())
     choices = [("Open", "none"), ("WPA-PSK", "psk"), ("WPA2-PSK", "psk2"), ("WPA/WPA2-PSK", "psk-mixed")]

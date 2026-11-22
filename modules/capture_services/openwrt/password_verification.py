@@ -364,13 +364,13 @@ class OpenWrtPasswordVerifier:
                     history.mark(target, password)
                 if connected:
                     stem = safe_result_stem(ssid, bssid) + "-" + bssid.replace(":", "")
-                    out_path = final_results_dir(local_output_dir) / f"{stem}-password.txt"
+                    out_path = final_results_dir(local_output_dir) / f"{stem}-密码.txt"
                     # 密码只写结果文件，不进日志、消息和快照。
                     fields = [
                         value.replace("\\", "\\\\").replace("\t", "\\t").replace("\r", "\\r").replace("\n", "\\n")
                         for value in (ssid, bssid, password)
                     ]
-                    out_path.write_text("Wi-Fi名称\tMAC\t密码\n" + "\t".join(fields) + "\n", encoding="utf-8")
+                    out_path.write_text("\n".join(label + value for label, value in zip(("Wi-Fi名称：", "MAC：", "密码："), fields)) + "\n", encoding="utf-8")
                     if history is not None:
                         history.mark_success(target, password, out_path)
                     if progress_callback is not None:

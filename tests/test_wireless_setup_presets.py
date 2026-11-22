@@ -161,6 +161,19 @@ class PresetEditorTests(unittest.TestCase):
         finally:
             d.reject(); d.deleteLater(); APP.processEvents()
 
+    def test_recommended_2g_prefers_n40_and_country_falls_back_to_cn(self):
+        env = configured_environment()
+        radio = env.data["radios"][0]
+        radio["band"] = "2g"
+        radio["channels"] = [{"channel": 1, "mhz": 2412}]
+        radio["htmodes"] = ["HT20", "HT40", "HE20", "HE40"]
+        radio["countries"] = [{"code": "CN"}]
+        values = ap_recommendations(env.data, "radio7")
+        self.assertEqual(values["htmode"], "HT40")
+        self.assertEqual(values["country"], "CN")
+        radio["htmodes"] = ["HT20", "HE20"]
+        self.assertEqual(ap_recommendations(env.data, "radio7")["htmode"], "HT20")
+
     def test_recommended_country_is_capability_gated_and_restores_existing(self):
         env = configured_environment()
         radio = env.data['radios'][0]

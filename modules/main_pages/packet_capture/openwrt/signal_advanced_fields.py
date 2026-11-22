@@ -74,11 +74,12 @@ class AdvancedFields:
                 control.set_values(value if isinstance(value, list) else str(value or "").split())
             elif spec.kind == "enum":
                 # Unchanged selections preserve the device configuration.
-                control.setItemText(0, "沿用系统设置" + (" ("+str(value)+")" if value is not None else ""))
+                control.setItemText(0, str(value) if value is not None else "当前设置未确认")
                 control.setCurrentIndex(max(0, control.findData(value)))
             else:
                 control.clear()
-                control.setPlaceholderText("当前："+(" ".join(value) if isinstance(value, list) else str(value)) if value is not None else "留空沿用系统设置")
+                control.setText((" ".join(value) if isinstance(value, list) else str(value)) if value is not None else "")
+                control.setPlaceholderText("当前设置未确认" if value is None else "")
             control.setToolTip((spec.help or "未修改时保留路由器原配置。") if enabled else "设备未确认支持此项，保留原配置。")
 
         self._mac_list_supported = self.controls["maclist"].isEnabled()
@@ -103,6 +104,11 @@ class AdvancedFields:
             else:
                 value = control.currentData() if spec.kind == "enum" else control.text().strip()
                 if spec.kind == "enum" and value == self.original.get(spec.key):
+                    continue
+            if spec.kind not in ("bool", "enum", "maclist"):
+                original = self.original.get(spec.key)
+                original = " ".join(original) if isinstance(original, list) else str(original) if original is not None else ""
+                if value == original:
                     continue
             if value not in (None, ""): values[spec.key] = value
         return values

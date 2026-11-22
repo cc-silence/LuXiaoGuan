@@ -1081,10 +1081,9 @@ class CaptureService(QObject):
             head += f"；{unfinished} 个目标尚未返回完整结果。"
         if stalled:
             head += f"{stalled} 个目标无进展，已停止重复采集。"
-        self.messageGenerated.emit(
-            head + ("\n" + "\n".join(lines) if lines else ""),
-            "error" if failed else "info" if cancelled else "success" if good else "warning",
-        )
+        from .handshake_reporting import publish_batch_summary
+        publish_batch_summary(self.messageGenerated.emit, head, lines,
+            batch.retained_results + batch.results, failed=failed, cancelled=cancelled, good=good)
         # 弹窗按目标数裁剪：超过 8 个只放前 8 条，其余看信息窗。
         shown = lines[:8]
         if len(lines) > len(shown):
@@ -1554,6 +1553,15 @@ class CaptureService(QObject):
         if isinstance(update, HandshakeTargetResult):
             self._merge_openwrt_handshake_results(
                 HandshakeBatchResult(snapshot.task_state == "stopping", (update,)))
+            return
+        stage = getattr(update, "stage", "")
+        if stage in ("restoring", "saving_existing"):
+            title = ("正在停止并恢复无线" if stage == "restoring"
+                     else "正在保存已抓成果")
+            self.openwrt_backend.snapshot = replace(snapshot,
+                capturing_bssids=(), progress=CaptureProgress(title, 0, 0,
+                    "正在收尾，请等待完成。", True))
+            self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
             return
         if snapshot.task_state == "stopping":
             return

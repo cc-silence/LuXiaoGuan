@@ -110,7 +110,7 @@ class RemoteProcessManager:
         return tuple(self._handles.values())
 
     def start(self, program, command, session_id, remote_work_dir, cancel_event=None,
-              max_runtime=0, *, renewable_output=None):
+              max_runtime=0, *, renewable_output=None, handshake_hint_path=None):
         """后台启动远端程序并登记 PID 与 Linux 进程启动标记。
 
         command 必须已由业务模块安全构建。标准输入重定向自 /dev/null，避免远端工具
@@ -150,7 +150,7 @@ class RemoteProcessManager:
                 remote_work_dir,log_path,renewable_output)
         result = self.command_runner.run(
             f"start_{program}",
-            output_launch_command(program, command, log_path) +
+            output_launch_command(program, command, log_path, handshake_hint_path=handshake_hint_path) +
             "pid=$!; n=0; "
             "while [ ! -r \"/proc/$pid/stat\" ] && [ $n -lt 1 ]; do "
             "sleep 1 || exit 1; n=$((n+1)); done; "

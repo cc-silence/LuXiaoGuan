@@ -54,7 +54,7 @@ class RoamingUnavailableTests(unittest.TestCase):
         for key in KEYS:
             control = fields.controls[key]
             self.assertTrue(control.isEnabled())
-            self.assertEqual(control.text(), "\u6cbf\u7528\u7cfb\u7edf\u8bbe\u7f6e")
+            self.assertEqual(control.text(), "\u5f53\u524d\u72b6\u6001\u672a\u786e\u8ba4")
             control.click()
             self.assertEqual(fields.values()[key], "1")
 

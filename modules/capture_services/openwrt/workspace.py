@@ -96,6 +96,8 @@ class CaptureWorkspaceManager:
             )
         return workspace
 
+    supports_live_checks = True
+
     def download_atomic(self, remote_path, local_path, cancel_event=None):
         """保护共享 SFTP 的整个下载事务，避免并发读取同一协议流。"""
         with self.ssh_client.transfer(cancel_event):

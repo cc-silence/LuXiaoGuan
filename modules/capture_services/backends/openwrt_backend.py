@@ -1168,7 +1168,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 deauth_batches=settings.get("deauth_batches", 10),
                 no_client_observation_seconds=settings.get("no_client_observation_seconds", 10),
             )
-            if result.verdict in ("none", "partial"):
+            if result.verdict in ("none", "partial", "unknown"):
                 # 包里没有 EAPOL，或有 EAPOL 但凑不出可跑包组合，密码学上无价值，
                 # 不落盘；会话临时目录在成功清理时一并消失。
                 return replace(result, cap_path="")
@@ -1591,6 +1591,24 @@ class OpenWrtCaptureBackend(CaptureBackend):
         from modules.capture_services.openwrt.handshake_batch_radio import HandshakeBatchRadio
         batch_radio = HandshakeBatchRadio(self, workspace)
 
+        from threading import Lock
+        publication_lock = Lock()
+        from weakref import WeakValueDictionary
+        published = WeakValueDictionary()
+
+        def publish(entry):
+            with publication_lock:
+                if id(entry) not in published:
+                    if target_callback is not None:
+                        target_callback(entry)
+                    _emit_target_message(message_callback, entry, mask_ssid=_mask_on(settings, "ssid"),
+                         mask_bssid=_mask_on(settings, "bssid"))
+                    published[id(entry)] = entry
+
+        def publish_ready(entries):
+            for entry, _retry in entries:
+                publish(entry)
+
         def consume(group, entries, terminal=False):
             nonlocal primary_error
             group_interruption = None
@@ -1614,7 +1632,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 elif entry.result.verdict == "unknown" and max_rounds is None:
                     entry = replace(entry, stop_reason="unknown", result=replace(
                         entry.result, verdict_detail="包文件无法完成检查，本目标已停止。"
-                        + ("原始记录已保留。" if entry.result.has_usable_frames else "未保留文件。")))
+                        + ("原始记录已保留。" if entry.result.cap_path else "未保留文件。")))
                     retry = False
                 if previous and previous.result and any((
                     previous.result.cap_path, previous.result.hc22000_path, previous.result.hccapx_path,
@@ -1624,8 +1642,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 if entry.error or entry.error_code:
                     primary_error = RuntimeError(entry.error or entry.error_code)
                 cleanup_errors.extend(entry.cleanup_errors)
-                if target_callback is not None:
-                    target_callback(entry)
+                publish(entry)
                 if entry.cleanup_errors:
                     group_interruption = _BatchInterrupted("目标清理失败，已停止后续目标。", "failed")
                 if stop_on_idle_unavailable and entry.error_code == "idle_radio_unavailable":
@@ -1634,9 +1651,6 @@ class OpenWrtCaptureBackend(CaptureBackend):
                     group_interruption = _BatchInterrupted("任务已取消。")
                 if group_interruption is not None and len(group) == 1 and not terminal:
                     raise group_interruption
-                if group_interruption is None:
-                    _emit_target_message(message_callback, entry, mask_ssid=_mask_on(settings, "ssid"),
-                         mask_bssid=_mask_on(settings, "bssid"))
                 if retry:
                     pending.append(target)
             if group_interruption is not None and not terminal:
@@ -1664,7 +1678,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 groups = group_channel_targets(current) if group_same_channel else tuple((t,) for t in current)
                 index = 0
                 for group in bounded_groups(groups, lambda: read_target_capacity(self.command_runner, cancel_event)):
-                    ready = processing.pop(wait=processing.full)
+                    ready = processing.pop(wait=processing.full, cancel_event=cancel_event)
                     while ready is not None:
                         consume(*ready)
                         ready = processing.pop()
@@ -1682,14 +1696,16 @@ class OpenWrtCaptureBackend(CaptureBackend):
                         batch_radio=batch_radio, observe_clients=group_same_channel)
                     index += len(group)
                     if isinstance(captured, DeferredHandshake):
-                        processing.submit(group, captured)
+                        processing.submit(group, captured, on_ready=publish_ready)
                     else:
                         consume(group, captured if len(group) > 1 else (captured,))
                 # Retry and no-progress decisions use finalized results from this round.
-                ready = processing.pop(wait=True)
+                ready = processing.pop(wait=True, cancel_event=cancel_event)
                 while ready is not None:
                     consume(*ready)
-                    ready = processing.pop(wait=True)
+                    ready = processing.pop(wait=True, cancel_event=cancel_event)
+                if cancel_event is not None and cancel_event.is_set():
+                    raise _BatchInterrupted("任务已取消。")
             if not any(item.error or item.error_code for item in latest.values()):
                 primary_error = None
         except _BatchInterrupted as exc:
@@ -1701,6 +1717,23 @@ class OpenWrtCaptureBackend(CaptureBackend):
             status = "cancelled" if cancel_event is not None and cancel_event.is_set() else "failed"
             note = str(_fail_with_site(primary_error, workspace))
         finally:
+            # Stop/restore radio ownership before waiting for local-only downloaded jobs.
+            if batch_radio.record is not None or batch_radio.takeover is not None:
+                try:
+                    if progress_callback is not None:
+                        progress_callback(HandshakeCaptureUpdate(0, 0, stage="restoring"))
+                except Exception:
+                    pass
+                try:
+                    cleanup_errors.extend(batch_radio.release(message_callback))
+                except Exception as exc:
+                    cleanup_errors.extend(getattr(exc, "cleanup_errors", (str(exc),)))
+            if processing.pending:
+                try:
+                    if progress_callback is not None:
+                        progress_callback(HandshakeCaptureUpdate(0, 0, stage="saving_existing"))
+                except Exception:
+                    pass
             # Drain downloaded jobs even after cancellation/failure, before workspace cleanup.
             try:
                 ready = processing.pop(wait=True)
@@ -1925,7 +1958,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         return entries if group_targets else entries[0]
 
     def _save_handshake_entry(self, result, settings, local_root, target, errors, labeled):
-        """复用逐目标的判据、转换和保存，无用包仍不落盘。"""
+        """Apply the shared verdict and retention policy to one target."""
         if getattr(result, "deauth_timed_out", False) and result.verdict not in _CONVERTIBLE_VERDICTS:
             from modules.capture_services.openwrt.deauth_command import DEAUTH_TIMEOUT_NOTE
             note = DEAUTH_TIMEOUT_NOTE
@@ -1941,11 +1974,11 @@ class OpenWrtCaptureBackend(CaptureBackend):
                     else "本轮未抓到可用包。"), note, cleanup_errors=tuple(errors)),
                 True,
             )
-        if result.verdict == "unknown" and not result.has_usable_frames:
+        if result.verdict == "unknown":
             # 自动复核过了：一个可用完整帧都没有，再留就是堆垃圾，不落盘但值得再试。
             note = "；".join(errors)
             return (
-                HandshakeTargetResult(target, _strip_useless_unknown(result), note,
+                HandshakeTargetResult(target, replace(result, cap_path=""), note,
                                       cleanup_errors=tuple(errors)),
                 True,
             )

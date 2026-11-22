@@ -25,7 +25,7 @@ class ConfigCheckBox(QCheckBox):
             self._text_connected = True
 
     def _update_text(self, *_):
-        self.setText("沿用系统设置" if self.checkState() == Qt.PartiallyChecked else "")
+        self.setText("当前状态未确认" if self.checkState() == Qt.PartiallyChecked else "已开启" if self.checkState() == Qt.Checked else "已关闭")
 
     def nextCheckState(self):
         # User clicks always choose a definite value; unknown is initialization only.

@@ -150,6 +150,8 @@ class RouterConfigDialog(FramelessDialog):
             else:edit=text_input(body,value)
             if isinstance(edit, ConfigValueList):
                 edit.set_privacy_protected()
+            elif key == "netmask":
+                protect_input(edit.lineEdit())
             elif hasattr(edit, "setEchoMode"):
                 protect_input(edit)
             self.controls[key]=edit

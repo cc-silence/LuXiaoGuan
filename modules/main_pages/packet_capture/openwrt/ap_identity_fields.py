@@ -1,4 +1,5 @@
 """Stable-per-save random access-point address controls; no device IO."""
+from modules.display_privacy import protect_input
 from PySide6.QtWidgets import QWidget, QHBoxLayout
 from modules.capture_services.openwrt.wireless_identity import generate_unique_mac
 from modules.settings_pages.settings_widgets import create_settings_button
@@ -15,6 +16,7 @@ class AccessPointIdentityFields:
         row = QHBoxLayout(self.widget)
         row.setContentsMargins(0, 0, 0, 0)
         self.address = text_input(self.widget)
+        protect_input(self.address)
         self.address.setReadOnly(True)
         self.regenerate = create_settings_button('重新生成', self.widget)
         row.addWidget(self.address, 1)

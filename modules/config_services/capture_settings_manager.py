@@ -393,6 +393,7 @@ class CaptureSettingsManager:
         # 模拟热点辅助已整体移除；旧配置里的开关不再有执行路径，直接丢弃。
         openwrt.pop("handshake_hotspot_assist", None)
         openwrt["active_deauth"] = self._bool(openwrt.get("active_deauth"), True)
+        openwrt.pop("handshake_save_usable_only", None)
         openwrt["password_dictionary_rounds"] = self._bool(openwrt.get("password_dictionary_rounds"), False)
         openwrt["deauth_batches"] = self._clamp_int(openwrt.get("deauth_batches"), 1, 20, 10)
         openwrt["online_dependency_install"] = self._bool(openwrt.get("online_dependency_install"), True)

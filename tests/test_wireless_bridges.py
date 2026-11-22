@@ -69,6 +69,10 @@ class BridgeTests(unittest.TestCase):
                     manager.save(request, self.cancel, self.message)
                 self.assertEqual({key: device.config[key] for key in before}, before)
                 self.assertEqual(device.config["wireless"]["upper"]["ssid"], "After")
+                if mode == "routed":
+                    self.assertNotIn("wds", device.config["wireless"]["upper"])
+                else:
+                    self.assertEqual(device.config["wireless"]["upper"]["wds"], "1")
                 self.assertNotIn("rm_wds_backup", device.config["wireless"]["upper"])
 
     def test_existing_multiple_networks_are_preserved_or_rebound_without_network_edits(self):
