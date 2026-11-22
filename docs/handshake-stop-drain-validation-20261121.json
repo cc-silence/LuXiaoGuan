@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-21",
+  "scope": "Approved stop/restore/local-result draining only",
+  "behavior": [
+    "Stop waiting for a downloaded job when task cancellation arrives, without cancelling or discarding that job.",
+    "Release owned monitor/takeover before draining local downloaded jobs.",
+    "Preserve final cleanup and its failure reporting after local save.",
+    "Display restoring and saving-existing phases even when the session state is stopping."
+  ],
+  "tests": 67,
+  "result": "passed",
+  "limits": [
+    "No live-router or Debian desktop test",
+    "No realtime-hint or concurrent capture-analysis redesign implemented",
+    "No new package"
+  ],
+  "compatibility": "Existing owned cleanup commands reused unchanged; scheduling relative to PC-only analysis changes. No new firmware command or flag."
+}

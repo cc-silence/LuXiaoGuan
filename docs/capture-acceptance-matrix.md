@@ -200,3 +200,10 @@ Scan and per-target timeout defaults are both 60 seconds; persisted custom value
 补充：前台和报告区分工具报告的 M1+M2+M3 与 M1+M2，不再把第三列展示成容易误解的 M1+M3。原始包 hcxmon1_20261121_113857 已做只读解析，离线回归 47 项通过；真机实时输出和 Debian 12 待验证。
 
 补充：常规抓包扫描时间默认 120 秒，原有已保存时长保留。Windows 离线回归 15 项通过；真机与 Debian 12 待验证。
+
+
+## 2026-11-21 Stop radio before local result drain
+
+Cancellation interrupts only the wait for downloaded result processing; queued/running local jobs remain available for save. Owned wireless resources are released before waiting for those jobs in final drain. Final session cleanup remains after saving to preserve local input files. Restoring/saving-existing stages update the progress display even while stopping. No realtime hint integration or parallel analysis redesign included.
+
+67 targeted tests passed, including blocked-job restore-before-save ordering and process ownership/recovery boundaries. Live router and Debian desktop unverified; no package built. Evidence: [validation](handshake-stop-drain-validation-20261121.json).
