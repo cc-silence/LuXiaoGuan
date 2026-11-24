@@ -53,11 +53,11 @@ class AutomaticRecoveryTests(unittest.TestCase):
         gate=self.gate();gate.start(time.monotonic()+10);gate.arm(automatic=True)
         self.assertIsNone(gate.take_automatic())
 
-    def test_wifi_and_wired_get_sixty_seconds_without_exceeding_apply_deadline(self):
+    def test_wifi_and_wired_use_available_budget_without_exceeding_apply_deadline(self):
         from modules.capture_services.lan_client_recovery import RenewalGate
         with patch('modules.capture_services.lan_client_recovery.time.monotonic',return_value=100):
             for wireless in (True,False):
-                for remaining,expected in ((90,60),(50,42),(25,17)):
+                for remaining,expected in ((90,82),(50,42),(25,17)):
                     gate=self.gate(adapter(wireless=wireless))
                     gate.start(100+remaining);gate.arm(automatic=True)
                     selected,budget=gate.claim(adapter()['id'])

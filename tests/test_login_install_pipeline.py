@@ -45,7 +45,7 @@ class RouterBoundary:
     def __init__(self, ssh, fixtures, missing):
         self.ssh = ssh
         self.fixtures = fixtures
-        self.all_names = {row['name'] for f in fixtures.values() for row in f.profile['packages']} | {'curl'}
+        self.all_names = {row['name'] for f in fixtures.values() for row in f.profile['packages']} | {'curl','pixiewps'}
         self.installed = self.all_names - set(missing)
         self.commands = []
         self.uploads = []
@@ -90,6 +90,8 @@ class RouterBoundary:
             key = name[len('dependency_common_'):]
             package = 'wpa-cli' if key == 'wpa_cli' else key
             output = 'MISSING' if package not in self.installed else 'READY'
+        elif name == 'dependency_curl_versions':
+            output = ('__APK__' if apk else '__OPKG__') + '\n__END__\n'
         elif name == 'dependency_sftp_presence':
             output = 'PRESENT' if 'openssh-sftp-server' in self.installed else 'MISSING'
         elif name == 'dependency_push_codec':
@@ -138,10 +140,12 @@ class RouterBoundary:
             self.installed.update(self.selected(command, apk))
             output = 'OK:'
             if self.cancel_after_first and event is not None:event.set()
+        elif name == 'dependency_pixiewps_version':
+            output = 'pixiewps v1.4.2'
         elif name.endswith('_version'):
             output = '1.6.0'
-        elif name in ('dependency_airodump-ng','dependency_aireplay-ng','dependency_reaver'):
-            package = 'reaver' if name.endswith('reaver') else 'aircrack-ng'
+        elif name in ('dependency_airodump-ng','dependency_aireplay-ng','dependency_reaver','dependency_pixiewps'):
+            package = 'pixiewps' if name.endswith('pixiewps') else ('reaver' if name.endswith('reaver') else 'aircrack-ng')
             output = 'OK:/usr/bin/tool' if package in self.installed else 'MISSING'
         elif name in ('dependency_iw','dependency_ip','dependency_uci','dependency_wifi'):
             output = 'OK:/usr/bin/tool'
