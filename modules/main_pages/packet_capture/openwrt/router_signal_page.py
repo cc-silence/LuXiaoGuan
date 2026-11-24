@@ -379,8 +379,10 @@ class RouterSignalPage(QWidget):
                   ('连接上级网络的信号（STA · 2.4G）',[r for r in sta if (r.runtime_band or r.band) == '2g']),
                   ('连接上级网络的信号（STA · 5G）',[r for r in sta if (r.runtime_band or r.band) == '5g'])]
         other = [r for r in sta if (r.runtime_band or r.band) not in ('2g','5g')]
-        unsupported = [r for r in rows if r.reason]
+        monitor = [r for r in rows if r.mode == "monitor"]
+        unsupported = [r for r in rows if r.reason and r.mode != "monitor"]
         if other: groups.append(('连接上级网络的信号（STA · 未知频段）',other))
+        if monitor: groups.append(("\u76d1\u542c\u6a21\u5f0f\uff08Monitor\uff09",monitor))
         if unsupported: groups.append(('暂不支持操作的信号',unsupported))
         desired, used_labels = [], set()
         self._name_labels.clear()
@@ -423,7 +425,9 @@ class RouterSignalPage(QWidget):
 
     @staticmethod
     def _display_name(row):
-        """返回用户可读名称：SSID 为空时用配置段名替代。"""
+        """中继优先显示备注，其他情况依次使用信号名称和配置段名。"""
+        if row.mode == "sta" and row.label.strip():
+            return row.label.strip()
         return row.runtime_ssid.strip() or row.ssid.strip() or row.section or "（无名称）"
 
     @staticmethod

@@ -12,17 +12,28 @@ MAX_DICTIONARIES = 50000
 MAX_IGNORED_RESULTS = 500000
 
 
+def _ensure_columns(connection):
+    """Add metadata columns introduced after the first release; old files keep working."""
+
+    columns = {row[1] for row in connection.execute('PRAGMA table_info(password_targets)')}
+    if 'unconfirmed' not in columns:
+        connection.execute('ALTER TABLE password_targets ADD COLUMN unconfirmed INTEGER NOT NULL DEFAULT 0')
+        connection.commit()
+
+
 def create_schema(connection):
     connection.executescript("""
         CREATE TABLE IF NOT EXISTS password_targets (
             target BLOB PRIMARY KEY, ssid TEXT NOT NULL, bssid TEXT NOT NULL,
-            state TEXT NOT NULL DEFAULT 'not_started', result_file TEXT NOT NULL DEFAULT '', updated REAL NOT NULL);
+            state TEXT NOT NULL DEFAULT 'not_started', result_file TEXT NOT NULL DEFAULT '', updated REAL NOT NULL,
+            unconfirmed INTEGER NOT NULL DEFAULT 0);
         CREATE TABLE IF NOT EXISTS password_dictionaries (
             target BLOB NOT NULL, dictionary BLOB NOT NULL, name TEXT NOT NULL,
             total INTEGER NOT NULL, confirmed INTEGER NOT NULL DEFAULT 0,
             updated REAL NOT NULL, PRIMARY KEY(target,dictionary)) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS password_ignored_results (path_hash BLOB PRIMARY KEY, stamp BLOB NOT NULL) WITHOUT ROWID;
     """)
+    _ensure_columns(connection)
 
 
 def result_signature(path):
@@ -52,7 +63,11 @@ def read_password_file(path):
     lines = path.read_text(encoding='utf-8-sig').splitlines()
     if len(lines) < 2:
         raise ValueError('Invalid result file')
-    values = lines[1].split('\t')
+    labels = ("Wi-Fi名称：", "MAC：", "密码：")
+    if len(lines) >= 3 and all(lines[i].startswith(label) for i, label in enumerate(labels)):
+        values = [lines[i][len(label):] for i, label in enumerate(labels)]
+    else:
+        values = lines[1].split('\t')
     if len(values) != 3:
         raise ValueError('Invalid result file')
     def decode(value):
@@ -131,10 +146,13 @@ class PasswordResultCatalog:
         from .password_events import target_update_for
         key = self.remember(target)
         state = target_update_for(target, entry).state
+        # Keep the latest run's unconfirmed count only: a later run replaces it.
         self.connection.execute("""UPDATE password_targets SET
             state=CASE WHEN result_file<>'' THEN 'found' ELSE ? END,
-            result_file=CASE WHEN ?<>'' THEN ? ELSE result_file END,updated=? WHERE target=?""",
-            (state, entry.password_file, entry.password_file, time.time(), key))
+            result_file=CASE WHEN ?<>'' THEN ? ELSE result_file END,
+            unconfirmed=?,updated=? WHERE target=?""",
+            (state, entry.password_file, entry.password_file,
+             max(0, int(getattr(entry, 'unconfirmed', 0) or 0)), time.time(), key))
         self.connection.commit()
         self.active = None
 
@@ -156,7 +174,9 @@ class PasswordResultCatalog:
         if not directory.is_dir():
             return
         known = {row[0] for row in self.connection.execute("SELECT result_file FROM password_targets WHERE result_file<>''")}
-        for index, path in enumerate(directory.glob('*-password.txt')):
+        from itertools import chain
+        paths = chain(directory.glob('*-password.txt'), directory.glob('*-密码.txt'))
+        for index, path in enumerate(paths):
             if index >= MAX_TARGETS or cancel.is_set():
                 break
             if str(path) in known or path.is_symlink():
@@ -178,9 +198,9 @@ class PasswordResultCatalog:
         where = "WHERE result_file<>''" if found else "WHERE result_file=''"
         count = self.connection.execute('SELECT COUNT(*) FROM password_targets '+where).fetchone()[0]
         page = max(0, int(page))
-        data = self.connection.execute('SELECT target,ssid,bssid,state,result_file FROM password_targets '+where+' ORDER BY updated DESC LIMIT ? OFFSET ?', (PAGE_SIZE,page*PAGE_SIZE)).fetchall()
+        data = self.connection.execute('SELECT target,ssid,bssid,state,result_file,unconfirmed FROM password_targets '+where+' ORDER BY updated DESC LIMIT ? OFFSET ?', (PAGE_SIZE,page*PAGE_SIZE)).fetchall()
         rows=[]
-        for key,ssid,bssid,state,result_file in data:
+        for key,ssid,bssid,state,result_file,unconfirmed in data:
             if cancel is not None and cancel.is_set():
                 break
             groups = self.connection.execute('SELECT name,confirmed,total FROM password_dictionaries WHERE target=? ORDER BY updated,dictionary', (key,)).fetchall()
@@ -194,5 +214,6 @@ class PasswordResultCatalog:
                 except (OSError, UnicodeError, ValueError):
                     pass
             rows.append(dict(ssid=ssid,bssid=bssid,state=state,dictionaries='\n'.join(r[0] for r in groups),
-                             progress=f'{sum(r[1] for r in groups)}/{sum(r[2] for r in groups)}' if groups else f'{known}/?',password=password))
+                             progress=f'{sum(r[1] for r in groups)}/{sum(r[2] for r in groups)}' if groups else f'{known}/?',
+                             password=password,unconfirmed=int(unconfirmed or 0)))
         return dict(rows=rows,total=count,page=page,page_size=PAGE_SIZE)

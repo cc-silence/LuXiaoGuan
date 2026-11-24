@@ -20,7 +20,7 @@ from modules.capture_services.openwrt.password_rounds import CandidateRound, ver
 from modules.main_pages.packet_capture.openwrt.access_point_table import AccessPointTable
 from modules.ui_scale_manager import UiScaleManager
 
-TARGET = AccessPointInfo('02:11:22:33:44:55', ssid='fixture', encryption='WPA2-PSK')
+TARGET = AccessPointInfo('02:11:22:33:44:55', ssid='fixture', encryption='WPA2-PSK', channel=6)
 
 
 class RecordTests(unittest.TestCase):
@@ -92,6 +92,19 @@ class RecordTests(unittest.TestCase):
                 self.assertTrue(history.contains(TARGET,'wrong-pass'))
                 self.assertEqual(history.count,1)
                 self.assertEqual(history.catalog.query(found=True)['rows'][0]['progress'],'1/?')
+
+    def test_unconfirmed_count_is_shown_and_candidates_stay_pending(self):
+        with TemporaryDirectory() as folder, PasswordAttemptHistory(Path(folder)/'history',key=b'k'*32) as history:
+            history.catalog.configure((CandidateRound('one.txt',('first-pass','unknown-pass')),))
+            history.mark(TARGET,'first-pass')
+            entry=NS(found=False,password_file='',unconfirmed=1,outcome='unconfirmed',tried=1,skipped=1,final=True,error=True,note='')
+            history.catalog.result(TARGET,entry)
+            row=history.catalog.query()['rows'][0]
+            self.assertEqual(row['unconfirmed'],1)
+            self.assertEqual(row['state'],'unconfirmed')
+            self.assertEqual(history.filter_pending(TARGET,('first-pass','unknown-pass')),('unknown-pass',))
+            history.catalog.result(TARGET,NS(found=False,password_file='',unconfirmed=0,outcome='no_match',tried=1,skipped=1,final=True,error=False,note=''))
+            self.assertEqual(history.catalog.query()['rows'][0]['unconfirmed'],0)
 
     def test_confirmed_counts_leave_unknown_out_and_preserve_dictionary_names(self):
         with TemporaryDirectory() as folder, PasswordAttemptHistory(Path(folder)/'history',key=b'k'*32) as history:
@@ -253,6 +266,8 @@ class ResultsDialogTests(unittest.TestCase):
                     self.assertFalse(window._loading)
                     self.assertEqual(window.table.rowCount(),1)
                     self.assertEqual(window.table.item(0,3).text(),'1/1')
+                    self.assertEqual(window.table.horizontalHeaderItem(4).text(),'\u672a\u786e\u8ba4')
+                    self.assertEqual(window.table.item(0,4).text(),'0')
                     self.assertTrue(window.clear_button.property('dangerAction'))
                     window.grab().save(str(output/('light-attempts.png' if light else 'dark-attempts.png')))
                     window.tabs.setCurrentIndex(1)

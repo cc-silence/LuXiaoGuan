@@ -4,7 +4,7 @@ from .configuration_progress import observing
 import time
 from .openwrt.operation_diagnostics import OperationDiagnostics
 
-from .management_diagnostic_schema import ACTIONS,KINDS,CODES,SITE_MODULES
+from .management_diagnostic_schema import ACTIONS,KINDS,CODES,SITE_MODULES,BOOT_REASONS
 STAGES={"正在保存已确认的设置":"commit",
     "正在保存并核对 LAN 设置……":"commit",
     "正在检查保存与重启条件……":"preflight",
@@ -141,6 +141,7 @@ class ManagementTrace:
                 value=result.get(key)
                 if isinstance(value,list):fields[field]=len(value)
                 elif type(value) is int and value>=0:fields[field]=value
+            if result.get("boot_reason") in BOOT_REASONS:fields["boot_reason"]=result["boot_reason"]
             outcome=result.get("outcome")
             if isinstance(outcome,str) and outcome in {"reconnect","uncertain","saved","applied","restored"}:fields["outcome"]=outcome
         else:outcome=None

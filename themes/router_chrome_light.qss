@@ -73,3 +73,12 @@
 
 #routerEmbeddedSettings { background: #f5f6fa; border: none; border-radius: 0px; }
 #routerMainLogo { border: none; }
+
+/* Filled-screen windows have square frame and title-bar corners. */
+#settingsWindowFrame[windowSquare="true"] {
+    border-radius: 0px;
+}
+#settingsTitleBar[windowSquare="true"] {
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+}

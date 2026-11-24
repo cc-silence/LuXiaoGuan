@@ -24,6 +24,7 @@ class CommonTool:
 
 
 TOOLS = (
+    CommonTool('bash', '\u547d\u4ee4\u811a\u672c\u8fd0\u884c\u73af\u5883', 'bash', '\u8fd0\u884c\u9700\u8981 Bash \u7684\u547d\u4ee4\u548c\u811a\u672c\u3002', 'bash', required=False),
     CommonTool('iw', '无线管理工具', 'iw', '查看与管理无线接口、信道及驱动能力。卸载可能影响其他无线管理功能。', 'iw', required=True),
     CommonTool('wpa_cli', '无线连接验证', 'wpa-cli', '用于检查上级 Wi-Fi 的认证和连接状态，发射与中继功能会使用。安装不会替换无线驱动或认证服务。', 'wpa_cli', required=True),
     CommonTool('iwinfo', '无线信息查询', 'iwinfo', '查看无线名称、信号强度与加密信息。卸载可能影响网页无线信息显示。', 'iwinfo', required=False),
@@ -85,12 +86,37 @@ def check_tools(runner, keys, cancel_event=None, *, catalog=TOOLS):
                     tool_probe_command(tool.command),
                     timeout=10, cancel_event=cancel_event)
                 require_command_completion(result)
-                if result.exit_code == 0 and result.stdout.strip() in {'READY', 'MISSING'}:
-                    state = DependencyState.READY if result.stdout.strip() == 'READY' else DependencyState.MISSING
+                status = (result.stdout or '').splitlines()[0] if (result.stdout or '').splitlines() else ''
+                if result.exit_code == 0 and status in {'READY', 'MISSING'} and result.stdout.strip() == status:
+                    state = DependencyState.READY if status == 'READY' else DependencyState.MISSING
                 detail = ('\u7a0b\u5e8f\u542f\u52a8\u68c0\u6d4b\u901a\u8fc7' if state == DependencyState.READY else
                           '\u672a\u627e\u5230\u53ef\u6267\u884c\u547d\u4ee4' if state == DependencyState.MISSING else
                           '\u7a0b\u5e8f\u5b58\u5728\u4f46\u65e0\u6cd5\u6b63\u5e38\u542f\u52a8\uff0c\u8bf7\u6838\u5bf9\u4f9d\u8d56\u5e93\u548c\u56fa\u4ef6\u517c\u5bb9\u6027' if result.stdout.strip() == 'BROKEN' else
                           '\u547d\u4ee4\u68c0\u6d4b\u7ed3\u679c\u65e0\u6cd5\u786e\u8ba4')
+                if tool.key == 'curl' and result.exit_code == 0 and status == 'BROKEN':
+                    from .curl_probe_diagnostics import curl_failure_detail
+                    detail = curl_failure_detail(result.stdout)
+                    try:
+                        from .curl_version_diagnostics import query_versions, version_detail
+                        versions = query_versions(runner, cancel_event)
+                        detail += '\uff1b' + version_detail(versions, result.stdout)
+                    except InterruptedError:
+                        raise
+                    except Exception:
+                        _propagate_disconnect_or_cancel(runner, cancel_event)
+                        detail += '\uff1b\u5df2\u5b89\u88c5\u8f6f\u4ef6\u5305\u7248\u672c\u67e5\u8be2\u5931\u8d25'
+                    try:
+                        from .curl_version_diagnostics import query_loaded_library
+                        library_path = query_loaded_library(runner, cancel_event)
+                        if library_path:
+                            detail += '\uff1b\u8fd0\u884c\u5e93\u52a0\u8f7d\u8def\u5f84\uff08ldd \u62a5\u544a\uff09\uff1a' + library_path
+                        else:
+                            detail += '\uff1b\u8fd0\u884c\u5e93\u8def\u5f84\u65e0\u6cd5\u786e\u8ba4'
+                    except InterruptedError:
+                        raise
+                    except Exception:
+                        _propagate_disconnect_or_cancel(runner, cancel_event)
+                        detail += '\uff1b\u8fd0\u884c\u5e93\u8def\u5f84\u65e0\u6cd5\u786e\u8ba4'
             except InterruptedError:
                 raise
             except Exception as exc:

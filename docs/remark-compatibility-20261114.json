@@ -1,0 +1,328 @@
+{
+  "date": "2026-11-14",
+  "scope": [
+    "19.07",
+    "21.02",
+    "22.03",
+    "23.05",
+    "24.10",
+    "25.12"
+  ],
+  "storage": "wireless wifi-iface description via UCI; metadata only, not a driver option",
+  "routes": "six shell profiles plus 25.12 ucode profile",
+  "cached_official_release_makefiles_verified": 50,
+  "sources": [
+    {
+      "release": "19.07.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.0/package/system/uci/Makefile",
+      "sha256": "c062dd9f13a1430c1686e82417f9fb0a885ed78feb3a14bac2e20d8ed6f7ea8b",
+      "uci_commit": "415f9e48436d29f612348f58f546b3ad8d74ac38"
+    },
+    {
+      "release": "19.07.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.1/package/system/uci/Makefile",
+      "sha256": "c062dd9f13a1430c1686e82417f9fb0a885ed78feb3a14bac2e20d8ed6f7ea8b",
+      "uci_commit": "415f9e48436d29f612348f58f546b3ad8d74ac38"
+    },
+    {
+      "release": "19.07.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.2/package/system/uci/Makefile",
+      "sha256": "c062dd9f13a1430c1686e82417f9fb0a885ed78feb3a14bac2e20d8ed6f7ea8b",
+      "uci_commit": "415f9e48436d29f612348f58f546b3ad8d74ac38"
+    },
+    {
+      "release": "19.07.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.3/package/system/uci/Makefile",
+      "sha256": "c062dd9f13a1430c1686e82417f9fb0a885ed78feb3a14bac2e20d8ed6f7ea8b",
+      "uci_commit": "415f9e48436d29f612348f58f546b3ad8d74ac38"
+    },
+    {
+      "release": "19.07.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.4/package/system/uci/Makefile",
+      "sha256": "c062dd9f13a1430c1686e82417f9fb0a885ed78feb3a14bac2e20d8ed6f7ea8b",
+      "uci_commit": "415f9e48436d29f612348f58f546b3ad8d74ac38"
+    },
+    {
+      "release": "19.07.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.5/package/system/uci/Makefile",
+      "sha256": "5327b2dda8ec5a5d716219942e05512bc8f312d6987d55279c9d6800aa2ce572",
+      "uci_commit": "415f9e48436d29f612348f58f546b3ad8d74ac38"
+    },
+    {
+      "release": "19.07.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.6/package/system/uci/Makefile",
+      "sha256": "5327b2dda8ec5a5d716219942e05512bc8f312d6987d55279c9d6800aa2ce572",
+      "uci_commit": "415f9e48436d29f612348f58f546b3ad8d74ac38"
+    },
+    {
+      "release": "19.07.7",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.7/package/system/uci/Makefile",
+      "sha256": "5327b2dda8ec5a5d716219942e05512bc8f312d6987d55279c9d6800aa2ce572",
+      "uci_commit": "415f9e48436d29f612348f58f546b3ad8d74ac38"
+    },
+    {
+      "release": "19.07.8",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.8/package/system/uci/Makefile",
+      "sha256": "5327b2dda8ec5a5d716219942e05512bc8f312d6987d55279c9d6800aa2ce572",
+      "uci_commit": "415f9e48436d29f612348f58f546b3ad8d74ac38"
+    },
+    {
+      "release": "19.07.9",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.9/package/system/uci/Makefile",
+      "sha256": "5327b2dda8ec5a5d716219942e05512bc8f312d6987d55279c9d6800aa2ce572",
+      "uci_commit": "415f9e48436d29f612348f58f546b3ad8d74ac38"
+    },
+    {
+      "release": "19.07.10",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v19.07.10/package/system/uci/Makefile",
+      "sha256": "5327b2dda8ec5a5d716219942e05512bc8f312d6987d55279c9d6800aa2ce572",
+      "uci_commit": "415f9e48436d29f612348f58f546b3ad8d74ac38"
+    },
+    {
+      "release": "21.02.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.0/package/system/uci/Makefile",
+      "sha256": "7739cc12e6037b77cd2fc2c68fc5ff6176a211e58cb8d6f1e42d2fb7630273f6",
+      "uci_commit": "52bbc99f69ea6f67b6fe264f424dac91bde5016c"
+    },
+    {
+      "release": "21.02.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.1/package/system/uci/Makefile",
+      "sha256": "7739cc12e6037b77cd2fc2c68fc5ff6176a211e58cb8d6f1e42d2fb7630273f6",
+      "uci_commit": "52bbc99f69ea6f67b6fe264f424dac91bde5016c"
+    },
+    {
+      "release": "21.02.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.2/package/system/uci/Makefile",
+      "sha256": "5172fcbc4a12bec1417f50bd55974baef893a23d5efb90810b044f7d81c9a69f",
+      "uci_commit": "4b3db1179747b6a6779029407984bacef851325c"
+    },
+    {
+      "release": "21.02.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.3/package/system/uci/Makefile",
+      "sha256": "5172fcbc4a12bec1417f50bd55974baef893a23d5efb90810b044f7d81c9a69f",
+      "uci_commit": "4b3db1179747b6a6779029407984bacef851325c"
+    },
+    {
+      "release": "21.02.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.4/package/system/uci/Makefile",
+      "sha256": "5172fcbc4a12bec1417f50bd55974baef893a23d5efb90810b044f7d81c9a69f",
+      "uci_commit": "4b3db1179747b6a6779029407984bacef851325c"
+    },
+    {
+      "release": "21.02.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.5/package/system/uci/Makefile",
+      "sha256": "5172fcbc4a12bec1417f50bd55974baef893a23d5efb90810b044f7d81c9a69f",
+      "uci_commit": "4b3db1179747b6a6779029407984bacef851325c"
+    },
+    {
+      "release": "21.02.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.6/package/system/uci/Makefile",
+      "sha256": "5172fcbc4a12bec1417f50bd55974baef893a23d5efb90810b044f7d81c9a69f",
+      "uci_commit": "4b3db1179747b6a6779029407984bacef851325c"
+    },
+    {
+      "release": "21.02.7",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v21.02.7/package/system/uci/Makefile",
+      "sha256": "5172fcbc4a12bec1417f50bd55974baef893a23d5efb90810b044f7d81c9a69f",
+      "uci_commit": "4b3db1179747b6a6779029407984bacef851325c"
+    },
+    {
+      "release": "22.03.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.0/package/system/uci/Makefile",
+      "sha256": "5633f42556245af576b2964c37ee1a01cd13933cc2259e7db12e0002585fa50c",
+      "uci_commit": "f84f49f00fb70364f58b4cce72f1796a7190d370"
+    },
+    {
+      "release": "22.03.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.1/package/system/uci/Makefile",
+      "sha256": "5633f42556245af576b2964c37ee1a01cd13933cc2259e7db12e0002585fa50c",
+      "uci_commit": "f84f49f00fb70364f58b4cce72f1796a7190d370"
+    },
+    {
+      "release": "22.03.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.2/package/system/uci/Makefile",
+      "sha256": "5633f42556245af576b2964c37ee1a01cd13933cc2259e7db12e0002585fa50c",
+      "uci_commit": "f84f49f00fb70364f58b4cce72f1796a7190d370"
+    },
+    {
+      "release": "22.03.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.3/package/system/uci/Makefile",
+      "sha256": "5633f42556245af576b2964c37ee1a01cd13933cc2259e7db12e0002585fa50c",
+      "uci_commit": "f84f49f00fb70364f58b4cce72f1796a7190d370"
+    },
+    {
+      "release": "22.03.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.4/package/system/uci/Makefile",
+      "sha256": "5633f42556245af576b2964c37ee1a01cd13933cc2259e7db12e0002585fa50c",
+      "uci_commit": "f84f49f00fb70364f58b4cce72f1796a7190d370"
+    },
+    {
+      "release": "22.03.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.5/package/system/uci/Makefile",
+      "sha256": "5633f42556245af576b2964c37ee1a01cd13933cc2259e7db12e0002585fa50c",
+      "uci_commit": "f84f49f00fb70364f58b4cce72f1796a7190d370"
+    },
+    {
+      "release": "22.03.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.6/package/system/uci/Makefile",
+      "sha256": "5633f42556245af576b2964c37ee1a01cd13933cc2259e7db12e0002585fa50c",
+      "uci_commit": "f84f49f00fb70364f58b4cce72f1796a7190d370"
+    },
+    {
+      "release": "22.03.7",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v22.03.7/package/system/uci/Makefile",
+      "sha256": "5633f42556245af576b2964c37ee1a01cd13933cc2259e7db12e0002585fa50c",
+      "uci_commit": "f84f49f00fb70364f58b4cce72f1796a7190d370"
+    },
+    {
+      "release": "23.05.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.0/package/system/uci/Makefile",
+      "sha256": "8e59cf2814dce63c5a06c4c1e41abdffebd74b1de4cc7cd07132e5b4d33fb961",
+      "uci_commit": "5781664d5087ccc4b5ab58505883231212dbedbc"
+    },
+    {
+      "release": "23.05.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.1/package/system/uci/Makefile",
+      "sha256": "8e59cf2814dce63c5a06c4c1e41abdffebd74b1de4cc7cd07132e5b4d33fb961",
+      "uci_commit": "5781664d5087ccc4b5ab58505883231212dbedbc"
+    },
+    {
+      "release": "23.05.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.2/package/system/uci/Makefile",
+      "sha256": "8e59cf2814dce63c5a06c4c1e41abdffebd74b1de4cc7cd07132e5b4d33fb961",
+      "uci_commit": "5781664d5087ccc4b5ab58505883231212dbedbc"
+    },
+    {
+      "release": "23.05.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.3/package/system/uci/Makefile",
+      "sha256": "8e59cf2814dce63c5a06c4c1e41abdffebd74b1de4cc7cd07132e5b4d33fb961",
+      "uci_commit": "5781664d5087ccc4b5ab58505883231212dbedbc"
+    },
+    {
+      "release": "23.05.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/package/system/uci/Makefile",
+      "sha256": "8e59cf2814dce63c5a06c4c1e41abdffebd74b1de4cc7cd07132e5b4d33fb961",
+      "uci_commit": "5781664d5087ccc4b5ab58505883231212dbedbc"
+    },
+    {
+      "release": "23.05.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.5/package/system/uci/Makefile",
+      "sha256": "8e59cf2814dce63c5a06c4c1e41abdffebd74b1de4cc7cd07132e5b4d33fb961",
+      "uci_commit": "5781664d5087ccc4b5ab58505883231212dbedbc"
+    },
+    {
+      "release": "23.05.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.6/package/system/uci/Makefile",
+      "sha256": "8e59cf2814dce63c5a06c4c1e41abdffebd74b1de4cc7cd07132e5b4d33fb961",
+      "uci_commit": "5781664d5087ccc4b5ab58505883231212dbedbc"
+    },
+    {
+      "release": "24.10.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.0/package/system/uci/Makefile",
+      "sha256": "31048bcd6d786bfd94571353ab1c6a0c9f2754bf45fdc4c0af63cec2e3b101bb",
+      "uci_commit": "16ff0badbde7e17ec3bd1f827ffe45922956cf86"
+    },
+    {
+      "release": "24.10.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.1/package/system/uci/Makefile",
+      "sha256": "31048bcd6d786bfd94571353ab1c6a0c9f2754bf45fdc4c0af63cec2e3b101bb",
+      "uci_commit": "16ff0badbde7e17ec3bd1f827ffe45922956cf86"
+    },
+    {
+      "release": "24.10.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.2/package/system/uci/Makefile",
+      "sha256": "31048bcd6d786bfd94571353ab1c6a0c9f2754bf45fdc4c0af63cec2e3b101bb",
+      "uci_commit": "16ff0badbde7e17ec3bd1f827ffe45922956cf86"
+    },
+    {
+      "release": "24.10.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.3/package/system/uci/Makefile",
+      "sha256": "31048bcd6d786bfd94571353ab1c6a0c9f2754bf45fdc4c0af63cec2e3b101bb",
+      "uci_commit": "16ff0badbde7e17ec3bd1f827ffe45922956cf86"
+    },
+    {
+      "release": "24.10.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.4/package/system/uci/Makefile",
+      "sha256": "31048bcd6d786bfd94571353ab1c6a0c9f2754bf45fdc4c0af63cec2e3b101bb",
+      "uci_commit": "16ff0badbde7e17ec3bd1f827ffe45922956cf86"
+    },
+    {
+      "release": "24.10.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.5/package/system/uci/Makefile",
+      "sha256": "31048bcd6d786bfd94571353ab1c6a0c9f2754bf45fdc4c0af63cec2e3b101bb",
+      "uci_commit": "16ff0badbde7e17ec3bd1f827ffe45922956cf86"
+    },
+    {
+      "release": "24.10.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.6/package/system/uci/Makefile",
+      "sha256": "31048bcd6d786bfd94571353ab1c6a0c9f2754bf45fdc4c0af63cec2e3b101bb",
+      "uci_commit": "16ff0badbde7e17ec3bd1f827ffe45922956cf86"
+    },
+    {
+      "release": "24.10.7",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.7/package/system/uci/Makefile",
+      "sha256": "31048bcd6d786bfd94571353ab1c6a0c9f2754bf45fdc4c0af63cec2e3b101bb",
+      "uci_commit": "16ff0badbde7e17ec3bd1f827ffe45922956cf86"
+    },
+    {
+      "release": "24.10.8",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v24.10.8/package/system/uci/Makefile",
+      "sha256": "31048bcd6d786bfd94571353ab1c6a0c9f2754bf45fdc4c0af63cec2e3b101bb",
+      "uci_commit": "16ff0badbde7e17ec3bd1f827ffe45922956cf86"
+    },
+    {
+      "release": "25.12.0",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.0/package/system/uci/Makefile",
+      "sha256": "548a58ea67abe65de6482e3eef8c6d044f6e65c351b092b3c3ee07216d98d055",
+      "uci_commit": "66127cd76c5d0bd46d5a90302cc6110f53a4e2f8"
+    },
+    {
+      "release": "25.12.1",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.1/package/system/uci/Makefile",
+      "sha256": "548a58ea67abe65de6482e3eef8c6d044f6e65c351b092b3c3ee07216d98d055",
+      "uci_commit": "66127cd76c5d0bd46d5a90302cc6110f53a4e2f8"
+    },
+    {
+      "release": "25.12.2",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.2/package/system/uci/Makefile",
+      "sha256": "548a58ea67abe65de6482e3eef8c6d044f6e65c351b092b3c3ee07216d98d055",
+      "uci_commit": "66127cd76c5d0bd46d5a90302cc6110f53a4e2f8"
+    },
+    {
+      "release": "25.12.3",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.3/package/system/uci/Makefile",
+      "sha256": "548a58ea67abe65de6482e3eef8c6d044f6e65c351b092b3c3ee07216d98d055",
+      "uci_commit": "66127cd76c5d0bd46d5a90302cc6110f53a4e2f8"
+    },
+    {
+      "release": "25.12.4",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.4/package/system/uci/Makefile",
+      "sha256": "548a58ea67abe65de6482e3eef8c6d044f6e65c351b092b3c3ee07216d98d055",
+      "uci_commit": "66127cd76c5d0bd46d5a90302cc6110f53a4e2f8"
+    },
+    {
+      "release": "25.12.5",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.5/package/system/uci/Makefile",
+      "sha256": "548a58ea67abe65de6482e3eef8c6d044f6e65c351b092b3c3ee07216d98d055",
+      "uci_commit": "66127cd76c5d0bd46d5a90302cc6110f53a4e2f8"
+    },
+    {
+      "release": "25.12.6",
+      "url": "https://raw.githubusercontent.com/openwrt/openwrt/v25.12.6/package/system/uci/Makefile",
+      "sha256": "548a58ea67abe65de6482e3eef8c6d044f6e65c351b092b3c3ee07216d98d055",
+      "uci_commit": "66127cd76c5d0bd46d5a90302cc6110f53a4e2f8"
+    }
+  ],
+  "online_refresh": "direct fetch failed with URLError; retained official release Makefiles rehashed against prior source receipts",
+  "native_lua_roundtrip_cases": 56,
+  "cases": [
+    "save-and-apply",
+    "save-only",
+    "quoted ASCII",
+    "128 Chinese characters",
+    "128 emoji",
+    "empty remark"
+  ],
+  "bug_fixed": "signal readback truncated 128 bytes instead of 128 UTF-8 characters",
+  "device_boundary": "No live firmware or hardware acceptance in this audit; UCI and device IO are simulated; actual application Lua is executed."
+}

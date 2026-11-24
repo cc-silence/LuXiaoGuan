@@ -8,7 +8,7 @@ from types import SimpleNamespace as NS
 from unittest.mock import Mock,patch
 import hashlib
 import unittest
-from modules.capture_services.openwrt.password_control import PasswordControl,ControlUnavailable,AuthenticationTimeout,open_control,_event
+from modules.capture_services.openwrt.password_control import PasswordControl,ControlUnavailable,open_control,_event
 from modules.capture_services.openwrt.password_verification import OpenWrtPasswordVerifier,PasswordVerifyCancelled
 from modules.capture_services.openwrt.command_runner import RemoteCommandResult
 from modules.capture_services.openwrt.operation_diagnostics import OperationDiagnostics
@@ -85,8 +85,7 @@ class PasswordControlTests(unittest.TestCase):
         for mode in ('wrong_bssid','old_id'):
             with self.subTest(mode=mode):
                 control,channel,_=self.control((mode,))
-                with self.assertRaises(AuthenticationTimeout):
-                    control.attempt('fixture',BSSID,'candidate',timeout=0)
+                self.assertIsNone(control.attempt('fixture',BSSID,'candidate',timeout=0))
 
     def test_passphrase_derivation_and_raw_psk_do_not_depend_on_shell_quoting(self):
         control,channel,_=self.control(('good','good'))
@@ -157,13 +156,18 @@ class PasswordControlTests(unittest.TestCase):
         channel.sendall=send
         self.assertFalse(control.attempt('fixture',BSSID,'candidate'))
 
+    def test_exhausted_budget_returns_unconfirmed_without_a_sliver_poll(self):
+        control,channel,_=self.control(('wrong',))
+        self.assertIsNone(control.attempt('fixture',BSSID,'candidate',timeout=-1))
+        self.assertNotIn('status',channel.commands)
+
     def test_unknown_failure_waits_for_deadline_without_claiming_wrong_key(self):
         control,channel,journal=self.control(('unknown',))
-        with self.assertRaises(AuthenticationTimeout):
-            control.attempt('fixture',BSSID,'candidate',timeout=.02)
+        self.assertIsNone(control.attempt('fixture',BSSID,'candidate',timeout=.02))
         evidence=str(journal.snapshot())
         self.assertIn('authentication_unconfirmed',evidence)
         self.assertNotIn('wrong_key',evidence)
+        self.assertNotIn('"status": "timeout"',evidence)
 
     def test_missing_native_cache_capability_closes_before_any_candidate(self):
         channel=Protocol();original=channel.sendall

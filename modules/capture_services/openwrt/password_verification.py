@@ -11,7 +11,8 @@ from pathlib import Path
 from modules.capture_services.openwrt.command_builder import normalize_bssid, quote_argument
 from .verification_diagnostics import verification_phase
 from .signal_recovery import SIGNAL_READY_SECONDS
-from .password_environment import interface_snapshot, restore_disabled, isolated_network, RELOAD_CHANGED_CONFIG
+from .password_environment import (interface_snapshot, radio_disabled_snapshot, DISABLED_VALUES,
+                                   restore_disabled, isolated_network, RELOAD_CHANGED_CONFIG)
 from modules.capture_services.openwrt.result_converter import final_results_dir, safe_result_stem
 
 
@@ -67,6 +68,13 @@ class PasswordVerifyCancelled(RuntimeError):
     """用户取消或 SSH 中断时的内部控制流，已试部分保留计数。"""
 
 
+class PasswordVerifyPreparationError(RuntimeError):
+    """准备阶段可安全展示的原因（只有频段、配置段名和计数，不含口令/SSID）。
+
+    这条说明由程序自己写，可以原样带给用户；其他异常仍按原规则脱敏。
+    """
+
+
 class PasswordTargetTimeout(TimeoutError):
     """A submitted target timed out; counts only, never candidate contents."""
     def __init__(self, tried, total, skipped):
@@ -104,7 +112,9 @@ class OpenWrtPasswordVerifier:
         self.command_runner = command_runner
         self._original_disabled = {}
         self._original_devices = {}
+        self._original_radio_disabled = {}
         self._modified_ifaces = set()
+        self._enabled_radios = set()
         self._restore_check = None
 
     @staticmethod
@@ -152,6 +162,7 @@ class OpenWrtPasswordVerifier:
         self.last_restore_errors = ""
         self._configuration_touched = False
         self._modified_ifaces = set()
+        self._enabled_radios = set()
         self._restore_check = None
         primary_error = None
         self._attempt_history = attempt_history
@@ -281,11 +292,17 @@ class OpenWrtPasswordVerifier:
             self._setup_environment(sta_section, net_name, radio, cancel_event)
             self._verification_radio = radio
             setup_done = True
-        phase("\u6b63\u5728\u68c0\u6d4b\u5feb\u901f\u6a21\u5f0f\uff08\u7b49\u5f85\u63a7\u5236\u670d\u52a1\u54cd\u5e94\uff09")
-        with self._control_session(sta_section, cancel_event, phase) as control:
-            tried = 0
-            unconfirmed = 0
-            for password in candidates:
+        phase("正在检测快速模式（等待控制服务响应）")
+        from .password_control import ControlRequestTimeout
+        control = self._open_control(sta_section, cancel_event, phase)
+        compatibility = control is None
+        restarted = False
+        tried = 0
+        unconfirmed = 0
+        try:
+            position = 0
+            while position < len(candidates):
+                password = candidates[position]
                 if pause_control is not None:
                     pause_control.checkpoint()
                 self._check_cancel(cancel_event)
@@ -299,24 +316,45 @@ class OpenWrtPasswordVerifier:
                             target_label=label,
                             target_index=index,
                             target_total=total_targets,
-                            engine="native" if control is not None else "compatibility",
+                            engine=("native" if control is not None and not compatibility
+                                    else "compatibility"),
                             target_bssid=bssid,
                             candidate=password,
                             attempt_started=attempt_started,
                             history_skipped=skipped,
                         )
                     )
-                if control is None:
-                    self._set_credentials(sta_section, ssid, bssid, password, cancel_event)
-                    connected = self._verify_connection(net_name, cancel_event)
-                else:
+                connected = None
+                while True:
+                    if compatibility:
+                        self._set_credentials(sta_section, ssid, bssid, password, cancel_event)
+                        connected = self._verify_connection(net_name, cancel_event)
+                        break
                     try:
                         connected = control.attempt(ssid, bssid, password)
-                    except TimeoutError as exc:
+                        break
+                    except PasswordVerifyCancelled:
+                        raise
+                    except (ControlRequestTimeout, ConnectionError, RuntimeError):
+                        # Channel-level failure only: the candidate's result is
+                        # unknown, so it is never counted as a wrong password.
                         self._check_cancel(cancel_event)
                         if not self.command_runner.ssh_client.connected:
                             raise
-                        raise PasswordTargetTimeout(tried, len(candidates), skipped) from exc
+                        fresh = (None if restarted else
+                                 self._recover_control(control, sta_section, cancel_event, phase))
+                        restarted = True
+                        if fresh is not None:
+                            control = fresh
+                            phase("快速验证通道已恢复，正在重试当前密码")
+                            continue
+                        try:
+                            control.close()
+                        except Exception:
+                            pass
+                        control = None
+                        compatibility = True
+                        phase("快速验证通道不可用，本信号改用兼容验证继续")
                 if progress_callback is not None:
                     from .password_speed import PasswordAttemptElapsed
                     progress_callback(PasswordAttemptElapsed(time.monotonic() - attempt_started))
@@ -326,13 +364,13 @@ class OpenWrtPasswordVerifier:
                     history.mark(target, password)
                 if connected:
                     stem = safe_result_stem(ssid, bssid) + "-" + bssid.replace(":", "")
-                    out_path = final_results_dir(local_output_dir) / f"{stem}-password.txt"
+                    out_path = final_results_dir(local_output_dir) / f"{stem}-密码.txt"
                     # 密码只写结果文件，不进日志、消息和快照。
                     fields = [
                         value.replace("\\", "\\\\").replace("\t", "\\t").replace("\r", "\\r").replace("\n", "\\n")
                         for value in (ssid, bssid, password)
                     ]
-                    out_path.write_text("Wi-Fi名称\tMAC\t密码\n" + "\t".join(fields) + "\n", encoding="utf-8")
+                    out_path.write_text("\n".join(label + value for label, value in zip(("Wi-Fi名称：", "MAC：", "密码："), fields)) + "\n", encoding="utf-8")
                     if history is not None:
                         history.mark_success(target, password, out_path)
                     if progress_callback is not None:
@@ -350,6 +388,21 @@ class OpenWrtPasswordVerifier:
                         ),
                         "setup_done": setup_done,
                     }
+                position += 1
+        except PasswordVerifyCancelled:
+            raise
+        except InterruptedError:
+            raise PasswordVerifyCancelled("在线密码验证已取消。") from None
+        except TimeoutError as exc:
+            # A command-level timeout skips only this target; the batch keeps
+            # going with the next signal instead of ending the whole task.
+            self._check_cancel(cancel_event)
+            if not self.command_runner.ssh_client.connected:
+                raise
+            raise PasswordTargetTimeout(tried, len(candidates), skipped) from exc
+        finally:
+            if control is not None:
+                control.close()
         return {
             "entry": PasswordTargetResult(
                 bssid=bssid,
@@ -365,58 +418,141 @@ class OpenWrtPasswordVerifier:
             "setup_done": setup_done,
         }
 
-    @contextmanager
-    def _control_session(self, section, cancel_event, phase_callback=None):
+    def _open_control(self, section, cancel_event, phase_callback=None):
+        """Open the native channel; None means the compatibility path is used."""
+
         from .password_control import open_control, ControlUnavailable
         control = None
         try:
-            try:
-                control = open_control(self.command_runner, section, cancel_event)
-                if control is None and phase_callback is not None:
-                    from .password_control_diagnostics import unavailable_message
-                    phase_callback(unavailable_message("native_tool_missing"))
-            except ControlUnavailable as error:
-                if phase_callback is not None:
-                    from .password_control_diagnostics import unavailable_message
-                    phase_callback(unavailable_message(getattr(error, "native_reason", "native_initialization_failed")))
-                # Capability fallback is allowed only before submitting a candidate.
-                control = None
-            journal = getattr(self.command_runner, "operation_diagnostics", None)
-            if journal is not None:
-                journal.record("workflow", operation="password_auth", stage="capabilities", status="completed",
-                               reason="native_control_ready" if control is not None else "native_control_unavailable")
+            control = open_control(self.command_runner, section, cancel_event)
+            if control is None and phase_callback is not None:
+                from .password_control_diagnostics import unavailable_message
+                phase_callback(unavailable_message("native_tool_missing"))
+        except ControlUnavailable as error:
+            if phase_callback is not None:
+                from .password_control_diagnostics import unavailable_message
+                phase_callback(unavailable_message(getattr(error, "native_reason", "native_initialization_failed")))
+            # Capability fallback is allowed only before submitting a candidate.
+            control = None
+        except InterruptedError:
+            raise PasswordVerifyCancelled("在线密码验证已取消。") from None
+        except (TimeoutError, ConnectionError):
+            # A capability probe is not the verification itself. Timing out here
+            # must not end the batch; the compatibility path needs no wpa_cli.
+            if phase_callback is not None:
+                phase_callback("快速验证通道检测超时，本信号改用兼容验证")
+            control = None
+        journal = getattr(self.command_runner, "operation_diagnostics", None)
+        if journal is not None:
+            journal.record("workflow", operation="password_auth", stage="capabilities", status="completed",
+                           reason="native_control_ready" if control is not None else "native_control_unavailable")
+        return control
+
+    def _recover_control(self, control, section, cancel_event, phase_callback):
+        """One bounded restart of the native channel; None means fall back."""
+
+        journal = getattr(self.command_runner, "operation_diagnostics", None)
+        if journal is not None:
+            journal.record("workflow", operation="password_auth", stage="capabilities",
+                           status="completed", reason="native_control_lost")
+        try:
+            control.close()
+        except Exception:
+            pass
+        phase_callback("快速验证通道已断开，正在尝试重启一次")
+        try:
+            fresh = self._open_control(section, cancel_event, phase_callback)
+        except (PasswordVerifyCancelled, InterruptedError):
+            raise
+        except Exception:
+            fresh = None
+        if journal is not None:
+            journal.record("workflow", operation="password_auth", stage="capabilities",
+                           status="completed",
+                           reason=("native_control_restarted" if fresh is not None
+                                   else "native_control_restart_failed"))
+        return fresh
+
+    @contextmanager
+    def _control_session(self, section, cancel_event, phase_callback=None):
+        """Compatibility wrapper kept for callers that only need one session."""
+
+        control = self._open_control(section, cancel_event, phase_callback)
+        try:
             yield control
         except InterruptedError:
             raise PasswordVerifyCancelled("在线密码验证已取消。") from None
         finally:
             if control is not None:
-                control.close()
+                try:
+                    control.close()
+                except Exception:
+                    pass
 
     @verification_phase("select_radio")
     def _pick_radio(self, band, cancel_event):
-        """按频段选一个可用的 wireless 设备名，不存在时抛错。"""
+        """按频段选一个可用的 wireless 设备名，不存在时给出可读原因。"""
 
         from .radio_takeover import OpenWrtRadioTakeover, _parse_iwdev_interfaces
         from .radio_identity import snapshot_radio_mapping, uci_radio_bands
         self._check_cancel(cancel_event)
         wanted = {"2.4G": "2g", "2G": "2g", "5G": "5g", "6G": "6g"}.get(str(band).upper())
         if wanted is None:
-            raise ValueError("无法识别目标频段，请刷新扫描结果。")
-        snapshot = OpenWrtRadioTakeover(self.command_runner).snapshot_wireless(cancel_event)
+            raise PasswordVerifyPreparationError("无法识别目标频段，请刷新扫描结果后重试。")
+        try:
+            snapshot = OpenWrtRadioTakeover(self.command_runner).snapshot_wireless(cancel_event)
+        except RuntimeError as exc:
+            # snapshot_wireless 的说明由程序自己写，只包含读取无线信息失败，可直接展示。
+            raise PasswordVerifyPreparationError(str(exc)) from exc
         interfaces = {p: tuple(name for name, _ in rows)
                       for p, rows in _parse_iwdev_interfaces(snapshot).items()}
         mapping = snapshot_radio_mapping(snapshot, interfaces)
-        disabled = set(re.findall(r"(?m)^wireless\.([A-Za-z0-9_]+)\.disabled=['\"]?1['\"]?\s*$", snapshot))
-        candidates = [radio for radio, actual in uci_radio_bands(snapshot).items()
-                      if actual == wanted and radio not in disabled and radio in mapping]
-        if len(candidates) != 1:
-            raise RuntimeError("无法唯一确认同频段网卡的硬件归属；信息缺失、存在多块候选或归属冲突，已停止验证，请刷新无线状态。")
-        return candidates[0]
+        disabled = set(re.findall(r"(?m)^wireless\.([A-Za-z0-9_]+)\.disabled=['\"]?(?:1|true|yes|on)['\"]?\s*$", snapshot))
+        bands = uci_radio_bands(snapshot)
+        same_band = sorted(radio for radio, actual in bands.items() if actual == wanted)
+        unavailable = [radio for radio in same_band if radio in disabled]
+        unmapped = [radio for radio in same_band if radio not in mapping]
+        candidates = [radio for radio in same_band
+                      if radio in mapping and radio not in disabled]
+        if len(candidates) == 1:
+            return candidates[0]
+        if not candidates and len(same_band) == 1 and same_band[0] in mapping:
+            return same_band[0]
+        raise PasswordVerifyPreparationError(
+            self._band_reason(band, same_band, candidates, unavailable, unmapped))
+
+    @staticmethod
+    def _band_reason(band, same_band, candidates, unavailable, unmapped):
+        """把“选不出唯一网卡”翻成具体那一类原因，避免落到通用提示。"""
+
+        label = str(band)
+        if not same_band:
+            return (f"路由器的无线配置里没有声明 {label} 频段的网卡，无法开始试密码。"
+                    "请刷新扫描结果，或在路由器上核对无线配置的频段设置后再试。")
+        if len(candidates) > 1:
+            return (f"{label} 频段匹配到多块网卡（{'、'.join(candidates)}），"
+                    "为避免改错无线配置已停止；请核对路由器无线设置后重试。")
+        if unavailable:
+            return (f"{label} 频段的无线网卡处于停用状态（{'、'.join(unavailable)}），"
+                    "请先在路由器上启用该频段后再试。")
+        if unmapped:
+            return (f"{label} 频段的无线网卡无法和实际硬件唯一对应（{'、'.join(unmapped)}），"
+                    "已停止验证；请刷新无线信息后重试。")
+        return (f"无法确认 {label} 频段对应的无线网卡，请刷新无线信息后重试。")
 
     @verification_phase("configure")
     def _setup_environment(self, sta_section, net_name, radio, cancel_event):
         """Configure the selected radio only; isolate the temporary DHCP route and DNS."""
 
+        original_flag = self._original_radio_disabled.get(radio)
+        newly_enabled = radio not in self._enabled_radios
+        if original_flag in DISABLED_VALUES:
+            before = self._restore_check.baseline.get(radio) if self._restore_check is not None else None
+            if (before is None or before.get('disabled') is not True
+                    or before.get('pending') is not False or before.get('up') is not False):
+                raise PasswordVerifyPreparationError(
+                    "\u539f\u6765\u505c\u7528\u7684\u7f51\u5361\u72b6\u6001\u5c1a\u672a\u786e\u8ba4\uff0c\u672a\u4fee\u6539\u914d\u7f6e\uff1b\u8bf7\u5237\u65b0\u65e0\u7ebf\u4fe1\u606f\u540e\u91cd\u8bd5\u3002")
+            self._enabled_radios.add(radio)
         commands = [
             f"uci set wireless.{sta_section}=wifi-iface",
             f"uci set wireless.{sta_section}.device={quote_argument(radio)}",
@@ -431,6 +567,8 @@ class OpenWrtPasswordVerifier:
         ]
         commands.extend(isolated_network(net_name))
         # Restore the previous task radio before moving the temporary STA to another.
+        for previous in sorted(self._enabled_radios - {radio}):
+            commands.append(restore_disabled(previous, self._original_radio_disabled[previous]))
         for iface in sorted(self._modified_ifaces):
             if self._original_devices.get(iface) != radio:
                 commands.append(restore_disabled(iface, self._original_disabled[iface]))
@@ -438,17 +576,29 @@ class OpenWrtPasswordVerifier:
         self._modified_ifaces.update(others)
         for iface in others:
             commands.append("uci set " + quote_argument(f"wireless.{iface}.disabled=1"))
+        if radio in self._enabled_radios:
+            commands.append("uci set " + quote_argument(f"wireless.{radio}.disabled=0"))
         commands.extend(["uci commit wireless", "uci commit network"])
         if self._restore_check is not None:
             self._restore_check.affected_radios.add(radio)
         recovery = getattr(self, 'recovery_journal', None)
         if recovery is not None:
-            recovery.arm(self._modified_ifaces, self._restore_check.affected_radios)
+            recovery.arm(self._modified_ifaces, self._restore_check.affected_radios,
+                **({"enabled_radios": self._enabled_radios} if self._original_radio_disabled else {}))
             from .password_pending_changes import snapshot_guards
             pending_guards = snapshot_guards(self.command_runner, sta_section, net_name,
-                                            self._modified_ifaces, cancel_event,
+                                            self._modified_ifaces | self._enabled_radios, cancel_event,
                                             allow_owned=getattr(self, '_configuration_touched', False))
             commands = pending_guards + recovery.guarded_setup(commands)
+        if self._enabled_radios:
+            from .password_recovery import _original_or_disabled
+            guards = []
+            for name in sorted(self._enabled_radios):
+                original = self._original_radio_disabled[name]
+                guards.append('[ "$(uci -q get '+quote_argument('wireless.'+name)+')" = wifi-device ]')
+                guards.append(_original_or_disabled(name, original,
+                    original if name == radio and newly_enabled else '0'))
+            commands = guards + commands
         self._run_batch("password_setup_env", commands, cancel_event)
         self._run("password_reload", RELOAD_CHANGED_CONFIG, 60, cancel_event)
         self._sleep(5, cancel_event)
@@ -530,7 +680,8 @@ class OpenWrtPasswordVerifier:
         self._restore_check = PasswordRestoreCheck.capture(self.command_runner, cancel_event)
         recovery = getattr(self, 'recovery_journal', None)
         if recovery is not None:
-            recovery.capture(self._original_disabled, self._original_devices, self._restore_check.baseline)
+            recovery.capture(self._original_disabled, self._original_devices, self._restore_check.baseline,
+                **({"radio_disabled": self._original_radio_disabled} if self._original_radio_disabled else {}))
         self._wan_zone = None
 
     def _read_disabled_map(self, cancel_event):
@@ -541,6 +692,7 @@ class OpenWrtPasswordVerifier:
         if result.exit_code != 0 or result.timed_out:
             raise RuntimeError("\u65e0\u6cd5\u8bfb\u53d6\u65e0\u7ebf\u63a5\u53e3\u5f52\u5c5e\uff0c\u5df2\u505c\u6b62\u9a8c\u8bc1\u4ee5\u907f\u514d\u5f71\u54cd\u4e0a\u7f51\u3002")
         disabled, self._original_devices = interface_snapshot(result.stdout)
+        self._original_radio_disabled = radio_disabled_snapshot(result.stdout)
         return disabled
 
     def _other_ifaces(self, sta_section, cancel_event, radio):
@@ -573,6 +725,8 @@ class OpenWrtPasswordVerifier:
         ]
         for iface in sorted(self._modified_ifaces):
             commands.append(restore_disabled(iface,self._original_disabled[iface]))
+        commands.extend(restore_disabled(radio, self._original_radio_disabled[radio])
+                        for radio in sorted(self._enabled_radios))
         commands.extend(["uci commit wireless", "uci commit network"])
         for command in commands:
             try:
@@ -588,7 +742,9 @@ class OpenWrtPasswordVerifier:
         else:
             checked = self._restore_check.verify(sta_section, net_name, self._original_disabled,
                                                   self._original_devices, self._modified_ifaces,
-                                                  wait_seconds=SIGNAL_READY_SECONDS)
+                                                  wait_seconds=SIGNAL_READY_SECONDS,
+                                                  **({"radio_disabled": {r: self._original_radio_disabled[r]
+                                                      for r in self._enabled_radios}} if self._enabled_radios else {}))
             if checked:
                 errors.append(checked)
         return "\uff1b".join(errors)

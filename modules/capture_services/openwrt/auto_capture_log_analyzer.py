@@ -31,6 +31,8 @@ class CapturedTargetSummary:
     has_eapol: bool = False
     handshake_frames: str = ""
     details: str = ""
+    tool_handshake: bool = False
+    tool_handshake_kind: str = ""
 
 
 @dataclass
@@ -309,6 +311,8 @@ class AutoCaptureLogAnalyzer:
                         cur_frames.add("M1")
                     if has_m3:
                         cur_frames.add("M3")
+                        targets_map[b_norm].tool_handshake = True
+                        targets_map[b_norm].tool_handshake_kind = "m123"
                     targets_map[b_norm].handshake_frames = "+".join([f for f in ["M1", "M2", "M3", "M4"] if f in cur_frames])
                 continue
 
@@ -324,8 +328,10 @@ class AutoCaptureLogAnalyzer:
                     targets_map[ap_norm].ssid = s_name
 
                 # E 或 2 列有 '+' 代表收到客户端 EAPOL-Key M2 帧
-                if "+" in flags:
+                if len(flags) > 2 and flags[2] == "+":
                     eapol_found.add(ap_norm)
+                    targets_map[ap_norm].tool_handshake = True
+                    if not targets_map[ap_norm].tool_handshake_kind: targets_map[ap_norm].tool_handshake_kind = "m12"
                     targets_map[ap_norm].has_eapol = True
                     targets_map[ap_norm].details = "已捕获客户端握手响应 (M2)"
                     cur_frames = set(re.findall(r"M[1-4]", targets_map[ap_norm].handshake_frames))

@@ -119,22 +119,24 @@ class StorageAPI:
         if not path.is_file(): raise ValueError("Publication input is missing")
         routes=configured_proxy_channels()
         if not routes:raise ValueError("Configure a publisher proxy before uploading")
-        proxies=[{"http":r.proxy_url,"https":r.proxy_url} for r in routes]
+        from modules.http_socks_bridge import ProxyBridgePool
         original=dict(self.session.proxies)
         deadline=time.monotonic()+900
         try:
-            for index, proxy in enumerate(proxies):
-                self.session.proxies=proxy
-                try:
-                    with path.open("rb") as source:
-                        result=self._request("PUT", self._key(key), data=UploadStream(source,deadline), headers={
-                            "Content-Type":content_type,"Content-Length":str(path.stat().st_size),
-                            "cf-r2-data-catalog-check":"true"})
-                    return result
-                except StorageTransportError:
-                    # Immutable retries resend the same bytes. Channel writes need reconciliation.
-                    if key.startswith("channel/") or index+1==len(proxies): raise
-                    print("Upload route unavailable; trying next configured proxy",flush=True)
+            with ProxyBridgePool() as bridges:
+                for index, route in enumerate(routes):
+                    try:
+                        proxy = bridges.http_proxy(route.proxy_url)
+                        self.session.proxies = {"http": proxy, "https": proxy} if proxy else {}
+                        with path.open("rb") as source:
+                            result=self._request("PUT", self._key(key), data=UploadStream(source,deadline), headers={
+                                "Content-Type":content_type,"Content-Length":str(path.stat().st_size),
+                                "cf-r2-data-catalog-check":"true"})
+                        return result
+                    except (StorageTransportError, OSError) as exc:
+                        # Immutable retries resend identical bytes; mutable channels never retry blindly.
+                        if key.startswith("channel/") or index+1==len(routes): raise
+                        print("Upload route unavailable; trying next configured proxy",flush=True)
         finally:
             self.session.proxies=original
 

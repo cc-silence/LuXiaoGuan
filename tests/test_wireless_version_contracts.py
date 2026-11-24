@@ -80,6 +80,28 @@ class OfficialWirelessContractTests(unittest.TestCase):
         return device, WirelessSetupManager(device), threading.Event()
 
 
+    def test_remark_roundtrip_for_all_supported_routes(self):
+        from modules.capture_services.openwrt.signal_manager import RouterSignalManager
+        from tests.test_signal_runtime import RuntimeDevice as ReadDevice
+        for profile in PROFILES:
+            for apply in (True, False):
+                for label in ("Alias 'quoted'", "\u4e2d" * 128, "\U0001f680" * 128, ""):
+                    with self.subTest(series=profile["series"], route=profile["route"], apply=apply, length=len(label)):
+                        device = VersionDevice(profile) if apply else VersionPersistenceDevice(profile)
+                        manager = WirelessSetupManager(device)
+                        request = WirelessRequest("sta", "radio7", TARGET.ssid, "test-password", label=label,
+                            options={"encryption": "psk2", "proto": "dhcp", "zone": "wan"})
+                        result = manager.save(request, threading.Event(), Mock(), apply=apply)
+                        saved = device.config["wireless"][result["section"]]
+                        self.assertEqual(saved["description"], label)
+                        self.assertEqual(saved["ssid"], TARGET.ssid)
+                        reader = ReadDevice()
+                        reader.config = copy.deepcopy(device.config)
+                        inventory = RouterSignalManager(SimpleNamespace(run=reader.run)).read(threading.Event())
+                        row = next(row for row in inventory.rows if row.section == result["section"])
+                        self.assertEqual(row.label, label)
+                        self.assertEqual(row.ssid, TARGET.ssid)
+
     def test_relay_dns_readback_rejects_missing_or_changed_saved_values(self):
         from dataclasses import asdict
         for profile in PROFILES:

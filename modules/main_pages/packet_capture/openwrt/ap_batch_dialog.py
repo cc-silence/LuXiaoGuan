@@ -8,6 +8,7 @@ from modules.settings_pages.settings_widgets import create_dialog_ok_cancel_butt
 from modules.capture_services.openwrt.ap_batch_identity import build_access_point_identities,random_identity,access_point_band
 from .signal_setup_forms import text_input,add_field,hint
 from modules.user_errors import user_error
+from modules.display_privacy import PrivacyLabel, protect_input
 
 
 class AccessPointBatchDialog(FramelessDialog):
@@ -31,10 +32,14 @@ class AccessPointBatchDialog(FramelessDialog):
             band_label = {"2g": "2.4G", "5g": "5G", "6g": "6G"}.get(band)
             if band_label:
                 old_name += " \u00b7 " + band_label
-            label=hint(old_name,panel);label.setTextFormat(Qt.PlainText)
+            label=PrivacyLabel(old_name,panel);label.setObjectName("settingsHint");label.setWordWrap(True);label.setTextFormat(Qt.PlainText)
+            from modules.display_privacy import controller_for
+            privacy=controller_for(self)
+            if privacy is not None:privacy.register_values([row["old"]])
             title.addWidget(label,1)
             button=create_settings_button("随机",panel,"secondary");title.addWidget(button);fields.addLayout(title)
             name=text_input(panel,row["name"]);mac=text_input(panel,row["mac"])
+            protect_input(name);protect_input(mac)
             add_field(fields,panel,"新 Wi-Fi 名称",name,"留空则保留原 Wi-Fi 名称。")
             fields.addWidget(hint("留空则保留原 Wi-Fi 名称。",panel))
             mac.setReadOnly(not mac_editable)

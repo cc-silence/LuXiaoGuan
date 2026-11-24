@@ -82,8 +82,8 @@ class WirelessState:
 
 _NAMES = re.compile(r"[A-Za-z0-9_]+")
 _MAC = re.compile(r"(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}")
-AP_OPTIONS = frozenset(IFACE_KEYS + RADIO_KEYS + ("macaddr", "encryption", "hidden", "isolate", "maxassoc", "channel", "htmode", "country", "txpower", "network", "wmm", "ieee80211w", "dtim_period", "beacon_int", "wds"))
-STA_OPTIONS = frozenset(("encryption", "bssid", "proto", "ipaddr", "netmask", "gateway", "dns", "metric", "zone", "channel", "bridge_mode", "network", "relay_ip", "identity_action", "macaddr", "hostname"))
+AP_OPTIONS = frozenset(IFACE_KEYS + RADIO_KEYS + ("recommended_auto", "macaddr", "encryption", "hidden", "isolate", "maxassoc", "channel", "htmode", "country", "txpower", "network", "wmm", "ieee80211w", "dtim_period", "beacon_int", "wds"))
+STA_OPTIONS = frozenset(("ifname", "ieee80211w", "bind_network", "preserve_network", "preserve_networks", "encryption", "bssid", "proto", "ipaddr", "netmask", "gateway", "dns", "metric", "zone", "channel", "bridge_mode", "network", "relay_ip", "identity_action", "macaddr", "hostname"))
 
 
 def validate_request(request):
@@ -112,10 +112,20 @@ def validate_request(request):
         raise ValueError("密码不能含换行或控制字符。")
     options = request.options
     validate_options(options)
+    if "recommended_auto" in options and (request.mode != "ap" or options["recommended_auto"] is not True or options.get("channel") != "auto"):
+        raise ValueError("Invalid automatic channel recommendation")
     if request.mode == "ap" and "macaddr" in options and not valid_mac(options["macaddr"]):
         raise ValueError("BSSID \u9700\u8981\u662f\u6709\u6548\u7684\u5355\u64ad MAC \u5730\u5740\u3002")
     if request.mode == "sta":
         validate_identity(options)
+        if "preserve_network" in options and (options["preserve_network"] is not True or not request.section):
+            raise ValueError("Invalid network preservation request")
+        if "bind_network" in options and (not options.get("preserve_network") or options.get("bridge_mode") != "routed" or not isinstance(options["bind_network"], str) or not _NAMES.fullmatch(options["bind_network"])):
+            raise ValueError("Invalid network binding")
+        if "preserve_networks" in options:
+            networks = options["preserve_networks"]
+            if not options.get("preserve_network") or not isinstance(networks, list) or not 1 <= len(networks) <= 32 or any(not isinstance(n, str) or not _NAMES.fullmatch(n) for n in networks):
+                raise ValueError("Invalid existing network bindings")
     for key in ("hidden", "isolate", "wmm", "wds"):
         if key in options and options[key] not in ("0", "1"):
             raise ValueError("无线开关值无效。")
@@ -135,6 +145,8 @@ def validate_request(request):
     for key in ("network", "zone"):
         if key in options and not _NAMES.fullmatch(str(options[key])):
             raise ValueError("网络或防火墙区域名称无效。")
+    if "ifname" in options and (not isinstance(options["ifname"], str) or (options["ifname"] and (not re.fullmatch(r"[A-Za-z0-9_.:-]{1,15}", options["ifname"]) or options["ifname"] in (".", "..")))):
+        raise ValueError("Invalid wireless interface name")
     if options.get("bssid") and not _MAC.fullmatch(str(options["bssid"])):
         raise ValueError("BSSID 无效。")
     if options.get("bridge_mode", "routed") not in ("routed", "wds", "relayd"):

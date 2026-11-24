@@ -41,6 +41,31 @@ def runner(channel=None, failure=None):
 
 
 class CaptureLiveEvidenceTests(unittest.TestCase):
+    def test_stop_events_survive_unrelated_activity_and_are_private_and_bounded(self):
+        r = runner()
+        journal = r.operation_diagnostics
+        journal.record("command", operation="stop_airodump-ng", status="started", connected_before=True,
+                       text="password=private-secret", interface="private-interface")
+        journal.record("command", operation="stop_airodump-ng", status="failed", connected_after=False,
+                       elapsed_seconds=8.0, stage="open_channel")
+        journal.record("cleanup", operation="restore_wireless", status="failed", reason="restore_unconfirmed")
+        for _ in range(300):
+            journal.record("command", operation="unrelated_probe", status="completed")
+        data = sanitized_operation_evidence(journal.snapshot(), HistoryMasker())
+        events = data["capture_evidence"]["stop_events"]
+        self.assertEqual([row["status"] for row in events], ["started", "failed", "failed"])
+        self.assertEqual(events[1]["stage"], "open_channel")
+        self.assertFalse(events[1]["connected_after"])
+        self.assertNotIn("private-secret", json.dumps(events))
+        self.assertNotIn("private-interface", json.dumps(events))
+        journal.bind_connection("host-key-a")
+        self.assertEqual(len(journal.snapshot()["capture_evidence"]["stop_events"]), 3)
+        for _ in range(100):
+            journal.record("command", operation="deauth_client", status="cancelled")
+        self.assertEqual(len(journal.snapshot()["capture_evidence"]["stop_events"]), 64)
+        journal.bind_connection("different-device")
+        self.assertEqual(journal.snapshot()["capture_evidence"]["stop_events"], [])
+
     def test_tool_failure_keeps_masked_output_and_same_result(self):
         r = runner()
         result = RemoteCommandResult('deauth_client', 1, 'Waiting for beacon 192.168.1.1', 'No such BSSID AA:BB:CC:DD:EE:FF\npassword=hidden-secret')

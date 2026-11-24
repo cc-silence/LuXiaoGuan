@@ -1,12 +1,13 @@
 """猜密码字典列表，参照 WiKey 的三列结构，复用 \u8def\u5c0f\u7ba1 公共按钮和委托。"""
 from pathlib import Path
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QUrl
 from modules.main_pages.packet_capture.ui_helpers import VerticalResizeHandle
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTreeWidget, QTreeWidgetItem, QHeaderView, QAbstractItemView, QFileDialog
-from PySide6.QtGui import QShortcut, QKeySequence
+from PySide6.QtGui import QShortcut, QKeySequence, QDesktopServices
 from modules.common_widgets.spaced_item_delegate import SpacedItemDelegate
 from modules.main_pages.page_action_buttons import create_page_text_button
-from modules.dialog_theme import detect_light_theme
+from modules.dialog_theme import detect_light_theme, create_themed_menu
+from modules.common_widgets.common_dialogs import MessageDialog
 from modules.ui_scale_manager import UiScaleManager
 from modules.config_services.capture_settings_manager import CaptureSettingsManager
 
@@ -48,6 +49,8 @@ class PasswordDictionaryEditor(QWidget):
         self.tree.setAcceptDrops(True)
         self.tree.setDropIndicatorShown(True)
         self.tree.filesDropped.connect(self.append_paths)
+        self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self._open_context_menu)
         self.tree.setObjectName("captureDictionaryList")
         self.tree.setHeaderLabels(["字典名称","大小","所在位置"])
         self.tree.setRootIsDecorated(False)
@@ -116,6 +119,30 @@ class PasswordDictionaryEditor(QWidget):
         start=str(Path(paths[-1]).parent) if paths else str(Path.home())
         files,_=QFileDialog.getOpenFileNames(self,"添加密码字典",start,"文本字典 (*.txt *.dic);;所有文件 (*)")
         self.append_paths(files)
+
+    def _open_context_menu(self, pos):
+        item = self.tree.itemAt(pos)
+        if item is None or not self.tree.isEnabled():
+            return
+        if not item.isSelected():
+            self.tree.clearSelection()
+            self.tree.setCurrentItem(item)
+            item.setSelected(True)
+        path = str(item.data(0, Qt.UserRole) or "")
+        if not path:
+            return
+        menu = create_themed_menu(self.tree, detect_light_theme(self))
+        action = menu.addAction("打开所在目录")
+        action.triggered.connect(lambda _checked=False: self._open_dictionary_directory(path))
+        menu.exec(self.tree.viewport().mapToGlobal(pos))
+
+    def _open_dictionary_directory(self, path):
+        directory = Path(path).parent
+        if not directory.is_dir():
+            MessageDialog("目录不存在", "字典所在目录已移动或删除。", self).exec()
+            return
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(directory.resolve()))):
+            MessageDialog("打开失败", "无法打开字典所在目录。", self).exec()
 
     def remove_selected(self):
         items=self.tree.selectedItems()

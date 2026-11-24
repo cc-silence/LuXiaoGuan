@@ -155,8 +155,11 @@ class RelocationActions(QObject):
                 publish_page_message(self.page,"连接已变化，请重新预览。")
                 self._sync()
                 return
+            private_values = [row.get("ssid", "") for row in review["rows"]]
+            private_values += [value for row in review["plan"].get("access_points", []) for value in (row.get("old", ""), row.get("name", ""))]
+            private_values.append(review["plan"].get("hostname", ""))
             dialog = ConfirmDialog("确认搬家清理", self.summary(review), self.page,
-                                   yes_text="清理并更换身份", no_text="取消")
+                                   yes_text="清理并更换身份", no_text="取消", private_values=private_values)
             try:
                 dialog.yes_button.setProperty("riskAction", True)
                 if dialog.exec() == ConfirmDialog.Accepted:

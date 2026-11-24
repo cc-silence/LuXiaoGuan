@@ -42,6 +42,58 @@ class WirelessUiTests(unittest.TestCase):
                     self.assertEqual(tabs.sizeHint().height(),short)
                     relay.reject();ap.reject();parent.deleteLater();APP.processEvents()
 
+    def test_ap_empty_password_confirmation_and_existing_key(self):
+        from unittest.mock import Mock
+        from modules.main_pages.packet_capture.openwrt.signal_setup_actions import SignalSetupActions
+        env = environment()
+        dialog = AccessPointSetupDialog("radio7", "5G")
+        self.addCleanup(dialog.reject)
+        configure_ap(dialog, env)
+        dialog.name_edit.setText("Example")
+        actions = SimpleNamespace(_confirm=Mock(return_value=False))
+        actions._confirm_open_ap = lambda d: SignalSetupActions._confirm_open_ap(actions, d)
+        self.assertFalse(SignalSetupActions._prepare_ap_password(actions, dialog, env))
+        self.assertEqual(dialog.encryption.currentData(), "psk2")
+        actions._confirm.return_value = True
+        self.assertTrue(SignalSetupActions._prepare_ap_password(actions, dialog, env))
+        self.assertEqual(ap_request(dialog).options["encryption"], "none")
+
+        env.data["rows"][0]["has_key"] = True
+        row = SimpleNamespace(section="home", ssid="Home")
+        editing = AccessPointSetupDialog("radio7", "5G", row=row)
+        self.addCleanup(editing.reject)
+        configure_ap(editing, env)
+        actions._confirm.reset_mock()
+        self.assertTrue(SignalSetupActions._prepare_ap_password(actions, editing, env))
+        actions._confirm.assert_not_called()
+        editing.password.edit.textEdited.emit("")
+        self.assertTrue(SignalSetupActions._prepare_ap_password(actions, editing, env))
+        actions._confirm.assert_called_once()
+        self.assertEqual(ap_request(editing).options["encryption"], "none")
+
+    def test_edit_open_ap_with_password_uses_recommended_encryption(self):
+        from unittest.mock import Mock
+        from modules.main_pages.packet_capture.openwrt.signal_setup_actions import SignalSetupActions
+        for band, expected in (("5g", "psk2"), ("6g", "sae")):
+            with self.subTest(band=band):
+                env = environment()
+                env.data["radios"][0]["band"] = band
+                env.data["rows"][0].update(encryption="owe" if band == "6g" else "none", has_key=False)
+                row = SimpleNamespace(section="home", ssid="Home")
+                dialog = AccessPointSetupDialog("radio7", band, row=row)
+                self.addCleanup(dialog.reject)
+                configure_ap(dialog, env)
+                self.assertTrue(dialog.password.isEnabled())
+                dialog.password.edit.setText("example-password")
+                dialog.password.edit.textEdited.emit("example-password")
+                actions = SimpleNamespace(_confirm=Mock())
+                actions._confirm_open_ap = lambda d: SignalSetupActions._confirm_open_ap(actions, d)
+                self.assertTrue(SignalSetupActions._prepare_ap_password(actions, dialog, env))
+                request = ap_request(dialog)
+                self.assertEqual(request.options["encryption"], expected)
+                self.assertEqual(request.password, "example-password")
+                actions._confirm.assert_not_called()
+
     def test_edit_preserves_cipher_multi_network_and_optional_fields(self):
         row=SimpleNamespace(section="home",ssid="Home")
         dialog=AccessPointSetupDialog("radio7","5G",row=row)

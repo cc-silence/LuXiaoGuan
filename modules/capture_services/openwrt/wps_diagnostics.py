@@ -10,6 +10,7 @@ import time
 from datetime import datetime, timezone
 from modules.capture_services.capture_logging import LOGGER
 from modules.log_history import current_history
+from .wps_defaults import wps_sender
 
 CATEGORY = "\u6293\u5305"
 CHANNEL = "wps-diagnostics"
@@ -66,7 +67,7 @@ class WpsDiagnosticTrace:
         self.empty = False
         self.event("target_started", mode=mode if mode in {"normal", "second", "offline", "combo"} else "unknown",
                    channel=_number(target.channel), band=target.band if target.band in {"2.4G", "5G"} else "unknown",
-                   seconds=(_number(options.get("quick_seconds", 60)) if mode == "second"
+                   seconds=(_number(options.get("quick_seconds", 0)) if mode == "second"
                             else _number(options.get("attack_seconds"))),
                    rounds=(_number(options.get("quick_rounds", 1)) if mode == "second"
                            else _number(options.get("attack_rounds", 1))),
@@ -75,6 +76,7 @@ class WpsDiagnosticTrace:
                    wps_advertised=bool(target.wps_supported), wps_locked=bool(target.wps_locked),
                    spoof_enabled=bool(options.get("spoof_mac_enabled")),
                    rotate_mac_each_pin=bool(options.get("rotate_mac_each_pin")),
+                   sender=(wps_sender(options) if mode == "second" else None),
                    sampling="overlapping_log_tails")
 
     def _row(self, event, **fields):
@@ -142,10 +144,14 @@ class WpsDiagnosticTrace:
         self._write(rows)
 
     def finish(self, result=None, error=None, cancelled=False):
-        outcome = "cancelled" if cancelled else "error" if error else "completed"
+        unsupported = bool(result and getattr(result, "unavailable_kind", ""))
+        outcome = ("cancelled" if cancelled else
+                   "skipped" if unsupported else
+                   "error" if error else "completed")
         self.event("target_finished", outcome=outcome,
                    pin_confirmed=bool(result and result.pin_ok),
                    credential_confirmed=bool(result and result.psk_ok),
-                   error_kind=("cleanup" if error and type(error).__name__ == "CaptureCleanupError"
+                   error_kind=("unsupported" if unsupported else
+                               "cleanup" if error and type(error).__name__ == "CaptureCleanupError"
                                else "runtime" if error else "none"),
                    timeline_limited=self.limited)

@@ -17,7 +17,7 @@ def error_sink_command(log_path):
     )
 
 
-def output_launch_command(program, command, log_path):
+def output_launch_command(program, command, log_path, *, handshake_hint_path=None):
     """返回启动片段；$! 始终指向执行工具的进程，不指向日志消费者。
 
     采集工具 stdout 是终端画面，直接丢弃；stderr 经专属 FIFO 有界落盘。
@@ -32,8 +32,24 @@ def output_launch_command(program, command, log_path):
     # exec 保证 PID 身份校验、停止和看门狗针对实际工具，而非外层 shell。
     worker = quote_argument("exec " + command)
     sink = error_sink_command(log_path)
+    stdout = "/dev/null"
+    hint_setup = ""
+    if handshake_hint_path is not None:
+        hint = PurePosixPath(handshake_hint_path)
+        if program != "airodump-ng" or hint.parent != path.parent or hint.name != "handshake-hint.txt":
+            raise ValueError("Invalid owned handshake hint path")
+        output_fifo = quote_argument(str(path.parent / (".winbox-hints-" + uuid4().hex)))
+        destination = quote_argument(str(hint))
+        # POSIX awk writes only the latest fixed-format identity; never a screen log.
+        awk = ("{ if (match($0, /(WPA handshake|PMKID found): [0-9A-Fa-f:]+/)) { "
+               "value=substr($0,RSTART,RLENGTH); if (value != last) { "
+               "print value > out; close(out); last=value } } }")
+        hint_setup = (f": >{destination} || exit 1; mkfifo {output_fifo} || exit 1; "
+                      f"( {{ awk -v out={destination} {quote_argument(awk)}; cat >/dev/null; }} "
+                      f"<{output_fifo}; rm -f {output_fifo} ) >/dev/null 2>&1 </dev/null & ")
+        stdout = output_fifo
     return (
-        f"mkfifo {fifo} || exit 1; "
+        f"mkfifo {fifo} || exit 1; " + hint_setup +
         f"( {{ {sink}; }} <{fifo}; rm -f {fifo} ) >/dev/null 2>&1 </dev/null & "
-        f"sh -c {worker} </dev/null >/dev/null 2>{fifo} & "
+        f"sh -c {worker} </dev/null >{stdout} 2>{fifo} & "
     )

@@ -1,0 +1,16 @@
+{
+  "checked_at": "2026-11-14T04:16:03.934624+00:00",
+  "scope": "Windows offscreen Qt, no router commands changed",
+  "modules": [
+    "tests.test_handshake_invalid_channels",
+    "tests.test_capture_status_color",
+    "tests.test_file_selection"
+  ],
+  "tests_run": 20,
+  "success": true,
+  "real_router_retest": "pending",
+  "source_sha256": {
+    "modules/main_pages/packet_capture/openwrt/access_point_table.py": "88661ea9d4cec198d8f86e0d11eaa4834afc51f87372034f2c37ae9d35886b0f",
+    "tests/test_handshake_invalid_channels.py": "eca4430f82720604d17d56b8a2d7e7a9ac14008b3ea6ca0b515136c185c75789"
+  }
+}

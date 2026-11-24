@@ -114,7 +114,7 @@ uci(){ printf '%s\n' "$*"; }
                 text=path.as_posix()
                 return '/'+text[0].lower()+text[2:] if os.name=='nt' else text
             code=STATUS_SH.replace('/etc/init.d/',posix(root/'init.d')+'/').replace('/etc/rc.d/',posix(root/'rc.d')+'/').replace('/etc/rc.local',posix(root/'rc.local'))
-            for script,expected in ((BOOT_SCRIPT,'on'),(legacy,'on'),(BOOT_SCRIPT+'\n# externally edited\n','unknown')):
+            for script,expected in ((BOOT_SCRIPT,'on'),(legacy,'on'),(BOOT_SCRIPT+'\n# externally edited\n','unknown:hash_unrecognized')):
                 (root/'init.d/luxiaoguan-wifi-policy').write_bytes(script.encode())
                 result=subprocess.run([bash],input=code,text=True,encoding='utf-8',capture_output=True,timeout=10)
                 self.assertEqual(result.returncode,0,result.stderr)

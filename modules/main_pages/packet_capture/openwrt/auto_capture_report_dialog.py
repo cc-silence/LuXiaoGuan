@@ -18,7 +18,6 @@ from PySide6.QtGui import QBrush, QColor, QDesktopServices
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
@@ -33,6 +32,9 @@ from modules.common_widgets.frameless_dialog import FramelessDialog
 from modules.config_manager import ConfigManager
 from modules.dialog_theme import build_base_stylesheet, detect_light_theme
 from modules.ui_scale_manager import UiScaleManager
+from modules.display_privacy import PrivacyLabel as QLabel, controller_for
+from modules.capture_services.capture_log_privacy import project_capture_log
+from .wireless_network_table import NumericItem, SORT_ROLE
 
 
 class AutoCaptureReportDialog(FramelessDialog):
@@ -40,6 +42,13 @@ class AutoCaptureReportDialog(FramelessDialog):
 
     def __init__(self, report: AutoCaptureDiagnosticReport, local_dir: str, parent=None, *, live=False):
         super().__init__("离线抓包成果与智能健康诊断报告", parent, inherit_parent_stylesheet=False)
+        self._privacy = controller_for(self)
+        self._report_targets = tuple(report.targets)
+        self._summary_raw = ""
+        self._log_view = None
+        if self._privacy is not None:
+            self._privacy.register_values(value for target in report.targets
+                for value in (target.ssid, target.bssid))
         self._live = live
         if live:
             self.setWindowTitle("前台抓包明细")
@@ -137,6 +146,7 @@ class AutoCaptureReportDialog(FramelessDialog):
         self.ap_table = ap_table
         self._target_rows = None
         self._set_targets(report.targets)
+        ap_table.setSortingEnabled(True)
         ap_table.setColumnWidth(0, scale.px(145))
         ap_table.setColumnWidth(1, scale.px(210))
         ap_table.setColumnWidth(2, scale.px(65))
@@ -161,7 +171,10 @@ class AutoCaptureReportDialog(FramelessDialog):
                     "2. 同步完成后再次点击【📊 智能分析日志】即可查看完整的抓包分析与热点诊断；\n"
                     f"3. 您也可以点击下方的“📂 打开结果目录”直接查看本地目录 ({local_dir})。"
                 )
-            log_view.setPlainText(summary_text)
+            self._summary_raw = summary_text[:200000]
+            self._log_view = log_view
+            log_view.setUndoRedoEnabled(False)
+            self._refresh_summary()
             log_layout.addWidget(log_view)
             tabs.addTab(log_widget, "诊断摘要文本")
 
@@ -181,69 +194,89 @@ class AutoCaptureReportDialog(FramelessDialog):
         close_btn = _create_dialog_button("确定", self, "settingsPrimaryButton")
         close_btn.clicked.connect(self.accept)
         self.button_layout.addWidget(close_btn)
+        if self._privacy is not None:
+            self._privacy.changed.connect(self._refresh_privacy)
         if live:
             self.update_live_report(report)
 
+    def _refresh_summary(self):
+        if self._log_view is None:
+            return
+        text = self._summary_raw
+        if self._privacy is not None and self._privacy.enabled:
+            text = project_capture_log(text, self._privacy.snapshot())
+        bar = self._log_view.verticalScrollBar()
+        position = bar.value()
+        self._log_view.setPlainText(text)
+        bar.setValue(position)
+
+    def _refresh_privacy(self):
+        self._set_targets(self._report_targets)
+        self._refresh_summary()
+
     def _set_targets(self, targets):
-        rows = tuple((row.bssid, row.ssid, row.channel, row.handshake_frames,
-                      row.has_pmkid, row.has_eapol) for row in targets)
+        targets = tuple(targets)
+        self._report_targets = targets
+        if self._privacy is not None:
+            self._privacy.register_values(value for target in targets
+                for value in (target.ssid, target.bssid))
+        project = self._privacy.text if self._privacy is not None else str
+        rows = tuple((project(row.bssid), project(row.ssid), row.channel, row.handshake_frames,
+                      row.has_pmkid, row.has_eapol, row.tool_handshake, row.tool_handshake_kind) for row in targets)
         if rows == self._target_rows:
             return
         previous_rows = self._target_rows or ()
         self._target_rows = rows
         ap_table = self.ap_table
-        ap_table.setRowCount(len(targets))
+        sorting = ap_table.isSortingEnabled()
+        if sorting:
+            ap_table.setSortingEnabled(False)
+        if len(previous_rows) != len(rows):
+            ap_table.clearContents()
+            ap_table.setRowCount(len(targets))
+            previous_rows = ()
+        positions = {}
+        if previous_rows:
+            for current in range(ap_table.rowCount()):
+                item = ap_table.item(current, 0)
+                if item is not None:
+                    positions[item.data(Qt.UserRole)] = current
         success_color = QColor("#16a34a") if self.light_theme else QColor("#4ade80")
         warning_color = QColor("#d97706") if self.light_theme else QColor("#fbbf24")
         muted_color = QColor("#64748b") if self.light_theme else QColor("#94a3b8")
-        for row, target in enumerate(targets):
-            if row < len(previous_rows) and rows[row] == previous_rows[row]:
+        for index, target in enumerate(targets):
+            if index < len(previous_rows) and rows[index] == previous_rows[index]:
                 continue
-            ap_table.setItem(row, 0, QTableWidgetItem(target.bssid))
-            ap_table.setItem(row, 1, QTableWidgetItem(target.ssid or "<隐藏或未解析>"))
-            ap_table.setItem(row, 2, QTableWidgetItem(target.channel or "--"))
+            row = positions.get(index, index)
+            identity_item = QTableWidgetItem(rows[index][0])
+            identity_item.setData(Qt.UserRole, index)
+            ap_table.setItem(row, 0, identity_item)
+            ap_table.setItem(row, 1, QTableWidgetItem(rows[index][1] or "<\u9690\u85cf\u6216\u672a\u89e3\u6790>"))
+            channel = str(target.channel or "")
+            channel_item = NumericItem(channel or "--")
+            channel_item.setData(SORT_ROLE, int(channel) if channel.isascii() and channel.isdigit() else None)
+            ap_table.setItem(row, 2, channel_item)
 
             # 握手帧构成列
             frames = set(re.findall(r"M[1-4]", target.handshake_frames))
-            if "M1" in frames and "M2" in frames:
-                if len(frames) == 4:
-                    frame_text = "M1+M2+M3+M4 (完整)"
-                elif "M3" in frames:
-                    frame_text = "M1+M2+M3 (可跑包)"
-                else:
-                    frame_text = "M1+M2 (可跑包)"
-                frame_color = success_color
-            elif "M2" in frames and "M3" in frames:
-                frame_text = "M2+M3 (可跑包)"
-                frame_color = success_color
-            elif target.handshake_frames:
-                frame_text = f"仅 {target.handshake_frames} (残缺)"
-                frame_color = warning_color
-            elif target.has_eapol:
-                frame_text = "已检测到 EAPOL"
-                frame_color = warning_color
-            else:
-                frame_text = "--"
-                frame_color = muted_color
-
-            if self._live and target.has_eapol:
-                frame_text = target.handshake_frames or "已检测到握手消息"
-                frame_color = warning_color
-
+            usable = target.tool_handshake or ("M2" in frames and ("M1" in frames or "M3" in frames))
+            frame_text = target.handshake_frames or ("\u5df2\u68c0\u6d4b\u5230 EAPOL" if target.has_eapol else "--")
+            if target.tool_handshake_kind == "m123":
+                frame_text = "\u5de5\u5177\u62a5\u544a M1+M2+M3"
+            elif target.tool_handshake_kind == "m12":
+                frame_text = "\u5de5\u5177\u62a5\u544a M1+M2"
             frame_item = QTableWidgetItem(frame_text)
-            frame_item.setForeground(QBrush(frame_color))
+            frame_item.setForeground(QBrush(muted_color))
             ap_table.setItem(row, 3, frame_item)
 
-            # 捕获状态列
-            cap_status = []
+            status = "\u53ef\u7528\u63e1\u624b\u5305" if usable else "\u4e0d\u53ef\u7528\u5305"
             if target.has_pmkid:
-                cap_status.append("PMKID")
-            if target.has_eapol:
-                cap_status.append("握手包")
-            status_text = " + ".join(cap_status) if cap_status else "信标嗅探中"
-            item = QTableWidgetItem(status_text)
-            item.setForeground(QBrush(success_color if cap_status else muted_color))
+                status = "PMKID \u00b7 " + status
+            item = QTableWidgetItem(status)
+            item.setForeground(QBrush(success_color if usable else muted_color))
             ap_table.setItem(row, 4, item)
+        if sorting:
+            ap_table.setSortingEnabled(True)
 
     def update_live_report(self, report):
         if not self._live:

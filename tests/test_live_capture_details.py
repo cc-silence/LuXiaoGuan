@@ -55,6 +55,39 @@ class LiveCaptureDetailsTests(unittest.TestCase):
         self.assertEqual(stats["capture_details"]["targets"][0]["ssid"], "\u4e2d\u6587WiFi")
         self.assertEqual(stats["eapol_count"], 1)
 
+    def test_real_hcx_flag_three_upgrades_open_dialog_without_file_analysis(self):
+        from modules.capture_services.openwrt.auto_capture_log_analyzer import AutoCaptureLogAnalyzer
+        radio = OpenWrtRadioInfo(name="radio0", interface="phy0", bands=("2.4G",), free=True)
+        owner = QWidget()
+        card = AutoCaptureRadioCard(radio, owner)
+        tracker = LiveCaptureDetails()
+        first = "   1 12:00:00 + +     + a660283d033d TP-514-B\n"
+        completed = "   1 12:00:01 + + +   + a660283d033d TP-514-B\n"
+        tracker.feed(first)
+        card.apply_stats(dict(state="capturing",capture_details=tracker.snapshot(),pmkid_count=0,eapol_count=1))
+        card.capture_details.show()
+        dialog=card.capture_details.dialog
+        self.assertIn("\u4e0d\u53ef\u7528\u5305",dialog.ap_table.item(0,4).text())
+        tracker.feed(completed)
+        row=tracker.snapshot()["targets"][0]
+        self.assertTrue(row["tool_handshake"])
+        self.assertEqual(row["tool_handshake_kind"],"m123")
+        card.apply_stats(dict(state="capturing",capture_details=tracker.snapshot(),pmkid_count=0,eapol_count=1))
+        self.assertIn("\u53ef\u7528\u63e1\u624b\u5305",dialog.ap_table.item(0,4).text())
+        self.assertEqual(dialog.ap_table.item(0,3).text(),"\u5de5\u5177\u62a5\u544a M1+M2+M3")
+        self.assertTrue(AutoCaptureLogAnalyzer.analyze_log_text(completed).targets[0].tool_handshake)
+        dialog.close();owner.deleteLater()
+
+    def test_eap_start_is_not_m2(self):
+        from modules.capture_services.openwrt.auto_capture_log_analyzer import AutoCaptureLogAnalyzer
+        started=" 08:52:54 +   54a7035d5758 3ac62034d21b Test\n"
+        m2=" 08:52:54   + 54a7035d5758 3ac62034d21b Test\n"
+        row=AutoCaptureLogAnalyzer.analyze_log_text(started).targets[0]
+        self.assertFalse(row.has_eapol);self.assertFalse(row.tool_handshake)
+        row=AutoCaptureLogAnalyzer.analyze_log_text(m2).targets[0]
+        self.assertTrue(row.has_eapol);self.assertTrue(row.tool_handshake)
+        self.assertEqual(row.tool_handshake_kind,"m12")
+
     def test_window_reuse_updates_privacy_and_capture_lifecycle(self):
         owner = QWidget()
         owner.display_privacy = DisplayPrivacy(owner)

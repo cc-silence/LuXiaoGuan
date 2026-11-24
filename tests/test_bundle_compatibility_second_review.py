@@ -81,12 +81,12 @@ class PublicationBoundaryTests(unittest.TestCase):
 
 
 class CompatibilityMessageTests(unittest.TestCase):
-    def test_both_update_directions_reach_service_signals_without_download_offer(self):
+    def test_newer_client_requirement_reaches_service_without_download_offer(self):
         from modules.capture_services.common_bundle_service import CommonBundleDownloadService
         from modules.capture_services.task_worker import CaptureTaskWorker
         from tests.test_bundle_updates import BundleServiceUpdateTests
         for kind in ['common','capture']:
-            for direction in ['application','bundle']:
+            for direction in ['application']:
                 with self.subTest(kind=kind,direction=direction),TemporaryDirectory() as folder:
                     owner,_=BundleServiceUpdateTests().service()
                     service=CommonBundleDownloadService(owner,kind)

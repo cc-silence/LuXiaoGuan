@@ -1,0 +1,69 @@
+{
+  "date": "2026-11-15",
+  "version": "1.0.72_alpha",
+  "base_commit": "54e70bd87358db2f9c3ed0b4fcbeedb8f6521764",
+  "system": "Windows-10-10.0.19044-SP0",
+  "python": "3.10.11 (tags/v3.10.11:7d4cc5a, Apr  5 2023, 00:38:17) [MSC v.1929 64 bit (AMD64)]",
+  "qt": "6.3.2",
+  "tests": {
+    "run": 66,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "success": true,
+    "modules": [
+      "tests.test_terminal_session_reset",
+      "tests.test_terminal_interaction",
+      "tests.test_terminal_runtime",
+      "tests.test_terminal_install_state",
+      "tests.test_ssh_channel_isolation",
+      "tests.test_linux_terminal"
+    ]
+  },
+  "syntax_and_utf8": "passed",
+  "source_sha256": {
+    "modules/capture_services/router_terminal_service.py": "a7141e0bd56ffd6dbfb4292d52814d16da9ff5023e95c73afdc269cbf75ab78f",
+    "modules/capture_services/openwrt/ssh_client.py": "f4888ee4f9e1c2989dea6f5accf7d27342bc186de03359e310b3b09c34878927",
+    "modules/capture_services/openwrt/terminal_session.py": "7139add6b4314fd511638b43fc0a0b2e8cc130e7f87a92c586140d8cc7b97002",
+    "modules/main_pages/packet_capture/openwrt/router_terminal_page.py": "6a08bc4c0afbf4ffeb00a438ee750eba6fe70c2b126078a5e9d0d29d97ffb180",
+    "modules/terminal_widgets/native_view.py": "126c59a9a355075f61aa52bddc30ffe42d73e32de3ada1a7a44364626deec032",
+    "tests/test_terminal_session_reset.py": "1c8111cbe93e62469c07862df3240ff20f9d1add4930376893ffb897316f000c",
+    "tests/test_terminal_interaction.py": "631b26bb85f24f09ee3dd20c808edae215711130e22c8cbe6f5166bc85b0ddcb"
+  },
+  "official_sources": [
+    {
+      "url": "https://raw.githubusercontent.com/tmux/tmux/2.9a/cmd-new-session.c",
+      "tag": "2.9a",
+      "sha256": "122978bf0bf3990e1539226e3329369543dabc12f881d5564e893f31f79724db"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/tmux/tmux/2.9a/cmd-kill-session.c",
+      "tag": "2.9a",
+      "sha256": "4946b405e95433834bde86e546074aca21d0def3f75d0d803f033ed82cde1e6f"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/tmux/tmux/2.9a/cmd-find.c",
+      "tag": "2.9a",
+      "sha256": "bbc49382a781c06e6a939479e985c25eab0eba8ce79fbdfcc41ab59b92c0afc4"
+    }
+  ],
+  "review": [
+    "tmux 2.9a exact session target is supported",
+    "kill-session without -a destroys only selected session",
+    "fresh new-session omits -A and therefore fails rather than reusing a surviving session"
+  ],
+  "visual_check": "Windows Qt offscreen, existing partial page themes, 1000x620; reset button and existing controls not clipped; dark.png and light.png inspected",
+  "limits": [
+    "No live router operation was performed",
+    "All supported OpenWrt release/hardware combinations remain unverified on-device",
+    "Debian 12 WSL system Python 3.11.2 lacks PySide6 and tmux; desktop import, start, terminal and exit acceptance not performed",
+    "Closing a terminal does not undo router configuration or guarantee termination of detached background processes"
+  ],
+  "acceptance": [
+    "Ctrl+C is forwarded; reset creates a new shell when ordinary interrupt is ignored",
+    "After confirmation file-manager actions replace old session before sending commands",
+    "Normal disconnect continues to preserve retained sessions",
+    "Plain terminal wheel uses local history even when mouse reporting remains enabled; tmux retains remote mouse/history handling",
+    "Initial and post-probe PTY geometry use the current grid; resize updates remain supported"
+  ]
+}

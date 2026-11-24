@@ -76,6 +76,27 @@ class SignalActionTests(unittest.TestCase):
         self.addCleanup(page.dispose)
         return page, service
 
+    def test_monitor_row_only_allows_delete_when_safe(self):
+        from modules.capture_services.openwrt.signal_manager import _REASONS
+        page, service = self.create_page()
+        row = RouterSignal("monitor_cfg", "capture", "monitor", "radio0", "2g",
+                           False, False, "inactive", _REASONS["monitor"])
+        for connected, busy, stale, reason, expected in (
+            (True, False, False, _REASONS["monitor"], True),
+            (False, False, False, _REASONS["monitor"], False),
+            (True, True, False, _REASONS["monitor"], False),
+            (True, False, True, _REASONS["monitor"], False),
+            (True, False, False, _REASONS["anonymous"], False),
+        ):
+            item = replace(row, reason=reason)
+            snapshot = SignalSnapshot(SignalInventory((item,), "a" * 64), connected=connected, busy=busy, stale=stale)
+            service.snapshot = snapshot
+            page.apply_snapshot(snapshot)
+            widget = page._row_widgets["monitor_cfg"]
+            self.assertEqual(widget.delete_button.isEnabled(), expected)
+            self.assertFalse(widget.edit_button.isEnabled())
+            self.assertFalse(widget.button.isEnabled())
+
     def test_refresh_turns_into_cancel_only_for_own_task(self):
         page, service = self.create_page()
         self.assertTrue(page.inventory_toolbar.isVisible())

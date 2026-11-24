@@ -56,6 +56,7 @@ class CaptureService(QObject):
     passwordFound = Signal(object)
     wpsPinFound = Signal(object)
     takeoverProbeFinished = Signal(str, object, str, bool)
+    wpadUpgradeSuggested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -267,27 +268,17 @@ class CaptureService(QObject):
         return self.verified_results.decorate(updated)
 
     def clear_verified_history(self):
-        """清空已抓可用包名单，返回清掉的条数，主线程调用。
-
-        本次会话产物快照里有已验证产物的目标保持“已有可用包”，其余靠记忆标绿的
-        打回“待处理”；快照和名单变更都发信号，页面转存落盘并刷新表格。
-        """
+        """Clear completion markers for all targets, retaining artifacts and files."""
 
         self._verified_history_loaded = True
         removed = len(self._verified_history)
         self._verified_history = {}
         self.verified_results.availability.clear()
         self.verified_results.revision += 1
-        kept = {
-            str(artifact.bssid or "").strip().upper()
-            for artifact in self.openwrt_backend.snapshot.artifacts
-            if artifact.verified and str(artifact.bssid or "").strip()
-        }
         snapshot = self.openwrt_backend.snapshot
         access_points = tuple(
             point
             if point.capture_state != AccessPointCaptureState.CAPTURED
-            or point.bssid.upper() in kept
             else replace(point, capture_state=AccessPointCaptureState.PENDING, result_availability="")
             for point in snapshot.access_points
         )
@@ -549,7 +540,7 @@ class CaptureService(QObject):
         )
         self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
         band = "5G" if options.get("band") == "5G" else "2.4G"
-        seconds = options.get("scan_seconds", 24)
+        seconds = options.get("scan_seconds", 120)
         self.messageGenerated.emit(
             f"开始扫描 Wi-Fi 信号：频段 {band}，约 {seconds} 秒。",
             "info",
@@ -722,7 +713,7 @@ class CaptureService(QObject):
         )
         self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
         target_name = self._masked_target(target.ssid, target.bssid)
-        idle = options.get("idle_timeout_seconds", 180) or 180
+        idle = options.get("idle_timeout_seconds", 60) or 60
         client_note = "当前无客户端时先等待，后续发现仍可能发送去认证帧。" if deauth_on else ""
         self.messageGenerated.emit(
             f"开始对 {target_name}（{target.band} 信道 {target.channel}）定向采集："
@@ -763,11 +754,12 @@ class CaptureService(QObject):
             return ""
         if self.openwrt_backend.snapshot.connection_state != OpenWrtConnectionState.CONNECTED:
             return ""
+        from .openwrt.handshake_targets import has_valid_channel
         selected = {str(value).upper() for value in selected_bssids}
         targets = tuple(
             point
             for point in self.openwrt_backend.snapshot.access_points
-            if point.bssid.upper() in selected and point.channel
+            if point.bssid.upper() in selected and has_valid_channel(point)
         )
         if not targets:
             return ""
@@ -843,11 +835,12 @@ class CaptureService(QObject):
             return False
         if self.openwrt_backend.snapshot.connection_state != OpenWrtConnectionState.CONNECTED:
             return False
+        from .openwrt.handshake_targets import has_valid_channel
         selected = {str(value).upper() for value in selected_bssids}
         targets = tuple(
             point
             for point in self.openwrt_backend.snapshot.access_points
-            if point.bssid.upper() in selected and point.channel
+            if point.bssid.upper() in selected and has_valid_channel(point)
         )
         if not targets:
             return False
@@ -1088,10 +1081,9 @@ class CaptureService(QObject):
             head += f"；{unfinished} 个目标尚未返回完整结果。"
         if stalled:
             head += f"{stalled} 个目标无进展，已停止重复采集。"
-        self.messageGenerated.emit(
-            head + ("\n" + "\n".join(lines) if lines else ""),
-            "error" if failed else "info" if cancelled else "success" if good else "warning",
-        )
+        from .handshake_reporting import publish_batch_summary
+        publish_batch_summary(self.messageGenerated.emit, head, lines,
+            batch.retained_results + batch.results, failed=failed, cancelled=cancelled, good=good)
         # 弹窗按目标数裁剪：超过 8 个只放前 8 条，其余看信息窗。
         shown = lines[:8]
         if len(lines) > len(shown):
@@ -1251,12 +1243,24 @@ class CaptureService(QObject):
         )
         self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
         total = len(results)
-        errors = sum(bool(getattr(entry, "error", False)) for entry in results)
+        def outcome(entry, name):
+            return not entry.found and str(getattr(entry, "outcome", "") or "") == name
+        unconfirmed = sum(outcome(entry, "unconfirmed") for entry in results)
+        timed_out = sum(outcome(entry, "timeout") for entry in results)
+        errors = sum(bool(getattr(entry, "error", False)) for entry in results) - unconfirmed - timed_out
+        errors = max(0, errors)
         skipped = sum(not entry.found and not getattr(entry, "error", False) and entry.tried == 0 for entry in results)
         head = (
             f"在线密码验证结束：共 {total} 个目标，找到 {good} 个，"
-            f"未找到 {total - good - skipped - errors} 个，跳过 {skipped} 个，超时未完成 {errors} 个。"
+            f"未找到 {total - good - skipped - unconfirmed - timed_out - errors} 个，跳过 {skipped} 个"
         )
+        if unconfirmed:
+            head += f"，未确认 {unconfirmed} 个（未判错，下次重跑会重新试）"
+        if timed_out:
+            head += f"，超时未完成 {timed_out} 个"
+        if errors:
+            head += f"，验证失败 {errors} 个"
+        head += "。"
         if status_summary:
             head += "\n" + status_summary
         if restore_errors:
@@ -1390,10 +1394,11 @@ class CaptureService(QObject):
             last_error="",
         )
         self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
-        from modules.capture_services.openwrt.wps_defaults import wps_mode_description
+        from modules.capture_services.openwrt.wps_defaults import wps_mode_description, wps_sender_note
         timing = wps_mode_description(mode)
+        extra = wps_sender_note(mode, options.get("wps_defaults") or {})
         self.messageGenerated.emit(
-            f"开始{mode_text}：{scope_text}。{timing}部分设备会锁定 WPS。",
+            f"开始{mode_text}：{scope_text}。{extra}{timing}部分设备会锁定 WPS。",
             "info",
         )
         self._start_openwrt_worker(
@@ -1439,11 +1444,15 @@ class CaptureService(QObject):
                         verified=bool(entry.pin_ok),
                     ),
                 )
+        basic_wpad = any(getattr(entry, "unavailable_kind", "") == "basic_wpad"
+                         for entry in results)
         self.openwrt_backend.snapshot = replace(
             self.openwrt_backend.snapshot,
             artifacts=artifacts,
             capturing_bssids=(),
             has_verified_result=self.openwrt_backend.snapshot.has_verified_result or pins > 0,
+            wps_system_support=("basic" if basic_wpad
+                                else self.openwrt_backend.snapshot.wps_system_support),
             last_error="",
         )
         self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
@@ -1457,6 +1466,11 @@ class CaptureService(QObject):
         self._notify_task_result("WPS 结果", notice)
         self._maybe_auto_open_dir(bool(found_files))
         self.task_controller.finish(failed=not pins)
+        if not pins and any(getattr(entry, "unavailable_kind", "") == "basic_wpad"
+                            for entry in results):
+            # 只有“精简版 wpad”这一种失败才提示升级；关联超时、被锁定等
+            # 失败仍由上面的结果消息提示改回 reaver。
+            self.wpadUpgradeSuggested.emit()
 
     def _on_openwrt_wps_failed(self, summary, detail):
         """WPS 失败保留连接；取消与 SSH 中断按 info 处理。"""
@@ -1539,6 +1553,15 @@ class CaptureService(QObject):
         if isinstance(update, HandshakeTargetResult):
             self._merge_openwrt_handshake_results(
                 HandshakeBatchResult(snapshot.task_state == "stopping", (update,)))
+            return
+        stage = getattr(update, "stage", "")
+        if stage in ("restoring", "saving_existing"):
+            title = ("正在停止并恢复无线" if stage == "restoring"
+                     else "正在保存已抓成果")
+            self.openwrt_backend.snapshot = replace(snapshot,
+                capturing_bssids=(), progress=CaptureProgress(title, 0, 0,
+                    "正在收尾，请等待完成。", True))
+            self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)
             return
         if snapshot.task_state == "stopping":
             return
@@ -1687,6 +1710,7 @@ class CaptureService(QObject):
             host_fingerprint=result.fingerprint,
             device=result.device,
             dependencies=result.dependencies,
+            wps_system_support=result.wps_system_support,
             last_error="",
         )
         self.openwrtSnapshotChanged.emit(self.openwrt_backend.snapshot)

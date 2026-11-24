@@ -146,3 +146,18 @@
 - Keep one current software release per platform/channel and one current offline bundle per kind on GitHub after verification; Cloudflare software retains its existing protected bridge and four-slot rules and total 1,000,000,000-byte peak limit. Preserve the old Cloudflare offline resources regardless of quota pressure.
 
 - Offline bundle download and manifest requests must retain the existing selected proxy/direct route policy; the software-only GitHub direct fallback must not override dependency download settings. Verify the real proxy route before release.
+
+
+## 验收矩阵维护
+
+- 抓包相关修改前阅读 `docs/capture-acceptance-matrix.md`，确定受影响条目；修改后执行定向检查并同步更新矩阵和证据。其他模块建立矩阵后同样执行，不为未检查的功能补写通过结论。
+- 发现问题即可记录预期行为；状态区分待修复、离线通过、实机通过、失败和未验证。不得因代码已改或用户同意方案就标记通过。
+- 测试证据记录版本、环境、精确系统和设备、执行项、结果与限制。已有 23 系列及更早系统的正常行为必须保护；不用 24/25 系列的单次结果代替旧系统回归。
+
+
+## Completed build cache registry (2026-11-18)
+
+- Every new build/audit/offline staging producer must use the shared local build lock and create build/<task>/cleanup-retention.json. Set status to building before work, complete only after validation; unfinished work is never eligible. Register exact reproducible cache directories, never source, reports, credentials, installed toolchains or delivered ZIPs.
+- scripts/build_cache_retention.py owns schema and validation. Successful application builds and manual build cleanup consume the same registry. A new producer must integrate registration and completion, with a regression test; prose rules alone are insufficient.
+- Keep source/provenance indexes, final reports and unique archives. Do not copy caches as backup before cleanup. Unknown or retained directories require an explicit reason in the cleanup audit; age and directory name alone are not completion evidence.
+- Validate all absolute targets and reject links before removal; preserve the last verified build. Record preview, actual removed bytes, skipped paths and retained reasons. Failed builds do not trigger cleanup of unrelated registered work.

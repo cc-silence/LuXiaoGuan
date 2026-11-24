@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
-from modules.capture_services.openwrt.backup_archive import inspect_archive, parent_guard, file_digest
+from modules.capture_services.openwrt.backup_archive import inspect_archive, file_digest
 from modules.capture_services.openwrt.router_backup import RouterBackupManager
 from modules.capture_services.openwrt.command_runner import RemoteCommandResult
 
@@ -41,6 +41,7 @@ class Device:
         self.commands = []
         self.remote = {}
         self.corrupt_download = False
+        self.corrupt_upload = False
         self.apply_error = False
         self.backup_error = False
         self.listing_mismatch = False
@@ -74,7 +75,7 @@ class Device:
         return RemoteCommandResult(name, code, text)
     def transfer(self, upload, local, remote, cancel, progress):
         if cancel.is_set():raise InterruptedError("cancelled")
-        if upload:self.remote[remote] = Path(local).read_bytes()
+        if upload:self.remote[remote] = b"corrupt" if self.corrupt_upload else Path(local).read_bytes()
         else:Path(local).write_bytes(b"corrupt" if self.corrupt_download else self.remote[remote])
 
 
@@ -90,17 +91,45 @@ class ArchiveTests(unittest.TestCase):
                 (prefix+"etc/rc.d/S10network", ("../init.d/network",))]))
             info = inspect_archive(self.path,self.event)
             self.assertEqual(info["entries"],2)
-            self.assertIn("/etc/config/network",parent_guard(info["records"]))
-    def test_unsafe_paths_types_links_and_duplicate_members_are_rejected(self):
+            self.assertEqual(info["records"]["etc/rc.d/S10network"]["kind"],"link")
+    def test_unsafe_paths_types_and_duplicate_members_are_rejected(self):
         cases = [[("../etc/shadow",b"x")], [("/etc/config/network",b"x")],
                  [("etc/config/network",b"x"),("etc/config/network",b"y")],
-                 [("etc/config/network",b"x"),("etc/escape",("../../tmp",))],
-                 [("etc/config/network",b"x"),("etc/alias",("config",)),("etc/alias/file",b"x")],
-                 [("etc/config/network",b"x"),("usr/bin/tool",b"x")]]
+                 [("etc/config/network",b"x"),("etc/alias",("config",)),("etc/alias/file",b"x")]]
         for entries in cases:
             self.path.write_bytes(archive_bytes(entries))
             with self.subTest(entries=entries),self.assertRaises(ValueError):
                 inspect_archive(self.path,self.event)
+    def test_native_custom_paths_and_arbitrary_link_targets_are_accepted(self):
+        entries = [("etc/config/network", b"x"),
+                   ("usr/share/rouxiaoguan/custom.txt", b"custom"),
+                   ("root/private.txt", b"private"),
+                   ("etc/runtime.conf", ("/var/etc/runtime.conf",)),
+                   ("etc/escape.conf", ("../../tmp/outside",))]
+        self.path.write_bytes(archive_bytes(entries))
+        info = inspect_archive(self.path, self.event)
+        self.assertEqual(set(info["records"]),{name for name,_ in entries})
+        self.assertEqual(info["records"]["etc/runtime.conf"]["kind"], "link")
+        self.assertEqual(info["records"]["etc/escape.conf"]["kind"], "link")
+    def test_openwrt_runtime_link_and_parent_safety(self):
+        entries = [("etc/config/network", b"x"),
+                   ("etc/nginx/uci.conf", ("/var/lib/nginx/uci.conf",))]
+        self.path.write_bytes(archive_bytes(entries))
+        info = inspect_archive(self.path, self.event)
+        self.assertEqual(info["records"]["etc/nginx/uci.conf"]["kind"], "link")
+        entries.append(("etc/nginx/uci.conf/child", b"x"))
+        self.path.write_bytes(archive_bytes(entries))
+        with self.assertRaises(ValueError):
+            inspect_archive(self.path, self.event)
+
+    def test_openwrt_collectd_runtime_link_is_accepted(self):
+        self.path.write_bytes(archive_bytes([
+            ("etc/config/network", b"x"),
+            ("etc/collectd.conf", ("/var/etc/collectd.conf",)),
+        ]))
+        info = inspect_archive(self.path, self.event)
+        self.assertEqual(info["records"]["etc/collectd.conf"]["kind"], "link")
+
     def test_hidden_members_after_tar_padding_are_also_checked(self):
         import gzip
         valid=gzip.decompress(archive_bytes())
@@ -161,6 +190,28 @@ class MaintenanceTests(unittest.TestCase):
             self.assertFalse(device.remote)
             self.assertTrue(any("/sbin/sysupgrade -b " in c for n,c in device.commands))
             self.assertFalse(any(n=="maintenance_apply" for n,c in device.commands))
+    def test_generated_custom_path_archive_can_be_previewed_and_restored(self):
+        self.device.archive = archive_bytes([
+            ("etc/config/network", b"original-network"),
+            ("usr/share/rouxiaoguan/custom.txt", b"custom"),
+            ("etc/external", ("/tmp/example",)),
+        ])
+        result = self.manager.export(self.destination, None, self.event, Mock())
+        self.assertEqual(self.destination.read_bytes(), self.device.archive)
+        self.assertNotIn("\u65e0\u6cd5\u901a\u8fc7\u8def\u5c0f\u7ba1\u6062\u590d", result["note"])
+        review = self.manager.preview("restore", self.destination, self.event)
+        executed = self.manager.execute(review, None, None, self.event, Mock())
+        self.assertEqual(executed["outcome"], "reconnect")
+        apply = next(c for n, c in self.device.commands if n == "maintenance_apply")
+        self.assertIn("/sbin/sysupgrade -r ", apply)
+        self.assertFalse(any("test ! -L" in c for n, c in self.device.commands))
+    def test_corrupt_upload_blocks_restore_before_apply(self):
+        review = self.manager.preview("restore", self.source, self.event)
+        self.device.corrupt_upload = True
+        with self.assertRaises(RuntimeError):
+            self.manager.execute(review, None, None, self.event, Mock())
+        self.assertFalse(any(n == "maintenance_apply" for n, c in self.device.commands))
+
     def test_corrupt_download_preserves_existing_local_backup(self):
         self.destination.write_bytes(b"keep-old")
         self.device.corrupt_download = True

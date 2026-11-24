@@ -24,7 +24,7 @@ class StaleBundleFallbackTests(unittest.TestCase):
 
     def local(self, wanted, builtin, tell):
         repo = Mock(kind='common')
-        repo.profile.side_effect = lambda device: validate_catalog(self.catalog())
+        repo.profile.return_value = {'packages': []}
         manager = Mock()
         device = NS(distribution='OpenWrt', version='23.05.4', target='mediatek/filogic',
                     package_architecture='aarch64_cortex-a53', package_manager='opkg')
@@ -33,9 +33,8 @@ class StaleBundleFallbackTests(unittest.TestCase):
              patch('modules.capture_services.openwrt.builtin_base_installer.install_builtin', builtin):
             return install_from_local(manager, wanted, device, None, True, Event(), tell)
 
-    def test_stale_catalog_has_distinct_non_integrity_reason(self):
-        with self.assertRaises(BundleCoverageUnavailable):
-            validate_catalog(self.catalog())
+    def test_stale_catalog_remains_usable(self):
+        self.assertTrue(validate_catalog(self.catalog()))
 
     def test_old_full_bundle_then_successful_builtin_never_uses_network(self):
         for root in ('libuci-lua', 'wpa-cli'):
@@ -74,7 +73,7 @@ class StaleBundleFallbackTests(unittest.TestCase):
         tell = Mock();report_verified('', False, tell)
         self.assertNotIn('：。', tell.call_args.args[0])
 
-    def test_rejected_signed_catalog_is_not_reused_as_a_loaded_repository(self):
+    def test_valid_old_catalog_loads_and_invalid_catalog_is_rejected(self):
         import base64, copy, hashlib, json, tempfile
         from pathlib import Path
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -107,10 +106,11 @@ class StaleBundleFallbackTests(unittest.TestCase):
                 (root/'repository'/'current.json').write_bytes(canonical(receipt))
                 repo = CommonBundleRepository(root/'repository', public)
                 for attempt in range(2):
-                    with self.assertRaises(ValueError, msg=f'{rejection} attempt {attempt}') as caught:
-                        repo.profile(f.device)
                     if rejection == 'old_coverage':
-                        self.assertIsInstance(caught.exception,BundleCoverageUnavailable)
+                        self.assertIsNotNone(repo.profile(f.device))
+                        self.assertIsNotNone(repo.catalog)
                     else:
+                        with self.assertRaises(ValueError, msg=f'{rejection} attempt {attempt}') as caught:
+                            repo.profile(f.device)
                         self.assertNotIsInstance(caught.exception,BundleCoverageUnavailable)
-                    self.assertIsNone(repo.catalog)
+                        self.assertIsNone(repo.catalog)

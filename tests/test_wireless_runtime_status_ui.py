@@ -175,7 +175,7 @@ class WirelessStatusUiTests(unittest.TestCase):
             for state,associated,expected,kind in (
                 ('online',True,'\u7f51\u7edc\u5df2\u901a','ready'),
                 ('not_verified',True,'\u7f51\u7edc\u4e0d\u901a','blocked'),
-                ('online',False,'\u94fe\u63a5\u5931\u8d25','blocked'),
+                ('online',False,'\u672a\u8fde\u63a5','blocked'),
                 ('limited',True,'\u7f51\u7edc\u53d7\u9650','warning'),
                 ('unknown',True,'\u7f51\u7edc\u65e0\u6cd5\u786e\u8ba4','unknown')):
                 networks=tuple(replace(n,associated=associated,association_known=True,
@@ -265,7 +265,7 @@ class WirelessStatusUiTests(unittest.TestCase):
                            for n in before.wireless_status.networks)
             service.snapshot=replace(before,wireless_status=replace(before.wireless_status,networks=networks))
             page.apply_snapshot(service.snapshot);APP.processEvents()
-            self.assertIn('\u94fe\u63a5\u5931\u8d25',sta.network_label.text())
+            self.assertIn('\u672a\u8fde\u63a5',sta.network_label.text())
             self.assertEqual(sta.network_label.property('captureStatus'),'blocked')
             self.assertEqual(page.runtime_monitor.timer.interval(),2000)
             # Disconnection overrides a pending refresh immediately.

@@ -35,7 +35,8 @@ class FixtureServer(paramiko.ServerInterface):
                 return
             if self.stopped.wait(.02):return
             try:
-                channel.sendall(b'ok\n')
+                from modules.capture_services.openwrt.ssh_liveness import COMMAND, MARKER
+                channel.sendall(MARKER if command == COMMAND else b'ok\n')
                 if command != 'close_without_status':channel.send_exit_status(0)
                 channel.close()
             except (EOFError,OSError):pass
@@ -67,6 +68,49 @@ class ChannelIsolationTests(unittest.TestCase):
             for transport in transports:transport.close()
             thread.join(2)
         self.addCleanup(cleanup)
+
+    def test_channel_open_timeout_probes_once_and_preserves_responsive_login(self):
+        from unittest.mock import patch
+        from modules.capture_services.openwrt.ssh_client import SshChannelTimeout
+        from modules.capture_services.openwrt.ssh_liveness import COMMAND
+        transport = self.client._client.get_transport()
+        original = transport.open_session
+        calls = []
+        def open_session(*args, **kwargs):
+            calls.append(True)
+            if len(calls) == 1:
+                raise TimeoutError("fixture channel allocation timeout")
+            return original(*args, **kwargs)
+        with patch.object(transport, "open_session", side_effect=open_session):
+            with self.assertRaises(SshChannelTimeout) as caught:
+                self.runner.run("fixture", "must_not_execute", timeout=2)
+        self.assertEqual(caught.exception.ssh_liveness, "responsive")
+        self.assertTrue(self.client.connected)
+        self.assertEqual(self.server.commands, [COMMAND])
+        self.assertEqual(self.runner.run("cleanup", "accept", timeout=3).exit_code, 0)
+        evidence = self.runner.operation_diagnostics.snapshot()["workflows"]
+        self.assertTrue(any(row.get("operation") == "ssh_liveness"
+                            and row.get("status") == "responsive" for row in evidence))
+
+    def test_channel_open_timeout_closes_connection_when_probe_cannot_open(self):
+        from unittest.mock import patch
+        from modules.capture_services.openwrt.ssh_client import SshChannelTimeout
+        transport = self.client._client.get_transport()
+        with patch.object(transport, "open_session", side_effect=TimeoutError("fixture")) as open_session:
+            with self.assertRaises(SshChannelTimeout) as caught:
+                self.client.exec_command("must_not_execute", timeout=2)
+        self.assertEqual(open_session.call_count, 2)
+        self.assertEqual(caught.exception.ssh_liveness, "unconfirmed")
+        self.assertFalse(self.client.connected)
+        self.assertEqual(self.server.commands, [])
+
+    def test_readonly_exec_refusal_uses_three_independent_channels(self):
+        with self.assertRaises(paramiko.SSHException):
+            self.runner.run('snapshot_wireless','reject',timeout=3)
+        self.assertEqual(self.server.commands,['reject','reject','reject'])
+        self.assertTrue(self.client.connected)
+        result=self.runner.run('fixture','accept',timeout=3)
+        self.assertEqual((result.exit_code,result.stdout),(0,'ok\n'))
 
     def test_exec_rejection_keeps_login_and_next_independent_command_works(self):
         with self.assertRaises(paramiko.SSHException) as error:self.runner.run('fixture','reject',timeout=3)

@@ -206,6 +206,9 @@ def cleanup_releases(root=ROOT,keep_stage=None,apply=True):
     if apply:
         from scripts.workspace_build_retention import cleanup_workspace_build
         result['workspace_build']=cleanup_workspace_build(root)
+        if keep_stage is not None:
+            from scripts.build_cache_retention import cleanup_registered
+            result['registered_caches']=cleanup_registered(root, apply=True)
     return result
 
 
@@ -250,6 +253,8 @@ def main():
     result=remove_candidates(ROOT,candidates,args.apply)
     from scripts.workspace_build_retention import cleanup_workspace_build
     result['workspace_build']=cleanup_workspace_build(ROOT,apply=args.apply)
+    from scripts.build_cache_retention import cleanup_registered
+    result['registered_caches']=cleanup_registered(ROOT,apply=args.apply)
     result.update(retained_build=str(keep),retained_publication_cache=str(published))
     target=ROOT/'build/local-cleanup.json'
     target.write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')

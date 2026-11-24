@@ -3,6 +3,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QWidget
 from modules.ui_scale_manager import UiScaleManager
 from modules.main_pages.page_action_buttons import set_page_action_enabled
+from modules.capture_services.openwrt.signal_manager import _REASONS
 from .signal_runtime_details import runtime_detail_text
 from .signal_runtime_state import header_state, card_emphasis
 
@@ -90,7 +91,8 @@ class SignalRowWidget(QFrame):
             if label.text() != text: label.setText(text)
         set_page_action_enabled(self.edit_button, bool(editable and row.mode in ("ap", "sta")
                                          and not snapshot.busy and not snapshot.stale))
-        set_page_action_enabled(self.delete_button, bool(editable and row.mode in ("ap", "sta") and not snapshot.busy and not snapshot.stale))
+        can_delete = (editable and row.mode in ("ap", "sta")) or (snapshot.connected and row.mode == "monitor" and row.reason == _REASONS["monitor"])
+        set_page_action_enabled(self.delete_button, bool(can_delete and not snapshot.busy and not snapshot.stale))
         set_page_action_enabled(self.button, bool(editable and not snapshot.busy and not snapshot.stale and
                                     not row.reason))
         tip = "启停或重载此信号所属的无线网卡，可能短暂断网；开始前需要确认，建议通过网线连接。"

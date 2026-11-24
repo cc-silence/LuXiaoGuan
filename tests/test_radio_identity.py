@@ -11,7 +11,8 @@ from modules.capture_services.openwrt.radio_identity_probe import enrich_radio_i
 from modules.capture_services.openwrt.radio_takeover import OpenWrtRadioTakeover, RadioTakeoverRecord, _parse_status_ifnames
 from modules.capture_services.openwrt.command_runner import RemoteCommandResult
 from modules.capture_services.openwrt.operation_diagnostics import OperationDiagnostics, sanitized_operation_evidence
-from modules.capture_services.openwrt.password_verification import OpenWrtPasswordVerifier
+from modules.capture_services.openwrt.password_verification import (
+    OpenWrtPasswordVerifier, PasswordVerifyPreparationError)
 from modules.capture_services.openwrt.verification_diagnostics import verification_phase
 from modules.capture_services.openwrt.device_probe import OpenWrtDeviceProbe
 from modules.display_privacy import masker_for
@@ -251,6 +252,22 @@ ubus(){ test "$1" = '-S' && test "$2" = '-t' && test "$4" = 'call' && test "$5" 
                     self.assertEqual(verifier._pick_radio(desired, None), expected)
                 else:
                     with self.assertRaises(RuntimeError):verifier._pick_radio(desired, None)
+
+    def test_disabled_band_radio_can_be_selected_when_identity_is_unique(self):
+        verifier = OpenWrtPasswordVerifier(Mock())
+        text = (snapshot(identities={'radio7': 'phy2'}, bands={'radio7': '2g'})
+                + "\nwireless.radio7.disabled='1'")
+        with patch.object(OpenWrtRadioTakeover, 'snapshot_wireless', return_value=text):
+            self.assertEqual(verifier._pick_radio('2.4G', None), 'radio7')
+
+    def test_undeclared_band_says_the_band_is_missing(self):
+        verifier = OpenWrtPasswordVerifier(Mock())
+        with patch.object(OpenWrtRadioTakeover, 'snapshot_wireless',
+                          return_value=snapshot(identities={'radio7': 'phy2'},
+                                                bands={'radio7': '5g'})):
+            with self.assertRaises(PasswordVerifyPreparationError) as caught:
+                verifier._pick_radio('2.4G', None)
+        self.assertIn('没有声明 2.4G', str(caught.exception))
 
 
 class PreparationDiagnosticsTests(unittest.TestCase):

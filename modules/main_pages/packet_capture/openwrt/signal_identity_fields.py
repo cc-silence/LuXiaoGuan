@@ -1,6 +1,7 @@
 """Optional station identity editor; generation never performs device I/O."""
 import json
 import secrets
+from modules.display_privacy import protect_input
 from PySide6.QtCore import QSignalBlocker
 from PySide6.QtWidgets import QPushButton
 from modules.capture_services.openwrt.wireless_identity import generate_mac
@@ -27,6 +28,8 @@ class IdentityFields:
             "无线接口在上级网络中使用的地址；修改后会重新连接，可能影响原有地址绑定。")
         self.hostname = add_field(layout, parent, "DHCP 请求时发送的主机名", text_input(parent),
             "可选：自动获取地址时发给上级的设备名称。留空保留原名称，不修改路由器系统名称。")
+        protect_input(self.mac)
+        protect_input(self.hostname)
         self.regenerate = QPushButton("重新生成", parent)
         layout.addWidget(self.regenerate)
         self.note = hint("", parent)

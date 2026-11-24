@@ -23,6 +23,10 @@ class MaintenanceReviewDialog(FramelessDialog):
         self.warning_text.setProperty("connectionWarning", True)
         self.warning_text.setReadOnly(True)
         backup_note = "选择“备份后执行”会先将当前配置保存到电脑，保存或校验失败就不会继续。选择“直接执行”将不生成当前配置备份。"
+        if not reset and review.get("restore_address_state") == "changed":
+            message += "\n\n\u5907\u4efd\u4e2d\u7684\u6062\u590d\u540e\u767b\u5f55\u5730\u5740\uff1a" + review["restore_lan"]["address"] + "\u3002\u4e0e\u5f53\u524d\u5730\u5740\u4e0d\u540c\uff1b\u8bf7\u8bb0\u4f4f\u8fd9\u4e2a\u5730\u5740\uff0c\u91cd\u542f\u540e\u4f7f\u7528\u5b83\u767b\u5f55\u3002"
+        elif not reset and review.get("restore_address_state") == "unknown":
+            message += "\n\n\u65e0\u6cd5\u786e\u8ba4\u5907\u4efd\u6062\u590d\u540e\u7684\u767b\u5f55\u5730\u5740\uff0c\u8bf7\u5728\u6062\u590d\u524d\u6838\u5bf9\u3002"
         warning = DISCONNECT_WARNING + "\n\n" + message + "\n\n" + backup_note
         warning += "配置备份不能找回被重置删除的软件或全部自建文件。"
         self.warning_text.setPlainText(warning)

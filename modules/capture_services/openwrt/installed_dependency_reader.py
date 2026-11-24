@@ -6,7 +6,7 @@ import json
 import re
 import tarfile
 from .command_runner import require_command_completion
-from .installed_dependency_catalog import parse_opkg, parse_apk, file_path
+from .installed_dependency_catalog import parse_opkg, parse_apk, file_path, OpkgRecordError
 from .dependency_snapshot_archive import tar_members, SCRIPTS, APK_SCRIPTS
 
 DATABASES = {"opkg": "/usr/lib/opkg/status", "apk": "/lib/apk/db/installed"}
@@ -56,9 +56,15 @@ class InstalledDependencyReader:
         text = self.transfer.read("cat " + database).decode("utf-8")
         # opkg install also configures unrelated unpacked packages. Refuse a
         # dirty database before planning any private restore transaction.
-        packages = parse_opkg(text, require_clean=True) if manager == "opkg" else parse_apk(text)
+        try:
+            packages = parse_opkg(text, require_clean=True) if manager == "opkg" else parse_apk(text)
+        except OpkgRecordError as exc:
+            raise OpkgRecordError("路由器当前软件清单：" + str(exc)) from exc
         builtin_text = self.transfer.read("cat /rom" + database).decode("utf-8")
-        builtin = (parse_opkg if manager == "opkg" else parse_apk)(builtin_text)
+        try:
+            builtin = (parse_opkg if manager == "opkg" else parse_apk)(builtin_text)
+        except OpkgRecordError as exc:
+            raise OpkgRecordError("路由器原厂软件清单：" + str(exc)) from exc
         if not packages or not builtin:
             raise ValueError("Firmware package inventory is unavailable")
         board = json.loads(self.run("board", "ubus call system board"))
@@ -126,7 +132,10 @@ class InstalledDependencyReader:
                 text = archive.extractfile(control).read().decode("utf-8")
                 # The status database omits fields needed by native post-install hooks,
                 # notably Require-User. Recover the retained original control record.
-                records = parse_opkg(text.rstrip() + "\nStatus: install ok installed\n")
+                try:
+                    records = parse_opkg(text, control_record=True)
+                except OpkgRecordError as exc:
+                    raise OpkgRecordError("软件包 " + pkg.name + " 的安装资料：" + str(exc)) from exc
                 original = records.get(pkg.name)
                 if len(records) != 1 or original is None or original.version != pkg.version:
                     raise ValueError("Installed control identity mismatch: " + pkg.name)

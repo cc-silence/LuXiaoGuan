@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-21",
+  "scope": "regular capture remote file retention and failure diagnostics",
+  "sources": [
+    {
+      "name": "airodump-1.5.2",
+      "url": "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/1.5.2/src/airodump-ng.c",
+      "sha256": "79eb5b7fd76428714b1727ef53d16dacd035d263643173a9eb107915a8ef0583"
+    },
+    {
+      "name": "airodump-1.6",
+      "url": "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/1.6/src/airodump-ng/airodump-ng.c",
+      "sha256": "31397e8368ee398a9f95f02342fedd6dedea17f7b553fb10e4900d559bc4353c"
+    },
+    {
+      "name": "airodump-1.7",
+      "url": "https://raw.githubusercontent.com/aircrack-ng/aircrack-ng/1.7/src/airodump-ng/airodump-ng.c",
+      "sha256": "0747a0b4cac820df73c38b614eb5db60a1d88032fac1df85bcfc00ceb55f21ea"
+    }
+  ],
+  "changes": [
+    "Delete only stopped group CAP/CSV and normal tool error log/hint after atomic download and byte-count match",
+    "Release empty output metadata when no nonempty CAP exists",
+    "Keep other groups and radio recovery backups",
+    "Keep distinct local diagnostics for each failure",
+    "Capture owned-directory file byte counts on resource-limit failure"
+  ],
+  "evidence": {
+    "archive": "CC_LuXiaoGuan_20261121_172033.zip",
+    "confirmed_exit": 81,
+    "limit_MiB": 32,
+    "contemporaneous_file_sizes": "not present in old archive; exact large file unknown"
+  },
+  "validation": {
+    "targeted_tests": 96,
+    "posix_cleanup_shell": "Debian 12 /bin/sh via WSL; actual filesystem operations on isolated /tmp directories",
+    "live_router": "not tested",
+    "debian_desktop_ui": "not in scope; not tested"
+  },
+  "limitations": [
+    "No increase to 32 MiB safety limit",
+    "One actively growing capture may still reach the limit",
+    "Original cause of monitor interface disappearance remains unconfirmed"
+  ]
+}

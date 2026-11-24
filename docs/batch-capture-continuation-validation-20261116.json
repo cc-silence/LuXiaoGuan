@@ -1,0 +1,20 @@
+{
+  "date": "2026-11-16",
+  "scope": "batch capture admission and bounded channel retry",
+  "cause": "Active batch takeover was checked as an unfinished previous task before each target.",
+  "changes": [
+    "Allow continuation only when workspace session, runtime session and physical radio match the active takeover.",
+    "Continue other targets after channel tuning failure; retry at most three attempts within configured rounds.",
+    "Retain fatal handling for cleanup failure, disconnect and cancellation."
+  ],
+  "verification": {
+    "core_tests": 27,
+    "adjacent_recovery_tests": 108,
+    "result": "passed"
+  },
+  "limits": [
+    "No live router verification.",
+    "Underlying driver refusal to switch channel remains undetermined.",
+    "Source changes only; release archive not rebuilt."
+  ]
+}

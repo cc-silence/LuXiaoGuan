@@ -28,7 +28,7 @@ class ReconnectCleanup:
             from .password_recovery_admission import WARNING
             raise RuntimeError(WARNING)
 
-    def require_ready(self, *, allow_unavailable_password_record=False):
+    def require_ready(self, *, allow_unavailable_password_record=False, active_session_id=""):
         """新任务只在旧任务已确认清理后放行，不执行远端命令。"""
         if not allow_unavailable_password_record:
             self.require_password_check_ready()
@@ -43,8 +43,19 @@ class ReconnectCleanup:
             records = []
         if records:
             raise RuntimeError("\u4e0a\u6b21\u5bc6\u7801\u9a8c\u8bc1\u7684\u914d\u7f6e\u6062\u590d\u5c1a\u672a\u786e\u8ba4\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55\u540c\u4e00\u8def\u7531\u5668\uff0c\u8f6f\u4ef6\u4f1a\u5148\u81ea\u52a8\u6062\u590d\u5e76\u6838\u5b9e\u3002")
+        from .radio_takeover import RadioTakeoverRecord
+        takeover = getattr(getattr(self.backend, "radio_takeover", None), "pending_record", None)
+        session = getattr(getattr(self.backend, "radio_session", None), "record", None)
+        owns_active_takeover = (
+            isinstance(takeover, RadioTakeoverRecord) and bool(active_session_id)
+            and str(takeover.session_id) == str(active_session_id)
+            and getattr(session, "session_id", None) == takeover.session_id
+            and getattr(session, "radio", None) == takeover.phy)
+        if (isinstance(takeover, RadioTakeoverRecord) and self.pending is None
+                and not owns_active_takeover):
+            raise RuntimeError("\u4e0a\u6b21\u65e0\u7ebf\u63a5\u7ba1\u5c1a\u672a\u786e\u8ba4\u6062\u590d\uff0c\u8bf7\u67e5\u770b\u767b\u5f55\u65f6\u7684\u6062\u590d\u5931\u8d25\u539f\u56e0\uff0c\u5e76\u6838\u5bf9\u8def\u7531\u5668\u65e0\u7ebf\u914d\u7f6e\u3002")
         if self.pending is not None:
-            raise RuntimeError("上次任务的临时资源还没有清理完成。请到路由器登录页重新登录原设备，软件会先自动清理再允许新任务。")
+            raise RuntimeError("上次任务清理未完成。请到“路由器登录”页断开后重新登录同一台路由器，软件会自动尝试清理。清理成功后再扫描、抓包；直接重新扫描不能消除残留占用。若仍提示清理失败，请导出诊断日志。")
 
     def remember(self, workspace, takeover_record):
         """保留确切工作目录、接管凭据和任务所属设备身份，不执行删除。"""
@@ -124,4 +135,12 @@ class ReconnectCleanup:
         journal.record("recovery", operation="reconnect_cleanup", status="completed",
             connected_after=bool(backend.ssh_client.connected))
         self._fingerprint = str(fingerprint)
-        return "上次任务遗留的临时资源已清理完成。"
+        note = "\u4e0a\u6b21\u4efb\u52a1\u9057\u7559\u7684\u4e34\u65f6\u8d44\u6e90\u5df2\u6e05\u7406\u5b8c\u6210\u3002"
+        try:
+            import json
+            receipt = json.loads((workspace.local_dir / "takeover-recovery-result.json").read_text(encoding="utf-8"))
+            if receipt.get("status") == "released":
+                note += "\u65e0\u7ebf\u4fe1\u53f7\u672a\u80fd\u5b8c\u5168\u6062\u590d\uff0c\u5df2\u4fdd\u7559\u5f53\u524d\u8bbe\u7f6e\uff0c\u8bf7\u5728\u4fe1\u53f7\u7ba1\u7406\u4e2d\u6309\u9700\u5f00\u542f\u3002"
+        except (OSError, ValueError, TypeError):
+            pass
+        return note

@@ -1,0 +1,117 @@
+{
+  "record": "wps-system-sender",
+  "date": "2026-11-15",
+  "status": "离线通过；真机已确认精简版限制，完整版 wpad 上的系统 WPS 发送与升级流程待真机验证。",
+  "scope": "秒 Pin 新增“发送方式”选项：保留 reaver 裸帧注入，另加系统 WPS（wpa_supplicant + wpa_cli wps_reg）路径；高级 Pin 不跟随该选项。2026-11-15 按真机实测修正配置写法、密码读取和精简版提示，并新增 wpad 升级入口。",
+  "motivation": "同一 PIN 由 reaver 裸帧发送时被目标回 WSC NACK 或不回应；手机 App 使用系统 wpa_supplicant 的 WPS 注册流程。新增开关用于在同一目标上对比两条发送路径。",
+  "code_changes": [
+    "modules/capture_services/openwrt/wps_system_client.py：新建，负责临时受管接口、专属 wpa_supplicant、wpa_cli wps_reg、能力探测与清理；2026-11-15 去掉 update_config=1，改用 -K 调试日志读取 WPS 网络密钥。",
+    "modules/capture_services/openwrt/wps_quick.py：秒 Pin 在线候选与 PIN 验证按 wps_sender 分支；系统 WPS 不可用时不做自动回退，直接说明并提示改回 reaver；系统 WPS 默认不跑离线 Pixie，勾选后才跑。",
+    "modules/capture_services/openwrt/wps_defaults.py：新增 SENDERS、DEFAULT_SENDER、wps_sender()、wps_sender_note()；开始提示说明是否跑离线 Pixie。",
+    "modules/capture_services/openwrt/wps_capture.py：把命令执行器传给 QuickWpsCapture。",
+    "modules/capture_services/openwrt/wps_diagnostics.py：target_started 记录 sender（仅秒 Pin）；系统 WPS 不可用记为 skipped/unsupported。",
+    "modules/capture_services/capture_service.py 与 modules/main_pages/packet_capture/wps_start_controller.py：开始提示与开始前精简版弹窗；仅“精简版”失败时发 wpad 升级建议。",
+    "modules/config_services/capture_settings_manager.py：wps_sender 默认 reaver，只接受 reaver/system；system_offline_pixie 默认 false，且只在系统 WPS 下保留。",
+    "modules/main_pages/packet_capture/openwrt/quick_wps_dialog.py：秒 Pin 设置新增“发送方式”和仅系统 WPS 显示的“同时试一次离线 Pixie”。",
+    "modules/main_pages/packet_capture/openwrt/wps_dialog.py：高级 Pin 工具同项，仅秒 Pin 模式可用；保存时原值带回 system_offline_pixie。",
+    "modules/capture_services/openwrt/wpad_upgrade.py：新建升级流程（有线检查、官方源下载双包、SHA256 校验、备份配置、卸载精简包、安装完整包、验证、自动回滚）。",
+    "modules/capture_services/dependency_service.py：新增 upgrade_wpad_async 和独立完成信号；不改依赖管理页的普通安装逻辑。",
+    "modules/main_pages/packet_capture/openwrt/capture_tool_panel.py、openwrt_page.py、packet_capture_page.py：抓包界面独立升级入口，仅在探测到精简版且已连接时显示；两步确认后启动。"
+  ],
+  "defaults": {
+    "wps_sender": "reaver",
+    "note": "默认行为与改动前完全一致；只有用户主动切换才走系统 WPS。"
+  },
+  "capability_detection": {
+    "strategy": "运行期探测为主，登录时增加只读预判，不按固件版本号判断。",
+    "checks": [
+      "command -v wpa_supplicant / wpa_cli / iw",
+      "登录后只读扫描 wpad 或 wpa_supplicant 二进制是否含 WPS_REG：完整版 full、精简版 basic、缺失 missing；仅用于开始前提示，不替代运行期探测",
+      "临时 wpa_supplicant 启动后执行 wpa_cli wps_reg（不带合法 PIN，不会启动 WPS 会话）：返回 UNKNOWN COMMAND 判定固件无线组件不含 WPS，返回 FAIL 视为支持"
+    ],
+    "fallback": "不可用时本次目标直接结束，结果为“系统 WPS 用不了：…请把秒 Pin 的发送方式改回 reaver 后重试”，不自动切换发送方式。只有 basic_wpad 会额外提示升级完整版；关联超时、被锁定、控制通道断开等只提示改回 reaver。"
+  },
+  "official_evidence": [
+    {
+      "source": "https://downloads.openwrt.org/releases/19.07.10/packages/mips_24kc/base/Packages.gz",
+      "checked": "wpad-wolfssl 2019-08-08-ca8c2bd2-8 含 WPS_REG；wpad-basic-wolfssl 同版本不含；wpa-cli 独立成包",
+      "sha256": {
+        "wpad-wolfssl": "74724b98cf702e6ab9e26354f7bfab25929ce1208bc39990a736d6b3268e74b0",
+        "wpad-basic-wolfssl": "3c2228cb1583c3df2282ee1c1b37a954ba3bc775ca38e3b13a8d9eae944ece0b",
+        "wpa-cli": "825f8439b4152239899c87e1351faca5ded685ffe70cb2474271c9a329c268f0"
+      }
+    },
+    {
+      "source": "https://downloads.openwrt.org/releases/21.02.1/packages/mips_24kc/base/Packages.gz",
+      "checked": "wpad-wolfssl 2020-06-08-5a8b3662-41 含 WPS_REG/WPS_PBC；wpad-basic-wolfssl 不含任何 WPS 字符串",
+      "sha256": {
+        "wpad-wolfssl": "f3940b7b01c16381533ca5752078964044f83e3186b61cfbac51229ee4e4726e",
+        "wpad-basic-wolfssl": "60784d2eab924d5ca3f8de060c03133a8ca5a10c00181fd866a99db5802d2af7"
+      }
+    },
+    {
+      "source": "https://downloads.openwrt.org/releases/24.10.4/packages/mips_24kc/base/Packages.gz",
+      "checked": "wpad 2024.09.15~5ace39b0-r3 含 WPS_REG/WPS_PBC；wpad-basic-mbedtls 不含；wpa-cli 独立成包",
+      "sha256": {
+        "wpad": "148d4733aaf95e2a188e462d0ee571dbe730bed138da63efa4963135eae7d222",
+        "wpad-basic-mbedtls": "811753de374f4d2ae146b2e46be587785f3178d38463447789965bac2fce80f8"
+      }
+    },
+    {
+      "source": "https://downloads.openwrt.org/releases/23.05.5/packages/mips_24kc/base/Packages.gz",
+      "checked": "wpad 2023-09-08-e5ccbfc6-8 含 WPS_REG；wpad-basic-mbedtls 不含；wpa-cli 独立成包；两个版本均提供 /usr/sbin/wpa_supplicant 软链接"
+    },
+    {
+      "source": "https://downloads.openwrt.org/releases/25.12.6/ (apk)",
+      "checked": "真机 Xiaomi Mi Router 3G / ramips mt7621 / mipsel_24kc / apk：精简版 wpad 无 WPS_REG、无 update_config；包体为 ADB 签名格式，未解出二进制，能力仍以运行期探测和只读字符串扫描为准"
+    }
+  ],
+  "compatibility_notes": [
+    "19.07、21.02、23.05、24.10 已拆包核对同一规律：精简版无线组件无 WPS，完整版含 WPS；wpa-cli 为独立包且项目常用依赖已包含；wpad 包内提供 /usr/sbin/wpa_supplicant 软链接。",
+    "22.03 未逐包核对；25.12 已真机确认精简版无 WPS；实现不按版本号分支，实际可用性由运行期探测决定。",
+    "命令语法按官方源码核对：iw 支持 phy/dev 两种 interface add；wpa_cli 直接转发 WPS_REG 并打印原始回应。精简版 wpad 不编译 update_config，配置里写 update_config=1 会报 unknown global field 并退出；因此改为 wpa_supplicant -K，从调试日志的 WPS: Network Key 读取明文密钥。",
+    "同一无线芯片同时做热点和客户端、或热点与目标不同信道时，受管接口可能建不起来或无法关联；25 秒内没有关联迹象就结束本目标并说明原因，不硬耗满每个候选预算。",
+    "系统 WPS 路径只覆盖在线候选；离线 Pixie 仍由 reaver 执行，因此仍需 monitor 接口。系统 WPS 模式下离线 Pixie 默认关闭，避免 reaver 注入在部分驱动上导致掉线。"
+  ],
+  "tests": {
+    "unit": [
+      "tests/test_wps_system_sender.py（16 项：配置无 update_config、-K 启动、Network Key 解析、日志脱敏、系统 WPS 默认不跑离线 Pixie、勾选后才跑、Pixie 密码不当作系统 WPS 结果）",
+      "tests/test_wps_start_controller.py（13 项：精简版开始前弹窗、改回 reaver、仍试一次、取消不启动）",
+      "tests/test_wpad_upgrade.py（7 项：包名映射、opkg/apk 已装包解析、有线升级、无线拒绝、验证失败回滚、回滚失败保留临时包）",
+      "tests/test_wps_configuration_flow.py（含 wps_sender/system_offline_pixie 默认值、非法值回落、弹窗显隐与回显）",
+      "tests/test_capture_tool_cards.py（升级入口只在精简版且已连接时显示）",
+      "tests/test_wps_quick_and_radio.py、tests/test_wps_lifecycle.py、tests/test_capture_settings_dialog.py、tests/test_dependency_group_controls.py"
+    ],
+    "result": "全量 WPS 定向 171 项通过；wpad 升级 7 项通过；工具卡 2 项通过（2026-11-15，本机 Windows，离屏/假命令执行器）",
+    "ui": "离屏截图核对：秒 Pin 设置与高级 Pin 工具（亮/暗、秒 Pin 与 Pin 模式）无截断或重叠；离线 Pixie 勾选项只在系统 WPS 下出现；升级按钮只在探测到精简版且已连接时显示。"
+  },
+  "field_findings_20261115": {
+    "device": "Xiaomi Mi Router 3G，OpenWrt 25.12.6，ramips mt7621，mipsel_24kc，apk 包管理器",
+    "system_wps_failure": "第一次 sender=system：wpa_supplicant 报 Line 3: unknown global field 'update_config=1' → Failed to read or parse configuration，一个 PIN 都没发出。",
+    "reaver_failure": "第二次 sender=reaver：14:16:32 启动、14:16:33 收到 beacon、14:16:34.8 后 SSH 命令失败、14:17:17 连 22 端口超时。SSH 走有线；最可能 MT7603E 驱动/固件在注入时挂掉；断线后 dmesg/logread 采集失败，无重启证据。",
+    "conclusion": "精简版 wpad 不支持系统 WPS；reaver 注入在该机型上会整机掉线。开始前必须提示换完整版或改回 reaver；系统 WPS 模式默认不跑离线 Pixie。"
+  },
+  "wpad_upgrade": {
+    "entry": "抓包界面 WPS 卡片内的独立按钮，仅在登录只读探测为精简版且已连接时显示；系统 WPS 因 basic_wpad 失败后也会弹出建议。",
+    "confirmation": "两步：先说明完整版 wpad 能做什么，再单独展示风险（无线短暂重启、必须网线、最坏需 SSH 回滚、不动引导/内核/固件）。",
+    "steps": [
+      "只读检查 SSH 回连路径必须是 wired；无线或无法确认直接拒绝。",
+      "用包管理器探针确认 opkg/apk，列出已装 wpad 包并与官方完整包映射。",
+      "在电脑侧读取官方源，定位完整包和当前精简包，要求回滚包版本与已装版本完全一致。",
+      "下载两包并核对 SHA256；缓存命中也要重新校验。",
+      "预检可写空间，上传到 /tmp 私有目录并复核远端 SHA256。",
+      "备份 /etc/config/wireless 并记录哈希；opkg 生成本地安装配置，不保留软件源。",
+      "卸载精简包，安装完整包；核实二进制含 WPS_REG。",
+      "安装过程若改动无线配置，从备份恢复；验证失败自动装回精简包并恢复配置。"
+    ],
+    "refusal": "无网线管理、包管理器不唯一、官方源不可达、找不到同版本回滚包、空间不足、安装计划会动其他包时直接拒绝，不做静默替换。",
+    "rollback": "失败时先移除完整包，再装回已下载校验的精简包，恢复 wireless 备份并复查无线组件；回滚失败保留临时包目录并在界面明确要求用网线检查，不宣称已恢复。"
+  },
+  "limits": [
+    "尚未在完整版 wpad 环境跑通系统 WPS 发送，真机结果待验证。",
+    "系统 WPS 无法取得 reaver 那种“前半段是否命中”的信息；高级 Pin 因此仍固定使用 reaver。",
+    "wpad 升级流程只有离线单测；真机安装、回滚、apk 与 opkg 实机行为均未验证。",
+    "官方源通常只保留当前版本；若路由器上的精简包不是当前源版本，升级会直接拒绝，避免无法回滚。",
+    "25.12 包为 adb/apk 签名格式，未在电脑侧解包核对二进制；能力判断以路由器运行期探测为准。"
+  ]
+}

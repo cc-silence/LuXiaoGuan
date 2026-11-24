@@ -236,7 +236,7 @@ class RouterFilesPage(QWidget):
             for index in range(tree.topLevelItemCount()):
                 item=tree.topLevelItem(index)
                 entry=item.data(0,Qt.UserRole)
-                item.setText(0,self._display(entry['name']))
+                item.setText(0,entry['name'])
                 item.setToolTip(0,self._display(entry['path']))
             self._filter(tree is self.remote_tree)
 
@@ -754,7 +754,7 @@ class RouterFilesPage(QWidget):
                 items=[]
                 for entry in result['entries']:
                     modified=datetime.fromtimestamp(entry['modified']).strftime('%Y-%m-%d %H:%M') if entry['modified'] else ''
-                    item=FileItem([self._display(entry['name']),'' if stat.S_ISDIR(entry['mode']) else readable_size(entry['size']),file_type(entry),modified,stat.filemode(entry['mode']) if remote else ''])
+                    item=FileItem([entry['name'],'' if stat.S_ISDIR(entry['mode']) else readable_size(entry['size']),file_type(entry),modified,stat.filemode(entry['mode']) if remote else ''])
                     item.setIcon(0,self._folder_icons[remote] if stat.S_ISDIR(entry['mode']) else self._file_icon)
                     item.setTextAlignment(1,Qt.AlignRight|Qt.AlignVCenter)
                     item.setData(0,Qt.UserRole,entry)

@@ -64,16 +64,14 @@ class WirelessEditorRefreshTests(unittest.TestCase):
         dialog.standard_combo.setCurrentIndex(dialog.standard_combo.findData("HE"))
         self.assertEqual(dialog.bandwidth_combo.clear.call_count, 1)
 
-    def test_ap_refresh_keeps_one_encryption_updater(self):
+    def test_ap_password_remains_editable_for_open_encryption_after_refresh(self):
         dialog = AccessPointSetupDialog("radio7", "5G")
         self.addCleanup(dialog.reject)
         self.addCleanup(dialog.deleteLater)
         for _ in range(3):
             configure_ap(dialog, environment())
-        dialog.password.setEnabled = Mock(wraps=dialog.password.setEnabled)
         dialog.encryption.setCurrentIndex(dialog.encryption.findData("none"))
-        self.assertEqual(dialog.password.setEnabled.call_count, 1)
-        self.assertFalse(dialog.password.isEnabled())
+        self.assertTrue(dialog.password.isEnabled())
 
     def test_relay_refresh_keeps_one_zone_updater(self):
         dialog = RelaySetupDialog("Upstream", radio_name="radio7")

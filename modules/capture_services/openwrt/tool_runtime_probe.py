@@ -5,6 +5,10 @@ rm_tool_runtime() {
  rm_probe_path=$(command -v "$1" 2>/dev/null)
  test -n "$rm_probe_path" && test -x "$rm_probe_path" || return 1
  case "$1" in
+  bash)
+   rm_probe_output=$("$rm_probe_path" --version 2>&1); rm_probe_code=$?
+   test "$rm_probe_code" = 0 || return 1
+   case "$rm_probe_output" in *"GNU bash"*) return 0;; esac;;
   iw)
    rm_probe_output=$("$rm_probe_path" --version 2>&1); rm_probe_code=$?
    test "$rm_probe_code" = 0 || return 1
@@ -32,8 +36,11 @@ rm_tool_runtime() {
 
 
 def tool_probe_command(command):
-    if command not in {"iw", "wpa_cli", "iwinfo", "curl", "hcxdumptool"}:
+    if command not in {"iw", "wpa_cli", "iwinfo", "curl", "hcxdumptool", "bash"}:
         raise ValueError("Unsupported tool runtime probe")
+    failure = ('printf "BROKEN\\nCODE:%s\\n" "$rm_probe_code"; '
+               'printf "%.2048s\\n" "$rm_probe_output"' if command == "curl"
+               else 'echo BROKEN')
     return (TOOL_RUNTIME_SH + "\np=$(command -v " + command + " 2>/dev/null); "
             + "if test -z \"$p\" || ! test -x \"$p\"; then echo MISSING; "
-            + "elif rm_tool_runtime " + command + "; then echo READY; else echo BROKEN; fi")
+            + "elif rm_tool_runtime " + command + "; then echo READY; else " + failure + "; fi")

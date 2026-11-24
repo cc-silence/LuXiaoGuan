@@ -43,6 +43,16 @@ local function hash()
     if not value or #value ~= 64 then fail("read") end
     return value
 end
+-- Lua 5.1 compatible: limit characters without cutting a UTF-8 sequence.
+local function remark(value)
+    if type(value)~="string" then return "" end
+    local chars={}
+    for char in value:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+        chars[#chars+1]=char
+        if #chars==128 then break end
+    end
+    return table.concat(chars)
+end
 local function cursor(savedir)
     local c = uci.cursor(nil, savedir)
     if not c or not c:load("wireless") then fail("read") end
@@ -92,10 +102,10 @@ local function inventory()
         local d = disabled(s.disabled)
         local rd = radio and disabled(radio.disabled)
         local reason = ""
-        if s.mode ~= "ap" and s.mode ~= "sta" then reason = "mode"
-        elseif s[".anonymous"] or not valid_name(s[".name"]) then reason = "anonymous"
+        if s[".anonymous"] or not valid_name(s[".name"]) then reason = "anonymous"
         elseif not radio or radio[".type"] ~= "wifi-device" or not valid_name(s.device) then reason = "radio"
-        elseif d == nil or rd == nil then reason = "disabled" end
+        elseif d == nil or rd == nil then reason = "disabled"
+        elseif s.mode ~= "ap" and s.mode ~= "sta" then reason = "mode" end
         local runtime_ssid, runtime_band = "", ""
         local state = "unknown"
         local rs = status[s.device]
@@ -147,7 +157,7 @@ local function inventory()
             if radio.hwmode == "11a" then band = "5g"
             elseif radio.hwmode == "11g" or radio.hwmode == "11b" then band = "2g" end
         end
-        rows[#rows+1] = {label=type(s.description)=="string" and s.description:sub(1,128) or "", section=s[".name"], ssid=type(s.ssid)=="string" and s.ssid or "",
+        rows[#rows+1] = {label=remark(s.description), section=s[".name"], ssid=type(s.ssid)=="string" and s.ssid or "",
             managed_bridge=type(s.rm_bridge)=="string" or type(s.rm_wds_backup)=="string", mode=type(s.mode)=="string" and s.mode or "", radio=type(s.device)=="string" and s.device or "",
             runtime_ssid=runtime_ssid, runtime_band=runtime_band, band=band, disabled=d==true, radio_disabled=rd==true, running=state, reason=reason, details=detail, runtime_note=runtime_note, readiness=s.mode=="ap" and readiness or nil}
     end)

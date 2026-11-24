@@ -30,7 +30,9 @@ class MaintenanceActions:
         return self.page.manager.manager.ssh.connected and identity == self._identity()
 
     def _destination(self, before=False):
-        default = backup_filename("操作" if before is True else before)
+        snapshot = getattr(self.page.capture_service, "openwrt_snapshot", None)
+        device = getattr(snapshot, "device", None)
+        default = backup_filename("操作" if before is True else before, device=device)
         path, _ = QFileDialog.getSaveFileName(self.page, "保存操作前备份" if before else "保存配置备份", default,
                                              "OpenWrt 配置备份 (*.tar.gz)")
         if not path:
@@ -101,7 +103,20 @@ class MaintenanceActions:
             phase, identity = item
             if phase == "done":
                 page._message(result["note"],"warning" if result.get("outcome")=="uncertain" else "info")
-                if result.get("operation")=="restore":return True
+                if result.get("operation")=="restore":
+                    saved=self.reset_inventories.pop(key,{})
+                    if saved.get("state")!="changed":return True
+                    from modules.capture_services.lan_client_recovery import factory_reset_plan
+                    from .network_recovery_result_dialog import NetworkRecoveryResultDialog
+                    defaults=saved["target"]
+                    plan=factory_reset_plan(saved.get("inventory",{}),defaults)
+                    plan["factory_refresh_defaults"]=dict(defaults)
+                    result=dict(result,recovery_title="\u6062\u590d\u914d\u7f6e\uff1a\u91cd\u65b0\u8fde\u63a5",note=result["note"]+"\n\n\u6062\u590d\u540e\u7684\u767b\u5f55\u5730\u5740\uff1a"+defaults["address"])
+                    plan["factory_result_note"]=result["note"]
+                    dialog=NetworkRecoveryResultDialog(result,plan,page.capture_service,page,requires_restart_confirmation=True)
+                    try:dialog.exec()
+                    finally:dialog.deleteLater()
+                    return True
                 if result.get("operation")=="reset":
                     from .factory_reset_result_dialog import FactoryResetResultDialog
                     inventory=self.reset_inventories.pop(key,{})
@@ -131,6 +146,8 @@ class MaintenanceActions:
                 new_key = page.manager.submit("maintenance_apply", review=result,
                                              backup_path=backup_path, backup_expected=expected)
                 if result["operation"]=="reset":self.reset_inventories[new_key]=result.get("client_network",{})
+                elif result["operation"]=="restore":
+                    self.reset_inventories[new_key]=dict(state=result.get("restore_address_state"),target=result.get("restore_lan"),inventory=result.get("client_network",{}))
                 self.pending[new_key] = ("done", identity)
                 self._show_progress(new_key)
                 page._message("正在备份当前配置；校验通过后执行所确认的操作，请保持供电。" if backup_path else "本次不生成当前配置备份，正在执行所确认的操作，请保持供电。")

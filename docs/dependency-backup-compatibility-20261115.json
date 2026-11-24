@@ -1,0 +1,57 @@
+{
+  "date": "2026-11-15",
+  "scope": "Dependency backup and restore; offline Windows Python tests",
+  "findings": [
+    "opkg control may contain Status already; never fabricate duplicate Status",
+    "OpenWrt control description may contain whitespace-only continuation lines; only truly empty lines separate records"
+  ],
+  "audit": {
+    "stats": {
+      "unique": 2982,
+      "indented_blank": 99,
+      "control_status": 486
+    },
+    "references_by_series": {
+      "19.07": 10866,
+      "21.02": 16832,
+      "22.03": 18352,
+      "23.05": 18623,
+      "24.10": 26829
+    },
+    "failures": []
+  },
+  "archives": [
+    {
+      "name": "RouterManager_OpenWrt_Common_Offline_20261110_220721.zip",
+      "sha256": "df99ece736b41288965319bc6883050601ab9e75e50eb05dd92015231a2aa8c1"
+    },
+    {
+      "name": "RouterManager_OpenWrt_Capture_Offline_20261114_144550.zip",
+      "sha256": "e0ea99ae61223b471f4ddf5321bfac5141a3a68c9e193742ba7b9bd2480c6eff"
+    }
+  ],
+  "confirmed_package": {
+    "name": "libevent2-core7",
+    "version": "2.1.12-1",
+    "release": "23.05.4",
+    "target": "mediatek/filogic",
+    "sha256": "e27b8e262b35198451ff1010f200d499a3076fdc3123636c818d14ddf9e18904"
+  },
+  "tests": {
+    "total": 117,
+    "passed": 117,
+    "skipped": 0
+  },
+  "references": [
+    "https://www.debian.org/doc/debian-policy/ch-controlfields.html",
+    "https://raw.githubusercontent.com/openwrt/opkg-lede/1bf042dd06751b693a8544d2317e5b969d666b69/libopkg/pkg_parse.c",
+    "https://raw.githubusercontent.com/openwrt/openwrt/v23.05.4/include/package-pack.mk",
+    "https://raw.githubusercontent.com/alpinelinux/apk-tools/v2.14.9/src/database.c"
+  ],
+  "limitations": [
+    "Official IPK controls are sampled from two existing bundle catalogs, not installed router databases.",
+    "OpenWrt 25.12 APK backup is tested with offline fixtures, not by this IPK control audit.",
+    "No live backup or restore on customer router; custom firmware and previously absent dependencies are not proven.",
+    "Native Debian desktop not tested."
+  ]
+}

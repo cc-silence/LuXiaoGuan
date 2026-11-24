@@ -4,10 +4,13 @@
 都不抛异常、不影响原始错误上报；诊断文件随会话现场目录保留在本地。
 """
 
+from uuid import uuid4
+
 # 诊断项：(文件名后缀, 远端命令)。全部只读；含密码的 UCI 不在此列。
 _DIAG_COMMANDS = (
     ("capture-storage", "df -kP /tmp; du -k /tmp/winbox-capture 2>/dev/null | tail -n 12"),
     ("iw-dev", "iw dev 2>/dev/null"),
+    ("wifi-status", "wifi status 2>/dev/null"),
     ("iw-phy", "iw phy 2>/dev/null"),
     ("ip-link", "ip -o link 2>/dev/null"),
     (
@@ -62,7 +65,7 @@ def collect_tool_failure_diagnostics(
         lines.append("")
     if not lines:
         return ""
-    file_name = f"{safe_tag}-wireless-diag.txt"
+    file_name = f"{safe_tag}-{uuid4().hex[:8]}-wireless-diag.txt"
     try:
         workspace.local_dir.mkdir(parents=True, exist_ok=True)
         (workspace.local_dir / file_name).write_text(

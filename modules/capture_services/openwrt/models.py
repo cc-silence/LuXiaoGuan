@@ -201,6 +201,9 @@ class OpenWrtConnectionResult:
     expected_fingerprint: str = ""
     device: OpenWrtDeviceInfo = field(default_factory=OpenWrtDeviceInfo)
     dependencies: Tuple[DependencyInfo, ...] = field(default_factory=tuple)
+    # full / basic / missing / unknown：只读探测 wpad 是否带 WPS 命令。
+    # 这是开始系统 WPS 前的提示依据；真正能否使用仍由运行期命令探测决定。
+    wps_system_support: str = ""
 
 
 @dataclass(frozen=True)
@@ -212,6 +215,7 @@ class OpenWrtSessionSnapshot:
     host_fingerprint: str = ""
     device: OpenWrtDeviceInfo = field(default_factory=OpenWrtDeviceInfo)
     dependencies: Tuple[DependencyInfo, ...] = field(default_factory=tuple)
+    wps_system_support: str = ""
     access_points: Tuple[AccessPointInfo, ...] = field(default_factory=tuple)
     task_type: CaptureTaskType = CaptureTaskType.NONE
     task_state: str = "idle"

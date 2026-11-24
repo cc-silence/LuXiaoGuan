@@ -51,6 +51,9 @@ class WpsStartController(QObject):
         if not self._current(selected, fingerprint):
             self._message("\u8fde\u63a5\u6216\u6240\u9009\u76ee\u6807\u5df2\u53d8\u5316\uff0c\u8bf7\u91cd\u65b0\u5f00\u59cb\u3002")
             return
+        settings.setdefault("wps_defaults", {})
+        if mode == "second" and not self._confirm_system_wps(settings):
+            return
         by_target = {str(row.bssid).upper(): row for row in entries or ()}
         rows = [by_target.get(str(bssid).upper()) for bssid in selected]
         if any(row is None or row.error for row in rows):
@@ -76,6 +79,56 @@ class WpsStartController(QObject):
             settings["allow_radio_takeover"] = True
         self._launch(settings, selected, mode, entry, fingerprint)
 
+    def _use_reaver(self, settings):
+        defaults = dict(settings.get("wps_defaults") or {})
+        defaults["wps_sender"] = "reaver"
+        settings["wps_defaults"] = defaults
+
+    def _confirm_system_wps(self, settings):
+        """开始前提示精简版 wpad；只读探测结果来自登录快照。"""
+
+        from modules.capture_services.openwrt.wps_defaults import wps_sender
+
+        if wps_sender(settings.get("wps_defaults") or {}) != "system":
+            return True
+        support = str(getattr(
+            self.page.capture_service.openwrt_snapshot,
+            "wps_system_support", "") or "")
+        if support == "full":
+            return True
+        if support == "missing":
+            dialog = ConfirmDialog(
+                "系统 WPS 不可用",
+                "当前路由器缺少 wpa_supplicant 或 wpa_cli，系统 WPS 用不了。\n\n"
+                "请先在依赖页安装常用依赖，或改回 reaver。",
+                self.page,
+                yes_text="改回 reaver 并开始",
+                no_text="取消",
+            )
+            if dialog.exec() != ConfirmDialog.Accepted:
+                return False
+            self._use_reaver(settings)
+            return True
+        if support != "basic":
+            # 探测失败或旧会话没有结果时不拦，交给运行期 wps_reg 探测。
+            return True
+        dialog = ConfirmDialog(
+            "系统 WPS 不可用",
+            "当前路由器的无线组件是精简版（wpad-basic），不含 WPS 功能。\n\n"
+            "系统 WPS 需要完整版 wpad。请改回 reaver，或在路由器上安装完整版后再试。",
+            self.page,
+            yes_text="改回 reaver 并开始",
+            no_text="仍用系统 WPS 试一次",
+            cancel_text="取消",
+        )
+        result = dialog.exec()
+        if result == ConfirmDialog.Accepted:
+            self._use_reaver(settings)
+            return True
+        if result == ConfirmDialog.ActionNo:
+            return True
+        return False
+
     def _launch(self, settings, selected, mode, entry, fingerprint):
         page = self.page
         snapshot = page.capture_service.openwrt_snapshot
@@ -88,12 +141,13 @@ class WpsStartController(QObject):
         if len(selected) > 3:
             scope_text += f"等 {len(selected)} 个目标"
         mode_text = {"normal": "常规 Pin", "second": "秒 Pin", "offline": "离线 Pin"}.get(mode, "组合 Pin")
-        from modules.capture_services.openwrt.wps_defaults import wps_mode_description
+        from modules.capture_services.openwrt.wps_defaults import wps_mode_description, wps_sender_note
         timing = wps_mode_description(mode)
+        sender_note = wps_sender_note(mode, settings.get("wps_defaults") or {})
         if ConfirmDialog(
             f"开始{mode_text}（高风险）",
             f"将对{scope_text}逐个跑 {mode_text}。\n\n"
-            f"{timing}期间占用无线网卡，多目标会依次处理；部分设备会锁定 WPS，使后续 Pin 尝试暂时无法进行。"
+            f"{sender_note}{timing}期间占用无线网卡，多目标会依次处理；部分设备会锁定 WPS，使后续 Pin 尝试暂时无法进行。"
             "只能用于自有或已获明确授权的网络。\n\n"
             "请确认你拥有相关设备和网络的管理或测试授权。",
             page,

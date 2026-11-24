@@ -57,6 +57,17 @@ class CaptureSettingsDialogTests(unittest.TestCase):
                 for scale in (100, 150):
                     self.window.apply_appearance(scale, "default", theme)
                     APP.processEvents()
+                    settings.no_client_observation.setValue(45)
+                    settings.deauth_batches.setValue(7)
+                    for enabled in (False, True):
+                        settings.active_deauth.setChecked(enabled)
+                        APP.processEvents()
+                        self.assertEqual(settings.deauth_options.isVisible(), enabled)
+                        self.assertEqual(settings.no_client_observation.isVisible(), enabled)
+                        self.assertEqual(settings.deauth_batches.isVisible(), enabled)
+                        self.assertEqual(settings.collect_settings()["no_client_observation_seconds"], 45)
+                        self.assertEqual(settings.collect_settings()["deauth_batches"], 7)
+                        self.assertTrue(dialog.grab().save(str(output / f"deauth-{enabled}-{theme}-{scale}.png")))
                     self.assertGreaterEqual(button.width(), button.sizeHint().width())
                     self.assertGreater(settings.scroll_area.viewport().width(), 100)
                     box = settings.auto_open

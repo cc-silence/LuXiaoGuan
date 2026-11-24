@@ -467,6 +467,36 @@ class OpenWrtCaptureBackend(CaptureBackend):
         )
         return self.set_access_points(points)
 
+    def _probe_wps_system_support(self, cancel_event=None):
+        """只读判断无线组件是完整版还是精简版；失败不影响登录。
+
+        完整版 wpad 的二进制里带 WPS_REG 命令，精简版没有；这里只读文件，
+        不改配置、不启动进程。真正可用性仍由运行时 wps_reg 探测决定。
+        """
+
+        command = (
+            "if command -v wpad >/dev/null 2>&1; then t=$(command -v wpad); "
+            "elif command -v wpa_supplicant >/dev/null 2>&1; then "
+            "t=$(command -v wpa_supplicant); else echo WPS_MISSING; exit 0; fi; "
+            "if grep -q 'WPS_REG' \"$t\" 2>/dev/null; then echo WPS_FULL; "
+            "else echo WPS_BASIC; fi"
+        )
+        try:
+            result = self.command_runner.run(
+                "wps_system_capability", command, timeout=10, cancel_event=cancel_event)
+        except Exception:
+            return "unknown"
+        if getattr(result, "exit_code", 1) != 0:
+            return "unknown"
+        text = str(getattr(result, "stdout", "") or "")
+        if "WPS_FULL" in text:
+            return "full"
+        if "WPS_BASIC" in text:
+            return "basic"
+        if "WPS_MISSING" in text:
+            return "missing"
+        return "unknown"
+
     def connect(self, settings, password, expected_fingerprint="", cancel_event=None, progress_callback=None, network_repair=None):
         """建立 SSH，随后执行设备、SFTP 和依赖只读探测。
 
@@ -553,6 +583,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 if item.state.value == "missing" and item.missing_packages and item.key not in OTHER_KEYS else item
                 for item in dependencies
             )
+            wps_system_support = self._probe_wps_system_support(cancel_event)
             detail = "OpenWrt SSH 登录和设备探测完成."
             if recovery_note:
                 detail += recovery_note
@@ -576,6 +607,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 key_type=key_info.key_type,
                 device=device,
                 dependencies=dependencies,
+                wps_system_support=wps_system_support,
             )
         except Exception:
             self.ssh_client.close()
@@ -602,7 +634,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         except (ValueError, IndexError):
             return None
 
-    def _ensure_remote_tmp(self, cancel_event=None, *, allow_unavailable_password_record=False):
+    def _ensure_remote_tmp(self, cancel_event=None, *, allow_unavailable_password_record=False, active_session_id=""):
         """保证远端 /tmp 可用空间；不足先做一次自家残留清理再复核，仍不足拒绝。
 
         真机证据：/tmp 写满会导致 netifd 无线配置重载生成空接口（嘴上说 up，
@@ -610,7 +642,8 @@ class OpenWrtCaptureBackend(CaptureBackend):
         之前就拦下，给出明确清理指引。
         """
 
-        self.reconnect_cleanup.require_ready(allow_unavailable_password_record=allow_unavailable_password_record)
+        self.reconnect_cleanup.require_ready(allow_unavailable_password_record=allow_unavailable_password_record,
+            **({"active_session_id": active_session_id} if active_session_id else {}))
         free_mb = self._check_remote_tmp(cancel_event)
         if free_mb is None or free_mb >= self._TMP_MIN_FREE_MB:
             return
@@ -687,6 +720,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
             return ""
         now = time.time()
         recovered = 0
+        released = 0
         problems = []
         unidentified = 0
         for path in journals:
@@ -706,7 +740,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 continue
             if journal is None or not journal.radio or (not journal.interfaces and not journal.config_token):
                 continue
-            if journal.cleanup_stage == "restored":
+            if journal.cleanup_stage in ("restored", "released"):
                 continue
             if not journal.device_fingerprint:
                 unidentified += 1
@@ -734,6 +768,11 @@ class OpenWrtCaptureBackend(CaptureBackend):
             error = self._recover_single_takeover(recovery_journal, cancel_event, journal_path=path)
             if error is None:
                 recovered += 1
+                try:
+                    if json.loads(path.read_text(encoding="utf-8")).get("cleanup_stage") == "released":
+                        released += 1
+                except (OSError, ValueError, TypeError):
+                    pass
                 note = "" if recovery_journal.config_token else self._audit_recovered_takeover(recovery_journal, path, cancel_event)
                 if note:
                     problems.append(note)
@@ -747,8 +786,10 @@ class OpenWrtCaptureBackend(CaptureBackend):
         note = ""
         if unidentified:
             note += f"{unidentified} 条旧恢复记录无法核实所属设备，已保留且未执行自动恢复。"
-        if recovered:
-            note += f"另恢复了{recovered}个异常中断的无线接管。"
+        if recovered - released:
+            note += f"\u53e6\u6062\u590d\u4e86{recovered - released}\u4e2a\u5f02\u5e38\u4e2d\u65ad\u7684\u65e0\u7ebf\u63a5\u7ba1\u3002"
+        if released:
+            note += "\u90e8\u5206\u65e0\u7ebf\u4fe1\u53f7\u672a\u80fd\u6062\u590d\uff0c\u5df2\u4fdd\u7559\u5f53\u524d\u8bbe\u7f6e\uff0c\u8bf7\u5728\u4fe1\u53f7\u7ba1\u7406\u4e2d\u6309\u9700\u5f00\u542f\u3002"
         if problems:
             note += "恢复异常：" + "；".join(problems)
         return note
@@ -899,7 +940,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 record.interface,
                 session_id,
                 band,
-                settings.get("scan_seconds", 24),
+                settings.get("scan_seconds", 120),
                 settings.get("refresh_seconds", 10),
                 self.workspace_manager,
                 cancel_event=cancel_event,
@@ -1117,7 +1158,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 record.interface,
                 session_id,
                 target,
-                settings.get("idle_timeout_seconds", 180) or 180,
+                settings.get("idle_timeout_seconds", 60) or 60,
                 self.workspace_manager,
                 cancel_event,
                 progress_callback,
@@ -1125,9 +1166,9 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 "",
                 lambda: self.radio_session.heal_link(cancel_event),
                 deauth_batches=settings.get("deauth_batches", 10),
-                no_client_observation_seconds=settings.get("no_client_observation_seconds", 30),
+                no_client_observation_seconds=settings.get("no_client_observation_seconds", 10),
             )
-            if result.verdict in ("none", "partial"):
+            if result.verdict in ("none", "partial", "unknown"):
                 # 包里没有 EAPOL，或有 EAPOL 但凑不出可跑包组合，密码学上无价值，
                 # 不落盘；会话临时目录在成功清理时一并消失。
                 return replace(result, cap_path="")
@@ -1240,6 +1281,9 @@ class OpenWrtCaptureBackend(CaptureBackend):
             reporter.interrupted(isinstance(exc, PasswordVerifyCancelled))
             primary_error = _ssh_lost_error(self.ssh_client, exc)
             from modules.capture_services.openwrt.password_control import ControlRequestTimeout
+            from modules.capture_services.openwrt.password_verification import (
+                PasswordVerifyPreparationError,
+            )
             # 验证期间的异常可能回显含 key 的命令，禁止转发到 worker 消息/诊断。
             if candidates:
                 if isinstance(exc, PasswordVerifyCancelled):
@@ -1250,6 +1294,9 @@ class OpenWrtCaptureBackend(CaptureBackend):
                         )
                 elif isinstance(exc, ControlRequestTimeout):
                     primary_error = RuntimeError(f"路由器无线认证控制请求超时（{exc.operation}），已停止验证并尝试恢复配置；当前候选未被记为错误密码。" + ("配置恢复未确认，请重新连接后检查。" if self.password_verifier.last_restore_errors else ""))
+                elif isinstance(exc, PasswordVerifyPreparationError):
+                    # 准备阶段的说明由程序自己写，只含频段和配置段名，可以直接展示。
+                    primary_error = RuntimeError(str(exc))
                 elif primary_error is not exc:
                     primary_error = RuntimeError("OpenWrt SSH 连接已断开，请重新登录后检查配置恢复情况。")
                 else:
@@ -1544,6 +1591,24 @@ class OpenWrtCaptureBackend(CaptureBackend):
         from modules.capture_services.openwrt.handshake_batch_radio import HandshakeBatchRadio
         batch_radio = HandshakeBatchRadio(self, workspace)
 
+        from threading import Lock
+        publication_lock = Lock()
+        from weakref import WeakValueDictionary
+        published = WeakValueDictionary()
+
+        def publish(entry):
+            with publication_lock:
+                if id(entry) not in published:
+                    if target_callback is not None:
+                        target_callback(entry)
+                    _emit_target_message(message_callback, entry, mask_ssid=_mask_on(settings, "ssid"),
+                         mask_bssid=_mask_on(settings, "bssid"))
+                    published[id(entry)] = entry
+
+        def publish_ready(entries):
+            for entry, _retry in entries:
+                publish(entry)
+
         def consume(group, entries, terminal=False):
             nonlocal primary_error
             group_interruption = None
@@ -1553,18 +1618,21 @@ class OpenWrtCaptureBackend(CaptureBackend):
                     tune_failures.pop(target.bssid, None)
                 if entry.result is not None and entry.result.verdict in _CONVERTIBLE_VERDICTS:
                     retry = False
-                elif entry.error_code == "channel_tune_failed" and group_same_channel:
+                elif entry.error_code == "channel_tune_failed":
                     tune_failures[target.bssid] = tune_failures.get(target.bssid, 0) + 1
-                    retry = tune_failures[target.bssid] < 3
+                    retry = (tune_failures[target.bssid] < 3
+                        and (max_rounds is None or round_no < max_rounds))
                     suffix = (f"\uff1b\u4fe1\u9053\u5207\u6362\u5931\u8d25 {tune_failures[target.bssid]}/3 "
-                              + ("\uff0c\u4e0b\u4e00\u8f6e\u518d\u8bd5" if retry else "\uff0c\u4e0d\u518d\u91cd\u8bd5"))
+                              + ("\uff0c\u672c\u8f6e\u5148\u7ee7\u7eed\u5176\u4ed6\u76ee\u6807\uff0c\u4e0b\u4e00\u8f6e\u518d\u8bd5" if retry else "\uff0c\u672c\u76ee\u6807\u505c\u6b62\u91cd\u8bd5\uff0c\u7ee7\u7eed\u5176\u4ed6\u76ee\u6807"))
                     entry = replace(entry, error=entry.error + suffix)
+                elif entry.error_code == "deauth_timeout":
+                    retry = True
                 elif entry.error or entry.error_code or entry.result is None:
                     retry = False
                 elif entry.result.verdict == "unknown" and max_rounds is None:
                     entry = replace(entry, stop_reason="unknown", result=replace(
                         entry.result, verdict_detail="包文件无法完成检查，本目标已停止。"
-                        + ("原始记录已保留。" if entry.result.has_usable_frames else "未保留文件。")))
+                        + ("原始记录已保留。" if entry.result.cap_path else "未保留文件。")))
                     retry = False
                 if previous and previous.result and any((
                     previous.result.cap_path, previous.result.hc22000_path, previous.result.hccapx_path,
@@ -1574,8 +1642,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 if entry.error or entry.error_code:
                     primary_error = RuntimeError(entry.error or entry.error_code)
                 cleanup_errors.extend(entry.cleanup_errors)
-                if target_callback is not None:
-                    target_callback(entry)
+                publish(entry)
                 if entry.cleanup_errors:
                     group_interruption = _BatchInterrupted("目标清理失败，已停止后续目标。", "failed")
                 if stop_on_idle_unavailable and entry.error_code == "idle_radio_unavailable":
@@ -1584,9 +1651,6 @@ class OpenWrtCaptureBackend(CaptureBackend):
                     group_interruption = _BatchInterrupted("任务已取消。")
                 if group_interruption is not None and len(group) == 1 and not terminal:
                     raise group_interruption
-                if group_interruption is None:
-                    _emit_target_message(message_callback, entry, mask_ssid=_mask_on(settings, "ssid"),
-                         mask_bssid=_mask_on(settings, "bssid"))
                 if retry:
                     pending.append(target)
             if group_interruption is not None and not terminal:
@@ -1614,7 +1678,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 groups = group_channel_targets(current) if group_same_channel else tuple((t,) for t in current)
                 index = 0
                 for group in bounded_groups(groups, lambda: read_target_capacity(self.command_runner, cancel_event)):
-                    ready = processing.pop(wait=processing.full)
+                    ready = processing.pop(wait=processing.full, cancel_event=cancel_event)
                     while ready is not None:
                         consume(*ready)
                         ready = processing.pop()
@@ -1632,14 +1696,16 @@ class OpenWrtCaptureBackend(CaptureBackend):
                         batch_radio=batch_radio, observe_clients=group_same_channel)
                     index += len(group)
                     if isinstance(captured, DeferredHandshake):
-                        processing.submit(group, captured)
+                        processing.submit(group, captured, on_ready=publish_ready)
                     else:
                         consume(group, captured if len(group) > 1 else (captured,))
                 # Retry and no-progress decisions use finalized results from this round.
-                ready = processing.pop(wait=True)
+                ready = processing.pop(wait=True, cancel_event=cancel_event)
                 while ready is not None:
                     consume(*ready)
-                    ready = processing.pop(wait=True)
+                    ready = processing.pop(wait=True, cancel_event=cancel_event)
+                if cancel_event is not None and cancel_event.is_set():
+                    raise _BatchInterrupted("任务已取消。")
             if not any(item.error or item.error_code for item in latest.values()):
                 primary_error = None
         except _BatchInterrupted as exc:
@@ -1651,6 +1717,23 @@ class OpenWrtCaptureBackend(CaptureBackend):
             status = "cancelled" if cancel_event is not None and cancel_event.is_set() else "failed"
             note = str(_fail_with_site(primary_error, workspace))
         finally:
+            # Stop/restore radio ownership before waiting for local-only downloaded jobs.
+            if batch_radio.record is not None or batch_radio.takeover is not None:
+                try:
+                    if progress_callback is not None:
+                        progress_callback(HandshakeCaptureUpdate(0, 0, stage="restoring"))
+                except Exception:
+                    pass
+                try:
+                    cleanup_errors.extend(batch_radio.release(message_callback))
+                except Exception as exc:
+                    cleanup_errors.extend(getattr(exc, "cleanup_errors", (str(exc),)))
+            if processing.pending:
+                try:
+                    if progress_callback is not None:
+                        progress_callback(HandshakeCaptureUpdate(0, 0, stage="saving_existing"))
+                except Exception:
+                    pass
             # Drain downloaded jobs even after cancellation/failure, before workspace cleanup.
             try:
                 ready = processing.pop(wait=True)
@@ -1713,7 +1796,10 @@ class OpenWrtCaptureBackend(CaptureBackend):
         label = '、'.join(_mask_name(settings, t.ssid, t.bssid) for t in group)
         takeover_record = None
         try:
-            self._ensure_remote_tmp(cancel_event)
+            active_session_id = (workspace.session_id if batch_radio is not None
+                and batch_radio.workspace is workspace and batch_radio.record is not None else "")
+            self._ensure_remote_tmp(cancel_event,
+                **({"active_session_id": active_session_id} if active_session_id else {}))
             if batch_radio is not None:
                 record = batch_radio.acquire(session_id, settings, target, round_no,
                                              index, cancel_event, message_callback)
@@ -1800,7 +1886,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 record.interface,
                 session_id,
                 target,
-                settings.get("idle_timeout_seconds", 180) or 180,
+                settings.get("idle_timeout_seconds", 60) or 60,
                 self.workspace_manager,
                 cancel_event,
                 labeled,
@@ -1809,7 +1895,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
                 lambda: self.radio_session.heal_link(cancel_event),
                 deauth_batches=settings.get("deauth_batches", 10),
                 stop_on_missing_beacon=True,
-                **({"no_client_observation_seconds": settings.get("no_client_observation_seconds", 30)} if observe_clients else {}),
+                **({"no_client_observation_seconds": settings.get("no_client_observation_seconds", 10)} if observe_clients else {}),
                 **({"group_targets": group} if group_targets else {}),
                 defer_analysis=True,
             )
@@ -1872,7 +1958,12 @@ class OpenWrtCaptureBackend(CaptureBackend):
         return entries if group_targets else entries[0]
 
     def _save_handshake_entry(self, result, settings, local_root, target, errors, labeled):
-        """复用逐目标的判据、转换和保存，无用包仍不落盘。"""
+        """Apply the shared verdict and retention policy to one target."""
+        if getattr(result, "deauth_timed_out", False) and result.verdict not in _CONVERTIBLE_VERDICTS:
+            from modules.capture_services.openwrt.deauth_command import DEAUTH_TIMEOUT_NOTE
+            note = DEAUTH_TIMEOUT_NOTE
+            return (HandshakeTargetResult(target, replace(result, cap_path="", verdict_detail=note),
+                note, "deauth_timeout", tuple(errors)), True)
         if result.verdict in ("none", "partial"):
             # 无 EAPOL 或凑不出可跑包组合都不落盘（无密码学价值），但都值得再试；
             # 调用方按 verdict 区分显示，partial 标“有反应、值得再试”。
@@ -1883,11 +1974,11 @@ class OpenWrtCaptureBackend(CaptureBackend):
                     else "本轮未抓到可用包。"), note, cleanup_errors=tuple(errors)),
                 True,
             )
-        if result.verdict == "unknown" and not result.has_usable_frames:
+        if result.verdict == "unknown":
             # 自动复核过了：一个可用完整帧都没有，再留就是堆垃圾，不落盘但值得再试。
             note = "；".join(errors)
             return (
-                HandshakeTargetResult(target, _strip_useless_unknown(result), note,
+                HandshakeTargetResult(target, replace(result, cap_path=""), note,
                                       cleanup_errors=tuple(errors)),
                 True,
             )
@@ -1980,7 +2071,8 @@ class OpenWrtCaptureBackend(CaptureBackend):
 
         from modules.capture_services.openwrt.radio_takeover import RadioTakeoverRecord
         pending = getattr(self.radio_takeover, "pending_record", None)
-        if takeover_record is None and isinstance(pending, RadioTakeoverRecord):
+        if (takeover_record is None and isinstance(pending, RadioTakeoverRecord)
+                and pending.session_id == workspace.session_id):
             takeover_record = pending
 
         def _say(text):
@@ -2006,12 +2098,14 @@ class OpenWrtCaptureBackend(CaptureBackend):
         if not self.ssh_client.connected:
             errors.append("SSH 会话不可用，临时接口与接管恢复待下次连接后核实清理。")
             return errors
+        if errors:
+            return errors
         if takeover_record is not None:
             _say("正在恢复被接管的无线…")
             from modules.capture_services.openwrt.capture_takeover import restore_takeover
             errors.extend(restore_takeover(self.radio_takeover, self.ssh_client,
                                            workspace, takeover_record, cancel_event,
-                                           notify=self._notify_signal_changed))
+                                           notify=self._notify_signal_changed, warning_callback=_say))
         elif self.ssh_client.connected:
             self._notify_signal_changed(cancel_event=cancel_event)
         return errors
@@ -2173,6 +2267,7 @@ class OpenWrtCaptureBackend(CaptureBackend):
         or running wireless business requires takeover consent. Cancellation propagates.
         """
 
+        self.reconnect_cleanup.require_ready()
         options = settings or {}
         idle_radio_only = bool(options.get("idle_radio_only", False))
         try:

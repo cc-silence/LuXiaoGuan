@@ -182,9 +182,12 @@ class RouterManagementService(QObject):
                     value = reboot_router(self.manager, event)
                 elif action == "maintenance_preview":
                     value = maintenance.preview(args["kind"], args["source"], event)
-                    if args["kind"]=="reset" and hasattr(self.owner,"lan_recovery"):
+                    if args["kind"] in {"reset", "restore"} and hasattr(self.owner,"lan_recovery"):
                         from .lan_client_recovery import attach_inventory
                         value=attach_inventory(value,ssh)
+                    if args["kind"]=="restore":
+                        from .openwrt.restore_network_inspection import compare_restore_address
+                        value["restore_address_state"]=compare_restore_address(value.get("restore_lan"), value.get("client_network",{}))
                 elif action == "maintenance_backup":
                     value = maintenance.export(args["destination"], args.get("expected"), event, report)
                 else:

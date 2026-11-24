@@ -14,6 +14,44 @@ class WirelessDeleteTests(unittest.TestCase):
         revision=self.manager.inspect(self.cancel).data["revision"]
         return self.manager.delete(section,revision,self.cancel,self.message)
 
+    def test_monitor_delete_only_removes_selected_configuration(self):
+        for disabled in ("0", "1"):
+            with self.subTest(disabled=disabled):
+                self.device.config["wireless"]["monitor_cfg"] = {".type": "wifi-iface", "device": "radio7", "mode": "monitor", "ssid": "capture", "disabled": disabled}
+                before = copy.deepcopy(self.device.config)
+                self.delete("monitor_cfg")
+                del before["wireless"]["monitor_cfg"]
+                self.assertEqual(self.device.config, before)
+
+    def test_monitor_delete_cancel_rolls_back(self):
+        self.device.config["wireless"]["monitor_cfg"] = {".type": "wifi-iface", "device": "radio7", "mode": "monitor", "disabled": "1"}
+        before = copy.deepcopy(self.device.config)
+        original = self.manager._call
+        def call(action, *args, **kwargs):
+            result = original(action, *args, **kwargs)
+            if action == "delete_status":
+                self.cancel.set()
+            return result
+        with patch.object(self.manager, "_call", side_effect=call):
+            with self.assertRaises((InterruptedError, SignalError)):
+                self.delete("monitor_cfg")
+        self.assertEqual(self.device.config, before)
+        self.assertFalse(self.device.sessions)
+
+    def test_monitor_with_bridge_ownership_markers_is_rejected(self):
+        self.device.config["wireless"]["monitor_cfg"] = {".type": "wifi-iface", "device": "radio7", "mode": "monitor", "rm_bridge": "shared"}
+        before = copy.deepcopy(self.device.config)
+        with self.assertRaises(Exception):
+            self.delete("monitor_cfg")
+        self.assertEqual(self.device.config, before)
+
+    def test_other_unsupported_mode_cannot_be_deleted(self):
+        self.device.config["wireless"]["mesh_cfg"] = {".type": "wifi-iface", "device": "radio7", "mode": "mesh"}
+        before = copy.deepcopy(self.device.config)
+        with self.assertRaises(SignalError):
+            self.delete("mesh_cfg")
+        self.assertEqual(self.device.config, before)
+
     def test_ap_delete_preserves_radio_network_and_other_signals(self):
         self.device.config["wireless"]["guest"]=dict(self.device.config["wireless"]["home"],ssid="Guest")
         before=copy.deepcopy(self.device.config)

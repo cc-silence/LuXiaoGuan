@@ -399,9 +399,9 @@ class OpenWrtSshClient:
             self._sftp = None
         _close_resource(resource)
 
-    def open_terminal(self, connection, cancel_event, timeout=15, *, command=None):
+    def open_terminal(self, connection, cancel_event, timeout=15, *, command=None, width=80, height=24):
         return self._open_pty_stream(connection, cancel_event, timeout, command=command,
-                                     kind="terminal", term="xterm-256color", width=80, height=24)
+                                     kind="terminal", term="xterm-256color", width=width, height=height)
 
     def open_control_stream(self, command, cancel_event=None, timeout=8):
         """Owned terminal channel for an interactive protocol, never a user console."""
@@ -610,10 +610,16 @@ class OpenWrtSshClient:
                     or isinstance(exc, SSHException) and "timeout opening channel" in str(exc).lower()
                 )
             )
+            if fatal:
+                from .ssh_liveness import probe_authenticated_connection
+                responsive = probe_authenticated_connection(self, client)
+                exc.ssh_liveness = "responsive" if responsive else "unconfirmed"
+                fatal = not responsive
             if isinstance(exc, TimeoutError) and not isinstance(exc, SshChannelTimeout):
                 reported = SshChannelTimeout(kind, stage, timeout)
             else:
                 reported = exc
+            reported.ssh_liveness = getattr(exc, "ssh_liveness", "not_checked")
             reported.ssh_stage = stage
             reported.ssh_kind = kind
             reported.ssh_elapsed = max(0.0, time.monotonic() - (deadline - timeout))

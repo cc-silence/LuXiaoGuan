@@ -15,13 +15,12 @@ class CurlOfflineTests(CommonOfflineTests):
         selected = self.repo.ipk_selection(self.repo.profile(self.f.device), ["curl"], InstalledPackages({"libc": "1"}))
         self.assertEqual([row.name for row in selected], ["curl"])
 
-    def test_previous_catalog_requests_update(self):
+    def test_previous_catalog_remains_usable(self):
         old = copy.deepcopy(self.f.catalog)
         old["roots"].remove("curl")
         for row in old["profiles"]:
             row["roots"].remove("curl")
-        with self.assertRaisesRegex(ValueError, "\u7248\u672c\u8fc7\u65e7.*\u66f4\u65b0"):
-            validate_catalog(old)
+        self.assertTrue(validate_catalog(old))
 
     def test_official_opkg_versioned_provider_uses_advertised_version(self):
         from modules.capture_services.openwrt.bundle_dependency_rules import requirements, matches

@@ -72,14 +72,16 @@ def renew(adapter,timeout,permit=lambda:True):
                 raise
             return exc
         return None
-    execution_error=request(timeout)
+    execution_error=request(min(timeout, 15))
+    retry_safe = execution_error is None or getattr(execution_error, "network_reason", "") == "lease_failed"
     return _wait_for_address(adapter,timeout,started,permit,execution_error,
-                             reacquire=request if execution_error is None else None)
+                             reacquire=request if retry_safe else None)
 
 
 def _wait_for_address(adapter,timeout,started,permit,execution_error=None,*,reacquire=None):
     expected=adapter.get('expected_addresses', [])
     attempts=0;previous=None;last_reason='address_pending'
+    next_request = time.monotonic() + 5
     while True:
         if not permit():
             emit('address_wait', 'request_expired', snapshot_attempts=attempts)
@@ -121,17 +123,17 @@ def _wait_for_address(adapter,timeout,started,permit,execution_error=None,*,reac
             return current
         else:
             last_reason='address_pending'
-        # A successful request can return the pre-migration lease. That is a
-        # completed stale transaction, not a pending one. Correct it once under
-        # the same deadline, without replaying failed or timed-out requests.
         remaining=timeout-(time.monotonic()-started)
-        if reacquire is not None and last_reason=='address_pending' and remaining>8:
+        if (reacquire is not None and last_reason in ("address_pending", "route_pending")
+                and remaining>8 and time.monotonic()>=next_request):
             from .lease_transition import retained_old_lease
-            if retained_old_lease(adapter,current,expected):
-                request_again=reacquire;reacquire=None
-                emit('lease_process','old_lease_retained',snapshot_attempts=attempts)
-                execution_error=request_again(remaining)
-                continue
+            reason = "old_lease_retained" if retained_old_lease(adapter,current,expected) else "address_pending"
+            emit("lease_process", reason, snapshot_attempts=attempts)
+            execution_error = reacquire(min(remaining, 15))
+            if execution_error is not None and getattr(execution_error, "network_reason", "") != "lease_failed":
+                reacquire = None
+            next_request = time.monotonic() + 5
+            continue
         signature=(last_reason,tuple(sorted(state.items())))
         if signature!=previous:
             emit('adapter_after',last_reason,**state,snapshot_attempts=attempts)

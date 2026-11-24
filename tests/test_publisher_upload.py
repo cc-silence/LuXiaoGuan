@@ -18,12 +18,14 @@ class UploadTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/'upload.zip';path.write_bytes(b'complete-data')
             routes=[NS(proxy_url='http://127.0.0.1:1081'),NS(proxy_url='socks5h://127.0.0.1:1080')]
-            with patch('modules.network_policy.configured_proxy_channels',return_value=routes):
+            with patch('modules.network_policy.configured_proxy_channels',return_value=routes), \
+                 patch('modules.http_socks_bridge.ProxyBridgePool.http_proxy',side_effect=lambda url: 'http://127.0.0.1:43210' if url.startswith('socks5h://') else url) as bridge:
                 if isinstance(first_error,StorageTransportError) and not key.startswith('channel/'):
                     self.assertEqual(api.put(path,key,'application/zip'),b'ok')
                     self.assertEqual(len(calls),2)
                     self.assertEqual(calls[0][1],calls[1][1])
-                    self.assertTrue(calls[1][0]['https'].startswith('socks5h://'))
+                    self.assertEqual(calls[1][0]['https'], 'http://127.0.0.1:43210')
+                    self.assertEqual(bridge.call_args.args[0], 'socks5h://127.0.0.1:1080')
                 else:
                     with self.assertRaises(ValueError):api.put(path,key,'application/zip')
                     self.assertEqual(len(calls),1)

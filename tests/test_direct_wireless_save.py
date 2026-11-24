@@ -78,8 +78,8 @@ class DirectUiTests(unittest.TestCase):
         self.assertIsNone(actions.pending)
         service.save.assert_not_called()
 
-    def test_detected_current_signal_is_warned_and_declining_never_saves(self):
-        from modules.capture_services.openwrt.wireless_management_path import ManagementConnection, management_connection_notice
+    def test_apply_check_continues_directly_without_second_confirmation(self):
+        from modules.capture_services.openwrt.wireless_management_path import ManagementConnection
         actions, service, dialogs = self.actions()
         actions.join(TARGET)
         dialog = dialogs[0]
@@ -90,13 +90,11 @@ class DirectUiTests(unittest.TestCase):
             service.completed.emit(WirelessTaskResult("apply_check", path))
             return True
         service.check_management_connection = Mock(side_effect=checked)
-        with patch.object(actions, "_confirm", return_value=False) as confirmation:
+        with patch.object(actions, "_confirm", side_effect=AssertionError("No second apply confirmation")):
             dialog.save_button.click()
-        confirmation.assert_called_once()
-        self.assertIn(management_connection_notice(path), confirmation.call_args.args[2])
-        service.save.assert_not_called()
-        self.assertIsNone(actions.pending)
-        self.assertFalse(dialog._busy)
+        service.save.assert_called_once()
+        self.assertEqual(actions.pending[0], "save")
+        self.assertTrue(dialog._busy)
         dialog.reject()
 
     def test_cancelled_connection_check_never_opens_confirmation_or_applies(self):
@@ -169,19 +167,23 @@ class DirectUiTests(unittest.TestCase):
         service.save.assert_not_called()
         self.assertFalse(dialog._busy)
 
-    def test_save_refuses_router_changed_during_confirmation(self):
+    def test_save_refuses_router_changed_during_connection_check(self):
+        from modules.capture_services.openwrt.wireless_management_path import ManagementConnection
         actions, service, dialogs = self.actions()
         service._connection_identity = Mock(return_value=object())
         actions.join(TARGET)
         dialog = dialogs[0]
         self.addCleanup(dialog.deleteLater)
         dialog.password.edit.setText("test-password")
-        def switch(*_):
+        def checked(request):
             service._connection_identity.return_value = object()
+            service.completed.emit(WirelessTaskResult("apply_check", ManagementConnection()))
             return True
-        with patch.object(actions, "_confirm", side_effect=switch):
-            dialog.save_button.click()
+        service.check_management_connection = Mock(side_effect=checked)
+        dialog.save_button.click()
         service.save.assert_not_called()
+        self.assertIsNone(actions.pending)
+
 
 @unittest.skipUnless(LuaRuntime, "Test-only Lua runtime unavailable")
 class DirectRecoveryTests(unittest.TestCase):

