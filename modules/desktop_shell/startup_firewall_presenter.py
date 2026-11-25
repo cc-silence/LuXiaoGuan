@@ -19,6 +19,8 @@ class StartupFirewallPresenter(QObject):
         self.done = False
         controller.finished.connect(self._finished)
         controller.stage_changed.connect(self._stage_changed)
+        if hasattr(controller, "password_requested"):
+            controller.password_requested.connect(self._password_requested)
 
     def show_for(self, window):
         """锁住主窗口操作直到检查结束。"""
@@ -39,6 +41,23 @@ class StartupFirewallPresenter(QObject):
                     "adding": "\u6b63\u5728\u6dfb\u52a0\u9632\u706b\u5899\u89c4\u5219\u2026\u2026"}
         if self.dialog is not None and stage in messages:
             self.dialog.update_stage(messages[stage])
+
+    def _password_requested(self, request):
+        """在主线程弹出 sudo 密码输入框，并把结果返回给后台审计线程。"""
+        try:
+            from modules.common_widgets.common_dialogs import SudoPasswordDialog
+            parent = self.dialog if self.dialog is not None else self.parent()
+            dialog = SudoPasswordDialog(parent=parent, reason="路小管需要管理员权限来检查或添加 Linux 防火墙规则，请输入 sudo 密码。")
+            if dialog.exec() == SudoPasswordDialog.Accepted:
+                request["result"] = (dialog.password, dialog.remember, dialog.remember)
+            else:
+                request["result"] = None
+        except Exception:
+            request["result"] = None
+        finally:
+            event = request.get("event")
+            if event is not None:
+                event.set()
 
     def _finished(self, success, error):
         self.done = bool(success)

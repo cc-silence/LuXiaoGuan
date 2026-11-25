@@ -8,7 +8,7 @@
 """
 
 from PySide6.QtCore import QTimer, Qt
-from PySide6.QtWidgets import QCheckBox, QLabel, QPushButton, QTextEdit
+from PySide6.QtWidgets import QCheckBox, QLabel, QLineEdit, QPushButton, QTextEdit
 
 from modules.config_manager import ConfigManager
 from modules.dialog_theme import build_current_base_stylesheet, build_base_stylesheet
@@ -232,3 +232,79 @@ def exec_confirm_with_countdown(dialog, seconds=10, button=None, timeout_action=
     finally:
         timer.stop()
         target_button.setText(base)
+
+
+class SudoPasswordDialog(FramelessDialog):
+    """Linux sudo 密码输入弹窗。
+
+    返回值：exec() 后可读取 password、remember、allow_fallback_file。
+    副作用：只显示弹窗，不保存密码；保存由调用方在验证成功后处理。
+    """
+
+    def __init__(self, parent=None, reason="", show_fallback_warning=False):
+        super().__init__("需要管理员权限", parent, inherit_parent_stylesheet=False, window_controls=False)
+        apply_common_dialog_theme(self, parent)
+        self.set_scaled_size((500, 300))
+        self.password = ""
+        self.remember = False
+        self.allow_fallback_file = bool(show_fallback_warning)
+
+        message = reason or "路小管需要管理员权限来添加 Linux 防火墙规则，请输入 sudo 密码。"
+        label = QLabel(message, self)
+        label.setObjectName("settingsHint")
+        label.setWordWrap(True)
+        self.content_layout.addWidget(label)
+
+        self.password_input = QLineEdit(self)
+        self.password_input.setEchoMode(QLineEdit.Password)
+        self.password_input.setPlaceholderText("输入 sudo 密码")
+        self.password_input.returnPressed.connect(self._accept)
+        self.content_layout.addWidget(self.password_input)
+
+        self.remember_option = QCheckBox("记住密码（下次不再输入）", self)
+        self.remember_option.toggled.connect(self._toggle_warning)
+        self.content_layout.addWidget(self.remember_option)
+
+        self.warning_label = QLabel("", self)
+        self.warning_label.setObjectName("settingsHint")
+        self.warning_label.setWordWrap(True)
+        self.warning_label.setVisible(False)
+        self.content_layout.addWidget(self.warning_label)
+
+        self.error_label = QLabel("", self)
+        self.error_label.setObjectName("settingsHint")
+        self.error_label.setWordWrap(True)
+        self.error_label.setVisible(False)
+        self.content_layout.addWidget(self.error_label)
+
+        self.ok_button = _create_dialog_button("确定", self, "settingsPrimaryButton")
+        self.cancel_button = _create_dialog_button("取消", self, "settingsSecondaryButton")
+        self.ok_button.clicked.connect(self._accept)
+        self.cancel_button.clicked.connect(self.reject)
+        self.button_layout.addWidget(self.ok_button)
+        self.button_layout.addSpacing(10)
+        self.button_layout.addWidget(self.cancel_button)
+        self._toggle_warning(False)
+
+    def _toggle_warning(self, checked):
+        if checked:
+            self.warning_label.setText(
+                "优先保存到系统密钥环。如果密钥环不可用，且你同意，会保存到当前用户私有文件（仅当前用户可读）。"
+                "请确认这台电脑的当前账号只有你信任的人能使用。"
+            )
+            self.warning_label.setVisible(True)
+        else:
+            self.warning_label.setVisible(False)
+
+    def set_error(self, message):
+        self.error_label.setText(str(message or ""))
+        self.error_label.setVisible(bool(message))
+
+    def _accept(self):
+        password = self.password_input.text()
+        if not password:
+            self.set_error("请输入 sudo 密码。")
+            return
+        self.password = password
+        self.remember = bool(self.remember_option.isChecked())
+        self.accept()

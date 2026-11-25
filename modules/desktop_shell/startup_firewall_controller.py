@@ -7,10 +7,10 @@
 import threading
 import time
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QMetaObject, Qt, Signal, Slot
 
 from modules.platform_services.startup_firewall import ensure_startup_firewall_rules
-from modules.platform_services.runtime import is_windows
+from modules.platform_services.runtime import is_linux, is_windows
 
 
 class StartupFirewallController(QObject):
@@ -27,6 +27,8 @@ class StartupFirewallController(QObject):
     finished = Signal(bool, str)
     stage_changed = Signal(str)
 
+    password_requested = Signal(object)
+
     def __init__(self, parent=None):
         """初始化一次性审计状态，不执行平台操作。"""
         super().__init__(parent)
@@ -36,8 +38,24 @@ class StartupFirewallController(QObject):
         self._ready = threading.Event()
         self._error = ""
         self._audit_route = None
-        self.applicable = is_windows()
+        self._password_provider = None
+        self.applicable = self._is_applicable()
         self._stage = "checking" if self.applicable else "not_applicable"
+
+    @staticmethod
+    def _is_applicable():
+        if is_windows():
+            return True
+        if not is_linux():
+            return False
+        try:
+            from modules.platform_services.linux_firewall import _ufw_path
+            return bool(_ufw_path())
+        except Exception:
+            return False
+
+    def set_password_provider(self, provider):
+        self._password_provider = provider
 
     @property
     def active(self):
@@ -73,7 +91,6 @@ class StartupFirewallController(QObject):
                 self._completed = True
                 self._ready.set()
         if not self.applicable:
-            # Only the Windows audit is inapplicable; Linux policy is not certified.
             self.finished.emit(True, "")
             return True
         self.activity_changed.emit()
@@ -107,17 +124,29 @@ class StartupFirewallController(QObject):
     def _repair_connection(self, address, port, cancel_event):
         """Run existing policy preparation only after local TCP access denial."""
         self.wait_ready(cancel_event)
-        if self.applicable:
+        if self.applicable and is_windows():
             from modules.platform_services.network_policy import prepare_target
             from modules.platform_services.windows_network_services import firewall_route
-            route=firewall_route()
-            if route!=self._audit_route:
-                messages=ensure_startup_firewall_rules(progress=self._report_stage)
+            route = firewall_route()
+            if route != self._audit_route:
+                messages = ensure_startup_firewall_rules(progress=self._report_stage, password_provider=self._request_password)
                 if any("失败" in message for message in messages):
-                    raise OSError("网络策略放行未完成；"+"；".join(messages))
-                self._audit_route=getattr(messages,'route',route)
+                    raise OSError("网络策略放行未完成；" + "；".join(messages))
+                self._audit_route = getattr(messages, 'route', route)
             return prepare_target(address, port, cancel_event)
+        if self.applicable and is_linux():
+            # Linux firewall audit is best-effort; no IPsec repair path.
+            return None
         return None
+
+    def _request_password(self):
+        provider = self._password_provider
+        if provider is not None:
+            return provider()
+        request = {"event": threading.Event(), "result": None}
+        self.password_requested.emit(request)
+        request["event"].wait(300)
+        return request.get("result")
 
     def _run_audit(self):
         """执行平台审计并把结果转换为主线程可消费的信号。
@@ -127,19 +156,25 @@ class StartupFirewallController(QObject):
         """
         completed = False
         try:
-            messages = ensure_startup_firewall_rules(progress=self._report_stage)
-            self._audit_route=getattr(messages,'route','firewall')
+            messages = ensure_startup_firewall_rules(progress=self._report_stage, password_provider=self._request_password)
+            self._audit_route = getattr(messages, 'route', 'firewall')
             for message in messages:
                 print(f"[防火墙] {message}")
             if any("失败" in message for message in messages):
                 self._error = "防火墙放行未完成；" + "；".join(messages)
-                self.failed.emit("防火墙放行规则未创建。下载时请确认管理员授权或检查 Windows 防火墙设置。")
+                if is_linux():
+                    self.failed.emit("Linux 防火墙放行规则未完成。请检查管理员密码或 UFW 设置。")
+                else:
+                    self.failed.emit("防火墙放行规则未创建。下载时请确认管理员授权或检查 Windows 防火墙设置。")
             else:
                 completed = True
         except Exception as exc:
             self._error = "防火墙检查失败：" + str(exc)
             print(f"[防火墙] 启动防火墙规则失败：{exc}")
-            self.failed.emit("启动防火墙规则检查失败。下载受阻时请检查 Windows 防火墙设置。")
+            if is_linux():
+                self.failed.emit("Linux 防火墙检查失败。请检查 sudo 权限或 UFW 设置。")
+            else:
+                self.failed.emit("启动防火墙规则检查失败。下载受阻时请检查 Windows 防火墙设置。")
         finally:
             with self._lock:
                 self._active = False

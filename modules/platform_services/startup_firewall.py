@@ -7,6 +7,7 @@ import threading
 from pathlib import Path
 
 from modules.config_manager import BASE_DIR
+from modules.platform_services.runtime import is_linux, is_windows
 from modules.platform_services.windows_firewall import (
     ensure_persistent_allow_rules,
     outbound_is_blocked,
@@ -59,10 +60,17 @@ def startup_network_programs():
     return unique
 
 
-def ensure_startup_firewall_rules(progress=None):
+def _linux_firewall_route():
+    from .linux_firewall import _ufw_path
+    if not is_linux():
+        return "not_applicable"
+    return "linux_ufw" if _ufw_path() else "not_applicable"
+
+
+def ensure_startup_firewall_rules(progress=None, password_provider=None):
     """默认阻止出站时为 WinBox 全部联网组件创建持久放行规则。
 
-    返回值是用户可读的结果消息列表。副作用：必要时触发 UAC 并创建规则；已有
+    返回值是用户可读的结果消息列表。副作用：必要时触发 UAC/sudo 并创建规则；已有
     WinBox 规则时跳过。后台常驻和完整主窗口可共用此函数。
     """
 
@@ -70,45 +78,133 @@ def ensure_startup_firewall_rules(progress=None):
     if progress is not None:
         progress("checking")
     from .windows_network_services import firewall_route
-    route=firewall_route()
+    route = firewall_route()
+    if route == "not_applicable" and is_linux():
+        route = _linux_firewall_route()
     with _AUDIT_LOCK:
-        if _AUDIT_ROUTE!=route:
-            _AUDIT_COMPLETE=False
-            _AUDIT_ROUTE=route
-        if route=='ipsec':
-            return AuditMessages(['防火墙服务已禁用，跳过防火墙规则添加；登录优先直接连接，仅在连接被本机拒绝时尝试 IP 安全策略放行。'],route)
-        if route=='not_applicable':
-            return AuditMessages(['Windows network policy audit is not applicable on this platform.'],route)
+        if _AUDIT_ROUTE != route:
+            _AUDIT_COMPLETE = False
+            _AUDIT_ROUTE = route
+        if route == 'ipsec':
+            return AuditMessages(['防火墙服务已禁用，跳过防火墙规则添加；登录优先直接连接，仅在连接被本机拒绝时尝试 IP 安全策略放行。'], route)
+        if route == 'not_applicable':
+            if is_linux():
+                return AuditMessages(['未检测到受支持的 Linux 防火墙（UFW）。如系统防火墙阻止出站，请手动允许路小管联网。'], route)
+            return AuditMessages(['Windows network policy audit is not applicable on this platform.'], route)
+        if route == 'linux_ufw':
+            return _ensure_linux_firewall_rules_locked(progress, password_provider)
         if _AUDIT_COMPLETE:
-            return AuditMessages(["本进程已完成联网组件防火墙审计"],route)
+            return AuditMessages(["本进程已完成联网组件防火墙审计"], route)
         programs = startup_network_programs()
         if persistent_allow_rules_ready(programs):
             _AUDIT_COMPLETE = True
-            return AuditMessages(["全部防火墙规则已验证且未变化，已批量通过，无需重复检查或添加。"],route)
+            return AuditMessages(["全部防火墙规则已验证且未变化，已批量通过，无需重复检查或添加。"], route)
         if not outbound_is_blocked():
             _AUDIT_COMPLETE = True
-            return AuditMessages(["默认出站未阻止，无需创建放行规则"],route)
+            return AuditMessages(["默认出站未阻止，无需创建放行规则"], route)
         if not programs:
-            return AuditMessages(["未找到需要检测的联网组件，跳过规则检查"],route)
+            return AuditMessages(["未找到需要检测的联网组件，跳过规则检查"], route)
         if progress is not None:
             progress("adding")
         messages = ensure_persistent_allow_rules(programs)
         # 用户取消 UAC 时允许后续操作再次尝试；已处理成功或发现已有规则才缓存结果。
         if not any("失败" in message for message in messages):
             _AUDIT_COMPLETE = True
-        return AuditMessages(messages,route)
+        return AuditMessages(messages, route)
+
+
+def _ensure_linux_firewall_rules_locked(progress, password_provider):
+    global _AUDIT_COMPLETE
+    from .linux_firewall import (
+        LinuxFirewallPermission,
+        ensure_persistent_allow_rules as linux_ensure,
+        outbound_is_blocked as linux_outbound_blocked,
+        persistent_allow_rules_ready as linux_ready,
+    )
+    from .linux_privilege import is_elevated
+    from .linux_sudo_credential import clear_saved, load_saved_password, save_password
+
+    route = "linux_ufw"
+    if _AUDIT_COMPLETE:
+        return AuditMessages(["本进程已完成联网组件防火墙审计"], route)
+    programs = startup_network_programs()
+    password = load_saved_password() or None
+    if not is_elevated() and not password:
+        # try without password only for status checks that may work; ufw status usually needs root
+        pass
+    try:
+        ready = linux_ready(programs, password=password)
+    except LinuxFirewallPermission:
+        ready = False
+    if ready:
+        _AUDIT_COMPLETE = True
+        return AuditMessages(["全部防火墙规则已验证且未变化，已批量通过，无需重复检查或添加。"], route)
+    try:
+        blocked = linux_outbound_blocked(password=password)
+    except LinuxFirewallPermission:
+        blocked = True
+    if not blocked:
+        _AUDIT_COMPLETE = True
+        return AuditMessages(["默认出站未阻止，无需创建放行规则"], route)
+
+    if not is_elevated() and not password:
+        if password_provider is None:
+            return AuditMessages(["需要管理员密码才能检查或添加 Linux 防火墙规则。请在设置中处理防火墙权限。"], route)
+        provided = password_provider()
+        if not provided:
+            return AuditMessages(["已取消管理员授权，未添加 Linux 防火墙规则。"], route)
+        if isinstance(provided, tuple):
+            password, remember, allow_fallback = provided
+        else:
+            password, remember, allow_fallback = provided, False, False
+        if not password:
+            return AuditMessages(["已取消管理员授权，未添加 Linux 防火墙规则。"], route)
+        from .linux_privilege import validate_sudo_password, SudoPasswordError
+        try:
+            validate_sudo_password(password)
+        except SudoPasswordError as exc:
+            clear_saved()
+            return AuditMessages([f"防火墙规则添加失败：{exc}"], route)
+        save_password(password, bool(remember), allow_fallback_file=bool(allow_fallback))
+
+    if progress is not None:
+        progress("adding")
+    try:
+        messages = linux_ensure(programs, password=password)
+    except LinuxFirewallPermission as exc:
+        clear_saved()
+        return AuditMessages([f"防火墙规则添加失败：{exc}"], route)
+    if not any("失败" in message for message in messages):
+        _AUDIT_COMPLETE = True
+    else:
+        # if auth failed, clear saved
+        if any("密码不正确" in m or "验证失败" in m for m in messages):
+            clear_saved()
+    return AuditMessages(messages, route)
 
 
 
-def remove_startup_firewall_rules():
+def remove_startup_firewall_rules(password_provider=None):
     """删除当前 WinBox 启动审计创建的持久防火墙规则。
 
     返回值：用户可读的删除结果消息列表。
-    副作用：可能请求 UAC 并删除当前 WinBox、脚本宿主、aria2 和内置 curl 的规则；
-    不删除更新软件或用户手动添加的防火墙规则。
-
-    调用限制：由设置页面在用户确认后调用。删除后本次进程不会自动重建规则，重启
-    WinBox 才会再次执行启动审计。
+    副作用：可能请求 UAC/sudo 并删除规则。
     """
 
+    from .windows_network_services import firewall_route
+    route = firewall_route()
+    if route == "not_applicable" and is_linux():
+        route = _linux_firewall_route()
+    if route == "linux_ufw":
+        from .linux_firewall import remove_persistent_allow_rules as linux_remove
+        from .linux_sudo_credential import load_saved_password
+        from .linux_privilege import is_elevated
+        password = load_saved_password() or None
+        if not is_elevated() and not password and password_provider is not None:
+            provided = password_provider()
+            if isinstance(provided, tuple):
+                password = provided[0]
+            else:
+                password = provided
+        return linux_remove(startup_network_programs(), password=password)
     return remove_persistent_allow_rules(startup_network_programs())
