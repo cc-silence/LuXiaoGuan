@@ -82,7 +82,7 @@ def _install_packages(manager, checked, device, cache_dir, sftp_available, cance
                         continue
             source = install_with_sources(
                 (lambda: install_from_local(manager,batch,device,cache_dir,sftp_available,cancel,tell,uploader)) if allow_local_bundle else None,
-                lambda: manager._install_online(batch,cancel,tell),
+                lambda: manager._install_online(batch,cancel,tell,**({'device': device} if str(getattr(device, 'distribution', '')).strip().casefold() == 'kwrt' else {})),
                 lambda: manager._install_offline(batch,device,cache_dir,sftp_available,cancel,tell,uploader), tell)
             if source not in sources:
                 sources.append(source)

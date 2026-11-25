@@ -96,7 +96,7 @@ def _install_package(manager, device, package, row, sftp_available, cancel, tell
         tell("正在通过常规安装流程补齐 hcx 缺少的运行库：" + ", ".join(missing), "info")
         install_with_sources(
             lambda: install_from_local(manager, missing, device, cache_dir, sftp_available, cancel, tell, uploader),
-            lambda: manager._install_online(missing, cancel, tell),
+            lambda: manager._install_online(missing, cancel, tell, **({'device': device} if str(getattr(device, 'distribution', '')).strip().casefold() == 'kwrt' else {})),
             lambda: manager._install_offline(missing, device, cache_dir, sftp_available, cancel, tell, uploader), tell)
         versions = parse_libraries(checked_run(manager, "hcx_library_probe", library_probe(pm), cancel))
     if any(versions.get(name) != version for name, version in existing_versions.items()):

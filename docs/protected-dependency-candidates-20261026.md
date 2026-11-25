@@ -37,3 +37,12 @@ candidate_policy.py集中候选安全约束，snapshot_bundle.py选择受限候�
 
 此次保护针对用户空间独立工具，拒绝内核模块，因而不新增无线芯片或驱动分支。平台和架构以设备真实字段及原生包管理器为准，不能把AX6000这次反馈推广为AX3600、RT-ACRH17、AX6S、Q30 Pro或其他型号真机通过；JCG Q30仍与Q30 Pro区分。官方精确离线包覆盖仍以support.json为准，25.12的apk路径未被当作IPK放行。
 当前仅有Windows本机验证；Debian12 x86-64实际依赖、导入启动和相关功能仍待实机验收。预演和依赖声明检查不能证明所有二进制运行时ABI兼容，更不能保证安装绝无风险，所以限制为独立工具且保留运行后复测，不对未知共享组件强装。
+
+## 补充（2026-11-23）：第三方固件按设备真实源做电脑代下载
+
+- 用户授权：Kwrt 等第三方固件在路由器自身下不动时，允许电脑从其**真实的软件源**下载缺包再传装，装依赖与备份依赖都要支持；来源顺序为**优先设备真实源，取不到再退官方 OpenWrt 兼容源**。
+- 行为修正：装依赖（`dependency_manager._install_online`）与信号依赖（`signal_manager.install_dependencies`）不再把 Kwrt 的联网类失败直接终止，改为转 `offline_retry`，从而进入既有三路线流程的“电脑下载转装”。此前第 4 点的“官方分支目录”仍适用于**官方 OpenWrt** 的 SNAPSHOT/RC 候选。
+- 实现：电脑下载走新增的 `signal_package_feed.download_third_party_packages`：先读取设备 `/etc/opkg.conf` 与 `/etc/opkg/*.conf`，只接受无凭据、无查询串/片段的 https 源，在电脑侧抓取各源 `Packages(.gz)` 索引、解析依赖闭包并从同一源下载安装包；读不到源、解析不到包或下载校验失败时，再按该固件的官方分支目录（`download_profile_packages`）尝试一次。两条来源共用同一候选保护、体积上限、sha256 校验和本机缓存实现（`_verify_and_store`），未放宽签名、哈希、已装版本比较、原生预演，未加 force，未改设备软件源；取消不触发回退。
+- 备份依赖：非 OpenWrt 固件的原始包获取本就经 `snapshot_original_packages._online` 转到 `fetch_configured_original`（电脑侧按设备真实源下载并验签），本次新增 Kwrt 专项回归固定该分派，未改动其安全边界。
+- Kwrt 官方源核查（2026-11-23）：`kiddin9/Kwrt` README 明示自建仓库仅 `dl.openwrt.ai`，构建产物也只上传该服务器；该仓库无 GitHub releases 与 tags。`kiddin9/packages-compile`、`kiddin9/op-packages`、`kiddin9/bin` 只是插件/二进制分发，无 opkg 索引与签名，不是可用软件源。因此 Kwrt 没有第二个官方源；官方 OpenWrt 源作为回退，其包结构同源（Kwrt 基于官方 `openwrt-25.12` 分支构建）但内核与具体构建号不同，仍依赖候选保护与原生预演兜底。
+- 依据与限制：改动时 `dl.openwrt.ai` 与 `openwrt.ai` 均返回 Cloudflare HTTP 523（源站不可达），无法取得该源真实索引/签名样本；因优先复用设备自身配置的源，电脑抓取地址与路由器一致，避免猜测镜像目录。第三方固件不在官方 OpenWrt 兼容与验收范围内，本次不放宽任何官方离线包身份校验。证据见 `docs/kwrt-computer-download-validation-20261123.json`。

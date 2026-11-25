@@ -10,15 +10,45 @@ from uuid import uuid4
 from .command_builder import quote_argument as q
 from .dependency_snapshot_transfer import SnapshotGuard, SnapshotTransfer
 from .installed_dependency_reader import InstalledDependencyReader, SnapshotCommandFailure, verify_identity
-from .installed_dependency_catalog import dependency_roots, dependency_closure, allowed_payload, restore_selection
+from .installed_dependency_catalog import dependency_roots, dependency_closure, allowed_payload, restore_selection, _dep_name
 from .dependency_snapshot_archive import (MAX_TOTAL, digest_file, rebuild_package, save_snapshot, load_snapshot)
 from .dependency_snapshot_package_check import inspect_package
 from .dependency_snapshot_plan import install_command, verify_restore_plan
 from .dependency_snapshot_permissions import directory_metadata_command, parse_directory_metadata
-from .snapshot_original_packages import SnapshotOriginalPackages
+from .snapshot_original_packages import SnapshotOriginalPackages, SkippableOriginalRecoveryError
 from .snapshot_configuration import capture_configurations, restore_configurations, affected_configurations, stage_configurations
 from modules.platform_services.local_file_publish import publish_new_file
 from modules.capture_services.capture_logging import LOGGER
+
+
+def _skip_impact(name):
+    try:
+        from .common_tool_dependencies import TOOLS
+        from .other_tool_dependencies import OTHER_TOOLS
+        for tool in (*TOOLS, *OTHER_TOOLS):
+            if name in tool.package_names:
+                label = tool.title
+                if tool.key == 'luci_base_zh':
+                    return label, '以后用这份备份恢复时，路由器自带网页可能有些地方变回英文，或者中文显示不完整。路小管自己的界面不受影响。'
+                if tool.key == 'luci_commands_zh':
+                    return label, '以后用这份备份恢复时，路由器网页里的“自定义命令”页面可能有些地方变回英文。路小管自己的界面不受影响。'
+                if tool.key in {'luci_commands', 'other_terminal', 'other_files', 'other_uhttpd', 'other_upnp', 'other_dnscrypt', 'other_dnscrypt_ui', 'other_zerotier', 'other_zerotier_ui', 'other_mounts'}:
+                    return label, '以后用这份备份恢复时，路由器上这个功能可能需要重新安装，恢复后才能正常使用。'
+                if tool.key in {'iw', 'wpa_cli', 'iwinfo', 'curl', 'wireless_rpc', 'signal', 'bash'}:
+                    return label, '以后用这份备份恢复时，路小管里依赖这个工具的相关功能可能不能正常使用，需要重新安装这个依赖。'
+                return label, '以后用这份备份恢复时，这个依赖可能需要重新安装。'
+    except Exception:
+        pass
+    capture_names = {
+        'hcxdumptool': ('抓包工具 hcxdumptool', '以后用这份备份恢复时，抓握手包/PMKID 相关功能可能不能正常使用，需要重新安装。'),
+        'hcxtools': ('抓包转换工具 hcxtools', '以后用这份备份恢复时，抓包结果转换相关功能可能不能正常使用，需要重新安装。'),
+        'aircrack-ng': ('抓包工具 aircrack-ng', '以后用这份备份恢复时，握手包抓取相关功能可能不能正常使用，需要重新安装。'),
+        'reaver': ('WPS 测试工具 reaver', '以后用这份备份恢复时，WPS 相关功能可能不能正常使用，需要重新安装。'),
+        'pixiewps': ('WPS 测试工具 pixiewps', '以后用这份备份恢复时，WPS 相关功能可能不能正常使用，需要重新安装。'),
+    }
+    if name in capture_names:
+        return capture_names[name]
+    return name, '以后用这份备份恢复时，这个依赖可能需要重新安装，相关功能可能暂时不能用。'
 
 
 class InstalledDependencyBackup:
@@ -36,71 +66,142 @@ class InstalledDependencyBackup:
         selected = dependency_closure(before["packages"], roots, before["manager"])
         if not selected:
             raise ValueError("\u8def\u7531\u5668\u672a\u5b89\u88c5\u53ef\u5907\u4efd\u7684\u8def\u5c0f\u7ba1\u4f9d\u8d56\u3002")
-        addons = [pkg for pkg in selected if pkg.name not in before["builtin"]
-                  or pkg.version != before["builtin"][pkg.name].version]
-        self.reader.enrich(before, addons)
-        builtin = [pkg for pkg in selected if pkg not in addons]
-        self.reader.configuration_ownership(before, builtin)
-        from .snapshot_configuration import config_path
-        paths = {path for pkg in builtin for path in pkg.files if config_path(path)}
-        for pkg in addons:
-            for path in (*pkg.files, *pkg.directories):
-                # The root filesystem is never captured as a directory tree.
-                if not allowed_payload(path):
-                    # Runtime directories are not package payload; a protected file is an error.
-                    kind = self.reader.run("protected_type", "if test -d " + q("/" + path)
-                                           + " && test ! -L " + q("/" + path) + "; then echo directory; else echo file; fi")
-                    if kind != "directory":
-                        raise ValueError("Package owns a protected path; backup stopped: " + path)
-                    continue
-                paths.add(path)
-            # Verified runtime directories are not installable package payload.
-            pkg.files = tuple(path for path in pkg.files if allowed_payload(path))
-            pkg.directories = tuple(path for path in pkg.directories if allowed_payload(path))
+        skipped_packages = []
         remote = self._workspace()
         try:
-            with tempfile.TemporaryDirectory(prefix="luxiaoguan-dependencies-", dir=destination.parent) as directory:
-                local = Path(directory)
-                payload = local / "payload.tgz"
-                if paths:
-                    with SnapshotOriginalPackages(self, before, addons, remote, local) as originals:
-                        directories = self._capture(remote, sorted(paths), payload, local,
-                                                    recover=originals.recover)
-                        provenance = dict(originals.provenance)
-                else:
-                    directories = {}
-                    provenance = {}
-                    with tarfile.open(payload, "w:gz"):
-                        pass
-                settings = capture_configurations(payload, selected, local, self.guard.check)
-                rows = []
-                for position, pkg in enumerate(selected):
-                    self.guard.check()
-                    self.progress(dict(stage="\u6b63\u5728\u5907\u4efd\u4f9d\u8d56\uff1a" + pkg.name,
-                                       completed=position, total=len(selected)))
-                    builtin = pkg not in addons
-                    row = dict(name=pkg.name, version=pkg.version, metadata=pkg.metadata, builtin=builtin)
-                    if pkg.name in settings:
-                        row["configuration"] = settings[pkg.name]
-                    if pkg.name in provenance:
-                        row["original_source"] = provenance[pkg.name]
-                    if not builtin:
-                        output = local / (pkg.name + "." + before["manager"])
-                        row["installed_size"] = rebuild_package(pkg, before["manager"], payload, output, self.guard.check,
+            while True:
+                addons = [pkg for pkg in selected if pkg.name not in before["builtin"]
+                          or pkg.version != before["builtin"][pkg.name].version]
+                self.reader.enrich(before, addons)
+                builtin = [pkg for pkg in selected if pkg not in addons]
+                self.reader.configuration_ownership(before, builtin)
+                from .snapshot_configuration import config_path
+                paths = {path for pkg in builtin for path in pkg.files if config_path(path)}
+                for pkg in addons:
+                    for path in (*pkg.files, *pkg.directories):
+                        # The root filesystem is never captured as a directory tree.
+                        if not allowed_payload(path):
+                            # Runtime directories are not package payload; a protected file is an error.
+                            kind = self.reader.run("protected_type", "if test -d " + q("/" + path)
+                                                   + " && test ! -L " + q("/" + path) + "; then echo directory; else echo file; fi")
+                            if kind != "directory":
+                                raise ValueError("Package owns a protected path; backup stopped: " + path)
+                            continue
+                        paths.add(path)
+                    # Verified runtime directories are not installable package payload.
+                    pkg.files = tuple(path for path in pkg.files if allowed_payload(path))
+                    pkg.directories = tuple(path for path in pkg.directories if allowed_payload(path))
+                try:
+                    with tempfile.TemporaryDirectory(prefix="luxiaoguan-dependencies-", dir=destination.parent) as directory:
+                        local = Path(directory)
+                        payload = local / "payload.tgz"
+                        if paths:
+                            with SnapshotOriginalPackages(self, before, addons, remote, local) as originals:
+                                directories = self._capture(remote, sorted(paths), payload, local,
+                                                            recover=originals.recover)
+                                provenance = dict(originals.provenance)
+                        else:
+                            directories = {}
+                            provenance = {}
+                            with tarfile.open(payload, "w:gz"):
+                                pass
+                        settings = capture_configurations(payload, selected, local, self.guard.check)
+                        rows = []
+                        for position, pkg in enumerate(selected):
+                            self.guard.check()
+                            self.progress(dict(stage="\u6b63\u5728\u5907\u4efd\u4f9d\u8d56\uff1a" + pkg.name,
+                                               completed=position, total=len(selected)))
+                            is_builtin = pkg not in addons
+                            row = dict(name=pkg.name, version=pkg.version, metadata=pkg.metadata, builtin=is_builtin)
+                            if pkg.name in settings:
+                                row["configuration"] = settings[pkg.name]
+                            if pkg.name in provenance:
+                                row["original_source"] = provenance[pkg.name]
+                            if not is_builtin:
+                                output = local / (pkg.name + "." + before["manager"])
+                                row["installed_size"] = rebuild_package(pkg, before["manager"], payload, output, self.guard.check,
                                                                           directory_metadata=directories)
-                        inspect_package(output, before["manager"], row)
-                        row.update(file="packages/" + pkg.name + (".ipk" if before["manager"] == "opkg" else ".apk"),
-                                   size=output.stat().st_size, sha256=digest_file(output, self.guard.check))
-                    rows.append(row)
-                after = self.reader.inventory()
-                self._unchanged(before, after)
-                manifest = dict(format="luxiaoguan-installed-dependencies", schema=2 if settings else 1, manager=before["manager"],
-                                identity=before["identity"], roots=roots, packages=rows)
-                archive = local / "dependencies.zip"
-                save_snapshot(archive, manifest, local, self.guard.check)
-                self.guard.check()
-                publish_new_file(archive, destination)
-                return dict(action="backup", path=str(destination), count=len(rows), stored=len(addons))
+                                inspect_package(output, before["manager"], row)
+                                row.update(file="packages/" + pkg.name + (".ipk" if before["manager"] == "opkg" else ".apk"),
+                                           size=output.stat().st_size, sha256=digest_file(output, self.guard.check))
+                            rows.append(row)
+                        after = self.reader.inventory()
+                        self._unchanged(before, after)
+                        manifest = dict(format="luxiaoguan-installed-dependencies", schema=2 if settings else 1, manager=before["manager"],
+                                        identity=before["identity"], roots=roots, packages=rows)
+                        archive = local / "dependencies.zip"
+                        save_snapshot(archive, manifest, local, self.guard.check)
+                        self.guard.check()
+                        publish_new_file(archive, destination)
+                        return dict(action="backup", path=str(destination), count=len(rows), stored=len(addons),
+                                    skipped_packages=skipped_packages)
+                except SkippableOriginalRecoveryError as exc:
+                    names = {item["name"] for item in exc.packages}
+                    removed = [pkg for pkg in selected if pkg.name in names]
+                    if not removed:
+                        raise
+                    for pkg in removed:
+                        self.progress(dict(stage="\u5df2\u8df3\u8fc7\u65e0\u6cd5\u5907\u4efd\u7684\u4f9d\u8d56\uff1a" + pkg.name))
+                    for item in exc.packages:
+                        if item["name"] not in {p["name"] for p in skipped_packages}:
+                            label, impact = _skip_impact(item["name"])
+                            skipped_packages.append(dict(name=item["name"], version=item["version"],
+                                                         reason=item["reason"], label=label, impact=impact))
+                    excluded = {item["name"] for item in skipped_packages}
+                    selected = [pkg for pkg in selected if pkg.name not in excluded]
+                    roots = [r for r in roots if r not in excluded]
+                    # Also drop packages whose required dependencies are no longer satisfiable.
+                    providers = {}
+                    for pkg in before["packages"].values():
+                        value = pkg.metadata.get("Provides" if before["manager"] == "opkg" else "p", "")
+                        for token in value.split(",") if before["manager"] == "opkg" else value.split():
+                            if token.strip():
+                                providers.setdefault(_dep_name(token, before["manager"]), set()).add(pkg.name)
+                    changed = True
+                    while changed:
+                        changed = False
+                        selected_names = {pkg.name for pkg in selected}
+                        keep = []
+                        for pkg in selected:
+                            value = pkg.metadata.get("Depends" if before["manager"] == "opkg" else "D", "")
+                            if before["manager"] == "opkg" and pkg.metadata.get("Pre-Depends"):
+                                value += (", " if value else "") + pkg.metadata["Pre-Depends"]
+                            ok = True
+                            for expression in value.split(",") if before["manager"] == "opkg" else value.split():
+                                if not expression.strip() or expression.strip().startswith("!"):
+                                    continue
+                                candidates = set()
+                                for option in expression.split("|"):
+                                    dep = _dep_name(option, before["manager"])
+                                    candidates.update({dep} if dep in before["packages"] else providers.get(dep, ()))
+                                if candidates and not (candidates & selected_names):
+                                    ok = False
+                                    break
+                            if ok:
+                                keep.append(pkg)
+                            else:
+                                changed = True
+                                if pkg.name not in excluded:
+                                    label, _ = _skip_impact(pkg.name)
+                                    skipped_packages.append(dict(
+                                        name=pkg.name, version=pkg.version,
+                                        reason='它需要的另一个依赖没法安全备份，所以这个依赖也不能单独备份。',
+                                        label=label,
+                                        impact='它需要的另一个依赖没法安全备份，所以这个依赖也一起跳过了。以后用这份备份恢复时，可能需要重新安装。'))
+                                    excluded.add(pkg.name)
+                                    self.progress(dict(stage="\u5df2\u8df3\u8fc7\u65e0\u6cd5\u5907\u4efd\u7684\u4f9d\u8d56\uff1a" + pkg.name))
+                        selected = keep
+                        roots = [r for r in roots if r not in excluded]
+                    try:
+                        selected = dependency_closure(before["packages"], set(roots), before["manager"])
+                        selected = [pkg for pkg in selected if pkg.name not in excluded]
+                    except ValueError as err:
+                        if "Installed dependency is missing:" not in str(err):
+                            raise
+                    if not selected:
+                        labels = '、'.join((item.get('label') or item['name']) for item in skipped_packages)
+                        raise ValueError('这些依赖都没法安全备份，所以这次没有生成备份文件：' + labels + '。')
+                    continue
         finally:
             self._cleanup(remote)
 

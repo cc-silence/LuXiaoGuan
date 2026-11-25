@@ -605,6 +605,82 @@ def download_profile_packages(profile, installed, cache_dir, fetch=fetch_bytes,
                                           wanted, message, version_check, target, kernel_probe)
 
 
+def download_configured_packages(profile, run, installed, cache_dir,
+                                 cancel_event=None, wanted=_WANTED, message=None, version_check=None):
+    """按设备真实配置的 opkg 源在本机解析并下载缺失闭包。
+
+    用于软件源不是官方 OpenWrt 镜像的固件（如 Kwrt）：run(command_name, command, timeout)
+    只读取设备软件源与已装清单，安装包由本机经 HTTPS 抓取，来源仍是设备真实软件源；
+    不改设备源、不换来源，候选保护与哈希校验和官方源路径一致。
+    """
+    with download_session(message):
+        return _download_configured_packages(profile, run, installed, cache_dir,
+                                             cancel_event, wanted, message, version_check)
+
+
+def download_third_party_packages(profile, run, installed, cache_dir,
+                                  cancel_event=None, wanted=_WANTED, message=None, version_check=None,
+                                  *, target="", kernel_probe=None):
+    """第三方固件电脑下载：优先设备真实源，取不到再退官方 OpenWrt 兼容源。
+
+    设备真实源（如 Kwrt 的 dl.openwrt.ai）能取得所需闭包时只用它；读不到源、解析不到
+    包或下载校验失败时，再按该固件的官方分支目录尝试一次。两条来源都保留相同的候选
+    保护、体积上限与哈希校验。取消不触发回退。
+    """
+    tell = message or (lambda _text, _level: None)
+    try:
+        return download_configured_packages(profile, run, installed, cache_dir,
+                                            cancel_event=cancel_event, wanted=wanted,
+                                            message=message, version_check=version_check)
+    except (ValueError, RuntimeError) as exc:
+        if cancel_event is not None and cancel_event.is_set():
+            raise
+        tell("未从设备真实软件源取得安装包（" + str(exc) + "）；改试官方 OpenWrt 兼容源…", "warning")
+    return download_profile_packages(profile, installed, cache_dir, cancel_event=cancel_event,
+                                     wanted=wanted, message=message, version_check=version_check,
+                                     target=target, kernel_probe=kernel_probe)
+
+
+def _download_configured_packages(profile, run, installed, cache_dir, cancel_event,
+                                  wanted, message, version_check):
+    """读取设备真实源索引，解析闭包后与官方源共用同一写入与校验实现。"""
+    import gzip
+    import io
+
+    from .snapshot_configured_opkg import feed_urls
+    tell = message or (lambda _text, _level: None)
+    tell("正在读取路由器真实软件源…", "info")
+    config = run("dependency_configured_feeds",
+                 'cat /etc/opkg.conf; for f in /etc/opkg/*.conf; do test ! -f "$f" || cat "$f"; done', 30)
+    feeds = feed_urls(config)
+    index = {}
+    for base, compressed in feeds:
+        _check_cancel(cancel_event)
+        try:
+            raw = fetch_bytes(base + ("/Packages.gz" if compressed else "/Packages"),
+                              timeout=60, cancel_event=cancel_event, limit=_MAX_INDEX_BYTES)
+            if compressed:
+                with gzip.GzipFile(fileobj=io.BytesIO(raw)) as stream:
+                    raw = stream.read(_MAX_INDEX_BYTES + 1)
+            if len(raw) > _MAX_INDEX_BYTES:
+                raise ValueError("软件源索引超出体积上限")
+            text = raw.decode("utf-8")
+        except (RuntimeError, ValueError, OSError):
+            # One dead configured feed must not hide a package the others can supply.
+            _check_cancel(cancel_event)
+            continue
+        parsed = parse_packages_index(text, base + "/Packages")
+        for name, package in parsed.items():
+            index.setdefault(name, package)
+    if not index:
+        raise RuntimeError("未能从路由器真实软件源读取软件包索引；请检查电脑网络与该固件软件源是否可用。")
+    requested = [package for package in wanted if package not in installed]
+    missing = resolve_closure(index, requested, installed, version_check)
+    return _verify_and_store(missing, installed, cache_dir, cancel_event, tell, fetch_bytes,
+                             release=profile.release, arch=profile.package_arch,
+                             trial=profile.compatibility_trial)
+
+
 def _download_profile_packages(profile, installed, cache_dir, fetch, cancel_event,
                                wanted, message, version_check, target="", kernel_probe=None):
     """\u5728\u5f53\u524d\u4e0b\u8f7d\u4f1a\u8bdd\u4e2d\u89e3\u6790\u548c\u6821\u9a8c\u4f9d\u8d56\u3002"""
@@ -625,9 +701,17 @@ def _download_profile_packages(profile, installed, cache_dir, fetch, cancel_even
         index=dict(index)
         index.update(fetch_tun_index(profile,target,installed,kernel_probe(),fetch,cancel_event))
         missing=resolve_closure(index,requested,installed,version_check,allowed_kernel=('kmod-tun',))
-    if profile.compatibility_trial or "SNAPSHOT" in profile.release.upper():
+    return _verify_and_store(missing, installed, cache_dir, cancel_event, tell, fetch,
+                             release=profile.release, arch=profile.package_arch,
+                             trial=profile.compatibility_trial)
+
+
+def _verify_and_store(missing, installed, cache_dir, cancel_event, tell, fetch,
+                      *, release, arch, trial=""):
+    """候选保护、体积核对与哈希写入共用；两种来源的唯一下载实现。"""
+    if trial or "SNAPSHOT" in str(release).upper():
         from .candidate_policy import verify_candidate_packages
-        verify_candidate_packages(missing, installed, kwrt=profile.compatibility_trial == "kwrt")
+        verify_candidate_packages(missing, installed, kwrt=trial == "kwrt")
         tell("正在使用官方候选包进行受保护的兼容尝试；不替换已有软件，安装前还将由路由器预演核对。", "info")
     total = sum(package.size for package in missing)
     if total > _MAX_TOTAL_BYTES:
@@ -637,7 +721,7 @@ def _download_profile_packages(profile, installed, cache_dir, fetch, cancel_even
     else:
         tell("安装包均已缓存，无需下载。", "info")
     cache_root = Path(cache_dir).absolute()
-    root = prepare_cache_directory(cache_root / profile.release / profile.package_arch)
+    root = prepare_cache_directory(cache_root / release / arch)
     paths = []
     total_count = len(missing)
     for position, package in enumerate(missing, start=1):

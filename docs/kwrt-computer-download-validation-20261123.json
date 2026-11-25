@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-23",
+  "scope": "Third-party firmware (Kwrt and similar) computer-side dependency download: when the router cannot reach its own package source, the PC downloads the missing packages and transfers them for a native install. The device's real configured opkg feeds are tried first, and the OpenWrt official mirror is kept as a fallback. Dependency backup originals and signal dependencies follow the same policy.",
+  "root_cause": "Two Kwrt-specific guards blocked the approved three-route flow. In dependency_manager._install_online and signal_manager.install_dependencies a network failure was re-raised unchanged for Kwrt instead of converting to offline_retry, so install_with_sources never reached route 3/3 (computer download). In addition the computer download for any non-OpenWrt device resolved packages only from the official OpenWrt mirrors (downloads.openwrt.org / archive.openwrt.org), never from the device's own source (for the logged device, https://dl.openwrt.ai).",
+  "behavior": [
+    "Dependency install and signal dependency install now convert a verified network/source failure to offline_retry for every firmware, so the three-route flow reaches the computer download for Kwrt as documented (local -> router online -> computer download).",
+    "For third-party firmware (normalize_profile compatibility_trial == \"kwrt\", i.e. any distribution other than OpenWrt), the computer download now uses download_third_party_packages: it first reads the device's own configured opkg feeds and downloads the missing closure from those exact HTTPS URLs; if that fails (no readable feed, package not found, or download/checksum failure) it falls back to the firmware's official OpenWrt branch directories through download_profile_packages.",
+    "A cancellation never triggers the official fallback; the router command error is surfaced instead.",
+    "Official OpenWrt install/offline behavior is unchanged: OpenWrt stable/RC/SNAPSHOT still uses the official mirror/branch directories only.",
+    "Both download sources share one implementation for candidate protection, size limits, sha256 verification and the local cache (_verify_and_store); no cache, verification or size rule was relaxed.",
+    "Source validation is unchanged: only https feeds without credentials/query/fragment are accepted; signatures, hashes, installed-version comparison and the native opkg no-op simulation still apply; no new force option and no firmware source edit.",
+    "Dependency backup already routes non-OpenWrt firmware to fetch_configured_original, which downloads from the device's configured feeds on the PC; a Kwrt regression now pins that dispatch."
+  ],
+  "kwrt_official_source_review": {
+    "method": "Read the official Kwrt build repository (kiddin9/Kwrt) README, settings.ini and build workflow, and queried the author's GitHub repositories, branches, tags and releases through the GitHub API.",
+    "findings": [
+      "kiddin9/Kwrt README states the only self-built package repository is dl.openwrt.ai ('自建在线插件仓库 dl.openwrt.ai').",
+      "The build workflow uploads compiled firmware/repository output only to the dl.openwrt.ai server (TARGET: /www/wwwroot/dl.openwrt.ai/releases/tmp/); no second distribution domain is configured.",
+      "kiddin9/Kwrt has no GitHub releases and no tags at review time.",
+      "kiddin9/packages-compile publishes some compiled .ipk files to GitHub releases per architecture; kiddin9/op-packages carries per-plugin .ipk in git; kiddin9/bin holds only sing-box/xray binaries. None of these provide an opkg Packages index or signatures and none covers the base/target feed, so none is a drop-in opkg source.",
+      "The Kwrt build is based on upstream OpenWrt (settings.ini REPO_URL=https://github.com/openwrt/openwrt, branch openwrt-25.12), so the official OpenWrt fallback is structurally related but the kernel build and package versions differ; candidate protection and the native simulation remain the safety net."
+    ]
+  },
+  "documents": [
+    "docs/protected-dependency-candidates-20261026.md addendum 2026-11-23",
+    "docs/dependency-download-diagnostics.md (existing route/field documentation)"
+  ],
+  "official_verification": {
+    "method": "Attempted to read the logged device's real feed during the change and reviewed the official Kwrt build repository; the official OpenWrt mirror layout was already documented and is unchanged.",
+    "findings": [
+      "dl.openwrt.ai and openwrt.ai returned Cloudflare HTTP 523 (origin unreachable) for the site root and for /releases/25.12/packages/aarch64_cortex-a53/base/Packages.gz at change time, so the real Kwrt index/signature layout could not be fetched for this record.",
+      "Because the device's own configured feeds are read first, the PC fetches exactly the URLs the router uses, including the Kwrt target path that carries the kernel build (targets/<target>/<kernel>/Packages.gz); this avoids guessing a mirror layout.",
+      "Third-party firmware is outside the official OpenWrt compatibility scope; this change does not relax any official offline bundle identity check."
+    ],
+    "sources": [
+      {"name": "dl.openwrt.ai / openwrt.ai reachability probe", "result": "HTTP 523 (Cloudflare: origin unreachable)"},
+      {"name": "kiddin9/Kwrt README and .github/workflows/Openwrt-AutoBuild.yml", "url": "https://github.com/kiddin9/Kwrt"}
+    ]
+  },
+  "tests": {
+    "command": "python -m unittest tests.test_dependency_* tests.test_snapshot_* tests.test_configured_package_feed tests.test_installation_* tests.test_package_* tests.test_download_request_classification tests.test_protected_dependency_candidates tests.test_other_dependency_install_fix tests.test_firmware_dependency_support tests.test_customer_missing_helpers tests.test_mirror_task_preference tests.test_bundle_updates tests.test_common_offline_bundle tests.test_partial_offline_bundle tests.test_generic_bundle_rules tests.test_signal_dependency_source tests.test_wireless_dependency_source tests.test_builtin_base tests.test_feedback_regressions tests.test_required_dependencies tests.test_offline_dependency_fallback tests.test_management_dependency_readiness",
+    "total": 483,
+    "failures": 0,
+    "new_tests": [
+      "tests/test_configured_package_feed.py: 14 tests covering PC download from the device's real source, https/credential rejection, one dead feed not hiding a usable feed, core-package protection before any package download, honest all-sources-unreadable error, cancel before download, Kwrt online failure reaching offline_retry, Kwrt offline preferring the device source, OpenWrt offline keeping the official mirror, Kwrt signal dependency failure reaching offline_retry, device-source success not touching the official mirror, device-source failure falling back to the official mirror, cancellation not falling back, and Kwrt backup original dispatch to the PC configured download."
+    ],
+    "coverage": [
+      "Kwrt is not special-cased out of the computer download route anymore",
+      "the computer downloads from the device's configured https feeds first and only falls back to the official OpenWrt mirror when that fails",
+      "candidate protection and hash checks are shared and still reject core packages and existing packages",
+      "OpenWrt still uses the official mirror path only",
+      "cancellation never triggers a fallback"
+    ],
+    "syntax_and_utf8_check": "passed (py_compile on edited modules and the new test; Chinese literals written only through the file tool)"
+  },
+  "limitations": [
+    "No real-router run: dl.openwrt.ai was returning HTTP 523 during the change, so the Kwrt feed could not be exercised end to end from the PC either.",
+    "No Debian 12 desktop run; the new code is pure Python and reuses the existing transport, so no platform branch was added.",
+    "The logged device's failure was a source-level network failure (wget returned 4); this change makes the PC route reachable and adds an official fallback, but a device whose real source is itself unreachable depends on the fallback matching the firmware.",
+    "Feature is a user-authorized exception for third-party firmware; it is not an official OpenWrt compatibility claim and does not extend official offline package coverage."
+  ]
+}

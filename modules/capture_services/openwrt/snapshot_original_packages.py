@@ -15,6 +15,35 @@ from .installed_dependency_catalog import file_path
 from .command_builder import quote_argument as q
 
 
+class SkippableOriginalRecoveryError(ValueError):
+    """Some addon packages cannot be safely recovered from exact originals."""
+
+    def __init__(self, packages):
+        self.packages = tuple(packages)
+        names = ', '.join(pkg['name'] + ' ' + pkg['version'] for pkg in self.packages)
+        super().__init__('Exact original unavailable: ' + names)
+
+
+SKIPPABLE_ORIGINAL_REASONS = (
+    'Exact original unavailable:',
+    'Exact original unavailable for this firmware:',
+    'Original initialization file missing or unsafe:',
+    'Original IPK identity mismatch',
+    'Original package has no verified checksum:',
+    'Original package checksum mismatch:',
+    'Original package size mismatch:',
+    'Original package exceeds size limit',
+    'Invalid original IPK',
+    'Invalid original IPK control',
+    'Original APK installed size unavailable',
+)
+
+
+def _skippable_original_reason(exc):
+    text = str(exc)
+    return any(text.startswith(prefix) or text == prefix for prefix in SKIPPABLE_ORIGINAL_REASONS)
+
+
 class SnapshotOriginalPackages:
     def __init__(self, task, inventory, packages, remote, local):
         self.task, self.inventory, self.packages = task, inventory, packages
@@ -76,7 +105,10 @@ class SnapshotOriginalPackages:
         from .apk_package_feed import (normalize_apk_profile, merge_index,
                                        fetch_sha256sums)
         if device.distribution != 'OpenWrt' or release_kind(device.version) != 'stable':
-            raise ValueError('Exact original unavailable for this firmware: ' + pkg.name + ' ' + pkg.version)
+            if device.package_manager != 'opkg':
+                raise ValueError('Configured APK source verification is not supported for this firmware')
+            from .snapshot_configured_opkg import fetch_configured_original
+            return fetch_configured_original(self, pkg)
         if self.online is None:
             self.stack.enter_context(download_session())
             self.online = {}
@@ -123,6 +155,7 @@ class SnapshotOriginalPackages:
                 raise ValueError('Ambiguous original file owner: ' + path)
             owners.setdefault(matches[0].name, (matches[0], set()))[1].add(path)
         result = self.local / 'original-defaults.tgz'
+        skipped = []
         with tarfile.open(result, 'w:gz') as output:
             for pkg, paths in owners.values():
                 self.task.guard.check()
@@ -136,8 +169,14 @@ class SnapshotOriginalPackages:
                 except (InterruptedError, TimeoutError):
                     raise
                 except Exception as exc:
+                    if _skippable_original_reason(exc):
+                        skipped.append({'name': pkg.name, 'version': pkg.version,
+                                        'reason': str(exc), 'paths': sorted(paths)})
+                        continue
                     raise ValueError('\u8865\u9f50\u521d\u59cb\u5316\u811a\u672c\u5931\u8d25\uff1a' + pkg.name + ' ' + pkg.version
                                      + '\n' + str(exc) + '\n\u672a\u751f\u6210\u5b8c\u6574\u5907\u4efd\u3002') from exc
+        if skipped:
+            raise SkippableOriginalRecoveryError(skipped)
         return result
 
     def _ipk(self, original, pkg, paths, output):

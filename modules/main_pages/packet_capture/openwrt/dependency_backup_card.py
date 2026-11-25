@@ -111,9 +111,30 @@ class DependencyBackupCard(QObject):
             dialog.finished.connect(lambda _: self._close_confirm(dialog))
             dialog.open()
         elif result["action"] == "backup":
-            self._message("\u4f9d\u8d56\u5907\u4efd\u5b8c\u6210\uff1a%d \u4e2a\u4f9d\u8d56\uff08\u542b\u56fa\u4ef6\u81ea\u5e26\u4f9d\u8d56\u8bb0\u5f55\uff09\u3002\n%s\n\n"
-                          "\u5907\u4efd\u53ef\u80fd\u5305\u542b\u5de5\u5177\u81ea\u8eab\u914d\u7f6e\uff0c\u8bf7\u59a5\u5584\u4fdd\u7ba1\u3002" %
-                          (result["count"], result["path"]))
+            skipped = result.get("skipped_packages") or []
+            if skipped:
+                lines = ["\u4f9d\u8d56\u5907\u4efd\u5df2\u5b8c\u6210\uff0c\u4f46\u6709 %d \u4e2a\u4f9d\u8d56\u6ca1\u6709\u5907\u4efd\u3002" % len(skipped),
+                         "\u5df2\u5907\u4efd\uff1a%d \u4e2a\u4f9d\u8d56\u3002" % result["count"],
+                         "\u5907\u4efd\u6587\u4ef6\uff1a%s" % result["path"],
+                         "", "\u672a\u5907\u4efd\u7684\u4f9d\u8d56\uff1a"]
+                for item in skipped:
+                    label = item.get("label") or item.get("name") or "\u672a\u77e5\u4f9d\u8d56"
+                    version = item.get("version") or ""
+                    reason = self._plain_skip_reason(item.get("reason", ""))
+                    impact = item.get("impact") or "\u4ee5\u540e\u7528\u8fd9\u4efd\u5907\u4efd\u6062\u590d\u65f6\uff0c\u8fd9\u4e2a\u4f9d\u8d56\u53ef\u80fd\u9700\u8981\u91cd\u65b0\u5b89\u88c5\u3002"
+                    title = label
+                    if version:
+                        title += "\uff08" + version + "\uff09"
+                    lines.append("\u2022 " + title)
+                    lines.append("  \u539f\u56e0\uff1a" + reason)
+                    lines.append("  \u5f71\u54cd\uff1a" + impact)
+                lines.append("")
+                lines.append("\u5907\u4efd\u53ef\u80fd\u5305\u542b\u5de5\u5177\u81ea\u8eab\u914d\u7f6e\uff0c\u8bf7\u59a5\u5584\u4fdd\u7ba1\u3002")
+                self._message("\n".join(lines))
+            else:
+                self._message("\u4f9d\u8d56\u5907\u4efd\u5b8c\u6210\uff1a%d \u4e2a\u4f9d\u8d56\uff08\u542b\u56fa\u4ef6\u81ea\u5e26\u4f9d\u8d56\u8bb0\u5f55\uff09\u3002\n%s\n\n"
+                              "\u5907\u4efd\u53ef\u80fd\u5305\u542b\u5de5\u5177\u81ea\u8eab\u914d\u7f6e\uff0c\u8bf7\u59a5\u5584\u4fdd\u7ba1\u3002" %
+                              (result["count"], result["path"]))
         else:
             self._message("\u6062\u590d\u5b8c\u6210\uff1a\u8865\u88c5 %d \u4e2a\uff0c\u8df3\u8fc7 %d \u4e2a\u5df2\u5b89\u88c5\u4f9d\u8d56\u3002" %
                           (len(result["installed"]), len(result["skipped"])))
@@ -133,6 +154,23 @@ class DependencyBackupCard(QObject):
             dialog.finish(False, "\u4f9d\u8d56\u5907\u4efd\u6216\u6062\u590d\u672a\u5b8c\u6210\uff1a\n" + text)
         elif not self.disposed:
             self._message(text)
+
+    @staticmethod
+    def _plain_skip_reason(reason):
+        text = str(reason or '')
+        if 'Exact original unavailable for this firmware:' in text:
+            return '找不到这个已安装版本对应的原始安装包，本机离线包里也没有，没法安全补齐初始化脚本。'
+        if 'Exact original unavailable:' in text:
+            return '找不到这个已安装版本对应的原始安装包，没法安全补齐初始化脚本。'
+        if 'Original initialization file missing or unsafe:' in text:
+            return '原始安装包里也没有可用的初始化脚本，没法安全补齐。'
+        if 'Original IPK identity mismatch' in text or 'checksum' in text.lower() or 'size mismatch' in text.lower():
+            return '找到了原始安装包，但校验没通过，为了安全没有使用。'
+        if 'exceeds size limit' in text.lower():
+            return '原始安装包太大，超出安全限制。'
+        if '另一个依赖没法安全备份' in text:
+            return '它需要的另一个依赖没法安全备份，所以这个依赖也一起跳过了。'
+        return '没法安全补齐这个依赖的备份内容。'
 
     def _message(self, text):
         dialog = MessageDialog("\u4f9d\u8d56\u5907\u4efd\u4e0e\u6062\u590d", text, self.card)

@@ -74,14 +74,18 @@ class OriginalTests(unittest.TestCase):
         self.source.original.assert_not_called()
 
     def test_mismatched_original_identity_and_absent_script_fail(self):
+        from modules.capture_services.openwrt.snapshot_original_packages import SkippableOriginalRecoveryError
         self.source.original = Mock(return_value=self.ipk)
         self.pkg.version = '2-r0'
-        with self.assertRaisesRegex(ValueError,'identity'):
+        with self.assertRaises(SkippableOriginalRecoveryError) as ctx:
             self.source.recover(['etc/uci-defaults/curl'])
+        self.assertEqual(ctx.exception.packages[0]['name'], 'curl')
+        self.assertIn('identity', ctx.exception.packages[0]['reason'])
         self.pkg.version = '1-r0'
         self.pkg.files += ('etc/uci-defaults/absent',)
-        with self.assertRaisesRegex(ValueError,'missing or unsafe'):
+        with self.assertRaises(SkippableOriginalRecoveryError) as ctx:
             self.source.recover(['etc/uci-defaults/absent'])
+        self.assertIn('missing or unsafe', ctx.exception.packages[0]['reason'])
 
     def test_shared_authenticated_local_package_prevents_network(self):
         repo = Mock(kind='common')
@@ -308,5 +312,6 @@ class OriginalTests(unittest.TestCase):
     def test_third_party_firmware_does_not_use_official_online_original(self):
         device = self.source._device(self.pkg)
         device.distribution = 'CustomWrt'
-        with self.assertRaisesRegex(ValueError,'this firmware'):
-            self.source._online(self.pkg,device)
+        with patch('modules.capture_services.openwrt.snapshot_configured_opkg.fetch_configured_original', return_value=self.ipk) as fetch:
+            self.assertEqual(self.source._online(self.pkg,device), self.ipk)
+            fetch.assert_called_once_with(self.source, self.pkg)
