@@ -212,7 +212,7 @@ class AppUpdatePage(QWidget):
         if latest and latest.catalog:
             from modules.app_update_services.catalog import history_text
             notes=history_text(latest.catalog,p.checker.current_version,self.view_mode.currentIndex()==1,p.checker.resource_revision) or "\u6ca1\u6709\u5f85\u66f4\u65b0\u7684\u7248\u672c\uff0c\u53ef\u5207\u6362\u67e5\u770b\u6240\u6709\u5386\u53f2\u7248\u672c\u3002"
-        else:notes=release.notes if release else "\u68c0\u67e5\u66f4\u65b0\u540e\uff0c\u8fd9\u91cc\u4f1a\u663e\u793a\u76f8\u5e94\u7684\u66f4\u65b0\u8bf4\u660e\u3002"
+        else:src=release or latest;notes=(src.notes if src else "") or "\u68c0\u67e5\u66f4\u65b0\u540e\uff0c\u8fd9\u91cc\u4f1a\u663e\u793a\u76f8\u5e94\u7684\u66f4\u65b0\u8bf4\u660e\u3002"
         if notes!=self.notes.toPlainText():self.notes.setPlainText(notes)
 
 
