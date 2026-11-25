@@ -25,17 +25,21 @@ def cleanup_script(token):
             + ' && rm -rf ' + q(folder) + '; fi')
 
 
-def prepare_script(name,token,mirror=DOMESTIC[0]):
+def prepare_script(name,token,mirror=DOMESTIC[0], *, kwrt=False):
     if name not in {'opkg','apk'} or not re.fullmatch('[a-f0-9]{32}',token) or mirror not in DOMESTIC:
         raise ValueError('Invalid temporary repository request')
+    if kwrt and name != 'opkg':
+        raise ValueError('Kwrt native source requires opkg')
     rules=[]
-    for source in OFFICIAL+DOMESTIC:
+    for source in (() if kwrt else OFFICIAL+DOMESTIC):
         for scheme in ('https://','http://'):
             root=scheme+source.split('://',1)[1]
             pattern=root.replace('.','[.]')+'/'
             rules.append('-e '+q('s@'+pattern+'@'+mirror+'/@g'))
     if name == 'opkg':
         rules.append('-e '+q(r'/^[[:space:]]*"\{0,1\}option"\{0,1\}[[:space:]][[:space:]]*"\{0,1\}\(http_proxy\|https_proxy\|ftp_proxy\)"\{0,1\}[[:space:]]/d'))
+    if kwrt:
+        rules.append('-e '+q(r'/^[[:space:]]*option[[:space:]][[:space:]]*check_signature[[:space:]]/d'))
     rewrite='sed '+ ' '.join(rules)
     header="""set -e
 umask 077
@@ -56,7 +60,16 @@ for input in /etc/opkg/*.conf; do
  rewrite "$input" "$folder/feeds/${input##*/}"
 done
 """
-        files='"$folder/main.conf" "$folder"/feeds/*.conf'
+        if kwrt:
+            body += """printf '\noption check_signature 1\n' >> "$folder/main.conf"
+found=0
+for input in "$folder/main.conf" "$folder"/feeds/*.conf; do
+ test -f "$input" || continue
+ if grep -qE '^[[:space:]]*src(/gz)?[[:space:]]+[^[:space:]]+[[:space:]]+https://dl[.]openwrt[.]ai/' "$input"; then found=1; fi
+done
+test "$found" -eq 1
+"""
+        files='"$folder/main.conf" "$folder"/feeds/*.conf' 
     else:
         body=""": > "$folder/repositories"
 count=0
@@ -91,6 +104,8 @@ done
 printf '%s\n' "$folder"
 trap - 0
 """.replace('__FILES__',files).replace('__MIRROR__',q(mirror+'/')).replace('__VARIABLES__','1' if name=='apk' else '0')
+    if kwrt:
+        check = check.replace(q(mirror+'/'), q('https://dl.openwrt.ai/'))
     return header+body+check
 
 
@@ -122,10 +137,10 @@ class ScopedPackageManager:
 
 
 @contextmanager
-def domestic_sources(manager, base, cancel, tell):
+def domestic_sources(manager, base, cancel, tell, *, kwrt=False):
     """Use PC official/proxy transport, or an owned native domestic source copy."""
     from modules.network_policy import configured_proxy_channels
-    if configured_proxy_channels():
+    if configured_proxy_channels() and not kwrt:
         error = SignalError('offline_retry', '\u5df2\u914d\u7f6e\u4ee3\u7406\uff0c\u6539\u7531\u7535\u8111\u901a\u8fc7\u4ee3\u7406\u4ece\u5b98\u65b9\u6e90\u4e0b\u8f7d\u5e76\u4f20\u5305\u5b89\u88c5\u3002')
         error.route_skipped = True
         raise error
@@ -136,14 +151,16 @@ def domestic_sources(manager, base, cancel, tell):
     folder = source_directory(token)
     try:
         try:
-            reported = manager._execute('dependency_sources_prepare', prepare_script(base.name, token, mirror), 15, cancel).strip()
+            reported = manager._execute('dependency_sources_prepare', prepare_script(base.name, token, mirror, kwrt=kwrt), 15, cancel).strip()
             if reported != folder:
                 raise ValueError('Unexpected temporary source directory')
         except (SignalError, ValueError) as exc:
             if getattr(exc, 'code', None) == 'cancelled' or (cancel is not None and cancel.is_set()):
                 raise
+            if kwrt:
+                raise SignalError('environment', 'Kwrt 软件源未能安全准备；请核对设备配置的 HTTPS 软件源。') from exc
             raise SignalError('offline_retry', '\u8def\u7531\u5668\u4e34\u65f6\u955c\u50cf\u6e90\u672a\u80fd\u5b89\u5168\u51c6\u5907\uff0c\u6539\u7531\u7535\u8111\u4e0b\u8f7d\u5e76\u6821\u9a8c\u3002') from exc
-        tell('\u8def\u7531\u5668\u76f4\u8fde\u4f7f\u7528' + source_name(mirror + '/') + '\uff08\u4e34\u65f6\u914d\u7f6e\uff09\uff0c\u539f\u8f6f\u4ef6\u6e90\u4fdd\u6301\u4e0d\u53d8\u3002', 'info')
+        tell('\u8def\u7531\u5668\u76f4\u8fde\u4f7f\u7528' + ('Kwrt' if kwrt else source_name(mirror + '/')) + '\uff08\u4e34\u65f6\u914d\u7f6e\uff09\uff0c\u539f\u8f6f\u4ef6\u6e90\u4fdd\u6301\u4e0d\u53d8\u3002', 'info')
         yield ScopedPackageManager(base, folder)
     finally:
         if folder:

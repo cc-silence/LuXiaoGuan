@@ -25,6 +25,7 @@ from .signal_commands import (
 from .signal_models import RouterSignal, SignalInventory
 from .signal_package_feed import (
     default_cache_dir,
+    download_third_party_packages,
     download_profile_packages,
     is_safe_filename,
     normalize_profile,
@@ -125,7 +126,7 @@ class RouterSignalManager:
             raise SignalError("environment", "无法确认可写空间，未执行安装。")
         return package_manager
 
-    def install_dependencies(self, cancel_event, message=None):
+    def install_dependencies(self, cancel_event, message=None, *, device=None):
         """确认后在线安装白名单信号依赖，装完复测；缺项仍在则诚实报错。
 
         包名写死 4 个，不拼用户输入。先预检 opkg/root/空间，分“更新源”“装包”
@@ -139,7 +140,7 @@ class RouterSignalManager:
         package_manager = self._installation_environment(before)
         from .temporary_package_sources import domestic_sources
         try:
-            with domestic_sources(self, package_manager, cancel_event, tell) as package_manager:
+            with domestic_sources(self, package_manager, cancel_event, tell, **({"kwrt": True} if str(getattr(device, "distribution", "")).strip().casefold() == "kwrt" else {})) as package_manager:
                 tell("正在更新软件源…", "info")
                 self._execute_stage(
                     "router_signal_update", package_manager.update(), 180, cancel_event, "更新软件源",
@@ -192,7 +193,7 @@ class RouterSignalManager:
             source = install_with_sources(
                 lambda: install_from_local(OpenWrtDependencyManager(self.runner), wanted, device,
                     cache_dir, bool(getattr(device, "sftp_available", False)), cancel_event, tell, uploader),
-                lambda: self.install_dependencies(cancel_event, tell),
+                lambda: self.install_dependencies(cancel_event, tell, **({"device": device} if str(getattr(device, "distribution", "")).strip().casefold() == "kwrt" else {})),
                 lambda: self.install_offline(device, cache_dir, cancel_event, tell, uploader), tell)
             after = self.probe_dependencies(cancel_event)
             ready = all(after[key] for key in ("lua", "uci", "ubus", "jsonc"))
@@ -224,11 +225,21 @@ class RouterSignalManager:
             30, cancel_event, "读取已装软件包",
         )
         try:
-            paths = download_profile_packages(
-                profile, parse_installed(installed_text),
-                cache_dir or default_cache_dir(), cancel_event=cancel_event,
-                message=message, version_check=lambda a, op, b: compare_opkg_versions(self.runner, a, op, b, cancel_event),
-            )
+            installed = parse_installed(installed_text)
+            version_check = lambda a, op, b: compare_opkg_versions(self.runner, a, op, b, cancel_event)
+            if profile.compatibility_trial == "kwrt":
+                # Kwrt 等衍生固件：优先设备真实软件源，取不到再退官方 OpenWrt 兼容源。
+                paths = download_third_party_packages(
+                    profile,
+                    lambda name, command, timeout: self._execute(name, command, timeout, cancel_event),
+                    installed, cache_dir or default_cache_dir(), cancel_event=cancel_event,
+                    message=message, version_check=version_check)
+            else:
+                paths = download_profile_packages(
+                    profile, installed,
+                    cache_dir or default_cache_dir(), cancel_event=cancel_event,
+                    message=message, version_check=version_check,
+                )
         except ValueError as exc:
             raise SignalError("environment", str(exc)) from None
         except RuntimeError as exc:

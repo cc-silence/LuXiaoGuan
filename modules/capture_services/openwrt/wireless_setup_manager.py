@@ -249,7 +249,7 @@ class WirelessSetupManager:
         from .installation_sources import install_with_sources, report_verified
         source = install_with_sources(
             lambda: install_from_local(installer, wanted, device, cache_dir, sftp_available, cancel, message),
-            lambda: installer._install_online(wanted, cancel, message),
+            lambda: installer._install_online(wanted, cancel, message, **({'device': device} if str(getattr(device, 'distribution', '')).strip().casefold() == 'kwrt' else {})),
             lambda: installer._install_offline(wanted, device, cache_dir, sftp_available, cancel, message), message)
         after = self.inspect(cancel)
         if after.data.get("reload_needed") and set(wanted) & {"rpcd", "rpcd-mod-iwinfo"}:

@@ -19,6 +19,7 @@ from modules.capture_services.openwrt.signal_commands import signal_probe_comman
 from modules.capture_services.openwrt.signal_manager import SignalError
 from modules.capture_services.openwrt.signal_package_feed import (
     default_cache_dir,
+    download_third_party_packages,
     download_profile_packages,
     normalize_profile,
     parse_installed,
@@ -510,13 +511,13 @@ class OpenWrtDependencyManager:
                         wanted.append(str(package))
         return wanted
 
-    def _install_online(self, packages, cancel_event, tell):
+    def _install_online(self, packages, cancel_event, tell, *, device=None):
         """按实际包管理器更新源后逐包安装；联网失败转 offline_retry，其他失败诚实报错。"""
         package_manager = self._preflight(0, cancel_event)
         from .temporary_package_sources import domestic_sources
         from .installation_sources import network_retry_error
         try:
-            with domestic_sources(self,package_manager,cancel_event,tell) as package_manager:
+            with domestic_sources(self,package_manager,cancel_event,tell, **({'kwrt': True} if str(getattr(device, 'distribution', '')).strip().casefold() == 'kwrt' else {})) as package_manager:
                 self._execute_stage(
                     "dependency_update", package_manager.update(), 180, cancel_event, "更新软件源")
                 self._package_change(package_manager, tuple(packages), cancel_event)
@@ -558,15 +559,27 @@ class OpenWrtDependencyManager:
             installed_text = self._execute_stage(
                 "dependency_list_installed", "opkg list-installed",
                 30, cancel_event, "读取已装软件包")
+            installed = parse_installed(installed_text)
+            version_check = lambda a, op, b: compare_opkg_versions(self.command_runner, a, op, b, cancel_event)
             try:
-                paths = download_profile_packages(
-                    profile, parse_installed(installed_text),
-                    cache_dir or default_cache_dir(), cancel_event=cancel_event,
-                    wanted=tuple(wanted), message=tell,
-                    version_check=lambda a, op, b: compare_opkg_versions(self.command_runner, a, op, b, cancel_event),
-                    target=getattr(device,'target',''),
-                    kernel_probe=lambda: self._execute_stage('dependency_running_kernel','uname -r',
-                        10,cancel_event,'\u6838\u5bf9\u8fd0\u884c\u4e2d\u5185\u6838').strip())
+                if profile.compatibility_trial == "kwrt":
+                    # Kwrt 等衍生固件：优先设备真实软件源，取不到再退官方 OpenWrt 兼容源。
+                    paths = download_third_party_packages(
+                        profile,
+                        lambda name, command, timeout: self._execute(name, command, timeout, cancel_event),
+                        installed, cache_dir or default_cache_dir(), cancel_event=cancel_event,
+                        wanted=tuple(wanted), message=tell, version_check=version_check,
+                        target=getattr(device,'target',''),
+                        kernel_probe=lambda: self._execute_stage('dependency_running_kernel','uname -r',
+                            10,cancel_event,'\u6838\u5bf9\u8fd0\u884c\u4e2d\u5185\u6838').strip())
+                else:
+                    paths = download_profile_packages(
+                        profile, installed,
+                        cache_dir or default_cache_dir(), cancel_event=cancel_event,
+                        wanted=tuple(wanted), message=tell, version_check=version_check,
+                        target=getattr(device,'target',''),
+                        kernel_probe=lambda: self._execute_stage('dependency_running_kernel','uname -r',
+                            10,cancel_event,'\u6838\u5bf9\u8fd0\u884c\u4e2d\u5185\u6838').strip())
             except SignalError:
                 raise
             except ValueError as exc:

@@ -33,6 +33,25 @@ class AdapterReconnectTests(unittest.TestCase):
                 recovery._linux(row, 60, lambda: True)
             cmd.assert_not_called()
 
+    def test_linux_reserves_cleanup_time_and_reports_cancellation(self):
+        from modules.platform_services import lan_network_linux as linux
+        row = adapter(connection="known-profile")
+        clock = [100.0]
+        permitted = [True]
+        def execute(args, timeout):
+            self.assertLessEqual(timeout, 15 - (clock[0] - 100))
+            if "disconnect" in args:
+                clock[0] += timeout
+                permitted[0] = False
+            return ""
+        with patch.object(recovery.time, "monotonic", side_effect=lambda: clock[0]), \
+             patch.object(linux, "inspect", return_value=[row]), \
+             patch.object(linux, "command", side_effect=execute) as cmd:
+            with self.assertRaises(InterruptedError):
+                recovery._linux(row, 15, lambda: permitted[0])
+        self.assertEqual(cmd.call_count, 2)
+        self.assertIn("known-profile", cmd.call_args_list[1].args[0])
+
     def test_failure_is_not_reported_as_success(self):
         with patch("modules.platform_services.update_elevation.run_elevated_update", return_value=(True, 1)):
             with self.assertRaises(RuntimeError):

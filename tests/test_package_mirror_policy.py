@@ -128,6 +128,41 @@ class NativeSourceTests(unittest.TestCase):
             with self.assertRaises(SignalError) as caught:
                 with domestic_sources(manager,PackageManager('opkg'),None,Mock()):pass
         self.assertEqual(caught.exception.code,'cancelled')
+    def test_kwrt_scoped_sources_preserve_actual_feed_and_require_signatures(self):
+        import subprocess, tempfile
+        from pathlib import Path
+        bash = Path("C:/Program Files/Git/bin/bash.exe")
+        if not bash.is_file():
+            self.skipTest("POSIX shell unavailable")
+        with tempfile.TemporaryDirectory(dir=Path("build").resolve()) as directory:
+            root = Path(directory)
+            (root / "etc/opkg").mkdir(parents=True)
+            (root / "tmp").mkdir()
+            (root / "etc/opkg.conf").write_text("dest root /\n", encoding="utf-8")
+            feed = root / "etc/opkg/distfeeds.conf"
+            url = "https://dl.openwrt.ai/releases/25.12/packages/aarch64_cortex-a53/base"
+            feed.write_text("src/gz kwrt_base " + url + "\n", encoding="utf-8")
+            script = prepare_script("opkg", "a"*32, kwrt=True)
+            for prefix in ("/etc/opkg", "/tmp/lxg-feeds"):
+                script = script.replace(prefix, root.as_posix() + prefix)
+            result = subprocess.run([str(bash), "--noprofile", "--norc", "-s"], input=script,
+                                    text=True, encoding="utf-8", capture_output=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            folder = Path(result.stdout.strip())
+            self.assertIn(url, (folder / "feeds/distfeeds.conf").read_text(encoding="utf-8"))
+            self.assertIn("option check_signature 1", (folder / "main.conf").read_text(encoding="utf-8"))
+            self.assertEqual(feed.read_text(encoding="utf-8"), "src/gz kwrt_base " + url + "\n")
+            feed.unlink()
+            (root / "etc/opkg.conf").write_text("dest root /\nsrc/gz kwrt_base " + url + "\n", encoding="utf-8")
+            main_only = subprocess.run([str(bash), "--noprofile", "--norc", "-s"],
+                input=script.replace("a"*32, "c"*32), text=True, encoding="utf-8", capture_output=True, timeout=10)
+            self.assertEqual(main_only.returncode, 0, main_only.stderr)
+            feed.write_text("src/gz extra https://untrusted.invalid/feed\n", encoding="utf-8")
+            failed = subprocess.run([str(bash), "--noprofile", "--norc", "-s"],
+                                    input=script.replace("a"*32, "b"*32), text=True,
+                                    encoding="utf-8", capture_output=True, timeout=10)
+            self.assertNotEqual(failed.returncode, 0)
+
     def test_scripts_never_write_original_sources(self):
         for name in ('opkg','apk'):
             script=prepare_script(name,'a'*32)
