@@ -1,4 +1,4 @@
-"""OpenWrt 抓包页面的 Windows 本地资源选择协作者。"""
+"""OpenWrt 抓包页面的本地资源选择协作者。"""
 
 from pathlib import Path
 
@@ -13,7 +13,7 @@ class OpenWrtResourcePicker:
     参数：parent 是文件对话框父窗口；settings_manager 用于解析便携路径。
     返回值：choose_* 成功时回填 QLineEdit 并返回路径，取消时返回空字符串。
     副作用：显示系统文件或目录选择器；不创建目录、不打开资源管理器。
-    调用限制：只处理 Windows 本地路径，不能用于 OpenWrt POSIX 远端目录。
+    调用限制：只处理本机本地路径，不能用于 OpenWrt POSIX 远端目录。
     """
 
     def __init__(self, parent, settings_manager=None):

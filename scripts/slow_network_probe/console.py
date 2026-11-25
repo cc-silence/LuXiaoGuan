@@ -63,8 +63,14 @@ def customer_main(automated=False):
     print("\n已取消。" if cancel.is_set() else "\n本轮测试已结束（不代表所有网络项目都成功）。", flush=True)
     print("把下面这个压缩包发回来即可：\n" + str(archive), flush=True)
     if not automated:
-        if os.name == "nt":
-            os.startfile(str(directory))
+        try:
+            if os.name == "nt":
+                os.startfile(str(directory))
+            else:
+                import subprocess
+                subprocess.run(["xdg-open", str(directory)], check=False)
+        except Exception:
+            pass
         try:
             input("\n按回车关闭窗口……")
         except EOFError:

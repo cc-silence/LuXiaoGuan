@@ -136,12 +136,17 @@ def _ensure_linux_firewall_rules_locked(progress, password_provider):
         ready = linux_ready(programs, password=password)
     except LinuxFirewallPermission:
         ready = False
+        if not is_elevated() and not password:
+            # 没有管理员权限时无法读取 UFW 状态；避免启动时强行弹密码，只提示后续可重试。
+            return AuditMessages(["暂时无法检查 Linux 防火墙状态（需要管理员权限）。如果联网或登录路由器被防火墙阻止，请稍后授权检查。"], route)
     if ready:
         _AUDIT_COMPLETE = True
         return AuditMessages(["全部防火墙规则已验证且未变化，已批量通过，无需重复检查或添加。"], route)
     try:
         blocked = linux_outbound_blocked(password=password)
     except LinuxFirewallPermission:
+        if not is_elevated() and not password:
+            return AuditMessages(["暂时无法检查 Linux 防火墙状态（需要管理员权限）。如果联网或登录路由器被防火墙阻止，请稍后授权检查。"], route)
         blocked = True
     if not blocked:
         _AUDIT_COMPLETE = True

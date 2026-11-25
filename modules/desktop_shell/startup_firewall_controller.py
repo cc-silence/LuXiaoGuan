@@ -155,6 +155,7 @@ class StartupFirewallController(QObject):
         副作用：调用平台服务；控制台记录排查信息，失败时发出用户可读提示。
         """
         completed = False
+        soft_skip = False
         try:
             messages = ensure_startup_firewall_rules(progress=self._report_stage, password_provider=self._request_password)
             self._audit_route = getattr(messages, 'route', 'firewall')
@@ -166,6 +167,10 @@ class StartupFirewallController(QObject):
                     self.failed.emit("Linux 防火墙放行规则未完成。请检查管理员密码或 UFW 设置。")
                 else:
                     self.failed.emit("防火墙放行规则未创建。下载时请确认管理员授权或检查 Windows 防火墙设置。")
+            elif any("暂时无法检查 Linux 防火墙状态" in message for message in messages):
+                self._error = "；".join(messages)
+                soft_skip = True
+                completed = False
             else:
                 completed = True
         except Exception as exc:
@@ -181,5 +186,8 @@ class StartupFirewallController(QObject):
                 # UAC 取消或平台失败时允许同一进程后续再次尝试。
                 self._completed = completed
                 self._ready.set()
-            self.finished.emit(completed, self._error)
+            if soft_skip:
+                self.finished.emit(True, "")
+            else:
+                self.finished.emit(completed, self._error)
             self.activity_changed.emit()
